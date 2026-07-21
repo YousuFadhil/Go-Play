@@ -1,0 +1,14 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets
+*.env
+
+# Local tool settings
+.claude/settings.local.json
