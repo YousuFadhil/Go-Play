@@ -5,6 +5,9 @@
   "navHome": "الرئيسية",
   "navGroups": "المجموعات",
 
+  "emailLabel": "البريد الإلكتروني",
+  "emailRequired": "البريد الإلكتروني مطلوب",
+  "emailInvalid": "أدخل بريداً إلكترونياً صحيحاً",
   "phoneLabel": "رقم الجوال",
   "phoneHint": "مثال: 9665xxxxxxxx (مع رمز الدولة)",
   "passwordLabel": "كلمة المرور",
@@ -15,13 +18,13 @@
 
   "loginTitle": "تسجيل الدخول",
   "loginButton": "دخول",
-  "loginFailed": "فشل تسجيل الدخول. تحقق من رقم الجوال وكلمة المرور.",
+  "loginFailed": "فشل تسجيل الدخول. تحقق من البريد الإلكتروني وكلمة المرور.",
   "noAccountPrompt": "ليس لديك حساب؟ إنشاء حساب",
 
   "registerTitle": "إنشاء حساب",
   "registerButton": "إنشاء الحساب",
   "registerFailed": "فشل إنشاء الحساب. حاول مرة أخرى.",
-  "phoneAlreadyUsed": "رقم الجوال مسجل مسبقاً.",
+  "emailAlreadyUsed": "البريد الإلكتروني مسجل مسبقاً.",
   "fullNameLabel": "الاسم الكامل",
   "fullNameRequired": "الاسم الكامل مطلوب",
   "positionLabel": "المركز الأساسي",

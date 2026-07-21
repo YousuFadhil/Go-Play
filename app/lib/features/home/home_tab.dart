@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
 import '../auth/auth_service.dart';
@@ -81,6 +82,11 @@ class _HomeTabState extends State<HomeTab> {
                       l10n.upcomingMatchesEmpty,
                       textAlign: TextAlign.center,
                     ),
+                    if (Supabase.instance.client.auth.currentUser?.email
+                        case final email?) ...[
+                      const SizedBox(height: 8),
+                      Text(email, textDirection: TextDirection.ltr),
+                    ],
                   ],
                 ),
               ),

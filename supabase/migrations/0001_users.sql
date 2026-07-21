@@ -1,10 +1,12 @@
 -- Sprint 1: Authentication
 -- Creates the public.users profile table linked to Supabase Auth,
 -- per Docs/07-Database-Design.md (MVP scope per Docs/01-PRD.md).
+-- Identity is email+password (see Docs/10-Design-Decisions.md DD-02);
+-- phone is a required contact field, not a login identity.
 
 create table public.users (
   id uuid primary key references auth.users (id) on delete cascade,
-  phone text not null unique,
+  phone text not null,
   full_name text not null,
   primary_position text not null
     check (primary_position in ('GK', 'DEF', 'MID', 'FWD')),
@@ -32,7 +34,7 @@ create trigger users_set_updated_at
   execute function public.set_updated_at();
 
 -- Create the profile row automatically when a user signs up.
--- full_name and primary_position arrive via auth signUp metadata.
+-- full_name, primary_position and phone arrive via auth signUp metadata.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -43,7 +45,7 @@ begin
   insert into public.users (id, phone, full_name, primary_position)
   values (
     new.id,
-    coalesce(new.phone, ''),
+    coalesce(new.raw_user_meta_data ->> 'phone', ''),
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
     coalesce(new.raw_user_meta_data ->> 'primary_position', 'MID')
   );

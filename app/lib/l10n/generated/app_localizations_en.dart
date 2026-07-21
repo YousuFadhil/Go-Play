@@ -18,6 +18,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navGroups => 'Groups';
 
   @override
+  String get emailLabel => 'Email';
+
+  @override
+  String get emailRequired => 'Email is required';
+
+  @override
+  String get emailInvalid => 'Enter a valid email address';
+
+  @override
   String get phoneLabel => 'Phone number';
 
   @override
@@ -45,8 +54,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginButton => 'Log in';
 
   @override
-  String get loginFailed =>
-      'Login failed. Check your phone number and password.';
+  String get loginFailed => 'Login failed. Check your email and password.';
 
   @override
   String get noAccountPrompt => 'No account? Create one';
@@ -61,7 +69,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get registerFailed => 'Registration failed. Please try again.';
 
   @override
-  String get phoneAlreadyUsed => 'This phone number is already registered.';
+  String get emailAlreadyUsed => 'This email is already registered.';
 
   @override
   String get fullNameLabel => 'Full name';

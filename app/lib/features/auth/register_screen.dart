@@ -14,6 +14,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
@@ -23,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -45,6 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
     try {
       await _authService.register(
+        email: _emailController.text,
         phone: _phoneController.text,
         password: _passwordController.text,
         fullName: _fullNameController.text,
@@ -54,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthException catch (e) {
       _showError(e.statusCode == '422' || e.message.contains('already')
-          ? l10n.phoneAlreadyUsed
+          ? l10n.emailAlreadyUsed
           : l10n.registerFailed);
     } catch (_) {
       _showError(l10n.genericError);
@@ -94,6 +97,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return l10n.fullNameRequired;
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textDirection: TextDirection.ltr,
+                    decoration: InputDecoration(
+                      labelText: l10n.emailLabel,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return l10n.emailRequired;
+                      }
+                      if (!AuthService.isValidEmail(value)) {
+                        return l10n.emailInvalid;
                       }
                       return null;
                     },

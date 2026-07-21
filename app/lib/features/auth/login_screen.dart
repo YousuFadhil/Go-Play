@@ -14,14 +14,14 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       await _authService.login(
-        phone: _phoneController.text,
+        email: _emailController.text,
         password: _passwordController.text,
       );
       // Navigation is handled by AuthGate reacting to the auth state change.
@@ -69,21 +69,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
                     textDirection: TextDirection.ltr,
                     decoration: InputDecoration(
-                      labelText: l10n.phoneLabel,
-                      hintText: l10n.phoneHint,
+                      labelText: l10n.emailLabel,
                     ),
                     validator: (value) {
-                      final normalized =
-                          AuthService.normalizePhone(value ?? '');
-                      if (normalized.isEmpty) {
-                        return l10n.phoneRequired;
+                      if (value == null || value.trim().isEmpty) {
+                        return l10n.emailRequired;
                       }
-                      if (!AuthService.isValidPhone(normalized)) {
-                        return l10n.phoneInvalid;
+                      if (!AuthService.isValidEmail(value)) {
+                        return l10n.emailInvalid;
                       }
                       return null;
                     },

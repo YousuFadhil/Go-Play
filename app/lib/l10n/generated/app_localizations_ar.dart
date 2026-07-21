@@ -18,6 +18,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navGroups => 'المجموعات';
 
   @override
+  String get emailLabel => 'البريد الإلكتروني';
+
+  @override
+  String get emailRequired => 'البريد الإلكتروني مطلوب';
+
+  @override
+  String get emailInvalid => 'أدخل بريداً إلكترونياً صحيحاً';
+
+  @override
   String get phoneLabel => 'رقم الجوال';
 
   @override
@@ -46,7 +55,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get loginFailed =>
-      'فشل تسجيل الدخول. تحقق من رقم الجوال وكلمة المرور.';
+      'فشل تسجيل الدخول. تحقق من البريد الإلكتروني وكلمة المرور.';
 
   @override
   String get noAccountPrompt => 'ليس لديك حساب؟ إنشاء حساب';
@@ -61,7 +70,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get registerFailed => 'فشل إنشاء الحساب. حاول مرة أخرى.';
 
   @override
-  String get phoneAlreadyUsed => 'رقم الجوال مسجل مسبقاً.';
+  String get emailAlreadyUsed => 'البريد الإلكتروني مسجل مسبقاً.';
 
   @override
   String get fullNameLabel => 'الاسم الكامل';

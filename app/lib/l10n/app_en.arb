@@ -5,6 +5,9 @@
   "navHome": "Home",
   "navGroups": "Groups",
 
+  "emailLabel": "Email",
+  "emailRequired": "Email is required",
+  "emailInvalid": "Enter a valid email address",
   "phoneLabel": "Phone number",
   "phoneHint": "e.g. 9665xxxxxxxx (with country code)",
   "passwordLabel": "Password",
@@ -15,13 +18,13 @@
 
   "loginTitle": "Log in",
   "loginButton": "Log in",
-  "loginFailed": "Login failed. Check your phone number and password.",
+  "loginFailed": "Login failed. Check your email and password.",
   "noAccountPrompt": "No account? Create one",
 
   "registerTitle": "Create account",
   "registerButton": "Create account",
   "registerFailed": "Registration failed. Please try again.",
-  "phoneAlreadyUsed": "This phone number is already registered.",
+  "emailAlreadyUsed": "This email is already registered.",
   "fullNameLabel": "Full name",
   "fullNameRequired": "Full name is required",
   "positionLabel": "Primary position",

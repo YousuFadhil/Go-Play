@@ -116,6 +116,24 @@ abstract class AppLocalizations {
   /// **'Groups'**
   String get navGroups;
 
+  /// No description provided for @emailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get emailLabel;
+
+  /// No description provided for @emailRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Email is required'**
+  String get emailRequired;
+
+  /// No description provided for @emailInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address'**
+  String get emailInvalid;
+
   /// No description provided for @phoneLabel.
   ///
   /// In en, this message translates to:
@@ -173,7 +191,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginFailed.
   ///
   /// In en, this message translates to:
-  /// **'Login failed. Check your phone number and password.'**
+  /// **'Login failed. Check your email and password.'**
   String get loginFailed;
 
   /// No description provided for @noAccountPrompt.
@@ -200,11 +218,11 @@ abstract class AppLocalizations {
   /// **'Registration failed. Please try again.'**
   String get registerFailed;
 
-  /// No description provided for @phoneAlreadyUsed.
+  /// No description provided for @emailAlreadyUsed.
   ///
   /// In en, this message translates to:
-  /// **'This phone number is already registered.'**
-  String get phoneAlreadyUsed;
+  /// **'This email is already registered.'**
+  String get emailAlreadyUsed;
 
   /// No description provided for @fullNameLabel.
   ///

@@ -16,6 +16,28 @@ void main() {
     });
   });
 
+  group('AuthService.isValidEmail', () {
+    test('accepts a normal email', () {
+      expect(AuthService.isValidEmail('player@example.com'), isTrue);
+    });
+
+    test('accepts an email with surrounding whitespace', () {
+      expect(AuthService.isValidEmail('  player@example.com '), isTrue);
+    });
+
+    test('rejects an email without a domain dot', () {
+      expect(AuthService.isValidEmail('player@example'), isFalse);
+    });
+
+    test('rejects an email without @', () {
+      expect(AuthService.isValidEmail('player.example.com'), isFalse);
+    });
+
+    test('rejects empty input', () {
+      expect(AuthService.isValidEmail(''), isFalse);
+    });
+  });
+
   group('AuthService.isValidPhone', () {
     test('accepts a valid international number', () {
       expect(AuthService.isValidPhone('966501234567'), isTrue);

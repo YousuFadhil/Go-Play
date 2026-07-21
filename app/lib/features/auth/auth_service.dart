@@ -32,28 +32,37 @@ class AuthService {
     return RegExp(r'^[1-9][0-9]{9,14}$').hasMatch(normalized);
   }
 
+  /// Basic sanity check for an email address.
+  static bool isValidEmail(String input) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(input.trim());
+  }
+
+  /// Identity is email+password; phone is stored as profile contact info
+  /// (see Docs/10-Design-Decisions.md DD-02).
   Future<void> register({
+    required String email,
     required String phone,
     required String password,
     required String fullName,
     required PlayerPosition position,
   }) async {
     await _auth.signUp(
-      phone: normalizePhone(phone),
+      email: email.trim(),
       password: password,
       data: {
         'full_name': fullName.trim(),
         'primary_position': position.dbValue,
+        'phone': normalizePhone(phone),
       },
     );
   }
 
   Future<void> login({
-    required String phone,
+    required String email,
     required String password,
   }) async {
     await _auth.signInWithPassword(
-      phone: normalizePhone(phone),
+      email: email.trim(),
       password: password,
     );
   }
