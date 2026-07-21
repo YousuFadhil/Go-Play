@@ -107,6 +107,7 @@
   "joinMatchFailed": "Failed to join the match. Please try again.",
   "withdrawMatchFailed": "Failed to withdraw. Please try again.",
 
+  "networkError": "Could not reach the server. Check your internet connection.",
   "loadFailed": "Failed to load data.",
   "retryButton": "Retry",
   "genericError": "Something went wrong. Please try again."

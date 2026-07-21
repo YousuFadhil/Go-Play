@@ -680,6 +680,12 @@ abstract class AppLocalizations {
   /// **'Failed to withdraw. Please try again.'**
   String get withdrawMatchFailed;
 
+  /// No description provided for @networkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the server. Check your internet connection.'**
+  String get networkError;
+
   /// No description provided for @loadFailed.
   ///
   /// In en, this message translates to:

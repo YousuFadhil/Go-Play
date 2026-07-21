@@ -306,6 +306,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get withdrawMatchFailed => 'فشل الانسحاب. حاول مرة أخرى.';
 
   @override
+  String get networkError => 'تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.';
+
+  @override
   String get loadFailed => 'فشل تحميل البيانات.';
 
   @override

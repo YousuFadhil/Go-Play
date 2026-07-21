@@ -37,9 +37,16 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       // Navigation is handled by AuthGate reacting to the auth state change.
-    } on AuthException {
+    } on AuthRetryableFetchException catch (e, st) {
+      // Network-level failure: the request never reached Supabase.
+      debugPrint('[GoPlay] login network failure: $e\n$st');
+      _showError(l10n.networkError);
+    } on AuthException catch (e, st) {
+      debugPrint('[GoPlay] login auth failure '
+          '(${e.statusCode}/${e.code}): $e\n$st');
       _showError(l10n.loginFailed);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[GoPlay] login unexpected failure: $e\n$st');
       _showError(l10n.genericError);
     } finally {
       if (mounted) setState(() => _isLoading = false);

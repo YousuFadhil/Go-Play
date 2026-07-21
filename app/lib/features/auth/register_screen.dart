@@ -55,11 +55,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       // On success the session is active; AuthGate navigates to Home.
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-    } on AuthException catch (e) {
+    } on AuthRetryableFetchException catch (e, st) {
+      // Network-level failure: the request never reached Supabase.
+      debugPrint('[GoPlay] register network failure: $e\n$st');
+      _showError(l10n.networkError);
+    } on AuthException catch (e, st) {
+      debugPrint('[GoPlay] register auth failure '
+          '(${e.statusCode}/${e.code}): $e\n$st');
       _showError(e.statusCode == '422' || e.message.contains('already')
           ? l10n.emailAlreadyUsed
           : l10n.registerFailed);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[GoPlay] register unexpected failure: $e\n$st');
       _showError(l10n.genericError);
     } finally {
       if (mounted) setState(() => _isLoading = false);

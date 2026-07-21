@@ -64,13 +64,25 @@ flutter pub get
 
 ## 4. تشغيل التطبيق
 
-استبدل القيمتين بالقيم المنسوخة من Supabase:
+استبدل القيمتين بالقيم المنسوخة من Supabase.
+
+**في PowerShell** (فاصل الأسطر هو العلامة ` وليس ^):
+
+```powershell
+flutter run `
+  --dart-define=SUPABASE_URL=https://xxxx.supabase.co `
+  --dart-define=SUPABASE_ANON_KEY=sb_publishable_...
+```
+
+أو في سطر واحد (يعمل في أي طرفية):
 
 ```
-flutter run ^
-  --dart-define=SUPABASE_URL=https://xxxx.supabase.co ^
-  --dart-define=SUPABASE_ANON_KEY=eyJ...
+flutter run --dart-define=SUPABASE_URL=https://xxxx.supabase.co --dart-define=SUPABASE_ANON_KEY=sb_publishable_...
 ```
+
+> تنبيه: علامة `^` تعمل في CMD فقط. لصق أمر بـ `^` داخل PowerShell
+> يشغّل التطبيق **بدون الإعدادات** — وستظهر عندها شاشة
+> «Supabase configuration missing» فور الإقلاع (هذا هو الفحص المبكر الجديد).
 
 ---
 

@@ -311,6 +311,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get withdrawMatchFailed => 'Failed to withdraw. Please try again.';
 
   @override
+  String get networkError =>
+      'Could not reach the server. Check your internet connection.';
+
+  @override
   String get loadFailed => 'Failed to load data.';
 
   @override

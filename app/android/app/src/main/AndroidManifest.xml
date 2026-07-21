@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required in the main manifest: the Flutter template only adds it to
+         debug/profile, which silently breaks networking in release builds. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="go_play"
         android:name="${applicationName}"
