@@ -19,6 +19,12 @@
    2. `supabase/migrations/0002_groups.sql`
    3. `supabase/migrations/0003_matches.sql`
    4. `supabase/migrations/0004_match_registrations.sql`
+   5. `supabase/migrations/0005_security_hardening.sql`
+
+   (أو الصق ملف `supabase/setup_all.sql` مرة واحدة — وهو تجميع للملفات الخمسة.)
+
+   > حالة المشروع الحالي: **المخطط مطبّق بالكامل والتحقق ناجح** — لا حاجة
+   > لإعادة تنفيذ أي SQL على المشروع `Go-Play` الحالي.
 5. من **Project Settings → API** انسخ القيمتين:
    - `Project URL`
    - `Publishable key` (أو `anon public key` في المشاريع الأقدم — كلاهما يعمل)
