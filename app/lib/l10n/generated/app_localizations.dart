@@ -143,7 +143,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneHint.
   ///
   /// In en, this message translates to:
-  /// **'e.g. 9665xxxxxxxx (with country code)'**
+  /// **'8 digits, e.g. 9012 3456'**
   String get phoneHint;
 
   /// No description provided for @passwordLabel.
@@ -161,7 +161,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneInvalid.
   ///
   /// In en, this message translates to:
-  /// **'Enter a valid phone number with country code'**
+  /// **'Enter an 8-digit phone number'**
   String get phoneInvalid;
 
   /// No description provided for @passwordRequired.
@@ -415,6 +415,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Join code copied'**
   String get joinCodeCopied;
+
+  /// No description provided for @myGroupsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'My groups'**
+  String get myGroupsSection;
+
+  /// No description provided for @publicGroupsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Public groups'**
+  String get publicGroupsSection;
+
+  /// No description provided for @joinedGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'You joined the group.'**
+  String get joinedGroup;
 
   /// No description provided for @matchesTitle.
   ///

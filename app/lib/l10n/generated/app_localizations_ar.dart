@@ -30,7 +30,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get phoneLabel => 'رقم الجوال';
 
   @override
-  String get phoneHint => 'مثال: 9665xxxxxxxx (مع رمز الدولة)';
+  String get phoneHint => '٨ أرقام، مثال: 9012 3456';
 
   @override
   String get passwordLabel => 'كلمة المرور';
@@ -39,7 +39,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get phoneRequired => 'رقم الجوال مطلوب';
 
   @override
-  String get phoneInvalid => 'أدخل رقم جوال صحيح مع رمز الدولة';
+  String get phoneInvalid => 'أدخل رقم جوال من 8 أرقام';
 
   @override
   String get passwordRequired => 'كلمة المرور مطلوبة';
@@ -169,6 +169,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get joinCodeCopied => 'تم نسخ رمز الانضمام';
+
+  @override
+  String get myGroupsSection => 'مجموعاتي';
+
+  @override
+  String get publicGroupsSection => 'المجموعات العامة';
+
+  @override
+  String get joinedGroup => 'تم انضمامك للمجموعة.';
 
   @override
   String get matchesTitle => 'المباريات';

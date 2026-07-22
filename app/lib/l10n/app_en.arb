@@ -9,10 +9,10 @@
   "emailRequired": "Email is required",
   "emailInvalid": "Enter a valid email address",
   "phoneLabel": "Phone number",
-  "phoneHint": "e.g. 9665xxxxxxxx (with country code)",
+  "phoneHint": "8 digits, e.g. 9012 3456",
   "passwordLabel": "Password",
   "phoneRequired": "Phone number is required",
-  "phoneInvalid": "Enter a valid phone number with country code",
+  "phoneInvalid": "Enter an 8-digit phone number",
   "passwordRequired": "Password is required",
   "passwordTooShort": "Password must be at least 8 characters",
 
@@ -60,6 +60,9 @@
   "membersTitle": "Members",
   "ownerBadge": "Owner",
   "joinCodeCopied": "Join code copied",
+  "myGroupsSection": "My groups",
+  "publicGroupsSection": "Public groups",
+  "joinedGroup": "You joined the group.",
 
   "matchesTitle": "Matches",
   "createMatchTitle": "Create match",

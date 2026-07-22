@@ -30,7 +30,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get phoneLabel => 'Phone number';
 
   @override
-  String get phoneHint => 'e.g. 9665xxxxxxxx (with country code)';
+  String get phoneHint => '8 digits, e.g. 9012 3456';
 
   @override
   String get passwordLabel => 'Password';
@@ -39,7 +39,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get phoneRequired => 'Phone number is required';
 
   @override
-  String get phoneInvalid => 'Enter a valid phone number with country code';
+  String get phoneInvalid => 'Enter an 8-digit phone number';
 
   @override
   String get passwordRequired => 'Password is required';
@@ -169,6 +169,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get joinCodeCopied => 'Join code copied';
+
+  @override
+  String get myGroupsSection => 'My groups';
+
+  @override
+  String get publicGroupsSection => 'Public groups';
+
+  @override
+  String get joinedGroup => 'You joined the group.';
 
   @override
   String get matchesTitle => 'Matches';

@@ -32,6 +32,27 @@ class GroupService {
     ];
   }
 
+  /// Groups the user can see and act on: [mine] are joined groups, [discover]
+  /// are public groups the user has not joined yet. RLS already returns only
+  /// public groups (plus the user's own) here, so private groups never leak.
+  Future<({List<Group> mine, List<Group> discover})>
+      fetchGroupsOverview() async {
+    final mine = await fetchMyGroups();
+    final myIds = {for (final g in mine) g.id};
+
+    final rows = await _client
+        .from('groups')
+        .select('id, owner_id, name, description, is_private, join_code')
+        .eq('is_private', false)
+        .order('created_at', ascending: false);
+
+    final discover = [
+      for (final row in rows)
+        if (!myIds.contains(row['id'] as String)) Group.fromJson(row),
+    ];
+    return (mine: mine, discover: discover);
+  }
+
   /// Creates a group and adds the creator as owner. Returns the group id.
   Future<String> createGroup({
     required String name,

@@ -21,15 +21,24 @@ class AuthService {
 
   Session? get currentSession => _auth.currentSession;
 
-  /// Normalizes user input to digits only (E.164 without the plus sign),
-  /// e.g. "+966 50 123 4567" -> "966501234567".
-  static String normalizePhone(String input) {
+  /// Oman country calling code. The MVP is Oman-only, so the code is fixed
+  /// and the user enters just the 8-digit local number.
+  static const String omanCallingCode = '+968';
+
+  /// Keeps digits only from user input, e.g. "9012 3456" -> "90123456".
+  static String digitsOnly(String input) {
     return input.replaceAll(RegExp(r'[^0-9]'), '');
   }
 
-  /// Basic sanity check for an international phone number.
-  static bool isValidPhone(String normalized) {
-    return RegExp(r'^[1-9][0-9]{9,14}$').hasMatch(normalized);
+  /// An Oman local mobile number is exactly 8 digits.
+  static bool isValidOmanLocalPhone(String input) {
+    return RegExp(r'^[0-9]{8}$').hasMatch(digitsOnly(input));
+  }
+
+  /// Builds the stored E.164 phone from an 8-digit local number,
+  /// e.g. "90123456" -> "+96890123456".
+  static String toOmanE164(String localPhone) {
+    return '$omanCallingCode${digitsOnly(localPhone)}';
   }
 
   /// Basic sanity check for an email address.
@@ -38,10 +47,11 @@ class AuthService {
   }
 
   /// Identity is email+password; phone is stored as profile contact info
-  /// (see Docs/10-Design-Decisions.md DD-02).
+  /// (see Docs/10-Design-Decisions.md DD-02). [localPhone] is the 8-digit
+  /// Oman number; it is stored as +968XXXXXXXX.
   Future<void> register({
     required String email,
-    required String phone,
+    required String localPhone,
     required String password,
     required String fullName,
     required PlayerPosition position,
@@ -52,7 +62,7 @@ class AuthService {
       data: {
         'full_name': fullName.trim(),
         'primary_position': position.dbValue,
-        'phone': normalizePhone(phone),
+        'phone': toOmanE164(localPhone),
       },
     );
   }

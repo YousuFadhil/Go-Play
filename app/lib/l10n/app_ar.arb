@@ -9,10 +9,10 @@
   "emailRequired": "البريد الإلكتروني مطلوب",
   "emailInvalid": "أدخل بريداً إلكترونياً صحيحاً",
   "phoneLabel": "رقم الجوال",
-  "phoneHint": "مثال: 9665xxxxxxxx (مع رمز الدولة)",
+  "phoneHint": "٨ أرقام، مثال: 9012 3456",
   "passwordLabel": "كلمة المرور",
   "phoneRequired": "رقم الجوال مطلوب",
-  "phoneInvalid": "أدخل رقم جوال صحيح مع رمز الدولة",
+  "phoneInvalid": "أدخل رقم جوال من 8 أرقام",
   "passwordRequired": "كلمة المرور مطلوبة",
   "passwordTooShort": "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
 
@@ -60,6 +60,9 @@
   "membersTitle": "الأعضاء",
   "ownerBadge": "المالك",
   "joinCodeCopied": "تم نسخ رمز الانضمام",
+  "myGroupsSection": "مجموعاتي",
+  "publicGroupsSection": "المجموعات العامة",
+  "joinedGroup": "تم انضمامك للمجموعة.",
 
   "matchesTitle": "المباريات",
   "createMatchTitle": "إنشاء مباراة",

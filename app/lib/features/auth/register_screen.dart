@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
@@ -48,7 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await _authService.register(
         email: _emailController.text,
-        phone: _phoneController.text,
+        localPhone: _phoneController.text,
         password: _passwordController.text,
         fullName: _fullNameController.text,
         position: _position!,
@@ -129,19 +130,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _phoneController,
-                    keyboardType: TextInputType.phone,
+                    keyboardType: TextInputType.number,
                     textDirection: TextDirection.ltr,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(8),
+                    ],
                     decoration: InputDecoration(
                       labelText: l10n.phoneLabel,
                       hintText: l10n.phoneHint,
+                      // Fixed Oman country code; user types only the 8 digits.
+                      prefixText: '${AuthService.omanCallingCode} ',
                     ),
                     validator: (value) {
-                      final normalized =
-                          AuthService.normalizePhone(value ?? '');
-                      if (normalized.isEmpty) {
+                      final digits = AuthService.digitsOnly(value ?? '');
+                      if (digits.isEmpty) {
                         return l10n.phoneRequired;
                       }
-                      if (!AuthService.isValidPhone(normalized)) {
+                      if (!AuthService.isValidOmanLocalPhone(digits)) {
                         return l10n.phoneInvalid;
                       }
                       return null;

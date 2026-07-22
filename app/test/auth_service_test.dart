@@ -2,17 +2,49 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/features/auth/auth_service.dart';
 
 void main() {
-  group('AuthService.normalizePhone', () {
-    test('strips spaces, plus sign, and dashes', () {
-      expect(AuthService.normalizePhone('+966 50-123-4567'), '966501234567');
+  group('AuthService.digitsOnly', () {
+    test('strips spaces and symbols', () {
+      expect(AuthService.digitsOnly('9012 3456'), '90123456');
     });
 
     test('keeps digits unchanged', () {
-      expect(AuthService.normalizePhone('966501234567'), '966501234567');
+      expect(AuthService.digitsOnly('90123456'), '90123456');
     });
 
     test('returns empty string for non-numeric input', () {
-      expect(AuthService.normalizePhone('abc'), '');
+      expect(AuthService.digitsOnly('abc'), '');
+    });
+  });
+
+  group('AuthService.isValidOmanLocalPhone', () {
+    test('accepts exactly 8 digits', () {
+      expect(AuthService.isValidOmanLocalPhone('90123456'), isTrue);
+    });
+
+    test('accepts 8 digits with spaces', () {
+      expect(AuthService.isValidOmanLocalPhone('9012 3456'), isTrue);
+    });
+
+    test('rejects fewer than 8 digits', () {
+      expect(AuthService.isValidOmanLocalPhone('9012345'), isFalse);
+    });
+
+    test('rejects more than 8 digits', () {
+      expect(AuthService.isValidOmanLocalPhone('901234567'), isFalse);
+    });
+
+    test('rejects empty input', () {
+      expect(AuthService.isValidOmanLocalPhone(''), isFalse);
+    });
+  });
+
+  group('AuthService.toOmanE164', () {
+    test('prefixes +968 to an 8-digit local number', () {
+      expect(AuthService.toOmanE164('90123456'), '+96890123456');
+    });
+
+    test('strips separators before prefixing', () {
+      expect(AuthService.toOmanE164('9012 3456'), '+96890123456');
     });
   });
 
@@ -35,24 +67,6 @@ void main() {
 
     test('rejects empty input', () {
       expect(AuthService.isValidEmail(''), isFalse);
-    });
-  });
-
-  group('AuthService.isValidPhone', () {
-    test('accepts a valid international number', () {
-      expect(AuthService.isValidPhone('966501234567'), isTrue);
-    });
-
-    test('rejects numbers that are too short', () {
-      expect(AuthService.isValidPhone('12345'), isFalse);
-    });
-
-    test('rejects numbers starting with zero', () {
-      expect(AuthService.isValidPhone('0501234567'), isFalse);
-    });
-
-    test('rejects empty input', () {
-      expect(AuthService.isValidPhone(''), isFalse);
     });
   });
 }
