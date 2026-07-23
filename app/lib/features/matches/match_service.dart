@@ -8,6 +8,7 @@ enum RegistrationError {
   matchClosed,
   alreadyRegistered,
   notRegistered,
+  registrationClosed,
 }
 
 class RegistrationException implements Exception {
@@ -19,11 +20,10 @@ class RegistrationException implements Exception {
 /// Typed errors raised by the organizer management RPCs.
 enum ManageError {
   notOrganizer,
-  matchReadOnly,
   matchCompleted,
-  matchHasPlayers,
   invalidTimeRange,
-  invalidMaxPlayers,
+  invalidCapacity,
+  maxBelowRegistered,
   notRegistered,
 }
 
@@ -43,7 +43,7 @@ class MatchService {
 
   static const _columns =
       'id, group_id, created_by, location, start_at, end_at, '
-      'max_players, status, title, description';
+      'starting_players, max_registration, status, title, description';
 
   /// Matches of one group, newest scheduled first.
   Future<List<Match>> fetchGroupMatches(String groupId) async {
@@ -55,14 +55,13 @@ class MatchService {
     return [for (final row in rows) Match.fromJson(row)];
   }
 
-  /// Upcoming, non-cancelled matches across all my groups (RLS scopes
-  /// visibility to groups the user belongs to).
+  /// Upcoming (not yet ended) matches across all my groups. RLS scopes
+  /// visibility to groups the user belongs to.
   Future<List<Match>> fetchUpcomingMatches() async {
     final rows = await _client
         .from('matches')
         .select('$_columns, group:groups(name)')
-        .gte('start_at', DateTime.now().toUtc().toIso8601String())
-        .neq('status', MatchStatus.cancelled.dbValue)
+        .gt('end_at', DateTime.now().toUtc().toIso8601String())
         .order('start_at', ascending: true);
     return [for (final row in rows) Match.fromJson(row)];
   }
@@ -81,7 +80,8 @@ class MatchService {
     required String location,
     required DateTime startAt,
     required DateTime endAt,
-    required int maxPlayers,
+    required int startingPlayers,
+    required int maxRegistration,
   }) async {
     await _client.from('matches').insert({
       'group_id': groupId,
@@ -89,21 +89,23 @@ class MatchService {
       'location': location.trim(),
       'start_at': startAt.toUtc().toIso8601String(),
       'end_at': endAt.toUtc().toIso8601String(),
-      'max_players': maxPlayers,
+      'starting_players': startingPlayers,
+      'max_registration': maxRegistration,
     });
   }
 
   // --- Organizer management (all via transactional, race-safe RPCs) ---
 
-  /// Edits match details. Reducing the player limit demotes the latest
-  /// confirmed players to reserve and notifies everyone affected.
+  /// Edits match details. Changing the starting-player count re-sorts the
+  /// roster (demotions and promotions) and notifies everyone affected.
   Future<void> updateMatch({
     required String matchId,
     String? title,
     required String location,
     required DateTime startAt,
     required DateTime endAt,
-    required int maxPlayers,
+    required int startingPlayers,
+    required int maxRegistration,
     String? description,
   }) async {
     await _manage('update_match', {
@@ -112,7 +114,8 @@ class MatchService {
       'p_location': location.trim(),
       'p_start_at': startAt.toUtc().toIso8601String(),
       'p_end_at': endAt.toUtc().toIso8601String(),
-      'p_max_players': maxPlayers,
+      'p_starting_players': startingPlayers,
+      'p_max_registration': maxRegistration,
       'p_description': description,
     });
   }
@@ -120,12 +123,7 @@ class MatchService {
   Future<void> removePlayer(String matchId, String userId) =>
       _manage('remove_player', {'p_match_id': matchId, 'p_user_id': userId});
 
-  Future<void> cancelMatch(String matchId) =>
-      _manage('cancel_match', {'p_match_id': matchId});
-
-  Future<void> postponeMatch(String matchId) =>
-      _manage('postpone_match', {'p_match_id': matchId});
-
+  /// Deletes a match that is not completed, after notifying registered players.
   Future<void> deleteMatch(String matchId) =>
       _manage('delete_match', {'p_match_id': matchId});
 
@@ -142,20 +140,19 @@ class MatchService {
     if (m.contains('NOT_ORGANIZER')) {
       return const ManageException(ManageError.notOrganizer);
     }
-    if (m.contains('MATCH_READ_ONLY')) {
-      return const ManageException(ManageError.matchReadOnly);
-    }
     if (m.contains('MATCH_COMPLETED')) {
       return const ManageException(ManageError.matchCompleted);
     }
-    if (m.contains('MATCH_HAS_PLAYERS')) {
-      return const ManageException(ManageError.matchHasPlayers);
+    if (m.contains('MAX_BELOW_REGISTERED')) {
+      return const ManageException(ManageError.maxBelowRegistered);
+    }
+    if (m.contains('INVALID_CAPACITY') ||
+        m.contains('INVALID_STARTING_PLAYERS') ||
+        m.contains('INVALID_MAX_REGISTRATION')) {
+      return const ManageException(ManageError.invalidCapacity);
     }
     if (m.contains('INVALID_TIME_RANGE')) {
       return const ManageException(ManageError.invalidTimeRange);
-    }
-    if (m.contains('INVALID_MAX_PLAYERS')) {
-      return const ManageException(ManageError.invalidMaxPlayers);
     }
     if (m.contains('NOT_REGISTERED')) {
       return const ManageException(ManageError.notRegistered);
@@ -207,6 +204,9 @@ class MatchService {
     }
     if (e.message.contains('NOT_REGISTERED')) {
       return const RegistrationException(RegistrationError.notRegistered);
+    }
+    if (e.message.contains('REGISTRATION_CLOSED')) {
+      return const RegistrationException(RegistrationError.registrationClosed);
     }
     return e;
   }

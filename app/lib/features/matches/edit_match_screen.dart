@@ -20,7 +20,8 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _locationController;
-  late final TextEditingController _maxPlayersController;
+  late final TextEditingController _startingPlayersController;
+  late final TextEditingController _maxRegistrationController;
   late final TextEditingController _descriptionController;
   final _service = MatchService();
 
@@ -35,8 +36,10 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
     final m = widget.match;
     _titleController = TextEditingController(text: m.title ?? '');
     _locationController = TextEditingController(text: m.location);
-    _maxPlayersController =
-        TextEditingController(text: m.maxPlayers.toString());
+    _startingPlayersController =
+        TextEditingController(text: m.startingPlayers.toString());
+    _maxRegistrationController =
+        TextEditingController(text: m.maxRegistration.toString());
     _descriptionController = TextEditingController(text: m.description ?? '');
     _date = DateTime(m.startAt.year, m.startAt.month, m.startAt.day);
     _startTime = TimeOfDay.fromDateTime(m.startAt);
@@ -47,7 +50,8 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
   void dispose() {
     _titleController.dispose();
     _locationController.dispose();
-    _maxPlayersController.dispose();
+    _startingPlayersController.dispose();
+    _maxRegistrationController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -104,7 +108,8 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
         location: _locationController.text,
         startAt: start,
         endAt: end,
-        maxPlayers: int.parse(_maxPlayersController.text),
+        startingPlayers: int.parse(_startingPlayersController.text),
+        maxRegistration: int.parse(_maxRegistrationController.text),
         description: _descriptionController.text,
       );
       if (mounted) {
@@ -182,14 +187,33 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: _maxPlayersController,
+                  controller: _startingPlayersController,
                   keyboardType: TextInputType.number,
                   decoration:
-                      InputDecoration(labelText: l10n.maxPlayersLabel),
+                      InputDecoration(labelText: l10n.startingPlayersLabel),
                   validator: (value) {
                     final parsed = int.tryParse(value ?? '');
                     if (parsed == null || parsed < 2 || parsed > 30) {
-                      return l10n.maxPlayersInvalid;
+                      return l10n.startingPlayersInvalid;
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _maxRegistrationController,
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      InputDecoration(labelText: l10n.maxRegistrationLabel),
+                  validator: (value) {
+                    final parsed = int.tryParse(value ?? '');
+                    if (parsed == null || parsed < 2 || parsed > 60) {
+                      return l10n.maxRegistrationInvalid;
+                    }
+                    final starting =
+                        int.tryParse(_startingPlayersController.text);
+                    if (starting != null && parsed < starting) {
+                      return l10n.capacityInvalid;
                     }
                     return null;
                   },

@@ -518,30 +518,87 @@ grant execute on function public.is_match_group_member(uuid, uuid)
   to authenticated;
 
 -- ============ migrations/0006_match_management_v2.sql ============
--- V2: Match management (organizer tools), extended status model, notifications.
--- Backward compatible: new columns are nullable; new statuses extend the
--- existing set; existing register/withdraw behaviour is preserved and only
--- gains automatic open/full transitions.
+-- V2: match management, final business rules.
+--
+-- Lifecycle:  open -> full (registrations reach max_registration) -> back to
+--             open when a slot frees; completed automatically once the
+--             scheduled end time passes. No draft/cancelled/postponed.
+-- Capacity:   starting_players (first N are starting) and max_registration
+--             (registration closes there); max_registration >= starting_players.
+-- Deletion:   organizer may delete any match that is not completed; all
+--             registered players are notified first.
 
--- 1) New optional match fields -------------------------------------------------
-alter table public.matches
-  add column if not exists title text
-    check (title is null or char_length(trim(title)) between 2 and 60);
-alter table public.matches
-  add column if not exists description text
-    check (description is null or char_length(description) <= 300);
+-- Drop anything from an earlier iteration of this migration.
+drop function if exists public.cancel_match(uuid);
+drop function if exists public.postpone_match(uuid);
+drop function if exists public.recompute_match_fill(uuid);
 
--- 2) Extend the status model: draft, full, postponed ---------------------------
+-- 1) Optional match fields -----------------------------------------------------
+alter table public.matches
+  add column if not exists title text;
+alter table public.matches
+  add column if not exists description text;
+alter table public.matches drop constraint if exists matches_title_check;
+alter table public.matches drop constraint if exists matches_description_check;
+alter table public.matches add constraint matches_title_check
+  check (title is null or char_length(trim(title)) between 2 and 60);
+alter table public.matches add constraint matches_description_check
+  check (description is null or char_length(description) <= 300);
+
+-- 2) Capacity model: starting_players + max_registration ----------------------
+alter table public.matches add column if not exists starting_players int;
+alter table public.matches add column if not exists max_registration int;
+
+-- Backfill from the old single limit, then retire it.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'matches'
+      and column_name = 'max_players'
+  ) then
+    update public.matches
+    set starting_players = coalesce(starting_players, max_players),
+        max_registration = coalesce(max_registration, max_players);
+  end if;
+end $$;
+
+update public.matches
+set starting_players = coalesce(starting_players, 10),
+    max_registration = coalesce(max_registration, 10)
+where starting_players is null or max_registration is null;
+
+alter table public.matches alter column starting_players set not null;
+alter table public.matches alter column max_registration set not null;
+
+alter table public.matches drop constraint if exists matches_starting_players_check;
+alter table public.matches drop constraint if exists matches_max_registration_check;
+alter table public.matches drop constraint if exists matches_capacity_check;
+alter table public.matches add constraint matches_starting_players_check
+  check (starting_players between 2 and 30);
+alter table public.matches add constraint matches_max_registration_check
+  check (max_registration between 2 and 60);
+alter table public.matches add constraint matches_capacity_check
+  check (max_registration >= starting_players);
+
+alter table public.matches drop column if exists max_players;
+
+-- 3) Status model: open | full | completed ------------------------------------
+-- Map any legacy value onto the new set before tightening the constraint.
 alter table public.matches drop constraint if exists matches_status_check;
-alter table public.matches
-  add constraint matches_status_check
-  check (status in ('draft', 'open', 'full', 'postponed', 'cancelled', 'completed'));
+update public.matches set status = 'completed' where status = 'cancelled';
+update public.matches set status = 'open' where status in ('draft', 'postponed');
+update public.matches set status = 'completed'
+  where end_at <= now() and status <> 'completed';
+alter table public.matches add constraint matches_status_check
+  check (status in ('open', 'full', 'completed'));
 
--- 3) Notifications -------------------------------------------------------------
+-- 4) Notifications -------------------------------------------------------------
 create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users (id) on delete cascade,
-  match_id uuid references public.matches (id) on delete cascade,
+  -- Kept when the match is deleted, so the "match deleted" notice survives.
+  match_id uuid references public.matches (id) on delete set null,
   type text not null,
   message text not null,
   is_read boolean not null default false,
@@ -551,22 +608,31 @@ create table if not exists public.notifications (
 create index if not exists notifications_user_idx
   on public.notifications (user_id, created_at desc);
 
+-- Guarantee the match reference never cascade-deletes notifications, so the
+-- "match deleted" notice outlives the match (idempotent).
+alter table public.notifications
+  drop constraint if exists notifications_match_id_fkey;
+alter table public.notifications
+  add constraint notifications_match_id_fkey
+  foreign key (match_id) references public.matches (id) on delete set null;
+
 alter table public.notifications enable row level security;
+
+drop policy if exists "notifications_select_own" on public.notifications;
+drop policy if exists "notifications_update_own" on public.notifications;
+drop policy if exists "notifications_delete_own" on public.notifications;
 
 create policy "notifications_select_own"
   on public.notifications for select to authenticated
   using (user_id = auth.uid());
-
 create policy "notifications_update_own"
   on public.notifications for update to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
-
 create policy "notifications_delete_own"
   on public.notifications for delete to authenticated
   using (user_id = auth.uid());
 -- inserts happen only through the SECURITY DEFINER RPCs below.
 
--- Internal helper: create one notification row.
 create or replace function public.create_notification(
   p_user_id uuid, p_match_id uuid, p_type text, p_message text
 )
@@ -579,9 +645,8 @@ as $$
   values (p_user_id, p_match_id, p_type, p_message);
 $$;
 
--- Recomputes open/full for a match after its roster changes. Never touches
--- terminal states (cancelled/completed) or draft.
-create or replace function public.recompute_match_fill(p_match_id uuid)
+-- 5) Automatic status: completed by time, else full/open by registrations ------
+create or replace function public.recompute_match_status(p_match_id uuid)
 returns void
 language plpgsql
 security definer
@@ -589,22 +654,65 @@ set search_path = public
 as $$
 declare
   v_match matches%rowtype;
-  v_confirmed int;
+  v_total int;
 begin
   select * into v_match from matches where id = p_match_id;
-  if v_match.status not in ('open', 'full') then
+  if not found then return; end if;
+
+  if v_match.end_at <= now() then
+    update matches set status = 'completed'
+    where id = p_match_id and status <> 'completed';
     return;
   end if;
-  select count(*) into v_confirmed
-  from match_registrations
-  where match_id = p_match_id and status = 'confirmed';
+
+  select count(*) into v_total
+  from match_registrations where match_id = p_match_id;
+
   update matches
-  set status = case when v_confirmed >= v_match.max_players then 'full' else 'open' end
+  set status = case when v_total >= v_match.max_registration
+                    then 'full' else 'open' end
   where id = p_match_id;
 end;
 $$;
 
--- 4) Registration: allow joining open/full/postponed; auto open<->full ----------
+-- Re-sorts the roster so the first starting_players registrations (by
+-- registration order) are starting players and the rest are reserve.
+-- Notifies anyone whose place changed.
+create or replace function public.rebalance_roster(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_starting int;
+  r record;
+begin
+  select starting_players into v_starting from matches where id = p_match_id;
+
+  for r in
+    select mr.id, mr.user_id, mr.status,
+           case when row_number() over (order by mr.registration_order)
+                     <= v_starting
+                then 'confirmed' else 'reserve' end as desired
+    from match_registrations mr
+    where mr.match_id = p_match_id
+  loop
+    if r.status <> r.desired then
+      update match_registrations set status = r.desired where id = r.id;
+      if r.desired = 'reserve' then
+        perform create_notification(r.user_id, p_match_id, 'moved_to_reserve',
+            'تم نقلك إلى قائمة الاحتياط بسبب تعديل عدد اللاعبين.');
+      else
+        perform create_notification(r.user_id, p_match_id, 'promoted',
+            'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+      end if;
+    end if;
+  end loop;
+end;
+$$;
+
+-- 6) Registration --------------------------------------------------------------
 create or replace function public.register_for_match(p_match_id uuid)
 returns text
 language plpgsql
@@ -613,7 +721,8 @@ set search_path = public
 as $$
 declare
   v_match matches%rowtype;
-  v_confirmed_count int;
+  v_total int;
+  v_confirmed int;
   v_status text;
   v_order int;
 begin
@@ -628,9 +737,8 @@ begin
 
   perform 1 from users where id = auth.uid() for update;
 
-  -- Joinable while open, full (as reserve) or postponed (re-opened).
-  if v_match.status not in ('open', 'full', 'postponed')
-     or v_match.start_at <= now() then
+  -- Completed (end time passed) matches are read-only.
+  if v_match.status = 'completed' or v_match.end_at <= now() then
     raise exception 'MATCH_CLOSED';
   end if;
 
@@ -645,47 +753,48 @@ begin
     raise exception 'ALREADY_REGISTERED';
   end if;
 
-  -- Overlap rule: no registration in another live match whose time range
-  -- intersects this one (reserves count; they can be promoted anytime).
+  -- Registration closes at max_registration.
+  select count(*) into v_total
+  from match_registrations where match_id = p_match_id;
+  if v_total >= v_match.max_registration then
+    raise exception 'REGISTRATION_CLOSED';
+  end if;
+
+  -- No overlapping registration in another live match.
   if exists (
     select 1
     from match_registrations r
     join matches m on m.id = r.match_id
     where r.user_id = auth.uid()
-      and m.status in ('open', 'full', 'postponed')
+      and m.status in ('open', 'full')
+      and m.end_at > now()
       and m.start_at < v_match.end_at
       and m.end_at > v_match.start_at
   ) then
     raise exception 'OVERLAPPING_MATCH';
   end if;
 
-  select count(*) into v_confirmed_count
+  select count(*) into v_confirmed
   from match_registrations
   where match_id = p_match_id and status = 'confirmed';
 
   v_status := case
-    when v_confirmed_count < v_match.max_players then 'confirmed'
+    when v_confirmed < v_match.starting_players then 'confirmed'
     else 'reserve'
   end;
 
   select coalesce(max(registration_order), 0) + 1 into v_order
-  from match_registrations
-  where match_id = p_match_id;
+  from match_registrations where match_id = p_match_id;
 
   insert into match_registrations (match_id, user_id, status, registration_order)
   values (p_match_id, auth.uid(), v_status, v_order);
 
-  -- A postponed match becomes live again on the first registration.
-  if v_match.status = 'postponed' then
-    update matches set status = 'open' where id = p_match_id;
-  end if;
-  perform recompute_match_fill(p_match_id);
-
+  perform recompute_match_status(p_match_id);
   return v_status;
 end;
 $$;
 
--- 5) Withdrawal: promote first reserve; auto full->open -------------------------
+-- 7) Withdrawal: promote the first reserve and notify them ---------------------
 create or replace function public.withdraw_from_match(p_match_id uuid)
 returns void
 language plpgsql
@@ -695,6 +804,7 @@ as $$
 declare
   v_match matches%rowtype;
   v_registration match_registrations%rowtype;
+  v_promoted uuid;
 begin
   if auth.uid() is null then
     raise exception 'NOT_AUTHENTICATED';
@@ -704,8 +814,7 @@ begin
   if not found then
     raise exception 'MATCH_NOT_FOUND';
   end if;
-
-  if v_match.status not in ('open', 'full') or v_match.start_at <= now() then
+  if v_match.status = 'completed' or v_match.end_at <= now() then
     raise exception 'MATCH_CLOSED';
   end if;
 
@@ -719,28 +828,34 @@ begin
   delete from match_registrations where id = v_registration.id;
 
   if v_registration.status = 'confirmed' then
-    update match_registrations
-    set status = 'confirmed'
+    update match_registrations set status = 'confirmed'
     where id = (
       select id from match_registrations
       where match_id = p_match_id and status = 'reserve'
       order by registration_order
       limit 1
-    );
+    )
+    returning user_id into v_promoted;
+
+    if v_promoted is not null then
+      perform create_notification(v_promoted, p_match_id, 'promoted',
+          'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+    end if;
   end if;
 
-  perform recompute_match_fill(p_match_id);
+  perform recompute_match_status(p_match_id);
 end;
 $$;
 
--- 6) Organizer: edit match (handles player-limit reduction) --------------------
+-- 8) Organizer: edit match -----------------------------------------------------
 create or replace function public.update_match(
   p_match_id uuid,
   p_title text,
   p_location text,
   p_start_at timestamptz,
   p_end_at timestamptz,
-  p_max_players int,
+  p_starting_players int,
+  p_max_registration int,
   p_description text
 )
 returns void
@@ -750,8 +865,7 @@ set search_path = public
 as $$
 declare
   v_match matches%rowtype;
-  v_confirmed int;
-  r record;
+  v_total int;
 begin
   if auth.uid() is null then
     raise exception 'NOT_AUTHENTICATED';
@@ -764,50 +878,44 @@ begin
   if v_match.created_by <> auth.uid() then
     raise exception 'NOT_ORGANIZER';
   end if;
-  if v_match.status in ('cancelled', 'completed') then
-    raise exception 'MATCH_READ_ONLY';
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
   end if;
   if p_end_at <= p_start_at then
     raise exception 'INVALID_TIME_RANGE';
   end if;
-  if p_max_players < 2 or p_max_players > 30 then
-    raise exception 'INVALID_MAX_PLAYERS';
+  if p_starting_players < 2 or p_starting_players > 30 then
+    raise exception 'INVALID_STARTING_PLAYERS';
+  end if;
+  if p_max_registration < 2 or p_max_registration > 60 then
+    raise exception 'INVALID_MAX_REGISTRATION';
+  end if;
+  if p_max_registration < p_starting_players then
+    raise exception 'INVALID_CAPACITY';
   end if;
 
-  -- If the limit shrinks below the confirmed count, demote the latest
-  -- confirmed players to reserve (registration order preserved).
-  select count(*) into v_confirmed
-  from match_registrations
-  where match_id = p_match_id and status = 'confirmed';
-
-  if p_max_players < v_confirmed then
-    for r in
-      select id, user_id
-      from match_registrations
-      where match_id = p_match_id and status = 'confirmed'
-      order by registration_order desc
-      limit (v_confirmed - p_max_players)
-    loop
-      update match_registrations set status = 'reserve' where id = r.id;
-      perform create_notification(
-        r.user_id, p_match_id, 'moved_to_reserve',
-        'تم نقلك إلى قائمة الاحتياط بسبب تعديل عدد اللاعبين.');
-    end loop;
+  select count(*) into v_total
+  from match_registrations where match_id = p_match_id;
+  if p_max_registration < v_total then
+    raise exception 'MAX_BELOW_REGISTERED';
   end if;
 
   update matches set
-    title = case when p_title is null or trim(p_title) = '' then null else trim(p_title) end,
+    title = case when p_title is null or trim(p_title) = ''
+                 then null else trim(p_title) end,
     location = trim(p_location),
     start_at = p_start_at,
     end_at = p_end_at,
-    max_players = p_max_players,
-    description = case when p_description is null or trim(p_description) = '' then null else trim(p_description) end
+    starting_players = p_starting_players,
+    max_registration = p_max_registration,
+    description = case when p_description is null or trim(p_description) = ''
+                       then null else trim(p_description) end
   where id = p_match_id;
 
-  perform recompute_match_fill(p_match_id);
+  -- Re-sort starting/reserve for the new starting_players and notify movers.
+  perform rebalance_roster(p_match_id);
+  perform recompute_match_status(p_match_id);
 
-  -- Notify every registered player that details changed. Players who were
-  -- just demoted also received the reserve-move notice above.
   perform create_notification(mr.user_id, p_match_id, 'match_updated',
       'تم تعديل تفاصيل المباراة.')
   from match_registrations mr
@@ -815,7 +923,7 @@ begin
 end;
 $$;
 
--- 7) Organizer: remove a player -----------------------------------------------
+-- 9) Organizer: remove a player (notifies removed + promoted) ------------------
 create or replace function public.remove_player(p_match_id uuid, p_user_id uuid)
 returns void
 language plpgsql
@@ -825,6 +933,7 @@ as $$
 declare
   v_match matches%rowtype;
   v_registration match_registrations%rowtype;
+  v_promoted uuid;
 begin
   if auth.uid() is null then
     raise exception 'NOT_AUTHENTICATED';
@@ -837,8 +946,8 @@ begin
   if v_match.created_by <> auth.uid() then
     raise exception 'NOT_ORGANIZER';
   end if;
-  if v_match.status not in ('open', 'full') then
-    raise exception 'MATCH_READ_ONLY';
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
   end if;
 
   select * into v_registration
@@ -857,67 +966,22 @@ begin
       where match_id = p_match_id and status = 'reserve'
       order by registration_order
       limit 1
-    );
+    )
+    returning user_id into v_promoted;
+
+    if v_promoted is not null then
+      perform create_notification(v_promoted, p_match_id, 'promoted',
+          'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+    end if;
   end if;
 
-  perform recompute_match_fill(p_match_id);
+  perform recompute_match_status(p_match_id);
   perform create_notification(p_user_id, p_match_id, 'removed',
       'قام المنظم بإزالتك من المباراة.');
 end;
 $$;
 
--- 8) Organizer: cancel (keeps registrations as history) ------------------------
-create or replace function public.cancel_match(p_match_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_match matches%rowtype;
-begin
-  select * into v_match from matches where id = p_match_id for update;
-  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
-  if v_match.created_by <> auth.uid() then raise exception 'NOT_ORGANIZER'; end if;
-  if v_match.status in ('cancelled', 'completed') then
-    raise exception 'MATCH_READ_ONLY';
-  end if;
-
-  update matches set status = 'cancelled' where id = p_match_id;
-
-  perform create_notification(mr.user_id, p_match_id, 'match_cancelled',
-      'تم إلغاء المباراة.')
-  from match_registrations mr where mr.match_id = p_match_id;
-end;
-$$;
-
--- 9) Organizer: postpone (clears registrations, re-opens) ----------------------
-create or replace function public.postpone_match(p_match_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_match matches%rowtype;
-begin
-  select * into v_match from matches where id = p_match_id for update;
-  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
-  if v_match.created_by <> auth.uid() then raise exception 'NOT_ORGANIZER'; end if;
-  if v_match.status not in ('open', 'full') then
-    raise exception 'MATCH_READ_ONLY';
-  end if;
-
-  perform create_notification(mr.user_id, p_match_id, 'match_postponed',
-      'تم تأجيل المباراة وإعادة فتح التسجيل.')
-  from match_registrations mr where mr.match_id = p_match_id;
-
-  delete from match_registrations where match_id = p_match_id;
-  update matches set status = 'postponed' where id = p_match_id;
-end;
-$$;
-
--- 10) Organizer: delete (only with zero registrations, never completed) --------
+-- 10) Organizer: delete any match that is not completed ------------------------
 create or replace function public.delete_match(p_match_id uuid)
 returns void
 language plpgsql
@@ -926,32 +990,47 @@ set search_path = public
 as $$
 declare
   v_match matches%rowtype;
-  v_count int;
 begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
   select * into v_match from matches where id = p_match_id for update;
-  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
-  if v_match.created_by <> auth.uid() then raise exception 'NOT_ORGANIZER'; end if;
-  if v_match.status = 'completed' then raise exception 'MATCH_COMPLETED'; end if;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if v_match.created_by <> auth.uid() then
+    raise exception 'NOT_ORGANIZER';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
 
-  select count(*) into v_count
-  from match_registrations where match_id = p_match_id;
-  if v_count > 0 then raise exception 'MATCH_HAS_PLAYERS'; end if;
+  -- Notify everyone first; notifications survive the match (match_id is
+  -- set to null by the foreign key).
+  perform create_notification(mr.user_id, p_match_id, 'match_deleted',
+      'تم حذف المباراة.')
+  from match_registrations mr
+  where mr.match_id = p_match_id;
 
+  delete from match_registrations where match_id = p_match_id;
   delete from matches where id = p_match_id;
 end;
 $$;
 
--- Grants: organizer/notification helpers are for authenticated callers only.
-revoke execute on function public.create_notification(uuid, uuid, text, text) from anon, authenticated, public;
-revoke execute on function public.recompute_match_fill(uuid) from anon, authenticated, public;
-revoke execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, text) from anon, public;
+-- Grants -----------------------------------------------------------------------
+revoke execute on function public.create_notification(uuid, uuid, text, text)
+  from anon, authenticated, public;
+revoke execute on function public.recompute_match_status(uuid)
+  from anon, authenticated, public;
+revoke execute on function public.rebalance_roster(uuid)
+  from anon, authenticated, public;
+revoke execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, int, text)
+  from anon, public;
 revoke execute on function public.remove_player(uuid, uuid) from anon, public;
-revoke execute on function public.cancel_match(uuid) from anon, public;
-revoke execute on function public.postpone_match(uuid) from anon, public;
 revoke execute on function public.delete_match(uuid) from anon, public;
-grant execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, text) to authenticated;
+grant execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, int, text)
+  to authenticated;
 grant execute on function public.remove_player(uuid, uuid) to authenticated;
-grant execute on function public.cancel_match(uuid) to authenticated;
-grant execute on function public.postpone_match(uuid) to authenticated;
 grant execute on function public.delete_match(uuid) to authenticated;
 

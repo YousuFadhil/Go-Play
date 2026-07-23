@@ -38,12 +38,11 @@ class MatchRegistration {
   }
 }
 
+/// Match lifecycle: open -> full (registration closed) -> back to open when a
+/// slot frees. Completed is automatic once the scheduled end time passes.
 enum MatchStatus {
-  draft('draft'),
   open('open'),
   full('full'),
-  postponed('postponed'),
-  cancelled('cancelled'),
   completed('completed');
 
   const MatchStatus(this.dbValue);
@@ -53,16 +52,6 @@ enum MatchStatus {
   static MatchStatus fromDb(String value) =>
       values.firstWhere((s) => s.dbValue == value,
           orElse: () => MatchStatus.open);
-
-  /// Registration is possible in these states.
-  bool get isJoinable =>
-      this == MatchStatus.open ||
-      this == MatchStatus.full ||
-      this == MatchStatus.postponed;
-
-  /// No further changes are allowed.
-  bool get isReadOnly =>
-      this == MatchStatus.cancelled || this == MatchStatus.completed;
 }
 
 /// A football match scheduled inside a group.
@@ -74,7 +63,8 @@ class Match {
     required this.location,
     required this.startAt,
     required this.endAt,
-    required this.maxPlayers,
+    required this.startingPlayers,
+    required this.maxRegistration,
     required this.status,
     this.title,
     this.description,
@@ -87,7 +77,11 @@ class Match {
   final String location;
   final DateTime startAt;
   final DateTime endAt;
-  final int maxPlayers;
+
+  /// The first [startingPlayers] registrations are starting players; the rest
+  /// are reserve, up to [maxRegistration] where registration closes.
+  final int startingPlayers;
+  final int maxRegistration;
   final MatchStatus status;
   final String? title;
   final String? description;
@@ -100,6 +94,14 @@ class Match {
       ? title!
       : location;
 
+  /// Completion is time-driven, so it is derived here as well as stored: a
+  /// match whose end time has passed is completed even if the stored row has
+  /// not been touched since.
+  MatchStatus get effectiveStatus =>
+      endAt.isAfter(DateTime.now()) ? status : MatchStatus.completed;
+
+  bool get isCompleted => effectiveStatus == MatchStatus.completed;
+
   factory Match.fromJson(Map<String, dynamic> json) {
     return Match(
       id: json['id'] as String,
@@ -108,7 +110,8 @@ class Match {
       location: json['location'] as String,
       startAt: DateTime.parse(json['start_at'] as String).toLocal(),
       endAt: DateTime.parse(json['end_at'] as String).toLocal(),
-      maxPlayers: json['max_players'] as int,
+      startingPlayers: json['starting_players'] as int,
+      maxRegistration: json['max_registration'] as int,
       status: MatchStatus.fromDb(json['status'] as String),
       title: json['title'] as String?,
       description: json['description'] as String?,

@@ -41,19 +41,13 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
 
   void _reload() => setState(() => _future = _load());
 
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
   String _manageError(AppLocalizations l10n, Object e) {
     if (e is ManageException) {
       return switch (e.error) {
-        ManageError.matchHasPlayers => l10n.errDeleteHasPlayers,
         ManageError.matchCompleted => l10n.errMatchCompleted,
-        ManageError.matchReadOnly => l10n.errMatchReadOnly,
         ManageError.notOrganizer => l10n.errNotOrganizer,
+        ManageError.maxBelowRegistered => l10n.errMaxBelowRegistered,
+        ManageError.invalidCapacity => l10n.capacityInvalid,
         _ => l10n.genericError,
       };
     }
@@ -85,20 +79,6 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
       ),
     );
     return ok ?? false;
-  }
-
-  Future<void> _run(Future<void> Function() action) async {
-    final l10n = context.l10n;
-    setState(() => _busy = true);
-    try {
-      await action();
-      _changed = true;
-      _reload();
-    } catch (e) {
-      _snack(_manageError(l10n, e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
   Future<void> _deleteMatch() async {
@@ -184,11 +164,10 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
 
             final (match, registrations) = snapshot.data!;
             final total = registrations.length;
-            final readOnly = match.status.isReadOnly;
-            final canModify = !readOnly && !_busy;
-            final canDelete = !_busy &&
-                total == 0 &&
-                match.status != MatchStatus.completed;
+            // Completed matches are read-only; anything else can be managed
+            // and deleted (registered players are notified on delete).
+            final canModify = !match.isCompleted && !_busy;
+            final canDelete = canModify;
 
             return ListView(
               children: [
@@ -196,8 +175,8 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                   leading: const Icon(Icons.info_outline),
                   title: Text(match.displayName),
                   subtitle: Text(
-                      '${matchStatusLabelValue(l10n, match.status)} • '
-                      '${l10n.playersCountLabel}: $total'),
+                      '${matchStatusLabelValue(l10n, match.effectiveStatus)} • '
+                      '$total/${match.maxRegistration}'),
                 ),
                 const Divider(),
                 ListTile(
@@ -225,41 +204,6 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                       : null,
                 ),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.update),
-                  title: Text(l10n.postponeMatchButton),
-                  subtitle: Text(l10n.postponeMatchHint),
-                  enabled: canModify,
-                  onTap: canModify
-                      ? () async {
-                          if (await _confirm(
-                              l10n.postponeMatchConfirmTitle,
-                              l10n.postponeMatchConfirmBody,
-                              l10n.postponeMatchButton)) {
-                            await _run(
-                                () => _service.postponeMatch(widget.matchId));
-                          }
-                        }
-                      : null,
-                ),
-                ListTile(
-                  leading: Icon(Icons.event_busy,
-                      color: Theme.of(context).colorScheme.error),
-                  title: Text(l10n.cancelMatchButton),
-                  enabled: canModify,
-                  onTap: canModify
-                      ? () async {
-                          if (await _confirm(
-                              l10n.cancelMatchConfirmTitle,
-                              l10n.cancelMatchConfirmBody,
-                              l10n.confirmYes,
-                              destructive: true)) {
-                            await _run(
-                                () => _service.cancelMatch(widget.matchId));
-                          }
-                        }
-                      : null,
-                ),
                 ListTile(
                   leading: Icon(Icons.delete_forever,
                       color: canDelete

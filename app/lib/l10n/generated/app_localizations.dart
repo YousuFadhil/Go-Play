@@ -506,17 +506,35 @@ abstract class AppLocalizations {
   /// **'Match must start in the future'**
   String get startInPastError;
 
-  /// No description provided for @maxPlayersLabel.
+  /// No description provided for @startingPlayersLabel.
   ///
   /// In en, this message translates to:
-  /// **'Max players'**
-  String get maxPlayersLabel;
+  /// **'Starting players'**
+  String get startingPlayersLabel;
 
-  /// No description provided for @maxPlayersInvalid.
+  /// No description provided for @startingPlayersInvalid.
   ///
   /// In en, this message translates to:
   /// **'Enter a number between 2 and 30'**
-  String get maxPlayersInvalid;
+  String get startingPlayersInvalid;
+
+  /// No description provided for @maxRegistrationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum registration'**
+  String get maxRegistrationLabel;
+
+  /// No description provided for @maxRegistrationInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number between 2 and 60'**
+  String get maxRegistrationInvalid;
+
+  /// No description provided for @capacityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum registration must be greater than or equal to starting players'**
+  String get capacityInvalid;
 
   /// No description provided for @matchCreateFailed.
   ///
@@ -548,11 +566,11 @@ abstract class AppLocalizations {
   /// **'Open'**
   String get matchStatusOpen;
 
-  /// No description provided for @matchStatusCancelled.
+  /// No description provided for @matchStatusFull.
   ///
   /// In en, this message translates to:
-  /// **'Cancelled'**
-  String get matchStatusCancelled;
+  /// **'Full'**
+  String get matchStatusFull;
 
   /// No description provided for @matchStatusCompleted.
   ///
@@ -560,34 +578,10 @@ abstract class AppLocalizations {
   /// **'Completed'**
   String get matchStatusCompleted;
 
-  /// No description provided for @playersCountLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Players'**
-  String get playersCountLabel;
-
-  /// No description provided for @cancelMatchButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel match'**
-  String get cancelMatchButton;
-
-  /// No description provided for @cancelMatchConfirmTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel this match?'**
-  String get cancelMatchConfirmTitle;
-
-  /// No description provided for @cancelMatchConfirmBody.
-  ///
-  /// In en, this message translates to:
-  /// **'This cannot be undone.'**
-  String get cancelMatchConfirmBody;
-
   /// No description provided for @confirmYes.
   ///
   /// In en, this message translates to:
-  /// **'Yes, cancel'**
+  /// **'Yes'**
   String get confirmYes;
 
   /// No description provided for @confirmNo.
@@ -595,12 +589,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back'**
   String get confirmNo;
-
-  /// No description provided for @matchCancelFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to cancel the match. Please try again.'**
-  String get matchCancelFailed;
 
   /// No description provided for @joinMatchButton.
   ///
@@ -734,35 +722,17 @@ abstract class AppLocalizations {
   /// **'The organizer removed you from the match.'**
   String get notifRemoved;
 
-  /// No description provided for @notifMatchCancelled.
+  /// No description provided for @notifPromoted.
   ///
   /// In en, this message translates to:
-  /// **'The match was cancelled.'**
-  String get notifMatchCancelled;
+  /// **'You were promoted from the reserve list to the starting players.'**
+  String get notifPromoted;
 
-  /// No description provided for @notifMatchPostponed.
+  /// No description provided for @notifMatchDeleted.
   ///
   /// In en, this message translates to:
-  /// **'The match was postponed and registration was reset.'**
-  String get notifMatchPostponed;
-
-  /// No description provided for @matchStatusDraft.
-  ///
-  /// In en, this message translates to:
-  /// **'Draft'**
-  String get matchStatusDraft;
-
-  /// No description provided for @matchStatusFull.
-  ///
-  /// In en, this message translates to:
-  /// **'Full'**
-  String get matchStatusFull;
-
-  /// No description provided for @matchStatusPostponed.
-  ///
-  /// In en, this message translates to:
-  /// **'Postponed'**
-  String get matchStatusPostponed;
+  /// **'The match was deleted.'**
+  String get notifMatchDeleted;
 
   /// No description provided for @matchManagementTitle.
   ///
@@ -803,7 +773,7 @@ abstract class AppLocalizations {
   /// No description provided for @reducePlayersNote.
   ///
   /// In en, this message translates to:
-  /// **'If you lower the player limit, the latest players move to the reserve list and are notified.'**
+  /// **'If you lower the starting-player count, the latest players move to the reserve list and are notified.'**
   String get reducePlayersNote;
 
   /// No description provided for @saveButton.
@@ -824,30 +794,6 @@ abstract class AppLocalizations {
   /// **'Failed to save the match. Please try again.'**
   String get matchUpdateFailed;
 
-  /// No description provided for @postponeMatchButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Postpone match'**
-  String get postponeMatchButton;
-
-  /// No description provided for @postponeMatchHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Clears registrations and reopens for signup.'**
-  String get postponeMatchHint;
-
-  /// No description provided for @postponeMatchConfirmTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Postpone this match?'**
-  String get postponeMatchConfirmTitle;
-
-  /// No description provided for @postponeMatchConfirmBody.
-  ///
-  /// In en, this message translates to:
-  /// **'All registrations and the reserve list will be cleared and the match reopened.'**
-  String get postponeMatchConfirmBody;
-
   /// No description provided for @deleteMatchButton.
   ///
   /// In en, this message translates to:
@@ -857,7 +803,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteMatchHint.
   ///
   /// In en, this message translates to:
-  /// **'Only when no players are registered.'**
+  /// **'Registered players are notified. Completed matches cannot be deleted.'**
   String get deleteMatchHint;
 
   /// No description provided for @deleteMatchConfirmTitle.
@@ -869,7 +815,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteMatchConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'This cannot be undone.'**
+  /// **'All registrations will be removed and players notified. This cannot be undone.'**
   String get deleteMatchConfirmBody;
 
   /// No description provided for @removePlayerButton.
@@ -896,29 +842,29 @@ abstract class AppLocalizations {
   /// **'No players here yet.'**
   String get rosterEmpty;
 
-  /// No description provided for @errDeleteHasPlayers.
-  ///
-  /// In en, this message translates to:
-  /// **'You can only delete a match with no registered players.'**
-  String get errDeleteHasPlayers;
-
   /// No description provided for @errMatchCompleted.
   ///
   /// In en, this message translates to:
-  /// **'A completed match cannot be deleted.'**
+  /// **'This match is completed and can no longer be changed.'**
   String get errMatchCompleted;
-
-  /// No description provided for @errMatchReadOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'This match can no longer be changed.'**
-  String get errMatchReadOnly;
 
   /// No description provided for @errNotOrganizer.
   ///
   /// In en, this message translates to:
   /// **'Only the match organizer can do this.'**
   String get errNotOrganizer;
+
+  /// No description provided for @errRegistrationClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration is closed; the match reached its maximum.'**
+  String get errRegistrationClosed;
+
+  /// No description provided for @errMaxBelowRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum registration cannot be lower than the number of registered players.'**
+  String get errMaxBelowRegistered;
 
   /// No description provided for @networkError.
   ///

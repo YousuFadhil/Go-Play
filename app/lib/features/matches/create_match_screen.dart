@@ -16,7 +16,8 @@ class CreateMatchScreen extends StatefulWidget {
 class _CreateMatchScreenState extends State<CreateMatchScreen> {
   final _formKey = GlobalKey<FormState>();
   final _locationController = TextEditingController();
-  final _maxPlayersController = TextEditingController(text: '14');
+  final _startingPlayersController = TextEditingController(text: '14');
+  final _maxRegistrationController = TextEditingController(text: '18');
   final _matchService = MatchService();
 
   DateTime? _date;
@@ -27,7 +28,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   @override
   void dispose() {
     _locationController.dispose();
-    _maxPlayersController.dispose();
+    _startingPlayersController.dispose();
+    _maxRegistrationController.dispose();
     super.dispose();
   }
 
@@ -99,7 +101,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         location: _locationController.text,
         startAt: start,
         endAt: end,
-        maxPlayers: int.parse(_maxPlayersController.text),
+        startingPlayers: int.parse(_startingPlayersController.text),
+        maxRegistration: int.parse(_maxRegistrationController.text),
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -169,13 +172,33 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: _maxPlayersController,
+                  controller: _startingPlayersController,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: l10n.maxPlayersLabel),
+                  decoration:
+                      InputDecoration(labelText: l10n.startingPlayersLabel),
                   validator: (value) {
                     final parsed = int.tryParse(value ?? '');
                     if (parsed == null || parsed < 2 || parsed > 30) {
-                      return l10n.maxPlayersInvalid;
+                      return l10n.startingPlayersInvalid;
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _maxRegistrationController,
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      InputDecoration(labelText: l10n.maxRegistrationLabel),
+                  validator: (value) {
+                    final parsed = int.tryParse(value ?? '');
+                    if (parsed == null || parsed < 2 || parsed > 60) {
+                      return l10n.maxRegistrationInvalid;
+                    }
+                    final starting =
+                        int.tryParse(_startingPlayersController.text);
+                    if (starting != null && parsed < starting) {
+                      return l10n.capacityInvalid;
                     }
                     return null;
                   },

@@ -41,8 +41,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'match_updated' => l10n.notifMatchUpdated,
       'moved_to_reserve' => l10n.notifMovedToReserve,
       'removed' => l10n.notifRemoved,
-      'match_cancelled' => l10n.notifMatchCancelled,
-      'match_postponed' => l10n.notifMatchPostponed,
+      'promoted' => l10n.notifPromoted,
+      'match_deleted' => l10n.notifMatchDeleted,
       _ => n.message,
     };
   }
@@ -52,8 +52,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'match_updated' => Icons.edit_calendar,
       'moved_to_reserve' => Icons.hourglass_top,
       'removed' => Icons.person_remove,
-      'match_cancelled' => Icons.event_busy,
-      'match_postponed' => Icons.update,
+      'promoted' => Icons.arrow_upward,
+      'match_deleted' => Icons.delete_forever,
       _ => Icons.notifications,
     };
   }

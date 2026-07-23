@@ -216,10 +216,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startInPastError => 'Match must start in the future';
 
   @override
-  String get maxPlayersLabel => 'Max players';
+  String get startingPlayersLabel => 'Starting players';
 
   @override
-  String get maxPlayersInvalid => 'Enter a number between 2 and 30';
+  String get startingPlayersInvalid => 'Enter a number between 2 and 30';
+
+  @override
+  String get maxRegistrationLabel => 'Maximum registration';
+
+  @override
+  String get maxRegistrationInvalid => 'Enter a number between 2 and 60';
+
+  @override
+  String get capacityInvalid =>
+      'Maximum registration must be greater than or equal to starting players';
 
   @override
   String get matchCreateFailed =>
@@ -239,32 +249,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get matchStatusOpen => 'Open';
 
   @override
-  String get matchStatusCancelled => 'Cancelled';
+  String get matchStatusFull => 'Full';
 
   @override
   String get matchStatusCompleted => 'Completed';
 
   @override
-  String get playersCountLabel => 'Players';
-
-  @override
-  String get cancelMatchButton => 'Cancel match';
-
-  @override
-  String get cancelMatchConfirmTitle => 'Cancel this match?';
-
-  @override
-  String get cancelMatchConfirmBody => 'This cannot be undone.';
-
-  @override
-  String get confirmYes => 'Yes, cancel';
+  String get confirmYes => 'Yes';
 
   @override
   String get confirmNo => 'Back';
-
-  @override
-  String get matchCancelFailed =>
-      'Failed to cancel the match. Please try again.';
 
   @override
   String get joinMatchButton => 'Join match';
@@ -341,20 +335,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifRemoved => 'The organizer removed you from the match.';
 
   @override
-  String get notifMatchCancelled => 'The match was cancelled.';
+  String get notifPromoted =>
+      'You were promoted from the reserve list to the starting players.';
 
   @override
-  String get notifMatchPostponed =>
-      'The match was postponed and registration was reset.';
-
-  @override
-  String get matchStatusDraft => 'Draft';
-
-  @override
-  String get matchStatusFull => 'Full';
-
-  @override
-  String get matchStatusPostponed => 'Postponed';
+  String get notifMatchDeleted => 'The match was deleted.';
 
   @override
   String get matchManagementTitle => 'Match management';
@@ -376,7 +361,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reducePlayersNote =>
-      'If you lower the player limit, the latest players move to the reserve list and are notified.';
+      'If you lower the starting-player count, the latest players move to the reserve list and are notified.';
 
   @override
   String get saveButton => 'Save';
@@ -389,30 +374,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get matchUpdateFailed => 'Failed to save the match. Please try again.';
 
   @override
-  String get postponeMatchButton => 'Postpone match';
-
-  @override
-  String get postponeMatchHint =>
-      'Clears registrations and reopens for signup.';
-
-  @override
-  String get postponeMatchConfirmTitle => 'Postpone this match?';
-
-  @override
-  String get postponeMatchConfirmBody =>
-      'All registrations and the reserve list will be cleared and the match reopened.';
-
-  @override
   String get deleteMatchButton => 'Delete match';
 
   @override
-  String get deleteMatchHint => 'Only when no players are registered.';
+  String get deleteMatchHint =>
+      'Registered players are notified. Completed matches cannot be deleted.';
 
   @override
   String get deleteMatchConfirmTitle => 'Delete this match?';
 
   @override
-  String get deleteMatchConfirmBody => 'This cannot be undone.';
+  String get deleteMatchConfirmBody =>
+      'All registrations will be removed and players notified. This cannot be undone.';
 
   @override
   String get removePlayerButton => 'Remove';
@@ -429,17 +402,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rosterEmpty => 'No players here yet.';
 
   @override
-  String get errDeleteHasPlayers =>
-      'You can only delete a match with no registered players.';
-
-  @override
-  String get errMatchCompleted => 'A completed match cannot be deleted.';
-
-  @override
-  String get errMatchReadOnly => 'This match can no longer be changed.';
+  String get errMatchCompleted =>
+      'This match is completed and can no longer be changed.';
 
   @override
   String get errNotOrganizer => 'Only the match organizer can do this.';
+
+  @override
+  String get errRegistrationClosed =>
+      'Registration is closed; the match reached its maximum.';
+
+  @override
+  String get errMaxBelowRegistered =>
+      'Maximum registration cannot be lower than the number of registered players.';
 
   @override
   String get networkError =>

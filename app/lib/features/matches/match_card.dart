@@ -7,11 +7,8 @@ import 'match_models.dart';
 
 String matchStatusLabelValue(AppLocalizations l10n, MatchStatus status) {
   return switch (status) {
-    MatchStatus.draft => l10n.matchStatusDraft,
     MatchStatus.open => l10n.matchStatusOpen,
     MatchStatus.full => l10n.matchStatusFull,
-    MatchStatus.postponed => l10n.matchStatusPostponed,
-    MatchStatus.cancelled => l10n.matchStatusCancelled,
     MatchStatus.completed => l10n.matchStatusCompleted,
   };
 }
@@ -44,28 +41,24 @@ class MatchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cancelled = match.status == MatchStatus.cancelled;
+    final status = match.effectiveStatus;
+    final completed = status == MatchStatus.completed;
     // Show a status chip whenever the match is not simply open.
-    final showStatus = match.status != MatchStatus.open;
+    final showStatus = status != MatchStatus.open;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: ListTile(
         leading: CircleAvatar(
-          child: Icon(cancelled ? Icons.event_busy : Icons.sports_soccer),
+          child: Icon(completed ? Icons.event_available : Icons.sports_soccer),
         ),
         title: Text(
           showGroupName && match.groupName != null
               ? '${match.groupName} • ${match.displayName}'
               : match.displayName,
-          style: cancelled
-              ? const TextStyle(decoration: TextDecoration.lineThrough)
-              : null,
         ),
         subtitle: Text(formatMatchTime(context, match)),
-        trailing: showStatus
-            ? Text(matchStatusLabel(context, match.status))
-            : null,
+        trailing: showStatus ? Text(matchStatusLabel(context, status)) : null,
         onTap: () async {
           await Navigator.of(context).push(
             MaterialPageRoute(

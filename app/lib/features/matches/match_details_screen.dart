@@ -54,6 +54,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       RegistrationError.matchClosed => l10n.errMatchClosed,
       RegistrationError.alreadyRegistered => l10n.errAlreadyRegistered,
       RegistrationError.notRegistered => l10n.errNotRegistered,
+      RegistrationError.registrationClosed => l10n.errRegistrationClosed,
     };
   }
 
@@ -182,9 +183,12 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
               .where((r) => r.userId == currentUserId)
               .firstOrNull;
           final isCreator = match.createdBy == currentUserId;
-          final isOpen = match.status.isJoinable &&
-              match.startAt.isAfter(DateTime.now());
-          final isFull = confirmed.length >= match.maxPlayers;
+          // Registration is possible until the match ends or the cap is hit.
+          final registrationClosed =
+              registrations.length >= match.maxRegistration;
+          final isOpen = !match.isCompleted;
+          // Starting places taken -> further sign-ups join the reserve.
+          final startingFull = confirmed.length >= match.startingPlayers;
 
           return RefreshIndicator(
             onRefresh: () async => _refresh(),
@@ -226,7 +230,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.info_outline),
-                  title: Text(matchStatusLabel(context, match.status)),
+                  title: Text(matchStatusLabel(context, match.effectiveStatus)),
+                  subtitle: Text('${registrations.length}/'
+                      '${match.maxRegistration}'),
                 ),
                 if (match.description != null &&
                     match.description!.isNotEmpty)
@@ -275,8 +281,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                               onPressed: _isActionLoading ? null : _withdraw,
                               child: Text(l10n.withdrawMatchButton),
                             ),
+                          ] else if (registrationClosed) ...[
+                            Text(l10n.errRegistrationClosed),
                           ] else ...[
-                            if (isFull) ...[
+                            if (startingFull) ...[
                               Text(l10n.matchFullNote),
                               const SizedBox(height: 12),
                             ],
@@ -302,8 +310,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Text(
-                    '${l10n.playersCountLabel} '
-                    '(${confirmed.length}/${match.maxPlayers})',
+                    '${l10n.startingPlayersLabel} '
+                    '(${confirmed.length}/${match.startingPlayers})',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),

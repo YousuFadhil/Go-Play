@@ -216,10 +216,20 @@ class AppLocalizationsAr extends AppLocalizations {
   String get startInPastError => 'يجب أن تبدأ المباراة في المستقبل';
 
   @override
-  String get maxPlayersLabel => 'الحد الأقصى للاعبين';
+  String get startingPlayersLabel => 'اللاعبون الأساسيون';
 
   @override
-  String get maxPlayersInvalid => 'أدخل رقماً بين 2 و 30';
+  String get startingPlayersInvalid => 'أدخل رقماً بين 2 و 30';
+
+  @override
+  String get maxRegistrationLabel => 'الحد الأقصى للتسجيل';
+
+  @override
+  String get maxRegistrationInvalid => 'أدخل رقماً بين 2 و 60';
+
+  @override
+  String get capacityInvalid =>
+      'الحد الأقصى للتسجيل يجب أن يكون أكبر من أو يساوي عدد اللاعبين الأساسيين';
 
   @override
   String get matchCreateFailed => 'فشل إنشاء المباراة. حاول مرة أخرى.';
@@ -238,31 +248,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get matchStatusOpen => 'مفتوحة';
 
   @override
-  String get matchStatusCancelled => 'ملغاة';
+  String get matchStatusFull => 'مكتملة';
 
   @override
   String get matchStatusCompleted => 'منتهية';
 
   @override
-  String get playersCountLabel => 'اللاعبون';
-
-  @override
-  String get cancelMatchButton => 'إلغاء المباراة';
-
-  @override
-  String get cancelMatchConfirmTitle => 'إلغاء هذه المباراة؟';
-
-  @override
-  String get cancelMatchConfirmBody => 'لا يمكن التراجع عن هذا الإجراء.';
-
-  @override
-  String get confirmYes => 'نعم، إلغاء';
+  String get confirmYes => 'نعم';
 
   @override
   String get confirmNo => 'رجوع';
-
-  @override
-  String get matchCancelFailed => 'فشل إلغاء المباراة. حاول مرة أخرى.';
 
   @override
   String get joinMatchButton => 'الانضمام للمباراة';
@@ -336,19 +331,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notifRemoved => 'قام المنظم بإزالتك من المباراة.';
 
   @override
-  String get notifMatchCancelled => 'تم إلغاء المباراة.';
+  String get notifPromoted => 'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.';
 
   @override
-  String get notifMatchPostponed => 'تم تأجيل المباراة وإعادة فتح التسجيل.';
-
-  @override
-  String get matchStatusDraft => 'مسودة';
-
-  @override
-  String get matchStatusFull => 'مكتملة';
-
-  @override
-  String get matchStatusPostponed => 'مؤجلة';
+  String get notifMatchDeleted => 'تم حذف المباراة.';
 
   @override
   String get matchManagementTitle => 'إدارة المباراة';
@@ -370,7 +356,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get reducePlayersNote =>
-      'عند تقليل عدد اللاعبين يُنقل آخر المسجّلين إلى قائمة الاحتياط ويُشعَرون بذلك.';
+      'عند تقليل عدد اللاعبين الأساسيين يُنقل آخر المسجّلين إلى قائمة الاحتياط ويُشعَرون بذلك.';
 
   @override
   String get saveButton => 'حفظ';
@@ -383,29 +369,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get matchUpdateFailed => 'فشل حفظ المباراة. حاول مرة أخرى.';
 
   @override
-  String get postponeMatchButton => 'تأجيل المباراة';
-
-  @override
-  String get postponeMatchHint => 'يُلغي التسجيلات ويعيد فتح باب الاشتراك.';
-
-  @override
-  String get postponeMatchConfirmTitle => 'تأجيل هذه المباراة؟';
-
-  @override
-  String get postponeMatchConfirmBody =>
-      'ستُلغى جميع التسجيلات وقائمة الاحتياط وتُعاد المباراة للتسجيل.';
-
-  @override
   String get deleteMatchButton => 'حذف المباراة';
 
   @override
-  String get deleteMatchHint => 'متاح فقط عند عدم وجود لاعبين مسجّلين.';
+  String get deleteMatchHint =>
+      'يتم إشعار اللاعبين المسجّلين. لا يمكن حذف المباريات المنتهية.';
 
   @override
   String get deleteMatchConfirmTitle => 'حذف هذه المباراة؟';
 
   @override
-  String get deleteMatchConfirmBody => 'لا يمكن التراجع عن هذا الإجراء.';
+  String get deleteMatchConfirmBody =>
+      'ستُحذف جميع التسجيلات ويُشعَر اللاعبون. لا يمكن التراجع عن هذا الإجراء.';
 
   @override
   String get removePlayerButton => 'إزالة';
@@ -422,17 +397,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get rosterEmpty => 'لا يوجد لاعبون هنا بعد.';
 
   @override
-  String get errDeleteHasPlayers =>
-      'لا يمكن حذف مباراة تحتوي على لاعبين مسجّلين.';
-
-  @override
-  String get errMatchCompleted => 'لا يمكن حذف مباراة منتهية.';
-
-  @override
-  String get errMatchReadOnly => 'لم يعد بالإمكان تعديل هذه المباراة.';
+  String get errMatchCompleted => 'المباراة منتهية ولم يعد بالإمكان تعديلها.';
 
   @override
   String get errNotOrganizer => 'منظّم المباراة فقط يمكنه هذا الإجراء.';
+
+  @override
+  String get errRegistrationClosed =>
+      'التسجيل مغلق؛ اكتمل الحد الأقصى للمباراة.';
+
+  @override
+  String get errMaxBelowRegistered =>
+      'الحد الأقصى للتسجيل لا يمكن أن يقل عن عدد اللاعبين المسجّلين.';
 
   @override
   String get networkError => 'تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.';
