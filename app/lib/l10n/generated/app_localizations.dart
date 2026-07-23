@@ -698,6 +698,228 @@ abstract class AppLocalizations {
   /// **'Failed to withdraw. Please try again.'**
   String get withdrawMatchFailed;
 
+  /// No description provided for @homeGreeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello, {name}'**
+  String homeGreeting(String name);
+
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet.'**
+  String get notificationsEmpty;
+
+  /// No description provided for @notifMatchUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Match details were updated.'**
+  String get notifMatchUpdated;
+
+  /// No description provided for @notifMovedToReserve.
+  ///
+  /// In en, this message translates to:
+  /// **'You were moved to the reserve list because the player count changed.'**
+  String get notifMovedToReserve;
+
+  /// No description provided for @notifRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'The organizer removed you from the match.'**
+  String get notifRemoved;
+
+  /// No description provided for @notifMatchCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'The match was cancelled.'**
+  String get notifMatchCancelled;
+
+  /// No description provided for @notifMatchPostponed.
+  ///
+  /// In en, this message translates to:
+  /// **'The match was postponed and registration was reset.'**
+  String get notifMatchPostponed;
+
+  /// No description provided for @matchStatusDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get matchStatusDraft;
+
+  /// No description provided for @matchStatusFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Full'**
+  String get matchStatusFull;
+
+  /// No description provided for @matchStatusPostponed.
+  ///
+  /// In en, this message translates to:
+  /// **'Postponed'**
+  String get matchStatusPostponed;
+
+  /// No description provided for @matchManagementTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match management'**
+  String get matchManagementTitle;
+
+  /// No description provided for @editMatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit match'**
+  String get editMatchTitle;
+
+  /// No description provided for @managePlayersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage players'**
+  String get managePlayersTitle;
+
+  /// No description provided for @manageReserveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage reserve list'**
+  String get manageReserveTitle;
+
+  /// No description provided for @matchTitleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Match title (optional)'**
+  String get matchTitleLabel;
+
+  /// No description provided for @matchDescriptionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get matchDescriptionLabel;
+
+  /// No description provided for @reducePlayersNote.
+  ///
+  /// In en, this message translates to:
+  /// **'If you lower the player limit, the latest players move to the reserve list and are notified.'**
+  String get reducePlayersNote;
+
+  /// No description provided for @saveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get saveButton;
+
+  /// No description provided for @matchUpdatedSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Match updated. Registered players were notified.'**
+  String get matchUpdatedSaved;
+
+  /// No description provided for @matchUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save the match. Please try again.'**
+  String get matchUpdateFailed;
+
+  /// No description provided for @postponeMatchButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Postpone match'**
+  String get postponeMatchButton;
+
+  /// No description provided for @postponeMatchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Clears registrations and reopens for signup.'**
+  String get postponeMatchHint;
+
+  /// No description provided for @postponeMatchConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Postpone this match?'**
+  String get postponeMatchConfirmTitle;
+
+  /// No description provided for @postponeMatchConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All registrations and the reserve list will be cleared and the match reopened.'**
+  String get postponeMatchConfirmBody;
+
+  /// No description provided for @deleteMatchButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete match'**
+  String get deleteMatchButton;
+
+  /// No description provided for @deleteMatchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only when no players are registered.'**
+  String get deleteMatchHint;
+
+  /// No description provided for @deleteMatchConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this match?'**
+  String get deleteMatchConfirmTitle;
+
+  /// No description provided for @deleteMatchConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone.'**
+  String get deleteMatchConfirmBody;
+
+  /// No description provided for @removePlayerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get removePlayerButton;
+
+  /// No description provided for @removePlayerConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove player?'**
+  String get removePlayerConfirmTitle;
+
+  /// No description provided for @removePlayerConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} from the match?'**
+  String removePlayerConfirmBody(String name);
+
+  /// No description provided for @rosterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No players here yet.'**
+  String get rosterEmpty;
+
+  /// No description provided for @errDeleteHasPlayers.
+  ///
+  /// In en, this message translates to:
+  /// **'You can only delete a match with no registered players.'**
+  String get errDeleteHasPlayers;
+
+  /// No description provided for @errMatchCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'A completed match cannot be deleted.'**
+  String get errMatchCompleted;
+
+  /// No description provided for @errMatchReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This match can no longer be changed.'**
+  String get errMatchReadOnly;
+
+  /// No description provided for @errNotOrganizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the match organizer can do this.'**
+  String get errNotOrganizer;
+
   /// No description provided for @networkError.
   ///
   /// In en, this message translates to:

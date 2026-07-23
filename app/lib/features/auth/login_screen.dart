@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
+import '../../core/locale_controller.dart';
 import 'auth_service.dart';
 import 'register_screen.dart';
 
@@ -75,6 +76,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'ar', label: Text('العربية')),
+                        ButtonSegment(value: 'en', label: Text('English')),
+                      ],
+                      selected: {
+                        Localizations.localeOf(context).languageCode,
+                      },
+                      showSelectedIcon: false,
+                      onSelectionChanged: (selection) => LocaleController
+                          .instance
+                          .setLocale(selection.first),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,

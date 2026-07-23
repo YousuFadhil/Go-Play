@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/l10n.dart';
+import 'core/locale_controller.dart';
 import 'core/theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/home/home_shell.dart';
@@ -11,14 +12,20 @@ class GoPlayApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      onGenerateTitle: (context) => context.l10n.appName,
-      theme: buildAppTheme(),
-      debugShowCheckedModeBanner: false,
-      // Follows the device locale; falls back to English.
-      supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: const AuthGate(),
+    return ValueListenableBuilder<Locale>(
+      valueListenable: LocaleController.instance.locale,
+      builder: (context, locale, _) {
+        return MaterialApp(
+          onGenerateTitle: (context) => context.l10n.appName,
+          theme: buildAppTheme(),
+          debugShowCheckedModeBanner: false,
+          // Arabic by default; overridable from the Login screen and persisted.
+          locale: locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: const AuthGate(),
+        );
+      },
     );
   }
 }

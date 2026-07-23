@@ -16,6 +16,23 @@ class RegistrationException implements Exception {
   final RegistrationError error;
 }
 
+/// Typed errors raised by the organizer management RPCs.
+enum ManageError {
+  notOrganizer,
+  matchReadOnly,
+  matchCompleted,
+  matchHasPlayers,
+  invalidTimeRange,
+  invalidMaxPlayers,
+  notRegistered,
+}
+
+class ManageException implements Exception {
+  const ManageException(this.error);
+
+  final ManageError error;
+}
+
 /// Data access for matches. Single-row writes use direct inserts/updates
 /// guarded by RLS; multi-step registration logic (Sprint 4) will use RPCs.
 class MatchService {
@@ -26,7 +43,7 @@ class MatchService {
 
   static const _columns =
       'id, group_id, created_by, location, start_at, end_at, '
-      'max_players, status';
+      'max_players, status, title, description';
 
   /// Matches of one group, newest scheduled first.
   Future<List<Match>> fetchGroupMatches(String groupId) async {
@@ -76,10 +93,74 @@ class MatchService {
     });
   }
 
-  Future<void> cancelMatch(String matchId) async {
-    await _client
-        .from('matches')
-        .update({'status': MatchStatus.cancelled.dbValue}).eq('id', matchId);
+  // --- Organizer management (all via transactional, race-safe RPCs) ---
+
+  /// Edits match details. Reducing the player limit demotes the latest
+  /// confirmed players to reserve and notifies everyone affected.
+  Future<void> updateMatch({
+    required String matchId,
+    String? title,
+    required String location,
+    required DateTime startAt,
+    required DateTime endAt,
+    required int maxPlayers,
+    String? description,
+  }) async {
+    await _manage('update_match', {
+      'p_match_id': matchId,
+      'p_title': title,
+      'p_location': location.trim(),
+      'p_start_at': startAt.toUtc().toIso8601String(),
+      'p_end_at': endAt.toUtc().toIso8601String(),
+      'p_max_players': maxPlayers,
+      'p_description': description,
+    });
+  }
+
+  Future<void> removePlayer(String matchId, String userId) =>
+      _manage('remove_player', {'p_match_id': matchId, 'p_user_id': userId});
+
+  Future<void> cancelMatch(String matchId) =>
+      _manage('cancel_match', {'p_match_id': matchId});
+
+  Future<void> postponeMatch(String matchId) =>
+      _manage('postpone_match', {'p_match_id': matchId});
+
+  Future<void> deleteMatch(String matchId) =>
+      _manage('delete_match', {'p_match_id': matchId});
+
+  Future<void> _manage(String fn, Map<String, dynamic> params) async {
+    try {
+      await _client.rpc(fn, params: params);
+    } on PostgrestException catch (e) {
+      throw _mapManageError(e);
+    }
+  }
+
+  Exception _mapManageError(PostgrestException e) {
+    final m = e.message;
+    if (m.contains('NOT_ORGANIZER')) {
+      return const ManageException(ManageError.notOrganizer);
+    }
+    if (m.contains('MATCH_READ_ONLY')) {
+      return const ManageException(ManageError.matchReadOnly);
+    }
+    if (m.contains('MATCH_COMPLETED')) {
+      return const ManageException(ManageError.matchCompleted);
+    }
+    if (m.contains('MATCH_HAS_PLAYERS')) {
+      return const ManageException(ManageError.matchHasPlayers);
+    }
+    if (m.contains('INVALID_TIME_RANGE')) {
+      return const ManageException(ManageError.invalidTimeRange);
+    }
+    if (m.contains('INVALID_MAX_PLAYERS')) {
+      return const ManageException(ManageError.invalidMaxPlayers);
+    }
+    if (m.contains('NOT_REGISTERED')) {
+      return const ManageException(ManageError.notRegistered);
+    }
+    return e;
   }
 
   /// Roster of a match, in registration order.

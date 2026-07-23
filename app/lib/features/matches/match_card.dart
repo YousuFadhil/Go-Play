@@ -5,14 +5,19 @@ import '../../core/l10n.dart';
 import 'match_details_screen.dart';
 import 'match_models.dart';
 
-String matchStatusLabel(BuildContext context, MatchStatus status) {
-  final l10n = context.l10n;
+String matchStatusLabelValue(AppLocalizations l10n, MatchStatus status) {
   return switch (status) {
+    MatchStatus.draft => l10n.matchStatusDraft,
     MatchStatus.open => l10n.matchStatusOpen,
+    MatchStatus.full => l10n.matchStatusFull,
+    MatchStatus.postponed => l10n.matchStatusPostponed,
     MatchStatus.cancelled => l10n.matchStatusCancelled,
     MatchStatus.completed => l10n.matchStatusCompleted,
   };
 }
+
+String matchStatusLabel(BuildContext context, MatchStatus status) =>
+    matchStatusLabelValue(context.l10n, status);
 
 String formatMatchTime(BuildContext context, Match match) {
   final locale = Localizations.localeOf(context).toString();
@@ -40,6 +45,8 @@ class MatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cancelled = match.status == MatchStatus.cancelled;
+    // Show a status chip whenever the match is not simply open.
+    final showStatus = match.status != MatchStatus.open;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -49,14 +56,14 @@ class MatchCard extends StatelessWidget {
         ),
         title: Text(
           showGroupName && match.groupName != null
-              ? '${match.groupName} • ${match.location}'
-              : match.location,
+              ? '${match.groupName} • ${match.displayName}'
+              : match.displayName,
           style: cancelled
               ? const TextStyle(decoration: TextDecoration.lineThrough)
               : null,
         ),
         subtitle: Text(formatMatchTime(context, match)),
-        trailing: cancelled
+        trailing: showStatus
             ? Text(matchStatusLabel(context, match.status))
             : null,
         onTap: () async {

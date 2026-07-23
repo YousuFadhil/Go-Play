@@ -110,6 +110,51 @@
   "joinMatchFailed": "فشل الانضمام للمباراة. حاول مرة أخرى.",
   "withdrawMatchFailed": "فشل الانسحاب. حاول مرة أخرى.",
 
+  "homeGreeting": "مرحباً، {name}",
+
+  "notificationsTitle": "الإشعارات",
+  "notificationsEmpty": "لا توجد إشعارات بعد.",
+  "notifMatchUpdated": "تم تعديل تفاصيل المباراة.",
+  "notifMovedToReserve": "تم نقلك إلى قائمة الاحتياط بسبب تعديل عدد اللاعبين.",
+  "notifRemoved": "قام المنظم بإزالتك من المباراة.",
+  "notifMatchCancelled": "تم إلغاء المباراة.",
+  "notifMatchPostponed": "تم تأجيل المباراة وإعادة فتح التسجيل.",
+
+  "matchStatusDraft": "مسودة",
+  "matchStatusFull": "مكتملة",
+  "matchStatusPostponed": "مؤجلة",
+
+  "matchManagementTitle": "إدارة المباراة",
+  "editMatchTitle": "تعديل المباراة",
+  "managePlayersTitle": "إدارة اللاعبين",
+  "manageReserveTitle": "إدارة قائمة الاحتياط",
+  "matchTitleLabel": "عنوان المباراة (اختياري)",
+  "matchDescriptionLabel": "الوصف",
+  "reducePlayersNote": "عند تقليل عدد اللاعبين يُنقل آخر المسجّلين إلى قائمة الاحتياط ويُشعَرون بذلك.",
+  "saveButton": "حفظ",
+  "matchUpdatedSaved": "تم تعديل المباراة وإشعار اللاعبين المسجّلين.",
+  "matchUpdateFailed": "فشل حفظ المباراة. حاول مرة أخرى.",
+
+  "postponeMatchButton": "تأجيل المباراة",
+  "postponeMatchHint": "يُلغي التسجيلات ويعيد فتح باب الاشتراك.",
+  "postponeMatchConfirmTitle": "تأجيل هذه المباراة؟",
+  "postponeMatchConfirmBody": "ستُلغى جميع التسجيلات وقائمة الاحتياط وتُعاد المباراة للتسجيل.",
+
+  "deleteMatchButton": "حذف المباراة",
+  "deleteMatchHint": "متاح فقط عند عدم وجود لاعبين مسجّلين.",
+  "deleteMatchConfirmTitle": "حذف هذه المباراة؟",
+  "deleteMatchConfirmBody": "لا يمكن التراجع عن هذا الإجراء.",
+
+  "removePlayerButton": "إزالة",
+  "removePlayerConfirmTitle": "إزالة اللاعب؟",
+  "removePlayerConfirmBody": "إزالة {name} من المباراة؟",
+  "rosterEmpty": "لا يوجد لاعبون هنا بعد.",
+
+  "errDeleteHasPlayers": "لا يمكن حذف مباراة تحتوي على لاعبين مسجّلين.",
+  "errMatchCompleted": "لا يمكن حذف مباراة منتهية.",
+  "errMatchReadOnly": "لم يعد بالإمكان تعديل هذه المباراة.",
+  "errNotOrganizer": "منظّم المباراة فقط يمكنه هذا الإجراء.",
+
   "networkError": "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
   "loadFailed": "فشل تحميل البيانات.",
   "retryButton": "إعادة المحاولة",

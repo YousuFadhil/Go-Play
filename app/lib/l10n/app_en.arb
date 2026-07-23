@@ -110,6 +110,57 @@
   "joinMatchFailed": "Failed to join the match. Please try again.",
   "withdrawMatchFailed": "Failed to withdraw. Please try again.",
 
+  "homeGreeting": "Hello, {name}",
+  "@homeGreeting": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "notificationsTitle": "Notifications",
+  "notificationsEmpty": "No notifications yet.",
+  "notifMatchUpdated": "Match details were updated.",
+  "notifMovedToReserve": "You were moved to the reserve list because the player count changed.",
+  "notifRemoved": "The organizer removed you from the match.",
+  "notifMatchCancelled": "The match was cancelled.",
+  "notifMatchPostponed": "The match was postponed and registration was reset.",
+
+  "matchStatusDraft": "Draft",
+  "matchStatusFull": "Full",
+  "matchStatusPostponed": "Postponed",
+
+  "matchManagementTitle": "Match management",
+  "editMatchTitle": "Edit match",
+  "managePlayersTitle": "Manage players",
+  "manageReserveTitle": "Manage reserve list",
+  "matchTitleLabel": "Match title (optional)",
+  "matchDescriptionLabel": "Description",
+  "reducePlayersNote": "If you lower the player limit, the latest players move to the reserve list and are notified.",
+  "saveButton": "Save",
+  "matchUpdatedSaved": "Match updated. Registered players were notified.",
+  "matchUpdateFailed": "Failed to save the match. Please try again.",
+
+  "postponeMatchButton": "Postpone match",
+  "postponeMatchHint": "Clears registrations and reopens for signup.",
+  "postponeMatchConfirmTitle": "Postpone this match?",
+  "postponeMatchConfirmBody": "All registrations and the reserve list will be cleared and the match reopened.",
+
+  "deleteMatchButton": "Delete match",
+  "deleteMatchHint": "Only when no players are registered.",
+  "deleteMatchConfirmTitle": "Delete this match?",
+  "deleteMatchConfirmBody": "This cannot be undone.",
+
+  "removePlayerButton": "Remove",
+  "removePlayerConfirmTitle": "Remove player?",
+  "removePlayerConfirmBody": "Remove {name} from the match?",
+  "@removePlayerConfirmBody": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "rosterEmpty": "No players here yet.",
+
+  "errDeleteHasPlayers": "You can only delete a match with no registered players.",
+  "errMatchCompleted": "A completed match cannot be deleted.",
+  "errMatchReadOnly": "This match can no longer be changed.",
+  "errNotOrganizer": "Only the match organizer can do this.",
+
   "networkError": "Could not reach the server. Check your internet connection.",
   "loadFailed": "Failed to load data.",
   "retryButton": "Retry",

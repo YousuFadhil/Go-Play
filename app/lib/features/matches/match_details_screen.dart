@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
 import 'match_card.dart';
+import 'match_management_screen.dart';
 import 'match_models.dart';
 import 'match_service.dart';
 
@@ -112,32 +113,19 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     }
   }
 
-  Future<void> _cancelMatch() async {
-    final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.cancelMatchConfirmTitle),
-        content: Text(l10n.cancelMatchConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.confirmNo),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.confirmYes),
-          ),
-        ],
+  Future<void> _openManagement() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MatchManagementScreen(matchId: widget.matchId),
       ),
     );
-    if (confirmed != true) return;
-
+    if (!mounted) return;
+    // The match may have been deleted from the management screen.
     try {
-      await _matchService.cancelMatch(widget.matchId);
+      await _matchService.fetchMatch(widget.matchId);
       _refresh();
     } catch (_) {
-      _showMessage(l10n.matchCancelFailed);
+      if (mounted) Navigator.of(context).pop();
     }
   }
 
@@ -194,7 +182,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
               .where((r) => r.userId == currentUserId)
               .firstOrNull;
           final isCreator = match.createdBy == currentUserId;
-          final isOpen = match.status == MatchStatus.open &&
+          final isOpen = match.status.isJoinable &&
               match.startAt.isAfter(DateTime.now());
           final isFull = confirmed.length >= match.maxPlayers;
 
@@ -204,6 +192,23 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Text(
+                    match.displayName,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
+                if (isCreator)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: OutlinedButton.icon(
+                      onPressed: _openManagement,
+                      icon: const Icon(Icons.settings),
+                      label: Text(l10n.matchManagementTitle),
+                    ),
+                  ),
                 if (match.groupName != null)
                   ListTile(
                     leading: const Icon(Icons.groups),
@@ -223,6 +228,13 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                   leading: const Icon(Icons.info_outline),
                   title: Text(matchStatusLabel(context, match.status)),
                 ),
+                if (match.description != null &&
+                    match.description!.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.notes),
+                    title: Text(l10n.matchDescriptionLabel),
+                    subtitle: Text(match.description!),
+                  ),
 
                 // Player status card + join/withdraw actions.
                 if (isOpen)
@@ -323,19 +335,6 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                           Text(_positionLabel(context, registration.position)),
                     ),
                 ],
-
-                if (isCreator && match.status == MatchStatus.open)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.error,
-                      ),
-                      onPressed: _cancelMatch,
-                      icon: const Icon(Icons.event_busy),
-                      label: Text(l10n.cancelMatchButton),
-                    ),
-                  ),
               ],
             ),
           );

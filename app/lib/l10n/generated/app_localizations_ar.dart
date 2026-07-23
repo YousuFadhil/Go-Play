@@ -315,6 +315,126 @@ class AppLocalizationsAr extends AppLocalizations {
   String get withdrawMatchFailed => 'فشل الانسحاب. حاول مرة أخرى.';
 
   @override
+  String homeGreeting(String name) {
+    return 'مرحباً، $name';
+  }
+
+  @override
+  String get notificationsTitle => 'الإشعارات';
+
+  @override
+  String get notificationsEmpty => 'لا توجد إشعارات بعد.';
+
+  @override
+  String get notifMatchUpdated => 'تم تعديل تفاصيل المباراة.';
+
+  @override
+  String get notifMovedToReserve =>
+      'تم نقلك إلى قائمة الاحتياط بسبب تعديل عدد اللاعبين.';
+
+  @override
+  String get notifRemoved => 'قام المنظم بإزالتك من المباراة.';
+
+  @override
+  String get notifMatchCancelled => 'تم إلغاء المباراة.';
+
+  @override
+  String get notifMatchPostponed => 'تم تأجيل المباراة وإعادة فتح التسجيل.';
+
+  @override
+  String get matchStatusDraft => 'مسودة';
+
+  @override
+  String get matchStatusFull => 'مكتملة';
+
+  @override
+  String get matchStatusPostponed => 'مؤجلة';
+
+  @override
+  String get matchManagementTitle => 'إدارة المباراة';
+
+  @override
+  String get editMatchTitle => 'تعديل المباراة';
+
+  @override
+  String get managePlayersTitle => 'إدارة اللاعبين';
+
+  @override
+  String get manageReserveTitle => 'إدارة قائمة الاحتياط';
+
+  @override
+  String get matchTitleLabel => 'عنوان المباراة (اختياري)';
+
+  @override
+  String get matchDescriptionLabel => 'الوصف';
+
+  @override
+  String get reducePlayersNote =>
+      'عند تقليل عدد اللاعبين يُنقل آخر المسجّلين إلى قائمة الاحتياط ويُشعَرون بذلك.';
+
+  @override
+  String get saveButton => 'حفظ';
+
+  @override
+  String get matchUpdatedSaved =>
+      'تم تعديل المباراة وإشعار اللاعبين المسجّلين.';
+
+  @override
+  String get matchUpdateFailed => 'فشل حفظ المباراة. حاول مرة أخرى.';
+
+  @override
+  String get postponeMatchButton => 'تأجيل المباراة';
+
+  @override
+  String get postponeMatchHint => 'يُلغي التسجيلات ويعيد فتح باب الاشتراك.';
+
+  @override
+  String get postponeMatchConfirmTitle => 'تأجيل هذه المباراة؟';
+
+  @override
+  String get postponeMatchConfirmBody =>
+      'ستُلغى جميع التسجيلات وقائمة الاحتياط وتُعاد المباراة للتسجيل.';
+
+  @override
+  String get deleteMatchButton => 'حذف المباراة';
+
+  @override
+  String get deleteMatchHint => 'متاح فقط عند عدم وجود لاعبين مسجّلين.';
+
+  @override
+  String get deleteMatchConfirmTitle => 'حذف هذه المباراة؟';
+
+  @override
+  String get deleteMatchConfirmBody => 'لا يمكن التراجع عن هذا الإجراء.';
+
+  @override
+  String get removePlayerButton => 'إزالة';
+
+  @override
+  String get removePlayerConfirmTitle => 'إزالة اللاعب؟';
+
+  @override
+  String removePlayerConfirmBody(String name) {
+    return 'إزالة $name من المباراة؟';
+  }
+
+  @override
+  String get rosterEmpty => 'لا يوجد لاعبون هنا بعد.';
+
+  @override
+  String get errDeleteHasPlayers =>
+      'لا يمكن حذف مباراة تحتوي على لاعبين مسجّلين.';
+
+  @override
+  String get errMatchCompleted => 'لا يمكن حذف مباراة منتهية.';
+
+  @override
+  String get errMatchReadOnly => 'لم يعد بالإمكان تعديل هذه المباراة.';
+
+  @override
+  String get errNotOrganizer => 'منظّم المباراة فقط يمكنه هذا الإجراء.';
+
+  @override
   String get networkError => 'تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.';
 
   @override

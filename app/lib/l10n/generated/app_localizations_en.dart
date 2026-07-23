@@ -320,6 +320,128 @@ class AppLocalizationsEn extends AppLocalizations {
   String get withdrawMatchFailed => 'Failed to withdraw. Please try again.';
 
   @override
+  String homeGreeting(String name) {
+    return 'Hello, $name';
+  }
+
+  @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsEmpty => 'No notifications yet.';
+
+  @override
+  String get notifMatchUpdated => 'Match details were updated.';
+
+  @override
+  String get notifMovedToReserve =>
+      'You were moved to the reserve list because the player count changed.';
+
+  @override
+  String get notifRemoved => 'The organizer removed you from the match.';
+
+  @override
+  String get notifMatchCancelled => 'The match was cancelled.';
+
+  @override
+  String get notifMatchPostponed =>
+      'The match was postponed and registration was reset.';
+
+  @override
+  String get matchStatusDraft => 'Draft';
+
+  @override
+  String get matchStatusFull => 'Full';
+
+  @override
+  String get matchStatusPostponed => 'Postponed';
+
+  @override
+  String get matchManagementTitle => 'Match management';
+
+  @override
+  String get editMatchTitle => 'Edit match';
+
+  @override
+  String get managePlayersTitle => 'Manage players';
+
+  @override
+  String get manageReserveTitle => 'Manage reserve list';
+
+  @override
+  String get matchTitleLabel => 'Match title (optional)';
+
+  @override
+  String get matchDescriptionLabel => 'Description';
+
+  @override
+  String get reducePlayersNote =>
+      'If you lower the player limit, the latest players move to the reserve list and are notified.';
+
+  @override
+  String get saveButton => 'Save';
+
+  @override
+  String get matchUpdatedSaved =>
+      'Match updated. Registered players were notified.';
+
+  @override
+  String get matchUpdateFailed => 'Failed to save the match. Please try again.';
+
+  @override
+  String get postponeMatchButton => 'Postpone match';
+
+  @override
+  String get postponeMatchHint =>
+      'Clears registrations and reopens for signup.';
+
+  @override
+  String get postponeMatchConfirmTitle => 'Postpone this match?';
+
+  @override
+  String get postponeMatchConfirmBody =>
+      'All registrations and the reserve list will be cleared and the match reopened.';
+
+  @override
+  String get deleteMatchButton => 'Delete match';
+
+  @override
+  String get deleteMatchHint => 'Only when no players are registered.';
+
+  @override
+  String get deleteMatchConfirmTitle => 'Delete this match?';
+
+  @override
+  String get deleteMatchConfirmBody => 'This cannot be undone.';
+
+  @override
+  String get removePlayerButton => 'Remove';
+
+  @override
+  String get removePlayerConfirmTitle => 'Remove player?';
+
+  @override
+  String removePlayerConfirmBody(String name) {
+    return 'Remove $name from the match?';
+  }
+
+  @override
+  String get rosterEmpty => 'No players here yet.';
+
+  @override
+  String get errDeleteHasPlayers =>
+      'You can only delete a match with no registered players.';
+
+  @override
+  String get errMatchCompleted => 'A completed match cannot be deleted.';
+
+  @override
+  String get errMatchReadOnly => 'This match can no longer be changed.';
+
+  @override
+  String get errNotOrganizer => 'Only the match organizer can do this.';
+
+  @override
   String get networkError =>
       'Could not reach the server. Check your internet connection.';
 

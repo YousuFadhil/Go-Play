@@ -5,9 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/config.dart';
 import 'core/config_error_app.dart';
+import 'core/locale_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load the saved language (Arabic by default) before the first frame.
+  await LocaleController.instance.load();
 
   if (kDebugMode) {
     debugPrint('[GoPlay] SUPABASE_URL = '

@@ -39,7 +39,10 @@ class MatchRegistration {
 }
 
 enum MatchStatus {
+  draft('draft'),
   open('open'),
+  full('full'),
+  postponed('postponed'),
   cancelled('cancelled'),
   completed('completed');
 
@@ -48,7 +51,18 @@ enum MatchStatus {
   final String dbValue;
 
   static MatchStatus fromDb(String value) =>
-      values.firstWhere((s) => s.dbValue == value);
+      values.firstWhere((s) => s.dbValue == value,
+          orElse: () => MatchStatus.open);
+
+  /// Registration is possible in these states.
+  bool get isJoinable =>
+      this == MatchStatus.open ||
+      this == MatchStatus.full ||
+      this == MatchStatus.postponed;
+
+  /// No further changes are allowed.
+  bool get isReadOnly =>
+      this == MatchStatus.cancelled || this == MatchStatus.completed;
 }
 
 /// A football match scheduled inside a group.
@@ -62,6 +76,8 @@ class Match {
     required this.endAt,
     required this.maxPlayers,
     required this.status,
+    this.title,
+    this.description,
     this.groupName,
   });
 
@@ -73,9 +89,16 @@ class Match {
   final DateTime endAt;
   final int maxPlayers;
   final MatchStatus status;
+  final String? title;
+  final String? description;
 
   /// Present only when the query joins the group (e.g. Home screen).
   final String? groupName;
+
+  /// What to show as the match's headline: the title if set, else location.
+  String get displayName => (title != null && title!.isNotEmpty)
+      ? title!
+      : location;
 
   factory Match.fromJson(Map<String, dynamic> json) {
     return Match(
@@ -87,6 +110,8 @@ class Match {
       endAt: DateTime.parse(json['end_at'] as String).toLocal(),
       maxPlayers: json['max_players'] as int,
       status: MatchStatus.fromDb(json['status'] as String),
+      title: json['title'] as String?,
+      description: json['description'] as String?,
       groupName: (json['group'] as Map<String, dynamic>?)?['name'] as String?,
     );
   }
