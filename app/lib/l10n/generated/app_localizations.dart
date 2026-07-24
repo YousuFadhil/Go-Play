@@ -524,17 +524,11 @@ abstract class AppLocalizations {
   /// **'Maximum registration'**
   String get maxRegistrationLabel;
 
-  /// No description provided for @maxRegistrationInvalid.
+  /// No description provided for @capacityAutoNote.
   ///
   /// In en, this message translates to:
-  /// **'Enter a number between 2 and 60'**
-  String get maxRegistrationInvalid;
-
-  /// No description provided for @capacityInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Maximum registration must be greater than or equal to starting players'**
-  String get capacityInvalid;
+  /// **'Reserve players: {reserve} (automatic) — maximum registration: {max}'**
+  String capacityAutoNote(int reserve, int max);
 
   /// No description provided for @matchCreateFailed.
   ///

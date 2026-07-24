@@ -24,7 +24,7 @@ enum ManageError {
   matchCompleted,
   matchLocked,
   invalidTimeRange,
-  invalidCapacity,
+  invalidStartingPlayers,
   maxBelowRegistered,
   notRegistered,
 }
@@ -77,13 +77,14 @@ class MatchService {
     return Match.fromJson(row);
   }
 
+  /// Creates a match. Maximum registration is derived by the database from
+  /// the starting players plus the global reserve setting.
   Future<void> createMatch({
     required String groupId,
     required String location,
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
-    required int maxRegistration,
   }) async {
     await _client.from('matches').insert({
       'group_id': groupId,
@@ -92,7 +93,6 @@ class MatchService {
       'start_at': startAt.toUtc().toIso8601String(),
       'end_at': endAt.toUtc().toIso8601String(),
       'starting_players': startingPlayers,
-      'max_registration': maxRegistration,
     });
   }
 
@@ -107,7 +107,6 @@ class MatchService {
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
-    required int maxRegistration,
     String? description,
   }) async {
     await _manage('update_match', {
@@ -117,7 +116,6 @@ class MatchService {
       'p_start_at': startAt.toUtc().toIso8601String(),
       'p_end_at': endAt.toUtc().toIso8601String(),
       'p_starting_players': startingPlayers,
-      'p_max_registration': maxRegistration,
       'p_description': description,
     });
   }
@@ -151,10 +149,8 @@ class MatchService {
     if (m.contains('MAX_BELOW_REGISTERED')) {
       return const ManageException(ManageError.maxBelowRegistered);
     }
-    if (m.contains('INVALID_CAPACITY') ||
-        m.contains('INVALID_STARTING_PLAYERS') ||
-        m.contains('INVALID_MAX_REGISTRATION')) {
-      return const ManageException(ManageError.invalidCapacity);
+    if (m.contains('INVALID_STARTING_PLAYERS')) {
+      return const ManageException(ManageError.invalidStartingPlayers);
     }
     if (m.contains('INVALID_TIME_RANGE')) {
       return const ManageException(ManageError.invalidTimeRange);

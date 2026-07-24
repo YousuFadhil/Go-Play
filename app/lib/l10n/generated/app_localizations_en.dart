@@ -225,11 +225,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get maxRegistrationLabel => 'Maximum registration';
 
   @override
-  String get maxRegistrationInvalid => 'Enter a number between 2 and 60';
-
-  @override
-  String get capacityInvalid =>
-      'Maximum registration must be greater than or equal to starting players';
+  String capacityAutoNote(int reserve, int max) {
+    return 'Reserve players: $reserve (automatic) — maximum registration: $max';
+  }
 
   @override
   String get matchCreateFailed =>

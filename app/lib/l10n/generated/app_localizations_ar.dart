@@ -225,11 +225,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get maxRegistrationLabel => 'الحد الأقصى للتسجيل';
 
   @override
-  String get maxRegistrationInvalid => 'أدخل رقماً بين 2 و 60';
-
-  @override
-  String get capacityInvalid =>
-      'الحد الأقصى للتسجيل يجب أن يكون أكبر من أو يساوي عدد اللاعبين الأساسيين';
+  String capacityAutoNote(int reserve, int max) {
+    return 'لاعبو الاحتياط: $reserve (تلقائي) — الحد الأقصى للتسجيل: $max';
+  }
 
   @override
   String get matchCreateFailed => 'فشل إنشاء المباراة. حاول مرة أخرى.';

@@ -532,6 +532,26 @@ grant execute on function public.is_match_group_member(uuid, uuid)
 drop function if exists public.cancel_match(uuid);
 drop function if exists public.postpone_match(uuid);
 drop function if exists public.recompute_match_fill(uuid);
+drop function if exists public.update_match(uuid, text, text, timestamptz, timestamptz, int, text);
+drop function if exists public.update_match(uuid, text, text, timestamptz, timestamptz, int, int, text);
+
+-- 0) Global application settings ----------------------------------------------
+-- Reserve capacity is a single global value; maximum registration is always
+-- derived as starting_players + reserve_players.
+create table if not exists public.app_settings (
+  id boolean primary key default true check (id),
+  reserve_players int not null default 6
+    check (reserve_players between 0 and 30)
+);
+
+insert into public.app_settings (id) values (true)
+on conflict (id) do nothing;
+
+alter table public.app_settings enable row level security;
+drop policy if exists "app_settings_select_all" on public.app_settings;
+create policy "app_settings_select_all"
+  on public.app_settings for select to authenticated using (true);
+-- No write policy: the value is changed by an administrator via SQL.
 
 -- 1) Optional match fields -----------------------------------------------------
 alter table public.matches
@@ -582,6 +602,36 @@ alter table public.matches add constraint matches_capacity_check
   check (max_registration >= starting_players);
 
 alter table public.matches drop column if exists max_players;
+
+-- max_registration is derived, never supplied by the organizer: it is set on
+-- insert and whenever starting_players changes.
+create or replace function public.set_match_capacity()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_reserve int;
+begin
+  if tg_op = 'INSERT'
+     or new.starting_players is distinct from old.starting_players then
+    select reserve_players into v_reserve from app_settings limit 1;
+    new.max_registration := new.starting_players + coalesce(v_reserve, 6);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists matches_set_capacity on public.matches;
+create trigger matches_set_capacity
+  before insert or update on public.matches
+  for each row execute function public.set_match_capacity();
+
+-- Align existing rows with the derived rule.
+update public.matches m
+set max_registration = m.starting_players
+    + (select reserve_players from public.app_settings limit 1);
 
 -- 3) Status model: open | full | completed ------------------------------------
 -- Map any legacy value onto the new set before tightening the constraint.
@@ -864,7 +914,6 @@ create or replace function public.update_match(
   p_start_at timestamptz,
   p_end_at timestamptz,
   p_starting_players int,
-  p_max_registration int,
   p_description text
 )
 returns void
@@ -900,16 +949,13 @@ begin
   if p_starting_players < 2 or p_starting_players > 30 then
     raise exception 'INVALID_STARTING_PLAYERS';
   end if;
-  if p_max_registration < 2 or p_max_registration > 60 then
-    raise exception 'INVALID_MAX_REGISTRATION';
-  end if;
-  if p_max_registration < p_starting_players then
-    raise exception 'INVALID_CAPACITY';
-  end if;
 
+  -- Maximum registration is derived; make sure the new capacity still fits
+  -- everyone already registered.
   select count(*) into v_total
   from match_registrations where match_id = p_match_id;
-  if p_max_registration < v_total then
+  if p_starting_players
+     + (select reserve_players from app_settings limit 1) < v_total then
     raise exception 'MAX_BELOW_REGISTERED';
   end if;
 
@@ -920,7 +966,7 @@ begin
     start_at = p_start_at,
     end_at = p_end_at,
     starting_players = p_starting_players,
-    max_registration = p_max_registration,
+    -- max_registration is recomputed by the matches_set_capacity trigger.
     description = case when p_description is null or trim(p_description) = ''
                        then null else trim(p_description) end
   where id = p_match_id;
@@ -998,7 +1044,12 @@ begin
 end;
 $$;
 
--- 10) Organizer: delete any match that is not completed ------------------------
+-- 10) Organizer: delete a match ------------------------------------------------
+-- Deletion is deliberately time-independent: a match may be deleted whether or
+-- not it has started or ended. It becomes protected only once the match is
+-- historical (recorded result, statistics, ratings, best player, standings or
+-- tournament history). None of those exist at this MVP stage, so no such guard
+-- is added yet -- add it here when those features land.
 create or replace function public.delete_match(p_match_id uuid)
 returns void
 language plpgsql
@@ -1018,13 +1069,6 @@ begin
   end if;
   if v_match.created_by <> auth.uid() then
     raise exception 'NOT_ORGANIZER';
-  end if;
-  if v_match.status = 'completed' or v_match.end_at <= now() then
-    raise exception 'MATCH_COMPLETED';
-  end if;
-  -- A started match is locked, so it can no longer be deleted either.
-  if v_match.start_at <= now() then
-    raise exception 'MATCH_LOCKED';
   end if;
 
   -- Notify everyone first; notifications survive the match (match_id is
@@ -1046,11 +1090,13 @@ revoke execute on function public.recompute_match_status(uuid)
   from anon, authenticated, public;
 revoke execute on function public.rebalance_roster(uuid)
   from anon, authenticated, public;
-revoke execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, int, text)
+revoke execute on function public.set_match_capacity()
+  from anon, authenticated, public;
+revoke execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, text)
   from anon, public;
 revoke execute on function public.remove_player(uuid, uuid) from anon, public;
 revoke execute on function public.delete_match(uuid) from anon, public;
-grant execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, int, text)
+grant execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, text)
   to authenticated;
 grant execute on function public.remove_player(uuid, uuid) to authenticated;
 grant execute on function public.delete_match(uuid) to authenticated;

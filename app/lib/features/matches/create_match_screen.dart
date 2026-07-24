@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/app_settings.dart';
 import '../../core/l10n.dart';
 import 'match_service.dart';
 
@@ -17,7 +18,6 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   final _formKey = GlobalKey<FormState>();
   final _locationController = TextEditingController();
   final _startingPlayersController = TextEditingController(text: '14');
-  final _maxRegistrationController = TextEditingController(text: '18');
   final _matchService = MatchService();
 
   DateTime? _date;
@@ -29,7 +29,6 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   void dispose() {
     _locationController.dispose();
     _startingPlayersController.dispose();
-    _maxRegistrationController.dispose();
     super.dispose();
   }
 
@@ -102,7 +101,6 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         startAt: start,
         endAt: end,
         startingPlayers: int.parse(_startingPlayersController.text),
-        maxRegistration: int.parse(_maxRegistrationController.text),
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -176,6 +174,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   keyboardType: TextInputType.number,
                   decoration:
                       InputDecoration(labelText: l10n.startingPlayersLabel),
+                  onChanged: (_) => setState(() {}),
                   validator: (value) {
                     final parsed = int.tryParse(value ?? '');
                     if (parsed == null || parsed < 2 || parsed > 30) {
@@ -185,23 +184,14 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _maxRegistrationController,
-                  keyboardType: TextInputType.number,
-                  decoration:
-                      InputDecoration(labelText: l10n.maxRegistrationLabel),
-                  validator: (value) {
-                    final parsed = int.tryParse(value ?? '');
-                    if (parsed == null || parsed < 2 || parsed > 60) {
-                      return l10n.maxRegistrationInvalid;
-                    }
-                    final starting =
-                        int.tryParse(_startingPlayersController.text);
-                    if (starting != null && parsed < starting) {
-                      return l10n.capacityInvalid;
-                    }
-                    return null;
-                  },
+                // Maximum registration is derived, never entered.
+                Text(
+                  l10n.capacityAutoNote(
+                    AppSettings.reservePlayers,
+                    AppSettings.maxRegistrationFor(
+                        int.tryParse(_startingPlayersController.text) ?? 0),
+                  ),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 24),
                 FilledButton(

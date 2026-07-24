@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/app_settings.dart';
 import '../../core/l10n.dart';
 import 'match_models.dart';
 import 'match_service.dart';
@@ -21,7 +22,6 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _locationController;
   late final TextEditingController _startingPlayersController;
-  late final TextEditingController _maxRegistrationController;
   late final TextEditingController _descriptionController;
   final _service = MatchService();
 
@@ -38,8 +38,6 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
     _locationController = TextEditingController(text: m.location);
     _startingPlayersController =
         TextEditingController(text: m.startingPlayers.toString());
-    _maxRegistrationController =
-        TextEditingController(text: m.maxRegistration.toString());
     _descriptionController = TextEditingController(text: m.description ?? '');
     _date = DateTime(m.startAt.year, m.startAt.month, m.startAt.day);
     _startTime = TimeOfDay.fromDateTime(m.startAt);
@@ -51,7 +49,6 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
     _titleController.dispose();
     _locationController.dispose();
     _startingPlayersController.dispose();
-    _maxRegistrationController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -109,7 +106,6 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
         startAt: start,
         endAt: end,
         startingPlayers: int.parse(_startingPlayersController.text),
-        maxRegistration: int.parse(_maxRegistrationController.text),
         description: _descriptionController.text,
       );
       if (mounted) {
@@ -191,6 +187,7 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
                   keyboardType: TextInputType.number,
                   decoration:
                       InputDecoration(labelText: l10n.startingPlayersLabel),
+                  onChanged: (_) => setState(() {}),
                   validator: (value) {
                     final parsed = int.tryParse(value ?? '');
                     if (parsed == null || parsed < 2 || parsed > 30) {
@@ -200,23 +197,14 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _maxRegistrationController,
-                  keyboardType: TextInputType.number,
-                  decoration:
-                      InputDecoration(labelText: l10n.maxRegistrationLabel),
-                  validator: (value) {
-                    final parsed = int.tryParse(value ?? '');
-                    if (parsed == null || parsed < 2 || parsed > 60) {
-                      return l10n.maxRegistrationInvalid;
-                    }
-                    final starting =
-                        int.tryParse(_startingPlayersController.text);
-                    if (starting != null && parsed < starting) {
-                      return l10n.capacityInvalid;
-                    }
-                    return null;
-                  },
+                // Maximum registration is derived, never entered.
+                Text(
+                  l10n.capacityAutoNote(
+                    AppSettings.reservePlayers,
+                    AppSettings.maxRegistrationFor(
+                        int.tryParse(_startingPlayersController.text) ?? 0),
+                  ),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 8),
                 TextFormField(

@@ -48,7 +48,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
         ManageError.matchLocked => l10n.errMatchLocked,
         ManageError.notOrganizer => l10n.errNotOrganizer,
         ManageError.maxBelowRegistered => l10n.errMaxBelowRegistered,
-        ManageError.invalidCapacity => l10n.capacityInvalid,
+        ManageError.invalidStartingPlayers => l10n.startingPlayersInvalid,
         _ => l10n.genericError,
       };
     }
@@ -167,9 +167,11 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
             final (match, registrations) = snapshot.data!;
             final total = registrations.length;
             // The match locks at kickoff and stays locked until it completes,
-            // so organizer changes are only possible before the start time.
+            // so roster/detail changes are only possible before the start.
             final canModify = match.isOpenForChanges && !_busy;
-            final canDelete = canModify;
+            // Deletion is time-independent; it will be restricted only once
+            // matches can become historical (results, stats, ratings...).
+            final canDelete = !_busy;
 
             return ListView(
               children: [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/app_settings.dart';
 import '../../core/l10n.dart';
 import '../auth/auth_service.dart';
 import '../matches/match_card.dart';
@@ -31,6 +32,8 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Future<_HomeData> _load() async {
+    // Refresh the global reserve setting whenever Home loads.
+    await AppSettings.load();
     final client = Supabase.instance.client;
     final uid = client.auth.currentUser?.id;
     String firstName = '';

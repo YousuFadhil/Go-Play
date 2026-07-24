@@ -79,8 +79,13 @@
   "startingPlayersLabel": "Starting players",
   "startingPlayersInvalid": "Enter a number between 2 and 30",
   "maxRegistrationLabel": "Maximum registration",
-  "maxRegistrationInvalid": "Enter a number between 2 and 60",
-  "capacityInvalid": "Maximum registration must be greater than or equal to starting players",
+  "capacityAutoNote": "Reserve players: {reserve} (automatic) — maximum registration: {max}",
+  "@capacityAutoNote": {
+    "placeholders": {
+      "reserve": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  },
   "matchCreateFailed": "Failed to create the match. Please try again.",
   "groupMatchesEmpty": "No matches in this group yet.",
   "upcomingMatchesTitle": "Upcoming matches",
