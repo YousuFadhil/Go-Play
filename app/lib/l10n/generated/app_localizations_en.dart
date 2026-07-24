@@ -413,6 +413,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Registration is closed; the match reached its maximum.';
 
   @override
+  String get errMatchLocked =>
+      'The match has started and is locked until it finishes.';
+
+  @override
+  String get matchLockedNote =>
+      'The match has started. Registration, withdrawals and roster changes are locked until it finishes.';
+
+  @override
   String get errMaxBelowRegistered =>
       'Maximum registration cannot be lower than the number of registered players.';
 

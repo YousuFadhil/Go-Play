@@ -860,6 +860,18 @@ abstract class AppLocalizations {
   /// **'Registration is closed; the match reached its maximum.'**
   String get errRegistrationClosed;
 
+  /// No description provided for @errMatchLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'The match has started and is locked until it finishes.'**
+  String get errMatchLocked;
+
+  /// No description provided for @matchLockedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The match has started. Registration, withdrawals and roster changes are locked until it finishes.'**
+  String get matchLockedNote;
+
   /// No description provided for @errMaxBelowRegistered.
   ///
   /// In en, this message translates to:

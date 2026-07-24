@@ -741,6 +741,11 @@ begin
   if v_match.status = 'completed' or v_match.end_at <= now() then
     raise exception 'MATCH_CLOSED';
   end if;
+  -- Registration closes at the scheduled start time; the match is then
+  -- locked until it completes.
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
 
   if not is_group_member(v_match.group_id, auth.uid()) then
     raise exception 'NOT_GROUP_MEMBER';
@@ -817,6 +822,10 @@ begin
   if v_match.status = 'completed' or v_match.end_at <= now() then
     raise exception 'MATCH_CLOSED';
   end if;
+  -- No withdrawals once the match has started.
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
 
   select * into v_registration
   from match_registrations
@@ -880,6 +889,10 @@ begin
   end if;
   if v_match.status = 'completed' or v_match.end_at <= now() then
     raise exception 'MATCH_COMPLETED';
+  end if;
+  -- Locked from the scheduled start time onwards.
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
   end if;
   if p_end_at <= p_start_at then
     raise exception 'INVALID_TIME_RANGE';
@@ -949,6 +962,10 @@ begin
   if v_match.status = 'completed' or v_match.end_at <= now() then
     raise exception 'MATCH_COMPLETED';
   end if;
+  -- No organizer roster changes once the match has started.
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
 
   select * into v_registration
   from match_registrations
@@ -1004,6 +1021,10 @@ begin
   end if;
   if v_match.status = 'completed' or v_match.end_at <= now() then
     raise exception 'MATCH_COMPLETED';
+  end if;
+  -- A started match is locked, so it can no longer be deleted either.
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
   end if;
 
   -- Notify everyone first; notifications survive the match (match_id is

@@ -407,6 +407,13 @@ class AppLocalizationsAr extends AppLocalizations {
       'التسجيل مغلق؛ اكتمل الحد الأقصى للمباراة.';
 
   @override
+  String get errMatchLocked => 'بدأت المباراة وهي مقفلة حتى انتهائها.';
+
+  @override
+  String get matchLockedNote =>
+      'بدأت المباراة. التسجيل والانسحاب وتعديل القائمة مقفلة حتى انتهائها.';
+
+  @override
   String get errMaxBelowRegistered =>
       'الحد الأقصى للتسجيل لا يمكن أن يقل عن عدد اللاعبين المسجّلين.';
 

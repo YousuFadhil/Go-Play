@@ -55,6 +55,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       RegistrationError.alreadyRegistered => l10n.errAlreadyRegistered,
       RegistrationError.notRegistered => l10n.errNotRegistered,
       RegistrationError.registrationClosed => l10n.errRegistrationClosed,
+      RegistrationError.matchLocked => l10n.errMatchLocked,
     };
   }
 
@@ -183,10 +184,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
               .where((r) => r.userId == currentUserId)
               .firstOrNull;
           final isCreator = match.createdBy == currentUserId;
-          // Registration is possible until the match ends or the cap is hit.
+          // Registration is possible until kickoff or until the cap is hit.
           final registrationClosed =
               registrations.length >= match.maxRegistration;
-          final isOpen = !match.isCompleted;
+          final isOpen = match.isOpenForChanges;
           // Starting places taken -> further sign-ups join the reserve.
           final startingFull = confirmed.length >= match.startingPlayers;
 
@@ -229,10 +230,13 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                   subtitle: Text(formatMatchTime(context, match)),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.info_outline),
+                  leading: Icon(match.isLocked
+                      ? Icons.lock_outline
+                      : Icons.info_outline),
                   title: Text(matchStatusLabel(context, match.effectiveStatus)),
-                  subtitle: Text('${registrations.length}/'
-                      '${match.maxRegistration}'),
+                  subtitle: Text(match.isLocked
+                      ? l10n.matchLockedNote
+                      : '${registrations.length}/${match.maxRegistration}'),
                 ),
                 if (match.description != null &&
                     match.description!.isNotEmpty)

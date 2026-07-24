@@ -9,6 +9,7 @@ enum RegistrationError {
   alreadyRegistered,
   notRegistered,
   registrationClosed,
+  matchLocked,
 }
 
 class RegistrationException implements Exception {
@@ -21,6 +22,7 @@ class RegistrationException implements Exception {
 enum ManageError {
   notOrganizer,
   matchCompleted,
+  matchLocked,
   invalidTimeRange,
   invalidCapacity,
   maxBelowRegistered,
@@ -143,6 +145,9 @@ class MatchService {
     if (m.contains('MATCH_COMPLETED')) {
       return const ManageException(ManageError.matchCompleted);
     }
+    if (m.contains('MATCH_LOCKED')) {
+      return const ManageException(ManageError.matchLocked);
+    }
     if (m.contains('MAX_BELOW_REGISTERED')) {
       return const ManageException(ManageError.maxBelowRegistered);
     }
@@ -207,6 +212,9 @@ class MatchService {
     }
     if (e.message.contains('REGISTRATION_CLOSED')) {
       return const RegistrationException(RegistrationError.registrationClosed);
+    }
+    if (e.message.contains('MATCH_LOCKED')) {
+      return const RegistrationException(RegistrationError.matchLocked);
     }
     return e;
   }

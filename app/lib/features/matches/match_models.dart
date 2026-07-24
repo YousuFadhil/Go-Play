@@ -102,6 +102,14 @@ class Match {
 
   bool get isCompleted => effectiveStatus == MatchStatus.completed;
 
+  /// From the scheduled start until the end the match is locked: no
+  /// registrations, withdrawals or organizer roster changes.
+  bool get isLocked =>
+      !isCompleted && !startAt.isAfter(DateTime.now());
+
+  /// True while players can still register or withdraw.
+  bool get isOpenForChanges => !isCompleted && !isLocked;
+
   factory Match.fromJson(Map<String, dynamic> json) {
     return Match(
       id: json['id'] as String,

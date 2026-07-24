@@ -13,11 +13,16 @@ class ManageRosterScreen extends StatefulWidget {
     required this.matchId,
     required this.filter,
     required this.title,
+    required this.canRemove,
   });
 
   final String matchId;
   final RegistrationStatus filter;
   final String title;
+
+  /// False once the match is locked (started) or completed: the roster is
+  /// then read-only.
+  final bool canRemove;
 
   @override
   State<ManageRosterScreen> createState() => _ManageRosterScreenState();
@@ -138,12 +143,14 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
                 leading: CircleAvatar(child: Text('${index + 1}')),
                 title: Text(p.fullName),
                 subtitle: Text(_positionLabel(l10n, p.position)),
-                trailing: IconButton(
-                  tooltip: l10n.removePlayerButton,
-                  icon: Icon(Icons.person_remove,
-                      color: Theme.of(context).colorScheme.error),
-                  onPressed: _busy ? null : () => _remove(p),
-                ),
+                trailing: widget.canRemove
+                    ? IconButton(
+                        tooltip: l10n.removePlayerButton,
+                        icon: Icon(Icons.person_remove,
+                            color: Theme.of(context).colorScheme.error),
+                        onPressed: _busy ? null : () => _remove(p),
+                      )
+                    : null,
               );
             },
           );

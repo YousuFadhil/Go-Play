@@ -148,6 +148,8 @@
   "errMatchCompleted": "This match is completed and can no longer be changed.",
   "errNotOrganizer": "Only the match organizer can do this.",
   "errRegistrationClosed": "Registration is closed; the match reached its maximum.",
+  "errMatchLocked": "The match has started and is locked until it finishes.",
+  "matchLockedNote": "The match has started. Registration, withdrawals and roster changes are locked until it finishes.",
   "errMaxBelowRegistered": "Maximum registration cannot be lower than the number of registered players.",
 
   "networkError": "Could not reach the server. Check your internet connection.",

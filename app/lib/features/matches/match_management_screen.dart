@@ -45,6 +45,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
     if (e is ManageException) {
       return switch (e.error) {
         ManageError.matchCompleted => l10n.errMatchCompleted,
+        ManageError.matchLocked => l10n.errMatchLocked,
         ManageError.notOrganizer => l10n.errNotOrganizer,
         ManageError.maxBelowRegistered => l10n.errMaxBelowRegistered,
         ManageError.invalidCapacity => l10n.capacityInvalid,
@@ -112,13 +113,14 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
   }
 
   Future<void> _openRoster(
-      RegistrationStatus filter, String title) async {
+      RegistrationStatus filter, String title, bool canRemove) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ManageRosterScreen(
           matchId: widget.matchId,
           filter: filter,
           title: title,
+          canRemove: canRemove,
         ),
       ),
     );
@@ -164,20 +166,28 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
 
             final (match, registrations) = snapshot.data!;
             final total = registrations.length;
-            // Completed matches are read-only; anything else can be managed
-            // and deleted (registered players are notified on delete).
-            final canModify = !match.isCompleted && !_busy;
+            // The match locks at kickoff and stays locked until it completes,
+            // so organizer changes are only possible before the start time.
+            final canModify = match.isOpenForChanges && !_busy;
             final canDelete = canModify;
 
             return ListView(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.info_outline),
+                  leading: Icon(match.isLocked
+                      ? Icons.lock_outline
+                      : Icons.info_outline),
                   title: Text(match.displayName),
                   subtitle: Text(
                       '${matchStatusLabelValue(l10n, match.effectiveStatus)} • '
                       '$total/${match.maxRegistration}'),
                 ),
+                if (match.isLocked)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(l10n.matchLockedNote,
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.edit),
@@ -191,7 +201,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                   enabled: !_busy,
                   onTap: !_busy
                       ? () => _openRoster(RegistrationStatus.confirmed,
-                          l10n.managePlayersTitle)
+                          l10n.managePlayersTitle, canModify)
                       : null,
                 ),
                 ListTile(
@@ -200,7 +210,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                   enabled: !_busy,
                   onTap: !_busy
                       ? () => _openRoster(RegistrationStatus.reserve,
-                          l10n.manageReserveTitle)
+                          l10n.manageReserveTitle, canModify)
                       : null,
                 ),
                 const Divider(),
