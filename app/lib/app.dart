@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/l10n.dart';
 import 'core/locale_controller.dart';
 import 'core/theme.dart';
+import 'features/auth/auth_service.dart';
 import 'features/auth/login_screen.dart';
 import 'features/home/home_shell.dart';
 
@@ -31,19 +31,25 @@ class GoPlayApp extends StatelessWidget {
 }
 
 /// Shows [LoginScreen] or [HomeShell] based on the current auth session.
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  final _authService = AuthService();
+
+  @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
+    return StreamBuilder<bool>(
+      stream: _authService.signedInChanges,
+      initialData: _authService.currentSession != null,
       builder: (context, snapshot) {
-        final session = Supabase.instance.client.auth.currentSession;
-        if (session != null) {
-          return const HomeShell();
-        }
-        return const LoginScreen();
+        return (snapshot.data ?? false)
+            ? const HomeShell()
+            : const LoginScreen();
       },
     );
   }

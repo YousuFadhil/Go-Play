@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_play/core/app_settings.dart';
+import 'package:go_play/features/matches/app_settings.dart';
 import 'package:go_play/features/matches/match_models.dart';
 
 Match buildMatch({

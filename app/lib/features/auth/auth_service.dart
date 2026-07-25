@@ -14,12 +14,37 @@ enum PlayerPosition {
 
 /// Wraps Supabase authentication for phone + password sign-up and sign-in.
 class AuthService {
-  AuthService([GoTrueClient? auth])
-      : _auth = auth ?? Supabase.instance.client.auth;
+  AuthService([SupabaseClient? client])
+      : _client = client ?? Supabase.instance.client;
 
-  final GoTrueClient _auth;
+  final SupabaseClient _client;
+
+  GoTrueClient get _auth => _client.auth;
 
   Session? get currentSession => _auth.currentSession;
+
+  /// Emits true while a session exists. The auth gate listens to this so the
+  /// widget layer never subscribes to Supabase itself.
+  Stream<bool> get signedInChanges =>
+      _auth.onAuthStateChange.map((_) => _auth.currentSession != null);
+
+  /// Id of the signed-in user, or null when there is no session. Screens read
+  /// identity through here rather than reaching for the Supabase client.
+  String? get currentUserId => _auth.currentUser?.id;
+
+  /// First name of the signed-in user, for greetings. Empty when there is no
+  /// session or the profile has no name yet.
+  Future<String> fetchCurrentUserFirstName() async {
+    final id = currentUserId;
+    if (id == null) return '';
+    final row = await _client
+        .from('users')
+        .select('full_name')
+        .eq('id', id)
+        .maybeSingle();
+    final fullName = (row?['full_name'] as String?)?.trim() ?? '';
+    return fullName.isEmpty ? '' : fullName.split(RegExp(r'\s+')).first;
+  }
 
   /// Oman country calling code. The MVP is Oman-only, so the code is fixed
   /// and the user enters just the 8-digit local number.

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
 import '../communities/community_models.dart';
-import '../communities/group_service.dart';
+import '../communities/community_errors.dart';
+import 'invitation_repository.dart';
 import 'invitation_models.dart';
 
 /// Invitations addressed to the signed-in user. Only the named invitee can
@@ -15,7 +16,7 @@ class MyInvitationsScreen extends StatefulWidget {
 }
 
 class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
-  final _service = GroupService();
+  final _repository = InvitationRepository();
   late Future<List<Invitation>> _future;
   bool _busy = false;
   bool _joinedAny = false;
@@ -23,11 +24,10 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _service.fetchMyInvitations();
+    _future = _repository.fetchMyInvitations();
   }
 
-  void _refresh() =>
-      setState(() => _future = _service.fetchMyInvitations());
+  void _refresh() => setState(() => _future = _repository.fetchMyInvitations());
 
   String _actionError(AppLocalizations l10n, CommunityActionError e) {
     return switch (e) {
@@ -44,7 +44,7 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
     final l10n = context.l10n;
     setState(() => _busy = true);
     try {
-      await _service.acceptInvitation(invitation.id);
+      await _repository.acceptInvitation(invitation.id);
       _joinedAny = true;
       if (!mounted) return;
       ScaffoldMessenger.of(context)

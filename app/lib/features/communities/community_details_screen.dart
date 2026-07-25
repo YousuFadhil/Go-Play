@@ -8,7 +8,9 @@ import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../members/member_management_screen.dart';
 import 'community_models.dart';
-import 'group_service.dart';
+import '../members/member_repository.dart';
+import 'community_errors.dart';
+import 'community_repository.dart';
 
 class CommunityDetailsScreen extends StatefulWidget {
   const CommunityDetailsScreen({super.key, required this.communityId});
@@ -27,7 +29,8 @@ typedef _Data = (
 );
 
 class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
-  final _communityService = GroupService();
+  final _communityRepository = CommunityRepository();
+  final _memberRepository = MemberRepository();
   final _matchService = MatchService();
   late Future<_Data> _dataFuture;
   bool _busy = false;
@@ -40,10 +43,10 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
 
   Future<_Data> _loadData() async {
     final results = await Future.wait([
-      _communityService.fetchGroup(widget.communityId),
-      _communityService.fetchMembers(widget.communityId),
-      _matchService.fetchGroupMatches(widget.communityId),
-      _communityService.fetchMyRole(widget.communityId),
+      _communityRepository.fetchCommunity(widget.communityId),
+      _memberRepository.fetchMembers(widget.communityId),
+      _matchService.fetchCommunityMatches(widget.communityId),
+      _memberRepository.fetchMyRole(widget.communityId),
     ]);
     return (
       results[0] as Community,
@@ -120,7 +123,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     }
     setState(() => _busy = true);
     try {
-      await _communityService.deleteCommunity(widget.communityId);
+      await _communityRepository.deleteCommunity(widget.communityId);
       _say(l10n.communityDeleted);
       navigator.pop();
     } on CommunityActionException catch (e) {

@@ -1,4 +1,4 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'match_service.dart';
 
 /// Global application settings. Reserve capacity lives here rather than on the
 /// match: maximum registration is always starting players + reserve players.
@@ -17,16 +17,12 @@ class AppSettings {
   static int maxRegistrationFor(int startingPlayers) =>
       startingPlayers + _reservePlayers;
 
-  /// Loads the value from the database; safe to call more than once.
-  static Future<void> load([SupabaseClient? client]) async {
+  /// Loads the value through the match repository; safe to call more than
+  /// once. Capacity is enforced server-side, so a failure just keeps the
+  /// fallback rather than blocking the screen.
+  static Future<void> load([MatchService? service]) async {
     try {
-      final db = client ?? Supabase.instance.client;
-      final row = await db
-          .from('app_settings')
-          .select('reserve_players')
-          .limit(1)
-          .maybeSingle();
-      final value = row?['reserve_players'] as int?;
+      final value = await (service ?? MatchService()).fetchReservePlayers();
       if (value != null && value >= 0) _reservePlayers = value;
     } catch (_) {
       // Keep the fallback; capacity is enforced server-side anyway.

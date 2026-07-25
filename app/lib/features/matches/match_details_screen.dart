@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
 import '../communities/community_models.dart';
-import '../communities/group_service.dart';
+import '../auth/auth_service.dart';
+import '../members/member_repository.dart';
 import 'match_card.dart';
 import 'match_management_screen.dart';
 import 'match_models.dart';
@@ -20,7 +20,8 @@ class MatchDetailsScreen extends StatefulWidget {
 
 class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   final _matchService = MatchService();
-  final _communityService = GroupService();
+  final _memberRepository = MemberRepository();
+  final _authService = AuthService();
   late Future<(Match, List<MatchRegistration>, CommunityRole?)> _dataFuture;
   bool _isActionLoading = false;
 
@@ -34,7 +35,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     final match = await _matchService.fetchMatch(widget.matchId);
     final results = await Future.wait([
       _matchService.fetchRegistrations(widget.matchId),
-      _communityService.fetchMyRole(match.communityId),
+      _memberRepository.fetchMyRole(match.communityId),
     ]);
     return (
       match,
@@ -153,7 +154,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final currentUserId = _authService.currentUserId;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.matchDetailsTitle)),
@@ -188,9 +189,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
             for (final r in registrations)
               if (r.status == RegistrationStatus.reserve) r,
           ];
-          final myRegistration = registrations
-              .where((r) => r.userId == currentUserId)
-              .firstOrNull;
+          final myRegistration =
+              registrations.where((r) => r.userId == currentUserId).firstOrNull;
           // Management is a community role now, not a creator privilege
           // (PD-07). The server enforces it; this only decides what is shown.
           final canManage = myRole?.atLeast(CommunityRole.admin) ?? false;
@@ -208,8 +208,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: Text(
                     match.displayName,
                     style: Theme.of(context).textTheme.headlineSmall,
@@ -250,16 +249,14 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                   subtitle: Text(formatMatchTime(context, match)),
                 ),
                 ListTile(
-                  leading: Icon(match.isLocked
-                      ? Icons.lock_outline
-                      : Icons.info_outline),
+                  leading: Icon(
+                      match.isLocked ? Icons.lock_outline : Icons.info_outline),
                   title: Text(matchStatusLabel(context, match.effectiveStatus)),
                   subtitle: Text(match.isLocked
                       ? l10n.matchLockedNote
                       : '${registrations.length}/${match.maxRegistration}'),
                 ),
-                if (match.description != null &&
-                    match.description!.isNotEmpty)
+                if (match.description != null && match.description!.isNotEmpty)
                   ListTile(
                     leading: const Icon(Icons.notes),
                     title: Text(l10n.matchDescriptionLabel),

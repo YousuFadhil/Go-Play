@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
 import '../communities/community_models.dart';
-import '../communities/group_service.dart';
+import '../auth/auth_service.dart';
+import '../communities/community_errors.dart';
+import '../invitations/invitation_repository.dart';
+import 'member_repository.dart';
 import '../invitations/invitation_models.dart';
 import '../invitations/invite_member_screen.dart';
 
@@ -27,7 +29,9 @@ class MemberManagementScreen extends StatefulWidget {
 typedef _Data = (List<CommunityMember>, List<Invitation>, CommunityRole?);
 
 class _MemberManagementScreenState extends State<MemberManagementScreen> {
-  final _service = GroupService();
+  final _members = MemberRepository();
+  final _invitations = InvitationRepository();
+  final _authService = AuthService();
   late Future<_Data> _future;
   bool _busy = false;
 
@@ -38,11 +42,11 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
   }
 
   Future<_Data> _load() async {
-    final role = await _service.fetchMyRole(widget.communityId);
-    final members = await _service.fetchMembers(widget.communityId);
+    final role = await _members.fetchMyRole(widget.communityId);
+    final members = await _members.fetchMembers(widget.communityId);
     // Only organizers can see the invitation list.
     final invitations = (role?.atLeast(CommunityRole.admin) ?? false)
-        ? await _service.fetchCommunityInvitations(widget.communityId)
+        ? await _invitations.fetchCommunityInvitations(widget.communityId)
         : <Invitation>[];
     return (members, invitations, role);
   }
@@ -136,7 +140,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final myId = Supabase.instance.client.auth.currentUser?.id;
+    final myId = _authService.currentUserId;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.manageMembersTitle)),
@@ -204,8 +208,8 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                 ),
                 if (invitations.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(l10n.invitationsEmpty),
                   ),
                 for (final invitation in invitations)
@@ -217,7 +221,8 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                       onPressed: _busy
                           ? null
                           : () => _run(
-                                () => _service.revokeInvitation(invitation.id),
+                                () => _invitations
+                                    .revokeInvitation(invitation.id),
                                 l10n.invitationRevoked,
                               ),
                       child: Text(l10n.revokeInvitationButton),
@@ -252,13 +257,13 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
         switch (value) {
           case 'promote':
             await _run(
-              () => _service.setMemberRole(
+              () => _members.setMemberRole(
                   widget.communityId, member.userId, CommunityRole.admin),
               l10n.memberRoleChanged,
             );
           case 'demote':
             await _run(
-              () => _service.setMemberRole(
+              () => _members.setMemberRole(
                   widget.communityId, member.userId, CommunityRole.player),
               l10n.memberRoleChanged,
             );
@@ -269,7 +274,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
               l10n.transferOwnershipButton,
             )) {
               await _run(
-                () => _service.transferOwnership(
+                () => _members.transferOwnership(
                     widget.communityId, member.userId),
                 l10n.ownershipTransferred,
               );
@@ -281,7 +286,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
               l10n.removeMemberButton,
             )) {
               await _run(
-                () => _service.removeMember(widget.communityId, member.userId),
+                () => _members.removeMember(widget.communityId, member.userId),
                 l10n.memberRemoved,
               );
             }

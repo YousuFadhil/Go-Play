@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
-import 'group_service.dart';
+import 'community_repository.dart';
 
 class CreateCommunityScreen extends StatefulWidget {
   const CreateCommunityScreen({super.key});
@@ -14,7 +14,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _groupService = GroupService();
+  final _communityRepository = CommunityRepository();
   bool _isPrivate = false;
   bool _isLoading = false;
 
@@ -30,7 +30,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _groupService.createGroup(
+      await _communityRepository.createCommunity(
         name: _nameController.text,
         description: _descriptionController.text,
         isPrivate: _isPrivate,
@@ -62,7 +62,8 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
               children: [
                 TextFormField(
                   controller: _nameController,
-                  decoration: InputDecoration(labelText: l10n.communityNameLabel),
+                  decoration:
+                      InputDecoration(labelText: l10n.communityNameLabel),
                   maxLength: 50,
                   validator: (value) => (value == null || value.trim().isEmpty)
                       ? l10n.communityNameRequired

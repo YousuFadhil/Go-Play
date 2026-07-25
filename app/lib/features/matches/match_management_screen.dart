@@ -97,8 +97,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      messenger.showSnackBar(
-          SnackBar(content: Text(_manageError(l10n, e))));
+      messenger.showSnackBar(SnackBar(content: Text(_manageError(l10n, e))));
     }
   }
 
@@ -176,9 +175,8 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
             return ListView(
               children: [
                 ListTile(
-                  leading: Icon(match.isLocked
-                      ? Icons.lock_outline
-                      : Icons.info_outline),
+                  leading: Icon(
+                      match.isLocked ? Icons.lock_outline : Icons.info_outline),
                   title: Text(match.displayName),
                   subtitle: Text(
                       '${matchStatusLabelValue(l10n, match.effectiveStatus)} • '

@@ -49,9 +49,8 @@ enum MatchStatus {
 
   final String dbValue;
 
-  static MatchStatus fromDb(String value) =>
-      values.firstWhere((s) => s.dbValue == value,
-          orElse: () => MatchStatus.open);
+  static MatchStatus fromDb(String value) => values
+      .firstWhere((s) => s.dbValue == value, orElse: () => MatchStatus.open);
 }
 
 /// A football match scheduled inside a community.
@@ -90,9 +89,8 @@ class Match {
   final String? communityName;
 
   /// What to show as the match's headline: the title if set, else location.
-  String get displayName => (title != null && title!.isNotEmpty)
-      ? title!
-      : location;
+  String get displayName =>
+      (title != null && title!.isNotEmpty) ? title! : location;
 
   /// Completion is time-driven, so it is derived here as well as stored: a
   /// match whose end time has passed is completed even if the stored row has
@@ -104,8 +102,7 @@ class Match {
 
   /// From the scheduled start until the end the match is locked: no
   /// registrations, withdrawals or organizer roster changes.
-  bool get isLocked =>
-      !isCompleted && !startAt.isAfter(DateTime.now());
+  bool get isLocked => !isCompleted && !startAt.isAfter(DateTime.now());
 
   /// True while players can still register or withdraw.
   bool get isOpenForChanges => !isCompleted && !isLocked;
@@ -123,7 +120,8 @@ class Match {
       status: MatchStatus.fromDb(json['status'] as String),
       title: json['title'] as String?,
       description: json['description'] as String?,
-      communityName: (json['community'] as Map<String, dynamic>?)?['name'] as String?,
+      communityName:
+          (json['community'] as Map<String, dynamic>?)?['name'] as String?,
     );
   }
 }

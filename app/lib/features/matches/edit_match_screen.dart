@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/app_settings.dart';
+import 'app_settings.dart';
 import '../../core/l10n.dart';
 import 'match_models.dart';
 import 'match_service.dart';
@@ -140,8 +140,7 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
                 TextFormField(
                   controller: _titleController,
                   maxLength: 60,
-                  decoration:
-                      InputDecoration(labelText: l10n.matchTitleLabel),
+                  decoration: InputDecoration(labelText: l10n.matchTitleLabel),
                 ),
                 TextFormField(
                   controller: _locationController,
@@ -211,8 +210,8 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
                   controller: _descriptionController,
                   maxLength: 300,
                   maxLines: 3,
-                  decoration: InputDecoration(
-                      labelText: l10n.matchDescriptionLabel),
+                  decoration:
+                      InputDecoration(labelText: l10n.matchDescriptionLabel),
                 ),
                 const SizedBox(height: 8),
                 Text(l10n.reducePlayersNote,

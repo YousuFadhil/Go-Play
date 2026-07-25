@@ -42,7 +42,10 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
 
   Future<List<MatchRegistration>> _load() async {
     final all = await _service.fetchRegistrations(widget.matchId);
-    return [for (final r in all) if (r.status == widget.filter) r];
+    return [
+      for (final r in all)
+        if (r.status == widget.filter) r
+    ];
   }
 
   void _reload() => setState(() => _future = _load());

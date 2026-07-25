@@ -5,7 +5,8 @@ import '../invitations/my_invitations_screen.dart';
 import 'create_community_screen.dart';
 import 'community_details_screen.dart';
 import 'community_models.dart';
-import 'group_service.dart';
+import 'community_errors.dart';
+import 'community_repository.dart';
 
 class CommunitiesScreen extends StatefulWidget {
   const CommunitiesScreen({super.key});
@@ -14,22 +15,25 @@ class CommunitiesScreen extends StatefulWidget {
   State<CommunitiesScreen> createState() => _CommunitiesScreenState();
 }
 
-typedef _CommunitiesOverview = ({List<Community> mine, List<Community> discover});
+typedef _CommunitiesOverview = ({
+  List<Community> mine,
+  List<Community> discover
+});
 
 class _CommunitiesScreenState extends State<CommunitiesScreen> {
-  final _groupService = GroupService();
+  final _communityRepository = CommunityRepository();
   late Future<_CommunitiesOverview> _future;
   String? _joiningId;
 
   @override
   void initState() {
     super.initState();
-    _future = _groupService.fetchGroupsOverview();
+    _future = _communityRepository.fetchCommunitiesOverview();
   }
 
   void _refresh() {
     setState(() {
-      _future = _groupService.fetchGroupsOverview();
+      _future = _communityRepository.fetchCommunitiesOverview();
     });
   }
 
@@ -54,7 +58,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     // subtree. It returns the joined community id, or null if cancelled.
     final joinedId = await showDialog<String>(
       context: context,
-      builder: (_) => _JoinCommunityDialog(groupService: _groupService),
+      builder: (_) => _JoinCommunityDialog(repository: _communityRepository),
     );
     if (joinedId != null) _refresh();
   }
@@ -64,15 +68,15 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
   Future<void> _joinPublicCommunity(Community community) async {
     setState(() => _joiningId = community.id);
     try {
-      await _groupService.joinGroupByCode(community.joinCode);
+      await _communityRepository.joinCommunityByCode(community.joinCode);
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(context.l10n.joinedCommunity)));
       _refresh();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(context.l10n.communityJoinFailed)));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.communityJoinFailed)));
     } finally {
       if (mounted) setState(() => _joiningId = null);
     }
@@ -148,7 +152,8 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                           : null,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => CommunityDetailsScreen(communityId: community.id),
+                          builder: (_) =>
+                              CommunityDetailsScreen(communityId: community.id),
                         ),
                       ),
                     ),
@@ -172,8 +177,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : SizedBox(
                               width: 96,
@@ -235,9 +239,9 @@ class _ErrorRetry extends StatelessWidget {
 /// so nothing from the parent screen leaks into the dialog subtree. Returns
 /// the joined community id via [Navigator.pop], or null when dismissed.
 class _JoinCommunityDialog extends StatefulWidget {
-  const _JoinCommunityDialog({required this.groupService});
+  const _JoinCommunityDialog({required this.repository});
 
-  final GroupService groupService;
+  final CommunityRepository repository;
 
   @override
   State<_JoinCommunityDialog> createState() => _JoinCommunityDialogState();
@@ -265,7 +269,7 @@ class _JoinCommunityDialogState extends State<_JoinCommunityDialog> {
     });
     try {
       final communityId =
-          await widget.groupService.joinGroupByCode(_controller.text);
+          await widget.repository.joinCommunityByCode(_controller.text);
       if (mounted) Navigator.of(context).pop(communityId);
     } on CommunityNotFoundException {
       _setError(l10n.communityNotFound);

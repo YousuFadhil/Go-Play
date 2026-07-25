@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
 import '../communities/community_models.dart';
-import '../communities/group_service.dart';
+import '../communities/community_errors.dart';
+import 'invitation_repository.dart';
 import 'invitation_models.dart';
 
 /// Finds a player by name and invites them. Only an owner may offer the admin
@@ -23,7 +24,7 @@ class InviteMemberScreen extends StatefulWidget {
 }
 
 class _InviteMemberScreenState extends State<InviteMemberScreen> {
-  final _service = GroupService();
+  final _repository = InvitationRepository();
   final _controller = TextEditingController();
   List<UserSummary> _results = const [];
   CommunityRole _role = CommunityRole.player;
@@ -40,7 +41,7 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
   Future<void> _search() async {
     setState(() => _searching = true);
     try {
-      final results = await _service.searchUsers(_controller.text);
+      final results = await _repository.searchUsers(_controller.text);
       if (mounted) setState(() => _results = results);
     } catch (_) {
       if (mounted) setState(() => _results = const []);
@@ -68,7 +69,7 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
     final l10n = context.l10n;
     setState(() => _sending = true);
     try {
-      await _service.createInvitation(widget.communityId, user.id, _role);
+      await _repository.createInvitation(widget.communityId, user.id, _role);
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.invitationSent)));
@@ -156,7 +157,9 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(
-                        _searched ? l10n.searchNoResults : l10n.searchPlayersHint,
+                        _searched
+                            ? l10n.searchNoResults
+                            : l10n.searchPlayersHint,
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -168,8 +171,7 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
                           leading:
                               const CircleAvatar(child: Icon(Icons.person)),
                           title: Text(user.fullName),
-                          subtitle:
-                              Text(_positionLabel(l10n, user.position)),
+                          subtitle: Text(_positionLabel(l10n, user.position)),
                           trailing: FilledButton.tonal(
                             onPressed: _sending ? null : () => _invite(user),
                             child: Text(l10n.inviteButton),

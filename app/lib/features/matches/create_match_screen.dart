@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/app_settings.dart';
+import 'app_settings.dart';
 import '../../core/l10n.dart';
 import 'match_service.dart';
 

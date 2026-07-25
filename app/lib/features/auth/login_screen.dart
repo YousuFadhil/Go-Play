@@ -87,9 +87,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         Localizations.localeOf(context).languageCode,
                       },
                       showSelectedIcon: false,
-                      onSelectionChanged: (selection) => LocaleController
-                          .instance
-                          .setLocale(selection.first),
+                      onSelectionChanged: (selection) =>
+                          LocaleController.instance.setLocale(selection.first),
                     ),
                   ),
                   const SizedBox(height: 24),

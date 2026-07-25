@@ -47,8 +47,8 @@ class MatchService {
       'id, community_id, created_by, location, start_at, end_at, '
       'starting_players, max_registration, status, title, description';
 
-  /// Matches of one group, newest scheduled first.
-  Future<List<Match>> fetchGroupMatches(String communityId) async {
+  /// Matches of one community, newest scheduled first.
+  Future<List<Match>> fetchCommunityMatches(String communityId) async {
     final rows = await _client
         .from('matches')
         .select(_columns)
@@ -57,8 +57,8 @@ class MatchService {
     return [for (final row in rows) Match.fromJson(row)];
   }
 
-  /// Upcoming (not yet ended) matches across all my groups. RLS scopes
-  /// visibility to groups the user belongs to.
+  /// Upcoming (not yet ended) matches across all my communities. RLS scopes
+  /// visibility to communities the user belongs to.
   Future<List<Match>> fetchUpcomingMatches() async {
     final rows = await _client
         .from('matches')
@@ -161,6 +161,17 @@ class MatchService {
     return e;
   }
 
+  /// The global reserve allowance. Capacity is enforced server-side; this is
+  /// only so the create/edit screens can show the derived maximum.
+  Future<int?> fetchReservePlayers() async {
+    final row = await _client
+        .from('app_settings')
+        .select('reserve_players')
+        .limit(1)
+        .maybeSingle();
+    return row?['reserve_players'] as int?;
+  }
+
   /// Roster of a match, in registration order.
   Future<List<MatchRegistration>> fetchRegistrations(String matchId) async {
     final rows = await _client
@@ -186,8 +197,7 @@ class MatchService {
 
   Future<void> withdrawFromMatch(String matchId) async {
     try {
-      await _client
-          .rpc('withdraw_from_match', params: {'p_match_id': matchId});
+      await _client.rpc('withdraw_from_match', params: {'p_match_id': matchId});
     } on PostgrestException catch (e) {
       throw _mapRegistrationError(e);
     }
