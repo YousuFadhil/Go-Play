@@ -1,5 +1,8 @@
 # 05 Workflow
 
+> **ملاحظة:** This document represents the historical engineering workflow
+> before the approved V2 Product Decisions. Current implementation behavior
+> is documented in the Design Decisions and CHANGELOG.
 
 Workflow Design Engineering Version (v2)
 
