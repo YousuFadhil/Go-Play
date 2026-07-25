@@ -20,7 +20,7 @@ class RegistrationException implements Exception {
 
 /// Typed errors raised by the organizer management RPCs.
 enum ManageError {
-  notOrganizer,
+  notAuthorized,
   matchCompleted,
   matchLocked,
   invalidTimeRange,
@@ -137,8 +137,8 @@ class MatchService {
 
   Exception _mapManageError(PostgrestException e) {
     final m = e.message;
-    if (m.contains('NOT_ORGANIZER')) {
-      return const ManageException(ManageError.notOrganizer);
+    if (m.contains('NOT_AUTHORIZED')) {
+      return const ManageException(ManageError.notAuthorized);
     }
     if (m.contains('MATCH_COMPLETED')) {
       return const ManageException(ManageError.matchCompleted);

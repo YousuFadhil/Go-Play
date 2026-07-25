@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
+import '../groups/group_models.dart';
+import '../groups/group_service.dart';
 import 'match_card.dart';
 import 'match_management_screen.dart';
 import 'match_models.dart';
@@ -18,7 +20,8 @@ class MatchDetailsScreen extends StatefulWidget {
 
 class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   final _matchService = MatchService();
-  late Future<(Match, List<MatchRegistration>)> _dataFuture;
+  final _communityService = GroupService();
+  late Future<(Match, List<MatchRegistration>, CommunityRole?)> _dataFuture;
   bool _isActionLoading = false;
 
   @override
@@ -27,12 +30,17 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     _dataFuture = _loadData();
   }
 
-  Future<(Match, List<MatchRegistration>)> _loadData() async {
+  Future<(Match, List<MatchRegistration>, CommunityRole?)> _loadData() async {
+    final match = await _matchService.fetchMatch(widget.matchId);
     final results = await Future.wait([
-      _matchService.fetchMatch(widget.matchId),
       _matchService.fetchRegistrations(widget.matchId),
+      _communityService.fetchMyRole(match.communityId),
     ]);
-    return (results[0] as Match, results[1] as List<MatchRegistration>);
+    return (
+      match,
+      results[0] as List<MatchRegistration>,
+      results[1] as CommunityRole?,
+    );
   }
 
   void _refresh() {
@@ -149,7 +157,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.matchDetailsTitle)),
-      body: FutureBuilder<(Match, List<MatchRegistration>)>(
+      body: FutureBuilder<(Match, List<MatchRegistration>, CommunityRole?)>(
         future: _dataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -171,7 +179,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
             );
           }
 
-          final (match, registrations) = snapshot.data!;
+          final (match, registrations, myRole) = snapshot.data!;
           final confirmed = [
             for (final r in registrations)
               if (r.status == RegistrationStatus.confirmed) r,
@@ -183,7 +191,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
           final myRegistration = registrations
               .where((r) => r.userId == currentUserId)
               .firstOrNull;
-          final isCreator = match.createdBy == currentUserId;
+          // Management is a community role now, not a creator privilege
+          // (PD-07). The server enforces it; this only decides what is shown.
+          final canManage = myRole?.atLeast(CommunityRole.admin) ?? false;
           // Registration is possible until kickoff or until the cap is hit.
           final registrationClosed =
               registrations.length >= match.maxRegistration;
@@ -205,7 +215,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ),
-                if (isCreator)
+                if (canManage)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: OutlinedButton.icon(

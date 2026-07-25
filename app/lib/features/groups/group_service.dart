@@ -96,6 +96,21 @@ class GroupService {
     return Community.fromJson(row);
   }
 
+  /// The caller's role in [communityId], or null when they are not a member.
+  /// Used to decide which controls to show; the server enforces the real rule.
+  Future<CommunityRole?> fetchMyRole(String communityId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+    final row = await _client
+        .from('community_members')
+        .select('role')
+        .eq('community_id', communityId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    final role = row?['role'] as String?;
+    return role == null ? null : CommunityRole.fromDb(role);
+  }
+
   Future<List<CommunityMember>> fetchMembers(String communityId) async {
     final rows = await _client
         .from('community_members')
