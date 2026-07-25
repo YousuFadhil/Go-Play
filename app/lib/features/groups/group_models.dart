@@ -1,6 +1,33 @@
-/// A football group (community of players).
-class Group {
-  const Group({
+/// Role a user holds inside a community. Roles are cumulative: an owner can do
+/// everything an admin can, and an admin everything a player can.
+enum CommunityRole {
+  player('player'),
+  admin('admin'),
+  owner('owner');
+
+  const CommunityRole(this.dbValue);
+
+  final String dbValue;
+
+  /// The database still stores the legacy `member` value until the schema
+  /// migration; it means [player]. Anything unrecognised falls back to the
+  /// least privileged role rather than granting something by accident.
+  static CommunityRole fromDb(String value) {
+    return switch (value) {
+      'owner' => CommunityRole.owner,
+      'admin' => CommunityRole.admin,
+      _ => CommunityRole.player,
+    };
+  }
+
+  /// True when this role includes everything [other] can do.
+  bool atLeast(CommunityRole other) => index >= other.index;
+}
+
+/// A community of players. Still read from the legacy `groups` table, so the
+/// JSON keys below stay as they are until the database migration.
+class Community {
+  const Community({
     required this.id,
     required this.ownerId,
     required this.name,
@@ -10,14 +37,16 @@ class Group {
   });
 
   final String id;
+
+  /// Reporting only — never used to decide what a user may do.
   final String ownerId;
   final String name;
   final String? description;
   final bool isPrivate;
   final String joinCode;
 
-  factory Group.fromJson(Map<String, dynamic> json) {
-    return Group(
+  factory Community.fromJson(Map<String, dynamic> json) {
+    return Community(
       id: json['id'] as String,
       ownerId: json['owner_id'] as String,
       name: json['name'] as String,
@@ -28,9 +57,9 @@ class Group {
   }
 }
 
-/// A member row inside a group, joined with the player profile.
-class GroupMember {
-  const GroupMember({
+/// A membership row inside a community, joined with the player profile.
+class CommunityMember {
+  const CommunityMember({
     required this.userId,
     required this.fullName,
     required this.position,
@@ -40,17 +69,17 @@ class GroupMember {
   final String userId;
   final String fullName;
   final String position;
-  final String role;
+  final CommunityRole role;
 
-  bool get isOwner => role == 'owner';
+  bool get isOwner => role == CommunityRole.owner;
 
-  factory GroupMember.fromJson(Map<String, dynamic> json) {
+  factory CommunityMember.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>;
-    return GroupMember(
+    return CommunityMember(
       userId: user['id'] as String,
       fullName: user['full_name'] as String,
       position: user['primary_position'] as String,
-      role: json['role'] as String,
+      role: CommunityRole.fromDb(json['role'] as String),
     );
   }
 }

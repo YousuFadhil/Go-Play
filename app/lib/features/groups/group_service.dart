@@ -17,7 +17,7 @@ class GroupService {
   final SupabaseClient _client;
 
   /// Groups the current user belongs to (RLS scopes the membership rows).
-  Future<List<Group>> fetchMyGroups() async {
+  Future<List<Community>> fetchMyGroups() async {
     final userId = _client.auth.currentUser!.id;
     final rows = await _client
         .from('group_members')
@@ -28,14 +28,14 @@ class GroupService {
 
     return [
       for (final row in rows)
-        Group.fromJson(row['group'] as Map<String, dynamic>),
+        Community.fromJson(row['group'] as Map<String, dynamic>),
     ];
   }
 
   /// Groups the user can see and act on: [mine] are joined groups, [discover]
   /// are public groups the user has not joined yet. RLS already returns only
   /// public groups (plus the user's own) here, so private groups never leak.
-  Future<({List<Group> mine, List<Group> discover})>
+  Future<({List<Community> mine, List<Community> discover})>
       fetchGroupsOverview() async {
     final mine = await fetchMyGroups();
     final myIds = {for (final g in mine) g.id};
@@ -48,7 +48,7 @@ class GroupService {
 
     final discover = [
       for (final row in rows)
-        if (!myIds.contains(row['id'] as String)) Group.fromJson(row),
+        if (!myIds.contains(row['id'] as String)) Community.fromJson(row),
     ];
     return (mine: mine, discover: discover);
   }
@@ -87,16 +87,16 @@ class GroupService {
     }
   }
 
-  Future<Group> fetchGroup(String groupId) async {
+  Future<Community> fetchGroup(String groupId) async {
     final row = await _client
         .from('groups')
         .select('id, owner_id, name, description, is_private, join_code')
         .eq('id', groupId)
         .single();
-    return Group.fromJson(row);
+    return Community.fromJson(row);
   }
 
-  Future<List<GroupMember>> fetchMembers(String groupId) async {
+  Future<List<CommunityMember>> fetchMembers(String groupId) async {
     final rows = await _client
         .from('group_members')
         .select('role, created_at, user:users(id, full_name, '
@@ -104,6 +104,6 @@ class GroupService {
         .eq('group_id', groupId)
         .order('created_at', ascending: true);
 
-    return [for (final row in rows) GroupMember.fromJson(row)];
+    return [for (final row in rows) CommunityMember.fromJson(row)];
   }
 }

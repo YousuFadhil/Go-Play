@@ -21,7 +21,7 @@ class GroupDetailsScreen extends StatefulWidget {
 class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   final _groupService = GroupService();
   final _matchService = MatchService();
-  late Future<(Group, List<GroupMember>, List<Match>)> _dataFuture;
+  late Future<(Community, List<CommunityMember>, List<Match>)> _dataFuture;
 
   @override
   void initState() {
@@ -29,15 +29,15 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     _dataFuture = _loadData();
   }
 
-  Future<(Group, List<GroupMember>, List<Match>)> _loadData() async {
+  Future<(Community, List<CommunityMember>, List<Match>)> _loadData() async {
     final results = await Future.wait([
       _groupService.fetchGroup(widget.groupId),
       _groupService.fetchMembers(widget.groupId),
       _matchService.fetchGroupMatches(widget.groupId),
     ]);
     return (
-      results[0] as Group,
-      results[1] as List<GroupMember>,
+      results[0] as Community,
+      results[1] as List<CommunityMember>,
       results[2] as List<Match>,
     );
   }
@@ -81,7 +81,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return FutureBuilder<(Group, List<GroupMember>, List<Match>)>(
+    return FutureBuilder<(Community, List<CommunityMember>, List<Match>)>(
       future: _dataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
@@ -184,8 +184,8 @@ class _MembersTab extends StatelessWidget {
     required this.onCopyJoinCode,
   });
 
-  final Group group;
-  final List<GroupMember> members;
+  final Community group;
+  final List<CommunityMember> members;
   final String Function(BuildContext, String) positionLabel;
   final Future<void> Function(String) onCopyJoinCode;
 

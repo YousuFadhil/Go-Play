@@ -13,7 +13,7 @@ class GroupsScreen extends StatefulWidget {
   State<GroupsScreen> createState() => _GroupsScreenState();
 }
 
-typedef _GroupsOverview = ({List<Group> mine, List<Group> discover});
+typedef _GroupsOverview = ({List<Community> mine, List<Community> discover});
 
 class _GroupsScreenState extends State<GroupsScreen> {
   final _groupService = GroupService();
@@ -52,7 +52,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   /// Joins a discoverable public group directly, using its (readable) join
   /// code. Private groups never appear here, so they stay code-only.
-  Future<void> _joinPublicGroup(Group group) async {
+  Future<void> _joinPublicGroup(Community group) async {
     setState(() => _joiningId = group.id);
     try {
       await _groupService.joinGroupByCode(group.joinCode);
