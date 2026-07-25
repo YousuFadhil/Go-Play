@@ -46,7 +46,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
       return switch (e.error) {
         ManageError.matchCompleted => l10n.errMatchCompleted,
         ManageError.matchLocked => l10n.errMatchLocked,
-        ManageError.notAuthorized => l10n.errNotOrganizer,
+        ManageError.notAuthorized => l10n.errNotAuthorized,
         ManageError.maxBelowRegistered => l10n.errMaxBelowRegistered,
         ManageError.invalidStartingPlayers => l10n.startingPlayersInvalid,
         _ => l10n.genericError,

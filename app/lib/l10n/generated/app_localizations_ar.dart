@@ -15,7 +15,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navHome => 'الرئيسية';
 
   @override
-  String get navGroups => 'المجموعات';
+  String get navCommunities => 'المجتمعات';
 
   @override
   String get emailLabel => 'البريد الإلكتروني';
@@ -109,39 +109,39 @@ class AppLocalizationsAr extends AppLocalizations {
   String get welcomeMessage => 'تم تسجيل الدخول بنجاح';
 
   @override
-  String get groupsTitle => 'المجموعات';
+  String get communitiesTitle => 'المجتمعات';
 
   @override
-  String get groupsEmpty =>
-      'لست عضواً في أي مجموعة بعد.\nأنشئ مجموعة أو انضم برمز الانضمام.';
+  String get communitiesEmpty =>
+      'لست عضواً في أي مجتمع بعد.\nأنشئ مجتمعاً أو انضم برمز الانضمام.';
 
   @override
-  String get createGroupTitle => 'إنشاء مجموعة';
+  String get createCommunityTitle => 'إنشاء مجتمع';
 
   @override
-  String get createGroupButton => 'إنشاء المجموعة';
+  String get createCommunityButton => 'إنشاء المجتمع';
 
   @override
-  String get joinGroupTitle => 'الانضمام لمجموعة';
+  String get joinCommunityTitle => 'الانضمام لمجتمع';
 
   @override
-  String get joinGroupButton => 'انضمام';
+  String get joinCommunityButton => 'انضمام';
 
   @override
-  String get groupNameLabel => 'اسم المجموعة';
+  String get communityNameLabel => 'اسم المجتمع';
 
   @override
-  String get groupNameRequired => 'اسم المجموعة مطلوب';
+  String get communityNameRequired => 'اسم المجتمع مطلوب';
 
   @override
-  String get groupDescriptionLabel => 'الوصف (اختياري)';
+  String get communityDescriptionLabel => 'الوصف (اختياري)';
 
   @override
-  String get privateGroupLabel => 'مجموعة خاصة';
+  String get privateCommunityLabel => 'مجتمع خاص';
 
   @override
-  String get privateGroupHelp =>
-      'المجموعات الخاصة لا يمكن الانضمام إليها إلا برمز الانضمام.';
+  String get privateCommunityHelp =>
+      'المجتمعات الخاصة لا يمكن الانضمام إليها إلا برمز الانضمام.';
 
   @override
   String get joinCodeLabel => 'رمز الانضمام';
@@ -150,16 +150,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get joinCodeRequired => 'رمز الانضمام مطلوب';
 
   @override
-  String get groupNotFound => 'لا توجد مجموعة بهذا الرمز.';
+  String get communityNotFound => 'لا يوجد مجتمع بهذا الرمز.';
 
   @override
-  String get alreadyMember => 'أنت عضو في هذه المجموعة بالفعل.';
+  String get alreadyMemberOfCommunity => 'أنت عضو في هذا المجتمع بالفعل.';
 
   @override
-  String get groupCreateFailed => 'فشل إنشاء المجموعة. حاول مرة أخرى.';
+  String get communityCreateFailed => 'فشل إنشاء المجتمع. حاول مرة أخرى.';
 
   @override
-  String get groupJoinFailed => 'فشل الانضمام للمجموعة. حاول مرة أخرى.';
+  String get communityJoinFailed => 'فشل الانضمام للمجتمع. حاول مرة أخرى.';
 
   @override
   String get membersTitle => 'الأعضاء';
@@ -171,13 +171,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get joinCodeCopied => 'تم نسخ رمز الانضمام';
 
   @override
-  String get myGroupsSection => 'مجموعاتي';
+  String get myCommunitiesSection => 'مجتمعاتي';
 
   @override
-  String get publicGroupsSection => 'المجموعات العامة';
+  String get publicCommunitiesSection => 'المجتمعات العامة';
 
   @override
-  String get joinedGroup => 'تم انضمامك للمجموعة.';
+  String get joinedCommunity => 'تم انضمامك للمجتمع.';
 
   @override
   String get matchesTitle => 'المباريات';
@@ -233,14 +233,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get matchCreateFailed => 'فشل إنشاء المباراة. حاول مرة أخرى.';
 
   @override
-  String get groupMatchesEmpty => 'لا توجد مباريات في هذه المجموعة بعد.';
+  String get communityMatchesEmpty => 'لا توجد مباريات في هذا المجتمع بعد.';
 
   @override
   String get upcomingMatchesTitle => 'المباريات القادمة';
 
   @override
   String get upcomingMatchesEmpty =>
-      'لا توجد مباريات قادمة.\nانضم لمجموعة وأنشئ مباراة للبدء.';
+      'لا توجد مباريات قادمة.\nانضم لمجتمع للبدء.';
 
   @override
   String get matchStatusOpen => 'مفتوحة';
@@ -398,7 +398,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errMatchCompleted => 'المباراة منتهية ولم يعد بالإمكان تعديلها.';
 
   @override
-  String get errNotOrganizer => 'منظّم المباراة فقط يمكنه هذا الإجراء.';
+  String get errNotAuthorized => 'منظّم المباراة فقط يمكنه هذا الإجراء.';
 
   @override
   String get errRegistrationClosed =>
@@ -426,4 +426,189 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get genericError => 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+
+  @override
+  String get roleOwner => 'المالك';
+
+  @override
+  String get roleAdmin => 'مشرف';
+
+  @override
+  String get rolePlayer => 'لاعب';
+
+  @override
+  String get manageCommunityTitle => 'إدارة المجتمع';
+
+  @override
+  String get manageMembersTitle => 'إدارة الأعضاء';
+
+  @override
+  String get invitationsTitle => 'الدعوات';
+
+  @override
+  String get myInvitationsTitle => 'دعواتي';
+
+  @override
+  String get pendingInvitationsTitle => 'الدعوات المعلقة';
+
+  @override
+  String get inviteMemberTitle => 'دعوة لاعب';
+
+  @override
+  String get inviteButton => 'دعوة';
+
+  @override
+  String get searchPlayersLabel => 'البحث بالاسم';
+
+  @override
+  String get searchPlayersHint => 'اكتب حرفين على الأقل';
+
+  @override
+  String get searchNoResults => 'لا يوجد لاعبون مطابقون.';
+
+  @override
+  String get inviteAsRoleLabel => 'الدعوة بصفة';
+
+  @override
+  String get invitationSent => 'تم إرسال الدعوة.';
+
+  @override
+  String get invitationsEmpty => 'لا توجد دعوات معلقة.';
+
+  @override
+  String get myInvitationsEmpty => 'لا توجد دعوات.';
+
+  @override
+  String invitationFrom(String community) {
+    return 'دعوة للانضمام إلى $community';
+  }
+
+  @override
+  String get acceptInvitationButton => 'قبول';
+
+  @override
+  String get revokeInvitationButton => 'إلغاء';
+
+  @override
+  String get invitationAccepted => 'تم انضمامك للمجتمع.';
+
+  @override
+  String get invitationRevoked => 'تم إلغاء الدعوة.';
+
+  @override
+  String get promoteToAdminButton => 'تعيين مشرفاً';
+
+  @override
+  String get demoteToPlayerButton => 'إعادة إلى لاعب';
+
+  @override
+  String get transferOwnershipButton => 'نقل الملكية';
+
+  @override
+  String get removeMemberButton => 'إزالة من المجتمع';
+
+  @override
+  String get memberRoleChanged => 'تم تحديث صلاحية العضو.';
+
+  @override
+  String get ownershipTransferred => 'تم نقل الملكية. أنت الآن مشرف.';
+
+  @override
+  String get memberRemoved => 'تمت إزالة العضو من المجتمع.';
+
+  @override
+  String get transferOwnershipConfirmTitle => 'نقل الملكية؟';
+
+  @override
+  String transferOwnershipConfirmBody(String name) {
+    return 'سيصبح $name المالك وستصبح أنت مشرفاً. المالك الجديد وحده يمكنه إعادتها.';
+  }
+
+  @override
+  String get removeMemberConfirmTitle => 'إزالة هذا العضو؟';
+
+  @override
+  String removeMemberConfirmBody(String name) {
+    return 'ستتم إزالة $name من المجتمع وسحبه من جميع مبارياته.';
+  }
+
+  @override
+  String get deleteCommunityButton => 'حذف المجتمع';
+
+  @override
+  String get deleteCommunityHint =>
+      'يحذف المجتمع مع جميع مبارياته وأعضائه ودعواته.';
+
+  @override
+  String get deleteCommunityConfirmTitle => 'حذف هذا المجتمع؟';
+
+  @override
+  String get deleteCommunityConfirmBody =>
+      'ستُحذف جميع المباريات والتسجيلات والأعضاء والدعوات. لا يمكن التراجع.';
+
+  @override
+  String get communityDeleted => 'تم حذف المجتمع.';
+
+  @override
+  String get permissionOwnerOnly => 'المالك وحده يمكنه القيام بذلك.';
+
+  @override
+  String get permissionOrganizersOnly =>
+      'المالك والمشرفون فقط يمكنهم القيام بذلك.';
+
+  @override
+  String get matchCreateOrganizersOnly =>
+      'إنشاء المباريات متاح للمالك والمشرفين فقط في هذا المجتمع.';
+
+  @override
+  String get matchManageOrganizersOnly =>
+      'إدارة المباراة أصبحت مرتبطة بصلاحيات المجتمع. تواصل مع مالك أو مشرف فيه.';
+
+  @override
+  String get errCannotChangeOwnRole => 'لا يمكنك تغيير صلاحيتك الخاصة.';
+
+  @override
+  String get errCannotRemoveSelf =>
+      'لا يمكنك إزالة نفسك من هنا. استخدم مغادرة المجتمع.';
+
+  @override
+  String get errCannotRemoveOwner =>
+      'لا يمكن إزالة المالك. انقل الملكية أولاً.';
+
+  @override
+  String get errAlreadyOwner => 'هذا العضو هو المالك بالفعل.';
+
+  @override
+  String get errMemberNotFound => 'هذا الشخص ليس عضواً في هذا المجتمع.';
+
+  @override
+  String get errInvitationExists => 'توجد دعوة معلقة لهذا اللاعب بالفعل.';
+
+  @override
+  String get errInvitationNotFound => 'هذه الدعوة لم تعد موجودة.';
+
+  @override
+  String get errInvitationNotPending => 'هذه الدعوة استُخدمت مسبقاً.';
+
+  @override
+  String get errInvitationExpired => 'انتهت صلاحية هذه الدعوة.';
+
+  @override
+  String get errInvalidRole => 'لا يمكن تعيين هذه الصلاحية.';
+
+  @override
+  String get leaveCommunityButton => 'مغادرة المجتمع';
+
+  @override
+  String get leaveCommunityConfirmTitle => 'مغادرة هذا المجتمع؟';
+
+  @override
+  String get leaveCommunityConfirmBody =>
+      'ستفقد الوصول إلى مبارياته. يمكنك الانضمام مجدداً برمز الانضمام.';
+
+  @override
+  String get leftCommunity => 'غادرت المجتمع.';
+
+  @override
+  String get ownerCannotLeave => 'لا يمكن للمالك المغادرة. انقل الملكية أولاً.';
 }

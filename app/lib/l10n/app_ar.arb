@@ -1,10 +1,8 @@
 {
   "@@locale": "ar",
   "appName": "Go Play",
-
   "navHome": "الرئيسية",
-  "navGroups": "المجموعات",
-
+  "navCommunities": "المجتمعات",
   "emailLabel": "البريد الإلكتروني",
   "emailRequired": "البريد الإلكتروني مطلوب",
   "emailInvalid": "أدخل بريداً إلكترونياً صحيحاً",
@@ -15,12 +13,10 @@
   "phoneInvalid": "أدخل رقم جوال من 8 أرقام",
   "passwordRequired": "كلمة المرور مطلوبة",
   "passwordTooShort": "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
-
   "loginTitle": "تسجيل الدخول",
   "loginButton": "دخول",
   "loginFailed": "فشل تسجيل الدخول. تحقق من البريد الإلكتروني وكلمة المرور.",
   "noAccountPrompt": "ليس لديك حساب؟ إنشاء حساب",
-
   "registerTitle": "إنشاء حساب",
   "registerButton": "إنشاء الحساب",
   "registerFailed": "فشل إنشاء الحساب. حاول مرة أخرى.",
@@ -30,40 +26,36 @@
   "positionLabel": "المركز الأساسي",
   "positionRequired": "المركز الأساسي مطلوب",
   "haveAccountPrompt": "لديك حساب؟ تسجيل الدخول",
-
   "positionGk": "حارس مرمى",
   "positionDef": "مدافع",
   "positionMid": "وسط",
   "positionFwd": "مهاجم",
-
   "homeTitle": "الرئيسية",
   "logoutLabel": "تسجيل الخروج",
   "welcomeMessage": "تم تسجيل الدخول بنجاح",
-
-  "groupsTitle": "المجموعات",
-  "groupsEmpty": "لست عضواً في أي مجموعة بعد.\nأنشئ مجموعة أو انضم برمز الانضمام.",
-  "createGroupTitle": "إنشاء مجموعة",
-  "createGroupButton": "إنشاء المجموعة",
-  "joinGroupTitle": "الانضمام لمجموعة",
-  "joinGroupButton": "انضمام",
-  "groupNameLabel": "اسم المجموعة",
-  "groupNameRequired": "اسم المجموعة مطلوب",
-  "groupDescriptionLabel": "الوصف (اختياري)",
-  "privateGroupLabel": "مجموعة خاصة",
-  "privateGroupHelp": "المجموعات الخاصة لا يمكن الانضمام إليها إلا برمز الانضمام.",
+  "communitiesTitle": "المجتمعات",
+  "communitiesEmpty": "لست عضواً في أي مجتمع بعد.\nأنشئ مجتمعاً أو انضم برمز الانضمام.",
+  "createCommunityTitle": "إنشاء مجتمع",
+  "createCommunityButton": "إنشاء المجتمع",
+  "joinCommunityTitle": "الانضمام لمجتمع",
+  "joinCommunityButton": "انضمام",
+  "communityNameLabel": "اسم المجتمع",
+  "communityNameRequired": "اسم المجتمع مطلوب",
+  "communityDescriptionLabel": "الوصف (اختياري)",
+  "privateCommunityLabel": "مجتمع خاص",
+  "privateCommunityHelp": "المجتمعات الخاصة لا يمكن الانضمام إليها إلا برمز الانضمام.",
   "joinCodeLabel": "رمز الانضمام",
   "joinCodeRequired": "رمز الانضمام مطلوب",
-  "groupNotFound": "لا توجد مجموعة بهذا الرمز.",
-  "alreadyMember": "أنت عضو في هذه المجموعة بالفعل.",
-  "groupCreateFailed": "فشل إنشاء المجموعة. حاول مرة أخرى.",
-  "groupJoinFailed": "فشل الانضمام للمجموعة. حاول مرة أخرى.",
+  "communityNotFound": "لا يوجد مجتمع بهذا الرمز.",
+  "alreadyMemberOfCommunity": "أنت عضو في هذا المجتمع بالفعل.",
+  "communityCreateFailed": "فشل إنشاء المجتمع. حاول مرة أخرى.",
+  "communityJoinFailed": "فشل الانضمام للمجتمع. حاول مرة أخرى.",
   "membersTitle": "الأعضاء",
   "ownerBadge": "المالك",
   "joinCodeCopied": "تم نسخ رمز الانضمام",
-  "myGroupsSection": "مجموعاتي",
-  "publicGroupsSection": "المجموعات العامة",
-  "joinedGroup": "تم انضمامك للمجموعة.",
-
+  "myCommunitiesSection": "مجتمعاتي",
+  "publicCommunitiesSection": "المجتمعات العامة",
+  "joinedCommunity": "تم انضمامك للمجتمع.",
   "matchesTitle": "المباريات",
   "createMatchTitle": "إنشاء مباراة",
   "createMatchButton": "إنشاء المباراة",
@@ -81,15 +73,14 @@
   "maxRegistrationLabel": "الحد الأقصى للتسجيل",
   "capacityAutoNote": "لاعبو الاحتياط: {reserve} (تلقائي) — الحد الأقصى للتسجيل: {max}",
   "matchCreateFailed": "فشل إنشاء المباراة. حاول مرة أخرى.",
-  "groupMatchesEmpty": "لا توجد مباريات في هذه المجموعة بعد.",
+  "communityMatchesEmpty": "لا توجد مباريات في هذا المجتمع بعد.",
   "upcomingMatchesTitle": "المباريات القادمة",
-  "upcomingMatchesEmpty": "لا توجد مباريات قادمة.\nانضم لمجموعة وأنشئ مباراة للبدء.",
+  "upcomingMatchesEmpty": "لا توجد مباريات قادمة.\nانضم لمجتمع للبدء.",
   "matchStatusOpen": "مفتوحة",
   "matchStatusFull": "مكتملة",
   "matchStatusCompleted": "منتهية",
   "confirmYes": "نعم",
   "confirmNo": "رجوع",
-
   "joinMatchButton": "الانضمام للمباراة",
   "withdrawMatchButton": "الانسحاب",
   "joinedConfirmed": "تم تسجيلك في المباراة.",
@@ -106,9 +97,7 @@
   "errNotRegistered": "أنت غير مسجل في هذه المباراة.",
   "joinMatchFailed": "فشل الانضمام للمباراة. حاول مرة أخرى.",
   "withdrawMatchFailed": "فشل الانسحاب. حاول مرة أخرى.",
-
   "homeGreeting": "مرحباً، {name}",
-
   "notificationsTitle": "الإشعارات",
   "notificationsEmpty": "لا توجد إشعارات بعد.",
   "notifMatchUpdated": "تم تعديل تفاصيل المباراة.",
@@ -116,7 +105,6 @@
   "notifRemoved": "قام المنظم بإزالتك من المباراة.",
   "notifPromoted": "تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.",
   "notifMatchDeleted": "تم حذف المباراة.",
-
   "matchManagementTitle": "إدارة المباراة",
   "editMatchTitle": "تعديل المباراة",
   "managePlayersTitle": "إدارة اللاعبين",
@@ -127,26 +115,100 @@
   "saveButton": "حفظ",
   "matchUpdatedSaved": "تم تعديل المباراة وإشعار اللاعبين المسجّلين.",
   "matchUpdateFailed": "فشل حفظ المباراة. حاول مرة أخرى.",
-
   "deleteMatchButton": "حذف المباراة",
   "deleteMatchHint": "يتم إشعار اللاعبين المسجّلين. لا يمكن حذف المباريات المنتهية.",
   "deleteMatchConfirmTitle": "حذف هذه المباراة؟",
   "deleteMatchConfirmBody": "ستُحذف جميع التسجيلات ويُشعَر اللاعبون. لا يمكن التراجع عن هذا الإجراء.",
-
   "removePlayerButton": "إزالة",
   "removePlayerConfirmTitle": "إزالة اللاعب؟",
   "removePlayerConfirmBody": "إزالة {name} من المباراة؟",
   "rosterEmpty": "لا يوجد لاعبون هنا بعد.",
-
   "errMatchCompleted": "المباراة منتهية ولم يعد بالإمكان تعديلها.",
-  "errNotOrganizer": "منظّم المباراة فقط يمكنه هذا الإجراء.",
+  "errNotAuthorized": "منظّم المباراة فقط يمكنه هذا الإجراء.",
   "errRegistrationClosed": "التسجيل مغلق؛ اكتمل الحد الأقصى للمباراة.",
   "errMatchLocked": "بدأت المباراة وهي مقفلة حتى انتهائها.",
   "matchLockedNote": "بدأت المباراة. التسجيل والانسحاب وتعديل القائمة مقفلة حتى انتهائها.",
   "errMaxBelowRegistered": "الحد الأقصى للتسجيل لا يمكن أن يقل عن عدد اللاعبين المسجّلين.",
-
   "networkError": "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
   "loadFailed": "فشل تحميل البيانات.",
   "retryButton": "إعادة المحاولة",
-  "genericError": "حدث خطأ غير متوقع. حاول مرة أخرى."
+  "genericError": "حدث خطأ غير متوقع. حاول مرة أخرى.",
+  "roleOwner": "المالك",
+  "roleAdmin": "مشرف",
+  "rolePlayer": "لاعب",
+  "manageCommunityTitle": "إدارة المجتمع",
+  "manageMembersTitle": "إدارة الأعضاء",
+  "invitationsTitle": "الدعوات",
+  "myInvitationsTitle": "دعواتي",
+  "pendingInvitationsTitle": "الدعوات المعلقة",
+  "inviteMemberTitle": "دعوة لاعب",
+  "inviteButton": "دعوة",
+  "searchPlayersLabel": "البحث بالاسم",
+  "searchPlayersHint": "اكتب حرفين على الأقل",
+  "searchNoResults": "لا يوجد لاعبون مطابقون.",
+  "inviteAsRoleLabel": "الدعوة بصفة",
+  "invitationSent": "تم إرسال الدعوة.",
+  "invitationsEmpty": "لا توجد دعوات معلقة.",
+  "myInvitationsEmpty": "لا توجد دعوات.",
+  "invitationFrom": "دعوة للانضمام إلى {community}",
+  "@invitationFrom": {
+    "placeholders": {
+      "community": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptInvitationButton": "قبول",
+  "revokeInvitationButton": "إلغاء",
+  "invitationAccepted": "تم انضمامك للمجتمع.",
+  "invitationRevoked": "تم إلغاء الدعوة.",
+  "promoteToAdminButton": "تعيين مشرفاً",
+  "demoteToPlayerButton": "إعادة إلى لاعب",
+  "transferOwnershipButton": "نقل الملكية",
+  "removeMemberButton": "إزالة من المجتمع",
+  "memberRoleChanged": "تم تحديث صلاحية العضو.",
+  "ownershipTransferred": "تم نقل الملكية. أنت الآن مشرف.",
+  "memberRemoved": "تمت إزالة العضو من المجتمع.",
+  "transferOwnershipConfirmTitle": "نقل الملكية؟",
+  "transferOwnershipConfirmBody": "سيصبح {name} المالك وستصبح أنت مشرفاً. المالك الجديد وحده يمكنه إعادتها.",
+  "@transferOwnershipConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removeMemberConfirmTitle": "إزالة هذا العضو؟",
+  "removeMemberConfirmBody": "ستتم إزالة {name} من المجتمع وسحبه من جميع مبارياته.",
+  "@removeMemberConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCommunityButton": "حذف المجتمع",
+  "deleteCommunityHint": "يحذف المجتمع مع جميع مبارياته وأعضائه ودعواته.",
+  "deleteCommunityConfirmTitle": "حذف هذا المجتمع؟",
+  "deleteCommunityConfirmBody": "ستُحذف جميع المباريات والتسجيلات والأعضاء والدعوات. لا يمكن التراجع.",
+  "communityDeleted": "تم حذف المجتمع.",
+  "permissionOwnerOnly": "المالك وحده يمكنه القيام بذلك.",
+  "permissionOrganizersOnly": "المالك والمشرفون فقط يمكنهم القيام بذلك.",
+  "matchCreateOrganizersOnly": "إنشاء المباريات متاح للمالك والمشرفين فقط في هذا المجتمع.",
+  "matchManageOrganizersOnly": "إدارة المباراة أصبحت مرتبطة بصلاحيات المجتمع. تواصل مع مالك أو مشرف فيه.",
+  "errCannotChangeOwnRole": "لا يمكنك تغيير صلاحيتك الخاصة.",
+  "errCannotRemoveSelf": "لا يمكنك إزالة نفسك من هنا. استخدم مغادرة المجتمع.",
+  "errCannotRemoveOwner": "لا يمكن إزالة المالك. انقل الملكية أولاً.",
+  "errAlreadyOwner": "هذا العضو هو المالك بالفعل.",
+  "errMemberNotFound": "هذا الشخص ليس عضواً في هذا المجتمع.",
+  "errInvitationExists": "توجد دعوة معلقة لهذا اللاعب بالفعل.",
+  "errInvitationNotFound": "هذه الدعوة لم تعد موجودة.",
+  "errInvitationNotPending": "هذه الدعوة استُخدمت مسبقاً.",
+  "errInvitationExpired": "انتهت صلاحية هذه الدعوة.",
+  "errInvalidRole": "لا يمكن تعيين هذه الصلاحية.",
+  "leaveCommunityButton": "مغادرة المجتمع",
+  "leaveCommunityConfirmTitle": "مغادرة هذا المجتمع؟",
+  "leaveCommunityConfirmBody": "ستفقد الوصول إلى مبارياته. يمكنك الانضمام مجدداً برمز الانضمام.",
+  "leftCommunity": "غادرت المجتمع.",
+  "ownerCannotLeave": "لا يمكن للمالك المغادرة. انقل الملكية أولاً."
 }

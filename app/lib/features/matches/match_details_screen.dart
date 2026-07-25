@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
-import '../groups/group_models.dart';
-import '../groups/group_service.dart';
+import '../communities/community_models.dart';
+import '../communities/group_service.dart';
 import 'match_card.dart';
 import 'match_management_screen.dart';
 import 'match_models.dart';
@@ -222,6 +222,16 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                       onPressed: _openManagement,
                       icon: const Icon(Icons.settings),
                       label: Text(l10n.matchManagementTitle),
+                    ),
+                  ),
+                // Whoever created this match used to manage it. Say where the
+                // controls went instead of leaving a blank space (PD-07).
+                if (!canManage && match.createdBy == currentUserId)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Text(
+                      l10n.matchManageOrganizersOnly,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
                 if (match.communityName != null)

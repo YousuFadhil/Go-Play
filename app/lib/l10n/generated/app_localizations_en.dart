@@ -15,7 +15,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navHome => 'Home';
 
   @override
-  String get navGroups => 'Groups';
+  String get navCommunities => 'Communities';
 
   @override
   String get emailLabel => 'Email';
@@ -108,39 +108,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get welcomeMessage => 'Logged in successfully';
 
   @override
-  String get groupsTitle => 'Groups';
+  String get communitiesTitle => 'Communities';
 
   @override
-  String get groupsEmpty =>
-      'You are not in any group yet.\nCreate a group or join one with a code.';
+  String get communitiesEmpty =>
+      'You are not in any community yet.\nCreate one or join with a code.';
 
   @override
-  String get createGroupTitle => 'Create group';
+  String get createCommunityTitle => 'Create community';
 
   @override
-  String get createGroupButton => 'Create group';
+  String get createCommunityButton => 'Create community';
 
   @override
-  String get joinGroupTitle => 'Join group';
+  String get joinCommunityTitle => 'Join community';
 
   @override
-  String get joinGroupButton => 'Join';
+  String get joinCommunityButton => 'Join';
 
   @override
-  String get groupNameLabel => 'Group name';
+  String get communityNameLabel => 'Community name';
 
   @override
-  String get groupNameRequired => 'Group name is required';
+  String get communityNameRequired => 'Community name is required';
 
   @override
-  String get groupDescriptionLabel => 'Description (optional)';
+  String get communityDescriptionLabel => 'Description (optional)';
 
   @override
-  String get privateGroupLabel => 'Private group';
+  String get privateCommunityLabel => 'Private community';
 
   @override
-  String get privateGroupHelp =>
-      'Private groups can only be joined with the join code.';
+  String get privateCommunityHelp =>
+      'Private communities can only be joined with the join code.';
 
   @override
   String get joinCodeLabel => 'Join code';
@@ -149,17 +149,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get joinCodeRequired => 'Join code is required';
 
   @override
-  String get groupNotFound => 'No group found with this code.';
+  String get communityNotFound => 'No community found with this code.';
 
   @override
-  String get alreadyMember => 'You are already a member of this group.';
+  String get alreadyMemberOfCommunity =>
+      'You are already a member of this community.';
 
   @override
-  String get groupCreateFailed =>
-      'Failed to create the group. Please try again.';
+  String get communityCreateFailed =>
+      'Failed to create the community. Please try again.';
 
   @override
-  String get groupJoinFailed => 'Failed to join the group. Please try again.';
+  String get communityJoinFailed =>
+      'Failed to join the community. Please try again.';
 
   @override
   String get membersTitle => 'Members';
@@ -171,13 +173,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get joinCodeCopied => 'Join code copied';
 
   @override
-  String get myGroupsSection => 'My groups';
+  String get myCommunitiesSection => 'My communities';
 
   @override
-  String get publicGroupsSection => 'Public groups';
+  String get publicCommunitiesSection => 'Public communities';
 
   @override
-  String get joinedGroup => 'You joined the group.';
+  String get joinedCommunity => 'You joined the community.';
 
   @override
   String get matchesTitle => 'Matches';
@@ -234,14 +236,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Failed to create the match. Please try again.';
 
   @override
-  String get groupMatchesEmpty => 'No matches in this group yet.';
+  String get communityMatchesEmpty => 'No matches in this community yet.';
 
   @override
   String get upcomingMatchesTitle => 'Upcoming matches';
 
   @override
   String get upcomingMatchesEmpty =>
-      'No upcoming matches.\nJoin a group and create a match to get started.';
+      'No upcoming matches.\nJoin a community to get started.';
 
   @override
   String get matchStatusOpen => 'Open';
@@ -404,7 +406,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'This match is completed and can no longer be changed.';
 
   @override
-  String get errNotOrganizer => 'Only the match organizer can do this.';
+  String get errNotAuthorized => 'You do not have permission to do this.';
 
   @override
   String get errRegistrationClosed =>
@@ -434,4 +436,194 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get genericError => 'Something went wrong. Please try again.';
+
+  @override
+  String get roleOwner => 'Owner';
+
+  @override
+  String get roleAdmin => 'Admin';
+
+  @override
+  String get rolePlayer => 'Player';
+
+  @override
+  String get manageCommunityTitle => 'Manage community';
+
+  @override
+  String get manageMembersTitle => 'Manage members';
+
+  @override
+  String get invitationsTitle => 'Invitations';
+
+  @override
+  String get myInvitationsTitle => 'My invitations';
+
+  @override
+  String get pendingInvitationsTitle => 'Pending invitations';
+
+  @override
+  String get inviteMemberTitle => 'Invite a player';
+
+  @override
+  String get inviteButton => 'Invite';
+
+  @override
+  String get searchPlayersLabel => 'Search by name';
+
+  @override
+  String get searchPlayersHint => 'Type at least two letters';
+
+  @override
+  String get searchNoResults => 'No players found.';
+
+  @override
+  String get inviteAsRoleLabel => 'Invite as';
+
+  @override
+  String get invitationSent => 'Invitation sent.';
+
+  @override
+  String get invitationsEmpty => 'No pending invitations.';
+
+  @override
+  String get myInvitationsEmpty => 'You have no invitations.';
+
+  @override
+  String invitationFrom(String community) {
+    return 'Invitation to join $community';
+  }
+
+  @override
+  String get acceptInvitationButton => 'Accept';
+
+  @override
+  String get revokeInvitationButton => 'Revoke';
+
+  @override
+  String get invitationAccepted => 'You joined the community.';
+
+  @override
+  String get invitationRevoked => 'Invitation revoked.';
+
+  @override
+  String get promoteToAdminButton => 'Make admin';
+
+  @override
+  String get demoteToPlayerButton => 'Make player';
+
+  @override
+  String get transferOwnershipButton => 'Transfer ownership';
+
+  @override
+  String get removeMemberButton => 'Remove from community';
+
+  @override
+  String get memberRoleChanged => 'Member role updated.';
+
+  @override
+  String get ownershipTransferred =>
+      'Ownership transferred. You are now an admin.';
+
+  @override
+  String get memberRemoved => 'Member removed from the community.';
+
+  @override
+  String get transferOwnershipConfirmTitle => 'Transfer ownership?';
+
+  @override
+  String transferOwnershipConfirmBody(String name) {
+    return '$name becomes the owner and you become an admin. Only the new owner can transfer it back.';
+  }
+
+  @override
+  String get removeMemberConfirmTitle => 'Remove this member?';
+
+  @override
+  String removeMemberConfirmBody(String name) {
+    return '$name will be removed from the community and withdrawn from every match in it.';
+  }
+
+  @override
+  String get deleteCommunityButton => 'Delete community';
+
+  @override
+  String get deleteCommunityHint =>
+      'Removes the community with all its matches, members and invitations.';
+
+  @override
+  String get deleteCommunityConfirmTitle => 'Delete this community?';
+
+  @override
+  String get deleteCommunityConfirmBody =>
+      'All matches, registrations, members and invitations are deleted. This cannot be undone.';
+
+  @override
+  String get communityDeleted => 'Community deleted.';
+
+  @override
+  String get permissionOwnerOnly => 'Only the owner can do this.';
+
+  @override
+  String get permissionOrganizersOnly =>
+      'Only the owner and admins can do this.';
+
+  @override
+  String get matchCreateOrganizersOnly =>
+      'Only the owner and admins can create matches in this community.';
+
+  @override
+  String get matchManageOrganizersOnly =>
+      'Match management now follows community roles. Ask an owner or admin of this community.';
+
+  @override
+  String get errCannotChangeOwnRole => 'You cannot change your own role.';
+
+  @override
+  String get errCannotRemoveSelf =>
+      'You cannot remove yourself here. Leave the community instead.';
+
+  @override
+  String get errCannotRemoveOwner =>
+      'The owner cannot be removed. Transfer ownership first.';
+
+  @override
+  String get errAlreadyOwner => 'That member is already the owner.';
+
+  @override
+  String get errMemberNotFound =>
+      'That person is not a member of this community.';
+
+  @override
+  String get errInvitationExists =>
+      'There is already a pending invitation for this player.';
+
+  @override
+  String get errInvitationNotFound => 'This invitation no longer exists.';
+
+  @override
+  String get errInvitationNotPending =>
+      'This invitation has already been used.';
+
+  @override
+  String get errInvitationExpired => 'This invitation has expired.';
+
+  @override
+  String get errInvalidRole => 'That role cannot be assigned.';
+
+  @override
+  String get leaveCommunityButton => 'Leave community';
+
+  @override
+  String get leaveCommunityConfirmTitle => 'Leave this community?';
+
+  @override
+  String get leaveCommunityConfirmBody =>
+      'You will lose access to its matches. You can rejoin with the join code.';
+
+  @override
+  String get leftCommunity => 'You left the community.';
+
+  @override
+  String get ownerCannotLeave =>
+      'An owner cannot leave. Transfer ownership first.';
 }
