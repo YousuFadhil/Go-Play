@@ -20,15 +20,15 @@ class GroupService {
   Future<List<Community>> fetchMyGroups() async {
     final userId = _client.auth.currentUser!.id;
     final rows = await _client
-        .from('group_members')
-        .select('group:groups(id, owner_id, name, description, '
+        .from('community_members')
+        .select('community:communities(id, owner_id, name, description, '
             'is_private, join_code)')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
     return [
       for (final row in rows)
-        Community.fromJson(row['group'] as Map<String, dynamic>),
+        Community.fromJson(row['community'] as Map<String, dynamic>),
     ];
   }
 
@@ -41,7 +41,7 @@ class GroupService {
     final myIds = {for (final g in mine) g.id};
 
     final rows = await _client
-        .from('groups')
+        .from('communities')
         .select('id, owner_id, name, description, is_private, join_code')
         .eq('is_private', false)
         .order('created_at', ascending: false);
@@ -59,7 +59,7 @@ class GroupService {
     String? description,
     required bool isPrivate,
   }) async {
-    final result = await _client.rpc('create_group', params: {
+    final result = await _client.rpc('create_community', params: {
       'p_name': name.trim(),
       'p_description': description?.trim().isEmpty ?? true
           ? null
@@ -72,12 +72,12 @@ class GroupService {
   /// Joins a group by its join code. Returns the group id.
   Future<String> joinGroupByCode(String code) async {
     try {
-      final result = await _client.rpc('join_group_by_code', params: {
+      final result = await _client.rpc('join_community_by_code', params: {
         'p_code': code.trim().toUpperCase(),
       });
       return result as String;
     } on PostgrestException catch (e) {
-      if (e.message.contains('GROUP_NOT_FOUND')) {
+      if (e.message.contains('COMMUNITY_NOT_FOUND')) {
         throw GroupNotFoundException();
       }
       if (e.message.contains('ALREADY_MEMBER')) {
@@ -87,21 +87,21 @@ class GroupService {
     }
   }
 
-  Future<Community> fetchGroup(String groupId) async {
+  Future<Community> fetchGroup(String communityId) async {
     final row = await _client
-        .from('groups')
+        .from('communities')
         .select('id, owner_id, name, description, is_private, join_code')
-        .eq('id', groupId)
+        .eq('id', communityId)
         .single();
     return Community.fromJson(row);
   }
 
-  Future<List<CommunityMember>> fetchMembers(String groupId) async {
+  Future<List<CommunityMember>> fetchMembers(String communityId) async {
     final rows = await _client
-        .from('group_members')
+        .from('community_members')
         .select('role, created_at, user:users(id, full_name, '
             'primary_position)')
-        .eq('group_id', groupId)
+        .eq('community_id', communityId)
         .order('created_at', ascending: true);
 
     return [for (final row in rows) CommunityMember.fromJson(row)];

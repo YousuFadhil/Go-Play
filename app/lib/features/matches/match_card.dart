@@ -53,8 +53,8 @@ class MatchCard extends StatelessWidget {
           child: Icon(completed ? Icons.event_available : Icons.sports_soccer),
         ),
         title: Text(
-          showGroupName && match.groupName != null
-              ? '${match.groupName} • ${match.displayName}'
+          showGroupName && match.communityName != null
+              ? '${match.communityName} • ${match.displayName}'
               : match.displayName,
         ),
         subtitle: Text(formatMatchTime(context, match)),

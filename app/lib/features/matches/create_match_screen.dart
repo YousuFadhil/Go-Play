@@ -96,7 +96,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     setState(() => _isLoading = true);
     try {
       await _matchService.createMatch(
-        groupId: widget.groupId,
+        communityId: widget.groupId,
         location: _locationController.text,
         startAt: start,
         endAt: end,

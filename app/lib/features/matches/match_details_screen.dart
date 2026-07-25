@@ -214,10 +214,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                       label: Text(l10n.matchManagementTitle),
                     ),
                   ),
-                if (match.groupName != null)
+                if (match.communityName != null)
                   ListTile(
                     leading: const Icon(Icons.groups),
-                    title: Text(match.groupName!),
+                    title: Text(match.communityName!),
                   ),
                 ListTile(
                   leading: const Icon(Icons.place),

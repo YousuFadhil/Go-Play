@@ -44,15 +44,15 @@ class MatchService {
   final SupabaseClient _client;
 
   static const _columns =
-      'id, group_id, created_by, location, start_at, end_at, '
+      'id, community_id, created_by, location, start_at, end_at, '
       'starting_players, max_registration, status, title, description';
 
   /// Matches of one group, newest scheduled first.
-  Future<List<Match>> fetchGroupMatches(String groupId) async {
+  Future<List<Match>> fetchGroupMatches(String communityId) async {
     final rows = await _client
         .from('matches')
         .select(_columns)
-        .eq('group_id', groupId)
+        .eq('community_id', communityId)
         .order('start_at', ascending: false);
     return [for (final row in rows) Match.fromJson(row)];
   }
@@ -62,7 +62,7 @@ class MatchService {
   Future<List<Match>> fetchUpcomingMatches() async {
     final rows = await _client
         .from('matches')
-        .select('$_columns, group:groups(name)')
+        .select('$_columns, community:communities(name)')
         .gt('end_at', DateTime.now().toUtc().toIso8601String())
         .order('start_at', ascending: true);
     return [for (final row in rows) Match.fromJson(row)];
@@ -71,7 +71,7 @@ class MatchService {
   Future<Match> fetchMatch(String matchId) async {
     final row = await _client
         .from('matches')
-        .select('$_columns, group:groups(name)')
+        .select('$_columns, community:communities(name)')
         .eq('id', matchId)
         .single();
     return Match.fromJson(row);
@@ -80,14 +80,14 @@ class MatchService {
   /// Creates a match. Maximum registration is derived by the database from
   /// the starting players plus the global reserve setting.
   Future<void> createMatch({
-    required String groupId,
+    required String communityId,
     required String location,
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
   }) async {
     await _client.from('matches').insert({
-      'group_id': groupId,
+      'community_id': communityId,
       'created_by': _client.auth.currentUser!.id,
       'location': location.trim(),
       'start_at': startAt.toUtc().toIso8601String(),

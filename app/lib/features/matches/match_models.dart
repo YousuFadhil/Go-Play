@@ -54,11 +54,11 @@ enum MatchStatus {
           orElse: () => MatchStatus.open);
 }
 
-/// A football match scheduled inside a group.
+/// A football match scheduled inside a community.
 class Match {
   const Match({
     required this.id,
-    required this.groupId,
+    required this.communityId,
     required this.createdBy,
     required this.location,
     required this.startAt,
@@ -68,11 +68,11 @@ class Match {
     required this.status,
     this.title,
     this.description,
-    this.groupName,
+    this.communityName,
   });
 
   final String id;
-  final String groupId;
+  final String communityId;
   final String createdBy;
   final String location;
   final DateTime startAt;
@@ -86,8 +86,8 @@ class Match {
   final String? title;
   final String? description;
 
-  /// Present only when the query joins the group (e.g. Home screen).
-  final String? groupName;
+  /// Present only when the query joins the community (e.g. Home screen).
+  final String? communityName;
 
   /// What to show as the match's headline: the title if set, else location.
   String get displayName => (title != null && title!.isNotEmpty)
@@ -113,7 +113,7 @@ class Match {
   factory Match.fromJson(Map<String, dynamic> json) {
     return Match(
       id: json['id'] as String,
-      groupId: json['group_id'] as String,
+      communityId: json['community_id'] as String,
       createdBy: json['created_by'] as String,
       location: json['location'] as String,
       startAt: DateTime.parse(json['start_at'] as String).toLocal(),
@@ -123,7 +123,7 @@ class Match {
       status: MatchStatus.fromDb(json['status'] as String),
       title: json['title'] as String?,
       description: json['description'] as String?,
-      groupName: (json['group'] as Map<String, dynamic>?)?['name'] as String?,
+      communityName: (json['community'] as Map<String, dynamic>?)?['name'] as String?,
     );
   }
 }
