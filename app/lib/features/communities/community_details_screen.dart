@@ -6,6 +6,8 @@ import '../matches/create_match_screen.dart';
 import '../matches/match_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
+import '../invitations/invite_links_screen.dart';
+import '../invitations/share_invitation.dart';
 import '../members/member_management_screen.dart';
 import 'community_models.dart';
 import '../members/member_repository.dart';
@@ -75,6 +77,17 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       ),
     );
     if (created == true) _refresh();
+  }
+
+  Future<void> _openInviteLinks(String name) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InviteLinksScreen(
+          communityId: widget.communityId,
+          communityName: name,
+        ),
+      ),
+    );
   }
 
   Future<void> _openMembers(String name) async {
@@ -196,6 +209,32 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
             appBar: AppBar(
               title: Text(community.name),
               actions: [
+                if (canCreateMatch)
+                  MenuAnchor(
+                    menuChildren: [
+                      MenuItemButton(
+                        leadingIcon: const Icon(Icons.ios_share),
+                        onPressed: () => shareInvitation(
+                          context,
+                          communityId: community.id,
+                          communityName: community.name,
+                        ),
+                        child: Text(l10n.shareInvitation),
+                      ),
+                      MenuItemButton(
+                        leadingIcon: const Icon(Icons.link),
+                        onPressed: () => _openInviteLinks(community.name),
+                        child: Text(l10n.inviteLinksTitle),
+                      ),
+                    ],
+                    builder: (context, controller, _) => IconButton(
+                      tooltip: l10n.shareInvitation,
+                      icon: const Icon(Icons.ios_share),
+                      onPressed: () => controller.isOpen
+                          ? controller.close()
+                          : controller.open(),
+                    ),
+                  ),
                 IconButton(
                   tooltip: l10n.manageMembersTitle,
                   icon: const Icon(Icons.group),

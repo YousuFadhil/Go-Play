@@ -8,6 +8,9 @@
 - Community management: create, join by code, edit settings, delete
 - Membership: invite, accept, revoke, change role, transfer ownership, remove a
   member, leave
+- Shareable invitation links, for a community alone or for a community and one
+  match. Opening one shows what is offered without an account; redeeming it
+  joins the community and, when a match is attached, registers for it
 - Match management: create, edit, delete, manage the roster
 - Match registration with a reserve list and automatic promotion
 - In-app notifications
@@ -29,6 +32,12 @@
   promoting reserves as usual.
 - Deleting a community removes everything belonging to it.
 - Exactly one owner per community, always.
+- Redeeming an invitation link grants the player role and nothing more.
+- A community invitation link stays valid until an admin revokes it; a match
+  invitation link ends when the match starts or is deleted.
+- Automatic registration obeys every registration rule above. Joining the
+  community and registering for the match are separate outcomes: if registration
+  fails the membership stands and the reason is shown.
 
 ## Authorization
 

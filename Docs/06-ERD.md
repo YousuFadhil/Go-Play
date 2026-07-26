@@ -13,7 +13,8 @@ belongs to exactly one community, and nothing is owned by a user.
 | `users` | Player profile, keyed to the Supabase auth user |
 | `communities` | The aggregate root |
 | `community_members` | The membership edge, carrying the role |
-| `invitations` | An offer of membership at a given role |
+| `invitations` | A directed offer of membership at a given role |
+| `community_invite_links` | A shareable invitation: a bearer token naming a community and, optionally, one match |
 | `matches` | A match inside one community |
 | `match_registrations` | Starting and reserve places |
 | `notifications` | In-app notices addressed to one user |
@@ -29,6 +30,7 @@ Entities described in the v2 document but never built — `fields`, `teams`,
 users (1) --< community_members >-- (1) communities
                                           |
                                           +--< invitations
+                                          +--< community_invite_links --? matches
                                           +--< matches
                                                  +--< match_registrations >-- users
 
@@ -43,6 +45,13 @@ users --< notifications --? matches   (match_id nullable, ON DELETE SET NULL)
   is unique per match.
 - A notification keeps its text after its match is deleted, because `match_id`
   is set to null rather than cascading.
+- An invite link belongs to a community and may name one match. `kind` records
+  which it was created as, so a link whose match was deleted (`match_id` set to
+  null) is still distinguishable from a community-only one — that is what lets
+  it report "the match was deleted" instead of silently becoming a community
+  invitation.
+- At most one active link per community and per match, so sharing twice hands
+  back the same link rather than breeding new ones.
 
 ## 3. Fields that are not authorization
 
@@ -54,7 +63,19 @@ Two columns look like ownership and are not:
 - `matches.created_by` — audit only. It records who created the row and is
   shown as attribution. Management follows community role (PD-16, PD-07).
 
-## 4. Business rules carried by the model
+## 4. Two kinds of invitation
+
+They are separate tables because they have opposite invariants:
+
+| | `invitations` | `community_invite_links` |
+|---|---|---|
+| Recipient | A named existing user | Anyone holding the token |
+| Uses | Once | Many |
+| Role offered | `admin` or `player` | `player` only |
+| Expiry | Always, 14 days | Never (community) or at kick-off (match) |
+| Readable before sign-in | No | Yes, through `preview_invite_link` |
+
+## 5. Business rules carried by the model
 
 - Registration order decides who starts: the first `starting_players` are
   confirmed, the rest are reserve.

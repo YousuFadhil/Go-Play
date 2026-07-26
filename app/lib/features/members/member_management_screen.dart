@@ -73,7 +73,8 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
       CommunityActionError.invitationNotPending => l10n.errInvitationNotPending,
       CommunityActionError.invitationExpired => l10n.errInvitationExpired,
       CommunityActionError.invalidRole => l10n.errInvalidRole,
-      CommunityActionError.unknown => l10n.genericError,
+      // The invite-link and match codes cannot come from these RPCs.
+      _ => l10n.genericError,
     };
   }
 

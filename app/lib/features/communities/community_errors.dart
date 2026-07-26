@@ -20,6 +20,13 @@ enum CommunityActionError {
   invitationNotPending,
   invitationExpired,
   invalidRole,
+  inviteNotFound,
+  inviteRevoked,
+  inviteExpired,
+  inviteMatchDeleted,
+  matchNotFound,
+  matchNotInCommunity,
+  matchLocked,
   unknown,
 }
 
@@ -42,6 +49,15 @@ const _actionErrors = <String, CommunityActionError>{
   'INVITATION_NOT_PENDING': CommunityActionError.invitationNotPending,
   'INVITATION_EXPIRED': CommunityActionError.invitationExpired,
   'INVALID_ROLE': CommunityActionError.invalidRole,
+  // Shareable invite links. Distinct from the INVITATION_* codes above: those
+  // belong to a directed invitation, these to a link.
+  'INVITE_NOT_FOUND': CommunityActionError.inviteNotFound,
+  'INVITE_REVOKED': CommunityActionError.inviteRevoked,
+  'INVITE_EXPIRED': CommunityActionError.inviteExpired,
+  'INVITE_MATCH_DELETED': CommunityActionError.inviteMatchDeleted,
+  'MATCH_NOT_FOUND': CommunityActionError.matchNotFound,
+  'MATCH_NOT_IN_COMMUNITY': CommunityActionError.matchNotInCommunity,
+  'MATCH_LOCKED': CommunityActionError.matchLocked,
 };
 
 /// Maps a Postgres error message onto the typed error it carries.
@@ -54,14 +70,15 @@ CommunityActionError communityActionErrorFrom(String message) {
 
 /// Calls a community RPC and converts its failure into a typed exception.
 /// Shared by the community, member and invitation repositories so the mapping
-/// lives in exactly one place.
-Future<void> callCommunityRpc(
+/// lives in exactly one place. Returns whatever the RPC returned, which most
+/// callers ignore.
+Future<dynamic> callCommunityRpc(
   SupabaseClient client,
   String function,
   Map<String, dynamic> params,
 ) async {
   try {
-    await client.rpc(function, params: params);
+    return await client.rpc(function, params: params);
   } on PostgrestException catch (e) {
     throw CommunityActionException(communityActionErrorFrom(e.message));
   }

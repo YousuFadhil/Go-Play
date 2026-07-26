@@ -65,6 +65,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       RegistrationError.notRegistered => l10n.errNotRegistered,
       RegistrationError.registrationClosed => l10n.errRegistrationClosed,
       RegistrationError.matchLocked => l10n.errMatchLocked,
+      RegistrationError.notCommunityMember => l10n.errNotCommunityMember,
     };
   }
 

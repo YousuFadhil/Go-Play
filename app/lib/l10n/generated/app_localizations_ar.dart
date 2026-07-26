@@ -573,4 +573,131 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errInvalidRole => 'لا يمكن تعيين هذه الصلاحية.';
+
+  @override
+  String get inviteTitle => 'دعوة';
+
+  @override
+  String get inviteLoadError =>
+      'تعذّر فتح هذه الدعوة. تحقّق من الاتصال وحاول مرة أخرى.';
+
+  @override
+  String get inviteNotFound => 'لم نعثر على هذه الدعوة. قد يكون الرابط ناقصاً.';
+
+  @override
+  String get inviteRevoked => 'أُلغيت هذه الدعوة من قِبل أحد المنظمين.';
+
+  @override
+  String get inviteExpired => 'انتهت هذه الدعوة ببدء المباراة.';
+
+  @override
+  String get inviteMatchDeleted => 'حُذفت المباراة التي تشير إليها هذه الدعوة.';
+
+  @override
+  String get inviteJoinAndRegister => 'انضم وسجّل في المباراة';
+
+  @override
+  String get inviteJoinCommunity => 'انضم إلى المجتمع';
+
+  @override
+  String get inviteSignInFirst => 'سجّل الدخول أو أنشئ حساباً للانضمام.';
+
+  @override
+  String inviteSeatsRemaining(int count) {
+    return 'المقاعد المتبقية: $count';
+  }
+
+  @override
+  String get inviteWouldBeReserve =>
+      'المقاعد الأساسية مكتملة. ستنضم إلى قائمة الاحتياط.';
+
+  @override
+  String get inviteAlreadyMemberNote => 'أنت عضو في هذا المجتمع بالفعل.';
+
+  @override
+  String get inviteAlreadyRegisteredNote => 'أنت مسجّل في هذه المباراة بالفعل.';
+
+  @override
+  String get inviteJoinedConfirmed => 'انضممت، ومقعدك مؤكد.';
+
+  @override
+  String get inviteJoinedReserve => 'انضممت، وأنت في قائمة الاحتياط.';
+
+  @override
+  String get inviteJoinedCommunityOnly => 'انضممت إلى المجتمع.';
+
+  @override
+  String get inviteJoinedButNotRegistered =>
+      'انضممت إلى المجتمع، لكن تعذّر تسجيلك في المباراة.';
+
+  @override
+  String get inviteOpenAction => 'فتح دعوة';
+
+  @override
+  String get invitePasteHint => 'الصق رابط الدعوة';
+
+  @override
+  String get inviteInvalidInput => 'هذا ليس رابط دعوة.';
+
+  @override
+  String get shareInvitation => 'مشاركة دعوة';
+
+  @override
+  String get shareMatchInvitation => 'مشاركة دعوة المباراة';
+
+  @override
+  String get inviteLinkCopied => 'نُسخت الدعوة. الصقها حيث تريد مشاركتها.';
+
+  @override
+  String inviteShareCommunityBody(String community, String link) {
+    return 'انضم إلى $community على Go Play:\n$link';
+  }
+
+  @override
+  String inviteShareMatchBody(String community, String match, String link) {
+    return 'انضم إلى $community على Go Play وسجّل في $match:\n$link';
+  }
+
+  @override
+  String get errNotCommunityMember => 'أنت لست عضواً في هذا المجتمع.';
+
+  @override
+  String get inviteLinksTitle => 'روابط الدعوة';
+
+  @override
+  String get inviteLinksEmpty =>
+      'لا توجد روابط بعد. شارك رابطاً من المجتمع أو من مباراة.';
+
+  @override
+  String get inviteLinkCommunityLabel => 'دعوة للمجتمع';
+
+  @override
+  String inviteLinkCreatedOn(String date) {
+    return 'شورك في $date';
+  }
+
+  @override
+  String get inviteLinkExpiredLabel => 'انتهى ببدء المباراة';
+
+  @override
+  String get inviteLinkMatchDeletedLabel => 'حُذفت المباراة';
+
+  @override
+  String get copyLinkButton => 'نسخ';
+
+  @override
+  String get revokeLinkButton => 'إلغاء';
+
+  @override
+  String get revokeLinkConfirmTitle => 'إلغاء هذه الدعوة؟';
+
+  @override
+  String get revokeLinkConfirmBody =>
+      'لن يتمكن أي شخص يملك هذا الرابط من فتحه بعد الآن. من انضم فعلاً يبقى عضواً.';
+
+  @override
+  String get inviteLinkRevokedMessage => 'أُلغيت الدعوة.';
+
+  @override
+  String get inviteLinkMatchLabel => 'دعوة لمباراة';
 }

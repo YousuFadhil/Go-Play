@@ -5,6 +5,7 @@ import '../invitations/my_invitations_screen.dart';
 import 'create_community_screen.dart';
 import 'community_details_screen.dart';
 import 'community_models.dart';
+import '../invitations/invite_link.dart';
 import 'community_errors.dart';
 import 'community_repository.dart';
 
@@ -52,6 +53,17 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     if (joined == true) _refresh();
   }
 
+  /// Fallback for an invitation that arrived as text rather than as a tap —
+  /// some messaging apps will not make a `goplay://` link tappable. Handing the
+  /// token to PendingInvite routes it exactly like a tapped link would.
+  Future<void> _openInviteDialog() async {
+    final token = await showDialog<String>(
+      context: context,
+      builder: (_) => const _OpenInviteDialog(),
+    );
+    if (token != null) PendingInvite.instance.offer(token);
+  }
+
   Future<void> _openJoinDialog() async {
     // The dialog is fully self-contained (owns its controller and uses its
     // own context), so no parent BuildContext crosses into the dialog
@@ -94,6 +106,11 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             tooltip: l10n.myInvitationsTitle,
             icon: const Icon(Icons.mail_outline),
             onPressed: _openInvitations,
+          ),
+          IconButton(
+            tooltip: l10n.inviteOpenAction,
+            icon: const Icon(Icons.link),
+            onPressed: _openInviteDialog,
           ),
           IconButton(
             tooltip: l10n.joinCommunityTitle,
@@ -320,6 +337,61 @@ class _JoinCommunityDialogState extends State<_JoinCommunityDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : Text(l10n.joinCommunityButton),
+        ),
+      ],
+    );
+  }
+}
+
+/// Takes a pasted invitation link (or the bare token inside one) and returns
+/// the token. Validation is local and deliberately shallow: whether the
+/// invitation is still good is the landing screen's question to ask.
+class _OpenInviteDialog extends StatefulWidget {
+  const _OpenInviteDialog();
+
+  @override
+  State<_OpenInviteDialog> createState() => _OpenInviteDialogState();
+}
+
+class _OpenInviteDialogState extends State<_OpenInviteDialog> {
+  final _controller = TextEditingController();
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final token = InviteLink.parse(_controller.text);
+    if (token == null) {
+      setState(() => _errorText = context.l10n.inviteInvalidInput);
+      return;
+    }
+    Navigator.of(context).pop(token);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return AlertDialog(
+      title: Text(l10n.inviteOpenAction),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textDirection: TextDirection.ltr,
+        decoration: InputDecoration(
+          labelText: l10n.invitePasteHint,
+          errorText: _errorText,
+        ),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: _submit,
+          child: Text(l10n.inviteOpenAction),
         ),
       ],
     );
