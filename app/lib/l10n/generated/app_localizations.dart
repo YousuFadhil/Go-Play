@@ -1165,6 +1165,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That role cannot be assigned.'**
   String get errInvalidRole;
+
+  /// No description provided for @inviteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation'**
+  String get inviteTitle;
+
+  /// No description provided for @inviteLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not open this invitation. Check your connection and try again.'**
+  String get inviteLoadError;
+
+  /// No description provided for @inviteNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not find this invitation. The link may be incomplete.'**
+  String get inviteNotFound;
+
+  /// No description provided for @inviteRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation was revoked by an organizer.'**
+  String get inviteRevoked;
+
+  /// No description provided for @inviteExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation ended when the match started.'**
+  String get inviteExpired;
+
+  /// No description provided for @inviteMatchDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'The match this invitation pointed to was deleted.'**
+  String get inviteMatchDeleted;
+
+  /// No description provided for @inviteJoinAndRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Community and Register'**
+  String get inviteJoinAndRegister;
+
+  /// No description provided for @inviteJoinCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Community'**
+  String get inviteJoinCommunity;
+
+  /// No description provided for @inviteSignInFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in or create an account to join.'**
+  String get inviteSignInFirst;
+
+  /// No description provided for @inviteSeatsRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} places left'**
+  String inviteSeatsRemaining(int count);
+
+  /// No description provided for @inviteWouldBeReserve.
+  ///
+  /// In en, this message translates to:
+  /// **'The starting places are taken. You will join the reserve list.'**
+  String get inviteWouldBeReserve;
+
+  /// No description provided for @inviteAlreadyMemberNote.
+  ///
+  /// In en, this message translates to:
+  /// **'You are already a member of this community.'**
+  String get inviteAlreadyMemberNote;
+
+  /// No description provided for @inviteAlreadyRegisteredNote.
+  ///
+  /// In en, this message translates to:
+  /// **'You are already registered for this match.'**
+  String get inviteAlreadyRegisteredNote;
+
+  /// No description provided for @inviteJoinedConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'You joined, and your place is confirmed.'**
+  String get inviteJoinedConfirmed;
+
+  /// No description provided for @inviteJoinedReserve.
+  ///
+  /// In en, this message translates to:
+  /// **'You joined, and you are on the reserve list.'**
+  String get inviteJoinedReserve;
+
+  /// No description provided for @inviteJoinedCommunityOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'You joined the community.'**
+  String get inviteJoinedCommunityOnly;
+
+  /// No description provided for @inviteJoinedButNotRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'You joined the community, but could not be registered for the match.'**
+  String get inviteJoinedButNotRegistered;
+
+  /// No description provided for @inviteOpenAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open an invitation'**
+  String get inviteOpenAction;
+
+  /// No description provided for @invitePasteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the invitation link'**
+  String get invitePasteHint;
+
+  /// No description provided for @inviteInvalidInput.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not an invitation link.'**
+  String get inviteInvalidInput;
+
+  /// No description provided for @shareInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Share invitation'**
+  String get shareInvitation;
+
+  /// No description provided for @shareMatchInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Share match invitation'**
+  String get shareMatchInvitation;
+
+  /// No description provided for @inviteLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation copied. Paste it wherever you share it.'**
+  String get inviteLinkCopied;
+
+  /// No description provided for @inviteShareCommunityBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Join {community} on Go Play:\n{link}'**
+  String inviteShareCommunityBody(String community, String link);
+
+  /// No description provided for @inviteShareMatchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Join {community} on Go Play and register for {match}:\n{link}'**
+  String inviteShareMatchBody(String community, String match, String link);
+
+  /// No description provided for @errNotCommunityMember.
+  ///
+  /// In en, this message translates to:
+  /// **'You are not a member of this community.'**
+  String get errNotCommunityMember;
+
+  /// No description provided for @inviteLinksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation links'**
+  String get inviteLinksTitle;
+
+  /// No description provided for @inviteLinksEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No links yet. Share one from the community or from a match.'**
+  String get inviteLinksEmpty;
+
+  /// No description provided for @inviteLinkCommunityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Community invitation'**
+  String get inviteLinkCommunityLabel;
+
+  /// No description provided for @inviteLinkCreatedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared {date}'**
+  String inviteLinkCreatedOn(String date);
+
+  /// No description provided for @inviteLinkExpiredLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended when the match started'**
+  String get inviteLinkExpiredLabel;
+
+  /// No description provided for @inviteLinkMatchDeletedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'The match was deleted'**
+  String get inviteLinkMatchDeletedLabel;
+
+  /// No description provided for @copyLinkButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copyLinkButton;
+
+  /// No description provided for @revokeLinkButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get revokeLinkButton;
+
+  /// No description provided for @revokeLinkConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke this invitation?'**
+  String get revokeLinkConfirmTitle;
+
+  /// No description provided for @revokeLinkConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone still holding this link will no longer be able to open it. People who already joined stay members.'**
+  String get revokeLinkConfirmBody;
+
+  /// No description provided for @inviteLinkRevokedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation revoked.'**
+  String get inviteLinkRevokedMessage;
+
+  /// No description provided for @inviteLinkMatchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Match invitation'**
+  String get inviteLinkMatchLabel;
 }
 
 class _AppLocalizationsDelegate

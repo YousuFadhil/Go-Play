@@ -1,6 +1,6 @@
 # Project Documentation
 
-Current as of `v0.4.0-mvp` — the Community-first architecture.
+Current as of `v0.5.0-mvp` — Community-first, with shareable invitation links.
 
 | Document | Status |
 |---|---|

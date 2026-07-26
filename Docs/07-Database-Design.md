@@ -3,7 +3,7 @@
 **Database Design — Community-first (v3)**
 
 Supersedes the Groups-first v2 document. Reflects the schema as it stands
-after migration `0009`.
+after migration `0010`.
 
 ## Standards
 
@@ -17,8 +17,9 @@ after migration `0009`.
 
 ## Tables
 
-`users`, `communities`, `community_members`, `invitations`, `matches`,
-`match_registrations`, `notifications`, `app_settings`.
+`users`, `communities`, `community_members`, `invitations`,
+`community_invite_links`, `matches`, `match_registrations`, `notifications`,
+`app_settings`.
 
 ## Key constraints
 
@@ -34,6 +35,11 @@ after migration `0009`.
   index), and an invitation can only offer `admin` or `player`.
 - `notifications.match_id` uses **ON DELETE SET NULL**, so a "match deleted"
   notice survives the match it refers to (DD-08).
+- `community_invite_links.role` is checked to be `player`: a link has no named
+  recipient, so it can never confer more (DD-10).
+- `community_invite_links.kind` in (`community`, `match`), with a check that a
+  `community` link carries no `match_id`. Two partial unique indexes keep at
+  most one active link per community and per match.
 
 ## Authorization
 
@@ -60,6 +66,11 @@ v1.2, section 4.2.
   next touches the row — there is no scheduler (DD-05).
 - `communities.owner_id` mirrors the owner membership row and is updated inside
   `transfer_ownership` (PD-15).
+- An invite link's usability is derived rather than stored: `invite_link_state`
+  reads `is_active`, `kind` and the match's `start_at` and returns one of
+  `valid` / `revoked` / `expired` / `match_deleted` / `not_found`. Preview and
+  redemption share it, so the landing screen cannot promise what redemption
+  would refuse (DD-10).
 
 ## Indexes
 
@@ -70,10 +81,21 @@ Primary keys, the membership unique index (which also serves role resolution),
 `match_registrations(user_id)`, `notifications(user_id, created_at desc)`,
 `invitations(invitee_id, status)`.
 
+## The one unauthenticated entry point
+
+`preview_invite_link` is the only function granted to `anon`. It exists because
+an invitation has to be readable by someone who has not installed the app yet.
+It is `SECURITY DEFINER` and returns a fixed set of columns — the community
+name, the match's public face, seat counts — and never the row, the join code,
+the roster or who created the link. A revoked or unknown token returns its state
+and nothing else. Everything else about links (`create_invite_link`,
+`revoke_invite_link`, `redeem_invite_link`, and the `invite_link_state` helper)
+is denied to `anon`, and the table itself is readable only by community admins.
+
 ## Migrations
 
 `0001`–`0006` built the Groups-first MVP. `0007` renamed the aggregate to
 Community, `0008` moved authorization onto `community_members.role` and added
 invitations, `0009` added ownership transfer, member removal and community
-deletion. `supabase/setup_all.sql` is a generated concatenation of all nine, in
-order.
+deletion, `0010` added shareable invite links. `supabase/setup_all.sql` is a
+generated concatenation of all ten, in order.

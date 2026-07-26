@@ -62,6 +62,61 @@ class InvitationRepository {
     return [for (final row in rows) Invitation.fromJson(row)];
   }
 
+  /// Creates (or hands back) the shareable link for a community, or for one
+  /// match within it. Owner and admin only, enforced in the RPC.
+  Future<String> createInviteLink({
+    required String communityId,
+    String? matchId,
+  }) async {
+    final token = await callCommunityRpc(_client, 'create_invite_link', {
+      'p_community_id': communityId,
+      'p_match_id': matchId,
+    });
+    return token as String;
+  }
+
+  Future<void> revokeInviteLink(String linkId) =>
+      callCommunityRpc(_client, 'revoke_invite_link', {
+        'p_link_id': linkId,
+      });
+
+  /// The community's live links, for the organizer who shares and revokes them.
+  /// Revoked links are not listed: revoking is how an organizer says they are
+  /// done with one. RLS limits this to owners and admins.
+  Future<List<InviteLinkSummary>> fetchInviteLinks(String communityId) async {
+    final rows = await _client
+        .from('community_invite_links')
+        .select('id, token, kind, created_at, '
+            'match:matches(title, start_at)')
+        .eq('community_id', communityId)
+        .eq('is_active', true)
+        .order('created_at', ascending: false);
+    return [for (final row in rows) InviteLinkSummary.fromJson(row)];
+  }
+
+  /// What an invitation shows before anyone commits to it. Deliberately works
+  /// signed out, so the person deciding whether to install the app can see what
+  /// they are being invited to.
+  Future<InviteLinkPreview> previewInviteLink(String token) async {
+    final rows = await _client.rpc('preview_invite_link', params: {
+      'p_token': token,
+    }) as List<dynamic>;
+    if (rows.isEmpty) {
+      return const InviteLinkPreview(state: InviteLinkState.notFound);
+    }
+    return InviteLinkPreview.fromJson(rows.first as Map<String, dynamic>);
+  }
+
+  /// Joins the community and, for a Type B invitation, registers for the match.
+  /// A registration that fails does not undo the membership; the reason comes
+  /// back in the result rather than as an exception.
+  Future<InviteRedemption> redeemInviteLink(String token) async {
+    final rows = await callCommunityRpc(_client, 'redeem_invite_link', {
+      'p_token': token,
+    }) as List<dynamic>;
+    return InviteRedemption.fromJson(rows.first as Map<String, dynamic>);
+  }
+
   /// Finds players by name so an organizer can pick who to invite. Scoped to
   /// the invitation flow: profiles are already readable by any signed-in user,
   /// and this only searches them.

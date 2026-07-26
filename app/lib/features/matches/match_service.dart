@@ -10,12 +10,37 @@ enum RegistrationError {
   notRegistered,
   registrationClosed,
   matchLocked,
+  notCommunityMember,
 }
 
 class RegistrationException implements Exception {
   const RegistrationException(this.error);
 
   final RegistrationError error;
+}
+
+/// Maps a registration error code to its typed error, or null if the code is
+/// not one of ours. Shared with the invitation flow, which receives the same
+/// codes as data rather than as a thrown exception.
+RegistrationError? registrationErrorFrom(String message) {
+  if (message.contains('OVERLAPPING_MATCH')) {
+    return RegistrationError.overlappingMatch;
+  }
+  if (message.contains('MATCH_CLOSED')) return RegistrationError.matchClosed;
+  if (message.contains('ALREADY_REGISTERED')) {
+    return RegistrationError.alreadyRegistered;
+  }
+  if (message.contains('NOT_REGISTERED')) {
+    return RegistrationError.notRegistered;
+  }
+  if (message.contains('REGISTRATION_CLOSED')) {
+    return RegistrationError.registrationClosed;
+  }
+  if (message.contains('MATCH_LOCKED')) return RegistrationError.matchLocked;
+  if (message.contains('NOT_COMMUNITY_MEMBER')) {
+    return RegistrationError.notCommunityMember;
+  }
+  return null;
 }
 
 /// Typed errors raised by the organizer management RPCs.
@@ -204,24 +229,7 @@ class MatchService {
   }
 
   Exception _mapRegistrationError(PostgrestException e) {
-    if (e.message.contains('OVERLAPPING_MATCH')) {
-      return const RegistrationException(RegistrationError.overlappingMatch);
-    }
-    if (e.message.contains('MATCH_CLOSED')) {
-      return const RegistrationException(RegistrationError.matchClosed);
-    }
-    if (e.message.contains('ALREADY_REGISTERED')) {
-      return const RegistrationException(RegistrationError.alreadyRegistered);
-    }
-    if (e.message.contains('NOT_REGISTERED')) {
-      return const RegistrationException(RegistrationError.notRegistered);
-    }
-    if (e.message.contains('REGISTRATION_CLOSED')) {
-      return const RegistrationException(RegistrationError.registrationClosed);
-    }
-    if (e.message.contains('MATCH_LOCKED')) {
-      return const RegistrationException(RegistrationError.matchLocked);
-    }
-    return e;
+    final error = registrationErrorFrom(e.message);
+    return error == null ? e : RegistrationException(error);
   }
 }

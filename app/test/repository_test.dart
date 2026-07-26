@@ -4,6 +4,9 @@ import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/communities/community_repository.dart';
 import 'package:go_play/features/invitations/invitation_models.dart';
 import 'package:go_play/features/invitations/invitation_repository.dart';
+import 'package:go_play/features/invitations/invite_link.dart';
+import 'package:go_play/features/matches/match_models.dart';
+import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/members/member_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -201,6 +204,295 @@ void main() {
       expect(user.id, 'u6');
       expect(user.fullName, 'Omar');
       expect(user.position, 'FWD');
+    });
+  });
+
+  group('InviteLink', () {
+    test('formats a token as the app own link', () {
+      expect(InviteLink.format('a' * 32), 'goplay://invite/${'a' * 32}');
+    });
+
+    test('reads a token back out of a link', () {
+      const token = '0123456789abcdef0123456789abcdef';
+      expect(InviteLink.parse('goplay://invite/$token'), token);
+    });
+
+    test('accepts a bare token, since some apps flatten the link to text', () {
+      const token = '0123456789abcdef0123456789abcdef';
+      expect(InviteLink.parse(token), token);
+    });
+
+    test('finds the link inside a pasted message', () {
+      const token = 'abcdef0123456789abcdef0123456789';
+      expect(
+        InviteLink.parse('Join us on Go Play:\ngoplay://invite/$token\n'),
+        token,
+      );
+    });
+
+    test('normalises case so a retyped token still works', () {
+      expect(InviteLink.parse('ABCDEF0123456789ABCDEF0123456789'),
+          'abcdef0123456789abcdef0123456789');
+    });
+
+    test('rejects anything that is not token-shaped', () {
+      expect(InviteLink.parse(null), isNull);
+      expect(InviteLink.parse('   '), isNull);
+      expect(InviteLink.parse('goplay://invite/short'), isNull);
+      expect(InviteLink.parse('https://example.com/i/abc'), isNull);
+      // 31 hex characters: one short, and not a token.
+      expect(InviteLink.parse('a' * 31), isNull);
+    });
+  });
+
+  group('PendingInvite', () {
+    tearDown(PendingInvite.instance.clear);
+
+    test('holds a token offered as a link', () {
+      PendingInvite.instance.offer('goplay://invite/${'b' * 32}');
+      expect(PendingInvite.instance.token.value, 'b' * 32);
+    });
+
+    test('ignores a route that is not an invitation', () {
+      PendingInvite.instance.offer('/');
+      expect(PendingInvite.instance.token.value, isNull);
+    });
+
+    test('keeps the previous token when handed nonsense', () {
+      PendingInvite.instance.offer('c' * 32);
+      PendingInvite.instance.offer('nonsense');
+      expect(PendingInvite.instance.token.value, 'c' * 32,
+          reason: 'an unrelated route must not cancel a real invitation');
+    });
+  });
+
+  group('InviteLinkPreview.fromJson', () {
+    test('reads a community-only invitation', () {
+      final preview = InviteLinkPreview.fromJson(const {
+        'state': 'valid',
+        'community_id': 'c1',
+        'community_name': 'Muscat FC',
+        'match_id': null,
+        'match_title': null,
+        'match_location': null,
+        'match_start_at': null,
+        'match_end_at': null,
+        'starting_players': null,
+        'seats_remaining': null,
+        'would_be_reserve': null,
+        'is_member': false,
+        'is_registered': false,
+      });
+      expect(preview.state, InviteLinkState.valid);
+      expect(preview.isUsable, isTrue);
+      expect(preview.hasMatch, isFalse);
+      expect(preview.communityName, 'Muscat FC');
+      expect(preview.wouldBeReserve, isFalse);
+    });
+
+    test('reads a match invitation, including the reserve warning', () {
+      final preview = InviteLinkPreview.fromJson({
+        'state': 'valid',
+        'community_id': 'c1',
+        'community_name': 'Muscat FC',
+        'match_id': 'm1',
+        'match_title': 'Friday game',
+        'match_location': 'Al Amerat',
+        'match_start_at': DateTime.utc(2026, 8, 1, 18).toIso8601String(),
+        'match_end_at': DateTime.utc(2026, 8, 1, 20).toIso8601String(),
+        'starting_players': 10,
+        'seats_remaining': 3,
+        'would_be_reserve': true,
+        'is_member': true,
+        'is_registered': false,
+      });
+      expect(preview.hasMatch, isTrue);
+      expect(preview.matchTitle, 'Friday game');
+      expect(preview.seatsRemaining, 3);
+      expect(preview.wouldBeReserve, isTrue);
+      expect(preview.isMember, isTrue);
+      expect(preview.matchStartAt, isNotNull);
+    });
+
+    test('a revoked invitation carries its state and nothing else', () {
+      final preview = InviteLinkPreview.fromJson(const {
+        'state': 'revoked',
+        'community_id': null,
+        'community_name': null,
+        'match_id': null,
+        'match_title': null,
+        'match_location': null,
+        'match_start_at': null,
+        'match_end_at': null,
+        'starting_players': null,
+        'seats_remaining': null,
+        'would_be_reserve': null,
+        'is_member': false,
+        'is_registered': false,
+      });
+      expect(preview.state, InviteLinkState.revoked);
+      expect(preview.isUsable, isFalse);
+      expect(preview.communityName, isNull);
+    });
+
+    test('an unrecognised state is treated as not found', () {
+      final preview =
+          InviteLinkPreview.fromJson(const {'state': 'something_new'});
+      expect(preview.state, InviteLinkState.notFound);
+      expect(preview.isUsable, isFalse);
+    });
+  });
+
+  group('InviteRedemption.fromJson', () {
+    test('a confirmed place', () {
+      final result = InviteRedemption.fromJson(const {
+        'community_id': 'c1',
+        'match_id': 'm1',
+        'registration_status': 'confirmed',
+        'failure_code': null,
+      });
+      expect(result.joinedMatch, isTrue);
+      expect(result.registrationStatus, RegistrationStatus.confirmed);
+      expect(result.registrationFailed, isFalse);
+    });
+
+    test('a reserve place is still a joined match', () {
+      final result = InviteRedemption.fromJson(const {
+        'community_id': 'c1',
+        'match_id': 'm1',
+        'registration_status': 'reserve',
+        'failure_code': null,
+      });
+      expect(result.joinedMatch, isTrue);
+      expect(result.registrationStatus, RegistrationStatus.reserve);
+    });
+
+    test('joined the community but not the match, with the reason', () {
+      final result = InviteRedemption.fromJson(const {
+        'community_id': 'c1',
+        'match_id': 'm1',
+        'registration_status': null,
+        'failure_code': 'OVERLAPPING_MATCH',
+      });
+      expect(result.communityId, 'c1');
+      expect(result.joinedMatch, isFalse);
+      expect(result.registrationFailed, isTrue);
+      expect(result.registrationFailure, RegistrationError.overlappingMatch);
+    });
+
+    test('an unrecognised reason still reaches the screen as a code', () {
+      final result = InviteRedemption.fromJson(const {
+        'community_id': 'c1',
+        'match_id': 'm1',
+        'registration_status': null,
+        'failure_code': 'SOMETHING_NEW',
+      });
+      expect(result.registrationFailure, isNull);
+      expect(result.failureCode, 'SOMETHING_NEW',
+          reason: 'so the screen can say something true rather than nothing');
+    });
+
+    test('a community-only invitation has no registration at all', () {
+      final result = InviteRedemption.fromJson(const {
+        'community_id': 'c1',
+        'match_id': null,
+        'registration_status': null,
+        'failure_code': null,
+      });
+      expect(result.matchId, isNull);
+      expect(result.joinedMatch, isFalse);
+      expect(result.registrationFailed, isFalse);
+    });
+  });
+
+  group('registrationErrorFrom', () {
+    test('maps every code the registration RPCs raise', () {
+      expect(registrationErrorFrom('OVERLAPPING_MATCH'),
+          RegistrationError.overlappingMatch);
+      expect(
+          registrationErrorFrom('MATCH_CLOSED'), RegistrationError.matchClosed);
+      expect(registrationErrorFrom('ALREADY_REGISTERED'),
+          RegistrationError.alreadyRegistered);
+      expect(registrationErrorFrom('NOT_REGISTERED'),
+          RegistrationError.notRegistered);
+      expect(registrationErrorFrom('REGISTRATION_CLOSED'),
+          RegistrationError.registrationClosed);
+      expect(
+          registrationErrorFrom('MATCH_LOCKED'), RegistrationError.matchLocked);
+      expect(registrationErrorFrom('NOT_COMMUNITY_MEMBER'),
+          RegistrationError.notCommunityMember);
+      expect(registrationErrorFrom('SOMETHING_ELSE'), isNull);
+    });
+  });
+
+  group('communityActionErrorFrom', () {
+    test('tells an invite-link code apart from a directed-invitation one', () {
+      expect(communityActionErrorFrom('INVITE_NOT_FOUND'),
+          CommunityActionError.inviteNotFound);
+      expect(communityActionErrorFrom('INVITATION_NOT_FOUND'),
+          CommunityActionError.invitationNotFound);
+      expect(communityActionErrorFrom('INVITE_EXPIRED'),
+          CommunityActionError.inviteExpired);
+      expect(communityActionErrorFrom('INVITATION_EXPIRED'),
+          CommunityActionError.invitationExpired);
+      expect(communityActionErrorFrom('INVITE_REVOKED'),
+          CommunityActionError.inviteRevoked);
+      expect(communityActionErrorFrom('INVITE_MATCH_DELETED'),
+          CommunityActionError.inviteMatchDeleted);
+    });
+  });
+
+  group('InviteLinkSummary.fromJson', () {
+    Map<String, dynamic> row({
+      String kind = 'community',
+      Map<String, dynamic>? match,
+    }) =>
+        {
+          'id': 'l1',
+          'token': 'a' * 32,
+          'kind': kind,
+          'created_at': DateTime.utc(2026, 7, 1).toIso8601String(),
+          'match': match,
+        };
+
+    test('a community link is live and has no match', () {
+      final link = InviteLinkSummary.fromJson(row());
+      expect(link.isMatchLink, isFalse);
+      expect(link.isMatchDeleted, isFalse);
+      expect(link.isExpired, isFalse);
+      expect(link.isUsable, isTrue);
+    });
+
+    test('a match link before kick-off is live', () {
+      final link = InviteLinkSummary.fromJson(row(kind: 'match', match: {
+        'title': 'Friday game',
+        'start_at':
+            DateTime.now().toUtc().add(const Duration(days: 2)).toIso8601String(),
+      }));
+      expect(link.isMatchLink, isTrue);
+      expect(link.matchTitle, 'Friday game');
+      expect(link.isUsable, isTrue);
+    });
+
+    test('a match link past kick-off has expired', () {
+      final link = InviteLinkSummary.fromJson(row(kind: 'match', match: {
+        'title': 'Friday game',
+        'start_at': DateTime.now()
+            .toUtc()
+            .subtract(const Duration(minutes: 1))
+            .toIso8601String(),
+      }));
+      expect(link.isExpired, isTrue);
+      expect(link.isMatchDeleted, isFalse);
+      expect(link.isUsable, isFalse);
+    });
+
+    test('a match link with no match left reads as deleted, not as expired', () {
+      final link = InviteLinkSummary.fromJson(row(kind: 'match'));
+      expect(link.isMatchDeleted, isTrue,
+          reason: 'kind survives the deletion, which is how the two differ');
+      expect(link.isExpired, isFalse);
+      expect(link.isUsable, isFalse);
     });
   });
 }

@@ -36,7 +36,10 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      // Navigation is handled by AuthGate reacting to the auth state change.
+      // AuthGate reacts to the auth state change. The pop matters only when
+      // this screen was pushed on top of something — signing in from an
+      // invitation — where it has to get out of the way again.
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthFailureException catch (e) {
       _showError(switch (e.failure) {
         AuthFailure.network => l10n.networkError,
