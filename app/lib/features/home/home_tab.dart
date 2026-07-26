@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/app_settings.dart';
 import '../../core/l10n.dart';
 import '../auth/auth_service.dart';
+import '../matches/app_settings.dart';
 import '../matches/match_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
@@ -12,7 +11,7 @@ import '../notifications/notifications_screen.dart';
 
 typedef _HomeData = ({String firstName, List<Match> matches, int unread});
 
-/// Home tab: greeting + upcoming matches across all the user's groups.
+/// Home tab: greeting + upcoming matches across all the user's communities.
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
 
@@ -23,6 +22,7 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   final _matchService = MatchService();
   final _notificationService = NotificationService();
+  final _authService = AuthService();
   late Future<_HomeData> _future;
 
   @override
@@ -34,18 +34,7 @@ class _HomeTabState extends State<HomeTab> {
   Future<_HomeData> _load() async {
     // Refresh the global reserve setting whenever Home loads.
     await AppSettings.load();
-    final client = Supabase.instance.client;
-    final uid = client.auth.currentUser?.id;
-    String firstName = '';
-    if (uid != null) {
-      final profile = await client
-          .from('users')
-          .select('full_name')
-          .eq('id', uid)
-          .maybeSingle();
-      final fullName = (profile?['full_name'] as String?)?.trim() ?? '';
-      firstName = fullName.isEmpty ? '' : fullName.split(RegExp(r'\s+')).first;
-    }
+    final firstName = await _authService.fetchCurrentUserFirstName();
     final results = await Future.wait([
       _matchService.fetchUpcomingMatches(),
       _notificationService.unreadCount(),
@@ -155,8 +144,8 @@ class _HomeTabState extends State<HomeTab> {
                   )
                 else ...[
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(
                       l10n.upcomingMatchesTitle,
                       style: Theme.of(context).textTheme.titleMedium,
@@ -165,7 +154,7 @@ class _HomeTabState extends State<HomeTab> {
                   for (final match in matches)
                     MatchCard(
                       match: match,
-                      showGroupName: true,
+                      showCommunityName: true,
                       onChanged: _refresh,
                     ),
                 ],

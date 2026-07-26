@@ -49,16 +49,15 @@ enum MatchStatus {
 
   final String dbValue;
 
-  static MatchStatus fromDb(String value) =>
-      values.firstWhere((s) => s.dbValue == value,
-          orElse: () => MatchStatus.open);
+  static MatchStatus fromDb(String value) => values
+      .firstWhere((s) => s.dbValue == value, orElse: () => MatchStatus.open);
 }
 
-/// A football match scheduled inside a group.
+/// A football match scheduled inside a community.
 class Match {
   const Match({
     required this.id,
-    required this.groupId,
+    required this.communityId,
     required this.createdBy,
     required this.location,
     required this.startAt,
@@ -68,11 +67,11 @@ class Match {
     required this.status,
     this.title,
     this.description,
-    this.groupName,
+    this.communityName,
   });
 
   final String id;
-  final String groupId;
+  final String communityId;
   final String createdBy;
   final String location;
   final DateTime startAt;
@@ -86,13 +85,12 @@ class Match {
   final String? title;
   final String? description;
 
-  /// Present only when the query joins the group (e.g. Home screen).
-  final String? groupName;
+  /// Present only when the query joins the community (e.g. Home screen).
+  final String? communityName;
 
   /// What to show as the match's headline: the title if set, else location.
-  String get displayName => (title != null && title!.isNotEmpty)
-      ? title!
-      : location;
+  String get displayName =>
+      (title != null && title!.isNotEmpty) ? title! : location;
 
   /// Completion is time-driven, so it is derived here as well as stored: a
   /// match whose end time has passed is completed even if the stored row has
@@ -104,8 +102,7 @@ class Match {
 
   /// From the scheduled start until the end the match is locked: no
   /// registrations, withdrawals or organizer roster changes.
-  bool get isLocked =>
-      !isCompleted && !startAt.isAfter(DateTime.now());
+  bool get isLocked => !isCompleted && !startAt.isAfter(DateTime.now());
 
   /// True while players can still register or withdraw.
   bool get isOpenForChanges => !isCompleted && !isLocked;
@@ -113,7 +110,7 @@ class Match {
   factory Match.fromJson(Map<String, dynamic> json) {
     return Match(
       id: json['id'] as String,
-      groupId: json['group_id'] as String,
+      communityId: json['community_id'] as String,
       createdBy: json['created_by'] as String,
       location: json['location'] as String,
       startAt: DateTime.parse(json['start_at'] as String).toLocal(),
@@ -123,7 +120,8 @@ class Match {
       status: MatchStatus.fromDb(json['status'] as String),
       title: json['title'] as String?,
       description: json['description'] as String?,
-      groupName: (json['group'] as Map<String, dynamic>?)?['name'] as String?,
+      communityName:
+          (json['community'] as Map<String, dynamic>?)?['name'] as String?,
     );
   }
 }

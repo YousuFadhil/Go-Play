@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
-import '../groups/groups_screen.dart';
+import '../communities/communities_screen.dart';
 import 'home_tab.dart';
 
 /// Root shell after login: bottom navigation between MVP sections.
@@ -24,7 +24,7 @@ class _HomeShellState extends State<HomeShell> {
         index: _selectedIndex,
         children: const [
           HomeTab(),
-          GroupsScreen(),
+          CommunitiesScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -40,7 +40,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(
             icon: const Icon(Icons.groups_outlined),
             selectedIcon: const Icon(Icons.groups),
-            label: l10n.navGroups,
+            label: l10n.navCommunities,
           ),
         ],
       ),

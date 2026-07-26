@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
 import 'auth_service.dart';
@@ -56,18 +55,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       // On success the session is active; AuthGate navigates to Home.
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-    } on AuthRetryableFetchException catch (e, st) {
-      // Network-level failure: the request never reached Supabase.
-      debugPrint('[GoPlay] register network failure: $e\n$st');
-      _showError(l10n.networkError);
-    } on AuthException catch (e, st) {
-      debugPrint('[GoPlay] register auth failure '
-          '(${e.statusCode}/${e.code}): $e\n$st');
-      _showError(e.statusCode == '422' || e.message.contains('already')
-          ? l10n.emailAlreadyUsed
-          : l10n.registerFailed);
-    } catch (e, st) {
-      debugPrint('[GoPlay] register unexpected failure: $e\n$st');
+    } on AuthFailureException catch (e) {
+      _showError(switch (e.failure) {
+        AuthFailure.network => l10n.networkError,
+        AuthFailure.emailAlreadyUsed => l10n.emailAlreadyUsed,
+        AuthFailure.unknown => l10n.genericError,
+        AuthFailure.rejected => l10n.registerFailed,
+      });
+    } catch (_) {
       _showError(l10n.genericError);
     } finally {
       if (mounted) setState(() => _isLoading = false);

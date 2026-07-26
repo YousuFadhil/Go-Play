@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
-import 'group_service.dart';
+import 'community_repository.dart';
 
-class CreateGroupScreen extends StatefulWidget {
-  const CreateGroupScreen({super.key});
+class CreateCommunityScreen extends StatefulWidget {
+  const CreateCommunityScreen({super.key});
 
   @override
-  State<CreateGroupScreen> createState() => _CreateGroupScreenState();
+  State<CreateCommunityScreen> createState() => _CreateCommunityScreenState();
 }
 
-class _CreateGroupScreenState extends State<CreateGroupScreen> {
+class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _groupService = GroupService();
+  final _communityRepository = CommunityRepository();
   bool _isPrivate = false;
   bool _isLoading = false;
 
@@ -30,7 +30,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _groupService.createGroup(
+      await _communityRepository.createCommunity(
         name: _nameController.text,
         description: _descriptionController.text,
         isPrivate: _isPrivate,
@@ -39,7 +39,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.groupCreateFailed)),
+          SnackBar(content: Text(context.l10n.communityCreateFailed)),
         );
         setState(() => _isLoading = false);
       }
@@ -51,7 +51,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.createGroupTitle)),
+      appBar: AppBar(title: Text(l10n.createCommunityTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -62,17 +62,18 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               children: [
                 TextFormField(
                   controller: _nameController,
-                  decoration: InputDecoration(labelText: l10n.groupNameLabel),
+                  decoration:
+                      InputDecoration(labelText: l10n.communityNameLabel),
                   maxLength: 50,
                   validator: (value) => (value == null || value.trim().isEmpty)
-                      ? l10n.groupNameRequired
+                      ? l10n.communityNameRequired
                       : null,
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _descriptionController,
                   decoration: InputDecoration(
-                    labelText: l10n.groupDescriptionLabel,
+                    labelText: l10n.communityDescriptionLabel,
                   ),
                   maxLines: 3,
                   maxLength: 200,
@@ -80,8 +81,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 const SizedBox(height: 8),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(l10n.privateGroupLabel),
-                  subtitle: Text(l10n.privateGroupHelp),
+                  title: Text(l10n.privateCommunityLabel),
+                  subtitle: Text(l10n.privateCommunityHelp),
                   value: _isPrivate,
                   onChanged: (value) => setState(() => _isPrivate = value),
                 ),
@@ -94,7 +95,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(l10n.createGroupButton),
+                      : Text(l10n.createCommunityButton),
                 ),
               ],
             ),

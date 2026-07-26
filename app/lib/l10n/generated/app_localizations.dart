@@ -110,11 +110,11 @@ abstract class AppLocalizations {
   /// **'Home'**
   String get navHome;
 
-  /// No description provided for @navGroups.
+  /// No description provided for @navCommunities.
   ///
   /// In en, this message translates to:
-  /// **'Groups'**
-  String get navGroups;
+  /// **'Communities'**
+  String get navCommunities;
 
   /// No description provided for @emailLabel.
   ///
@@ -290,77 +290,71 @@ abstract class AppLocalizations {
   /// **'Log out'**
   String get logoutLabel;
 
-  /// No description provided for @welcomeMessage.
+  /// No description provided for @communitiesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Logged in successfully'**
-  String get welcomeMessage;
+  /// **'Communities'**
+  String get communitiesTitle;
 
-  /// No description provided for @groupsTitle.
+  /// No description provided for @communitiesEmpty.
   ///
   /// In en, this message translates to:
-  /// **'Groups'**
-  String get groupsTitle;
+  /// **'You are not in any community yet.\nCreate one or join with a code.'**
+  String get communitiesEmpty;
 
-  /// No description provided for @groupsEmpty.
+  /// No description provided for @createCommunityTitle.
   ///
   /// In en, this message translates to:
-  /// **'You are not in any group yet.\nCreate a group or join one with a code.'**
-  String get groupsEmpty;
+  /// **'Create community'**
+  String get createCommunityTitle;
 
-  /// No description provided for @createGroupTitle.
+  /// No description provided for @createCommunityButton.
   ///
   /// In en, this message translates to:
-  /// **'Create group'**
-  String get createGroupTitle;
+  /// **'Create community'**
+  String get createCommunityButton;
 
-  /// No description provided for @createGroupButton.
+  /// No description provided for @joinCommunityTitle.
   ///
   /// In en, this message translates to:
-  /// **'Create group'**
-  String get createGroupButton;
+  /// **'Join community'**
+  String get joinCommunityTitle;
 
-  /// No description provided for @joinGroupTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Join group'**
-  String get joinGroupTitle;
-
-  /// No description provided for @joinGroupButton.
+  /// No description provided for @joinCommunityButton.
   ///
   /// In en, this message translates to:
   /// **'Join'**
-  String get joinGroupButton;
+  String get joinCommunityButton;
 
-  /// No description provided for @groupNameLabel.
+  /// No description provided for @communityNameLabel.
   ///
   /// In en, this message translates to:
-  /// **'Group name'**
-  String get groupNameLabel;
+  /// **'Community name'**
+  String get communityNameLabel;
 
-  /// No description provided for @groupNameRequired.
+  /// No description provided for @communityNameRequired.
   ///
   /// In en, this message translates to:
-  /// **'Group name is required'**
-  String get groupNameRequired;
+  /// **'Community name is required'**
+  String get communityNameRequired;
 
-  /// No description provided for @groupDescriptionLabel.
+  /// No description provided for @communityDescriptionLabel.
   ///
   /// In en, this message translates to:
   /// **'Description (optional)'**
-  String get groupDescriptionLabel;
+  String get communityDescriptionLabel;
 
-  /// No description provided for @privateGroupLabel.
+  /// No description provided for @privateCommunityLabel.
   ///
   /// In en, this message translates to:
-  /// **'Private group'**
-  String get privateGroupLabel;
+  /// **'Private community'**
+  String get privateCommunityLabel;
 
-  /// No description provided for @privateGroupHelp.
+  /// No description provided for @privateCommunityHelp.
   ///
   /// In en, this message translates to:
-  /// **'Private groups can only be joined with the join code.'**
-  String get privateGroupHelp;
+  /// **'Private communities can only be joined with the join code.'**
+  String get privateCommunityHelp;
 
   /// No description provided for @joinCodeLabel.
   ///
@@ -374,29 +368,29 @@ abstract class AppLocalizations {
   /// **'Join code is required'**
   String get joinCodeRequired;
 
-  /// No description provided for @groupNotFound.
+  /// No description provided for @communityNotFound.
   ///
   /// In en, this message translates to:
-  /// **'No group found with this code.'**
-  String get groupNotFound;
+  /// **'No community found with this code.'**
+  String get communityNotFound;
 
-  /// No description provided for @alreadyMember.
+  /// No description provided for @alreadyMemberOfCommunity.
   ///
   /// In en, this message translates to:
-  /// **'You are already a member of this group.'**
-  String get alreadyMember;
+  /// **'You are already a member of this community.'**
+  String get alreadyMemberOfCommunity;
 
-  /// No description provided for @groupCreateFailed.
+  /// No description provided for @communityCreateFailed.
   ///
   /// In en, this message translates to:
-  /// **'Failed to create the group. Please try again.'**
-  String get groupCreateFailed;
+  /// **'Failed to create the community. Please try again.'**
+  String get communityCreateFailed;
 
-  /// No description provided for @groupJoinFailed.
+  /// No description provided for @communityJoinFailed.
   ///
   /// In en, this message translates to:
-  /// **'Failed to join the group. Please try again.'**
-  String get groupJoinFailed;
+  /// **'Failed to join the community. Please try again.'**
+  String get communityJoinFailed;
 
   /// No description provided for @membersTitle.
   ///
@@ -404,35 +398,29 @@ abstract class AppLocalizations {
   /// **'Members'**
   String get membersTitle;
 
-  /// No description provided for @ownerBadge.
-  ///
-  /// In en, this message translates to:
-  /// **'Owner'**
-  String get ownerBadge;
-
   /// No description provided for @joinCodeCopied.
   ///
   /// In en, this message translates to:
   /// **'Join code copied'**
   String get joinCodeCopied;
 
-  /// No description provided for @myGroupsSection.
+  /// No description provided for @myCommunitiesSection.
   ///
   /// In en, this message translates to:
-  /// **'My groups'**
-  String get myGroupsSection;
+  /// **'My communities'**
+  String get myCommunitiesSection;
 
-  /// No description provided for @publicGroupsSection.
+  /// No description provided for @publicCommunitiesSection.
   ///
   /// In en, this message translates to:
-  /// **'Public groups'**
-  String get publicGroupsSection;
+  /// **'Public communities'**
+  String get publicCommunitiesSection;
 
-  /// No description provided for @joinedGroup.
+  /// No description provided for @joinedCommunity.
   ///
   /// In en, this message translates to:
-  /// **'You joined the group.'**
-  String get joinedGroup;
+  /// **'You joined the community.'**
+  String get joinedCommunity;
 
   /// No description provided for @matchesTitle.
   ///
@@ -518,12 +506,6 @@ abstract class AppLocalizations {
   /// **'Enter a number between 2 and 30'**
   String get startingPlayersInvalid;
 
-  /// No description provided for @maxRegistrationLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Maximum registration'**
-  String get maxRegistrationLabel;
-
   /// No description provided for @capacityAutoNote.
   ///
   /// In en, this message translates to:
@@ -536,11 +518,11 @@ abstract class AppLocalizations {
   /// **'Failed to create the match. Please try again.'**
   String get matchCreateFailed;
 
-  /// No description provided for @groupMatchesEmpty.
+  /// No description provided for @communityMatchesEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No matches in this group yet.'**
-  String get groupMatchesEmpty;
+  /// **'No matches in this community yet.'**
+  String get communityMatchesEmpty;
 
   /// No description provided for @upcomingMatchesTitle.
   ///
@@ -551,7 +533,7 @@ abstract class AppLocalizations {
   /// No description provided for @upcomingMatchesEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No upcoming matches.\nJoin a group and create a match to get started.'**
+  /// **'No upcoming matches.\nJoin a community to get started.'**
   String get upcomingMatchesEmpty;
 
   /// No description provided for @matchStatusOpen.
@@ -571,12 +553,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Completed'**
   String get matchStatusCompleted;
-
-  /// No description provided for @confirmYes.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes'**
-  String get confirmYes;
 
   /// No description provided for @confirmNo.
   ///
@@ -842,11 +818,11 @@ abstract class AppLocalizations {
   /// **'This match is completed and can no longer be changed.'**
   String get errMatchCompleted;
 
-  /// No description provided for @errNotOrganizer.
+  /// No description provided for @errNotAuthorized.
   ///
   /// In en, this message translates to:
-  /// **'Only the match organizer can do this.'**
-  String get errNotOrganizer;
+  /// **'You do not have permission to do this.'**
+  String get errNotAuthorized;
 
   /// No description provided for @errRegistrationClosed.
   ///
@@ -895,6 +871,300 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**
   String get genericError;
+
+  /// No description provided for @roleOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner'**
+  String get roleOwner;
+
+  /// No description provided for @roleAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get roleAdmin;
+
+  /// No description provided for @rolePlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Player'**
+  String get rolePlayer;
+
+  /// No description provided for @manageMembersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage members'**
+  String get manageMembersTitle;
+
+  /// No description provided for @myInvitationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My invitations'**
+  String get myInvitationsTitle;
+
+  /// No description provided for @pendingInvitationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending invitations'**
+  String get pendingInvitationsTitle;
+
+  /// No description provided for @inviteMemberTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite a player'**
+  String get inviteMemberTitle;
+
+  /// No description provided for @inviteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite'**
+  String get inviteButton;
+
+  /// No description provided for @searchPlayersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name'**
+  String get searchPlayersLabel;
+
+  /// No description provided for @searchPlayersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type at least two letters'**
+  String get searchPlayersHint;
+
+  /// No description provided for @searchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No players found.'**
+  String get searchNoResults;
+
+  /// No description provided for @inviteAsRoleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite as'**
+  String get inviteAsRoleLabel;
+
+  /// No description provided for @invitationSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation sent.'**
+  String get invitationSent;
+
+  /// No description provided for @invitationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending invitations.'**
+  String get invitationsEmpty;
+
+  /// No description provided for @myInvitationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'You have no invitations.'**
+  String get myInvitationsEmpty;
+
+  /// No description provided for @invitationFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation to join {community}'**
+  String invitationFrom(String community);
+
+  /// No description provided for @acceptInvitationButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get acceptInvitationButton;
+
+  /// No description provided for @revokeInvitationButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get revokeInvitationButton;
+
+  /// No description provided for @invitationAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'You joined the community.'**
+  String get invitationAccepted;
+
+  /// No description provided for @invitationRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation revoked.'**
+  String get invitationRevoked;
+
+  /// No description provided for @promoteToAdminButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Make admin'**
+  String get promoteToAdminButton;
+
+  /// No description provided for @demoteToPlayerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Make player'**
+  String get demoteToPlayerButton;
+
+  /// No description provided for @transferOwnershipButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer ownership'**
+  String get transferOwnershipButton;
+
+  /// No description provided for @removeMemberButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from community'**
+  String get removeMemberButton;
+
+  /// No description provided for @memberRoleChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Member role updated.'**
+  String get memberRoleChanged;
+
+  /// No description provided for @ownershipTransferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Ownership transferred. You are now an admin.'**
+  String get ownershipTransferred;
+
+  /// No description provided for @memberRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Member removed from the community.'**
+  String get memberRemoved;
+
+  /// No description provided for @transferOwnershipConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer ownership?'**
+  String get transferOwnershipConfirmTitle;
+
+  /// No description provided for @transferOwnershipConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} becomes the owner and you become an admin. Only the new owner can transfer it back.'**
+  String transferOwnershipConfirmBody(String name);
+
+  /// No description provided for @removeMemberConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this member?'**
+  String get removeMemberConfirmTitle;
+
+  /// No description provided for @removeMemberConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be removed from the community and withdrawn from every match in it.'**
+  String removeMemberConfirmBody(String name);
+
+  /// No description provided for @deleteCommunityButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete community'**
+  String get deleteCommunityButton;
+
+  /// No description provided for @deleteCommunityConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this community?'**
+  String get deleteCommunityConfirmTitle;
+
+  /// No description provided for @deleteCommunityConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All matches, registrations, members and invitations are deleted. This cannot be undone.'**
+  String get deleteCommunityConfirmBody;
+
+  /// No description provided for @communityDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Community deleted.'**
+  String get communityDeleted;
+
+  /// No description provided for @permissionOwnerOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the owner can do this.'**
+  String get permissionOwnerOnly;
+
+  /// No description provided for @permissionOrganizersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the owner and admins can do this.'**
+  String get permissionOrganizersOnly;
+
+  /// No description provided for @matchCreateOrganizersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the owner and admins can create matches in this community.'**
+  String get matchCreateOrganizersOnly;
+
+  /// No description provided for @matchManageOrganizersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Match management now follows community roles. Ask an owner or admin of this community.'**
+  String get matchManageOrganizersOnly;
+
+  /// No description provided for @errCannotChangeOwnRole.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot change your own role.'**
+  String get errCannotChangeOwnRole;
+
+  /// No description provided for @errCannotRemoveSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot remove yourself here. Leave the community instead.'**
+  String get errCannotRemoveSelf;
+
+  /// No description provided for @errCannotRemoveOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'The owner cannot be removed. Transfer ownership first.'**
+  String get errCannotRemoveOwner;
+
+  /// No description provided for @errAlreadyOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'That member is already the owner.'**
+  String get errAlreadyOwner;
+
+  /// No description provided for @errMemberNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'That person is not a member of this community.'**
+  String get errMemberNotFound;
+
+  /// No description provided for @errInvitationExists.
+  ///
+  /// In en, this message translates to:
+  /// **'There is already a pending invitation for this player.'**
+  String get errInvitationExists;
+
+  /// No description provided for @errInvitationNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation no longer exists.'**
+  String get errInvitationNotFound;
+
+  /// No description provided for @errInvitationNotPending.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation has already been used.'**
+  String get errInvitationNotPending;
+
+  /// No description provided for @errInvitationExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation has expired.'**
+  String get errInvitationExpired;
+
+  /// No description provided for @errInvalidRole.
+  ///
+  /// In en, this message translates to:
+  /// **'That role cannot be assigned.'**
+  String get errInvalidRole;
 }
 
 class _AppLocalizationsDelegate

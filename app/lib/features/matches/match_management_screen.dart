@@ -46,7 +46,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
       return switch (e.error) {
         ManageError.matchCompleted => l10n.errMatchCompleted,
         ManageError.matchLocked => l10n.errMatchLocked,
-        ManageError.notOrganizer => l10n.errNotOrganizer,
+        ManageError.notAuthorized => l10n.errNotAuthorized,
         ManageError.maxBelowRegistered => l10n.errMaxBelowRegistered,
         ManageError.invalidStartingPlayers => l10n.startingPlayersInvalid,
         _ => l10n.genericError,
@@ -97,8 +97,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      messenger.showSnackBar(
-          SnackBar(content: Text(_manageError(l10n, e))));
+      messenger.showSnackBar(SnackBar(content: Text(_manageError(l10n, e))));
     }
   }
 
@@ -176,9 +175,8 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
             return ListView(
               children: [
                 ListTile(
-                  leading: Icon(match.isLocked
-                      ? Icons.lock_outline
-                      : Icons.info_outline),
+                  leading: Icon(
+                      match.isLocked ? Icons.lock_outline : Icons.info_outline),
                   title: Text(match.displayName),
                   subtitle: Text(
                       '${matchStatusLabelValue(l10n, match.effectiveStatus)} • '

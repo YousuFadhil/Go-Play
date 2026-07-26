@@ -1,5 +1,8 @@
 # Development Blueprint
 
+> **Historical.** The original four-sprint MVP plan. The project has since gone
+> through the Community-first migration; see the CHANGELOG for what shipped.
+
 ## Strategy
 
 Build Small → Release Fast → Validate Early

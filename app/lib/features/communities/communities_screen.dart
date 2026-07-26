@@ -1,69 +1,82 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
-import 'create_group_screen.dart';
-import 'group_details_screen.dart';
-import 'group_models.dart';
-import 'group_service.dart';
+import '../invitations/my_invitations_screen.dart';
+import 'create_community_screen.dart';
+import 'community_details_screen.dart';
+import 'community_models.dart';
+import 'community_errors.dart';
+import 'community_repository.dart';
 
-class GroupsScreen extends StatefulWidget {
-  const GroupsScreen({super.key});
+class CommunitiesScreen extends StatefulWidget {
+  const CommunitiesScreen({super.key});
 
   @override
-  State<GroupsScreen> createState() => _GroupsScreenState();
+  State<CommunitiesScreen> createState() => _CommunitiesScreenState();
 }
 
-typedef _GroupsOverview = ({List<Group> mine, List<Group> discover});
+typedef _CommunitiesOverview = ({
+  List<Community> mine,
+  List<Community> discover
+});
 
-class _GroupsScreenState extends State<GroupsScreen> {
-  final _groupService = GroupService();
-  late Future<_GroupsOverview> _future;
+class _CommunitiesScreenState extends State<CommunitiesScreen> {
+  final _communityRepository = CommunityRepository();
+  late Future<_CommunitiesOverview> _future;
   String? _joiningId;
 
   @override
   void initState() {
     super.initState();
-    _future = _groupService.fetchGroupsOverview();
+    _future = _communityRepository.fetchCommunitiesOverview();
   }
 
   void _refresh() {
     setState(() {
-      _future = _groupService.fetchGroupsOverview();
+      _future = _communityRepository.fetchCommunitiesOverview();
     });
   }
 
-  Future<void> _openCreateGroup() async {
+  Future<void> _openCreateCommunity() async {
     final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+      MaterialPageRoute(builder: (_) => const CreateCommunityScreen()),
     );
     if (created == true) _refresh();
+  }
+
+  /// Accepting an invitation adds a membership, so the list must reload.
+  Future<void> _openInvitations() async {
+    final joined = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const MyInvitationsScreen()),
+    );
+    if (joined == true) _refresh();
   }
 
   Future<void> _openJoinDialog() async {
     // The dialog is fully self-contained (owns its controller and uses its
     // own context), so no parent BuildContext crosses into the dialog
-    // subtree. It returns the joined group id, or null if cancelled.
+    // subtree. It returns the joined community id, or null if cancelled.
     final joinedId = await showDialog<String>(
       context: context,
-      builder: (_) => _JoinGroupDialog(groupService: _groupService),
+      builder: (_) => _JoinCommunityDialog(repository: _communityRepository),
     );
     if (joinedId != null) _refresh();
   }
 
-  /// Joins a discoverable public group directly, using its (readable) join
-  /// code. Private groups never appear here, so they stay code-only.
-  Future<void> _joinPublicGroup(Group group) async {
-    setState(() => _joiningId = group.id);
+  /// Joins a discoverable public community directly, using its (readable) join
+  /// code. Private communities never appear here, so they stay code-only.
+  Future<void> _joinPublicCommunity(Community community) async {
+    setState(() => _joiningId = community.id);
     try {
-      await _groupService.joinGroupByCode(group.joinCode);
+      await _communityRepository.joinCommunityByCode(community.joinCode);
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(context.l10n.joinedGroup)));
+          .showSnackBar(SnackBar(content: Text(context.l10n.joinedCommunity)));
       _refresh();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(context.l10n.groupJoinFailed)));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.communityJoinFailed)));
     } finally {
       if (mounted) setState(() => _joiningId = null);
     }
@@ -75,21 +88,26 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.groupsTitle),
+        title: Text(l10n.communitiesTitle),
         actions: [
           IconButton(
-            tooltip: l10n.joinGroupTitle,
+            tooltip: l10n.myInvitationsTitle,
+            icon: const Icon(Icons.mail_outline),
+            onPressed: _openInvitations,
+          ),
+          IconButton(
+            tooltip: l10n.joinCommunityTitle,
             icon: const Icon(Icons.key),
             onPressed: _openJoinDialog,
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: l10n.createGroupTitle,
-        onPressed: _openCreateGroup,
+        tooltip: l10n.createCommunityTitle,
+        onPressed: _openCreateCommunity,
         child: const Icon(Icons.add),
       ),
-      body: FutureBuilder<_GroupsOverview>(
+      body: FutureBuilder<_CommunitiesOverview>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -106,7 +124,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(l10n.groupsEmpty, textAlign: TextAlign.center),
+                child: Text(l10n.communitiesEmpty, textAlign: TextAlign.center),
               ),
             );
           }
@@ -117,57 +135,57 @@ class _GroupsScreenState extends State<GroupsScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 if (mine.isNotEmpty) ...[
-                  _SectionHeader(l10n.myGroupsSection),
-                  for (final group in mine)
+                  _SectionHeader(l10n.myCommunitiesSection),
+                  for (final community in mine)
                     ListTile(
                       leading: const CircleAvatar(child: Icon(Icons.groups)),
-                      title: Text(group.name),
-                      subtitle: group.description == null
+                      title: Text(community.name),
+                      subtitle: community.description == null
                           ? null
                           : Text(
-                              group.description!,
+                              community.description!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                      trailing: group.isPrivate
+                      trailing: community.isPrivate
                           ? const Icon(Icons.lock_outline)
                           : null,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => GroupDetailsScreen(groupId: group.id),
+                          builder: (_) =>
+                              CommunityDetailsScreen(communityId: community.id),
                         ),
                       ),
                     ),
                 ],
                 if (discover.isNotEmpty) ...[
-                  _SectionHeader(l10n.publicGroupsSection),
-                  for (final group in discover)
+                  _SectionHeader(l10n.publicCommunitiesSection),
+                  for (final community in discover)
                     ListTile(
                       leading: const CircleAvatar(child: Icon(Icons.public)),
-                      title: Text(group.name),
-                      subtitle: group.description == null
+                      title: Text(community.name),
+                      subtitle: community.description == null
                           ? null
                           : Text(
-                              group.description!,
+                              community.description!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                       // Trailing must be width-bounded, otherwise the button
                       // consumes the whole tile and ListTile fails to lay out.
-                      trailing: _joiningId == group.id
+                      trailing: _joiningId == community.id
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : SizedBox(
                               width: 96,
                               child: FilledButton.tonal(
                                 onPressed: _joiningId != null
                                     ? null
-                                    : () => _joinPublicGroup(group),
-                                child: Text(l10n.joinGroupButton),
+                                    : () => _joinPublicCommunity(community),
+                                child: Text(l10n.joinCommunityButton),
                               ),
                             ),
                     ),
@@ -219,17 +237,17 @@ class _ErrorRetry extends StatelessWidget {
 /// Self-contained "join by code" dialog. It owns its text controller and
 /// resolves all inherited widgets (l10n, messenger) through its own context,
 /// so nothing from the parent screen leaks into the dialog subtree. Returns
-/// the joined group id via [Navigator.pop], or null when dismissed.
-class _JoinGroupDialog extends StatefulWidget {
-  const _JoinGroupDialog({required this.groupService});
+/// the joined community id via [Navigator.pop], or null when dismissed.
+class _JoinCommunityDialog extends StatefulWidget {
+  const _JoinCommunityDialog({required this.repository});
 
-  final GroupService groupService;
+  final CommunityRepository repository;
 
   @override
-  State<_JoinGroupDialog> createState() => _JoinGroupDialogState();
+  State<_JoinCommunityDialog> createState() => _JoinCommunityDialogState();
 }
 
-class _JoinGroupDialogState extends State<_JoinGroupDialog> {
+class _JoinCommunityDialogState extends State<_JoinCommunityDialog> {
   final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
   bool _isLoading = false;
@@ -250,15 +268,15 @@ class _JoinGroupDialogState extends State<_JoinGroupDialog> {
       _errorText = null;
     });
     try {
-      final groupId =
-          await widget.groupService.joinGroupByCode(_controller.text);
-      if (mounted) Navigator.of(context).pop(groupId);
-    } on GroupNotFoundException {
-      _setError(l10n.groupNotFound);
-    } on AlreadyMemberException {
-      _setError(l10n.alreadyMember);
+      final communityId =
+          await widget.repository.joinCommunityByCode(_controller.text);
+      if (mounted) Navigator.of(context).pop(communityId);
+    } on CommunityNotFoundException {
+      _setError(l10n.communityNotFound);
+    } on AlreadyMemberOfCommunityException {
+      _setError(l10n.alreadyMemberOfCommunity);
     } catch (_) {
-      _setError(l10n.groupJoinFailed);
+      _setError(l10n.communityJoinFailed);
     }
   }
 
@@ -275,7 +293,7 @@ class _JoinGroupDialogState extends State<_JoinGroupDialog> {
     final l10n = context.l10n;
 
     return AlertDialog(
-      title: Text(l10n.joinGroupTitle),
+      title: Text(l10n.joinCommunityTitle),
       content: Form(
         key: _formKey,
         child: TextFormField(
@@ -301,7 +319,7 @@ class _JoinGroupDialogState extends State<_JoinGroupDialog> {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(l10n.joinGroupButton),
+              : Text(l10n.joinCommunityButton),
         ),
       ],
     );

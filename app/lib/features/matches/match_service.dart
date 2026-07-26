@@ -20,7 +20,7 @@ class RegistrationException implements Exception {
 
 /// Typed errors raised by the organizer management RPCs.
 enum ManageError {
-  notOrganizer,
+  notAuthorized,
   matchCompleted,
   matchLocked,
   invalidTimeRange,
@@ -44,25 +44,25 @@ class MatchService {
   final SupabaseClient _client;
 
   static const _columns =
-      'id, group_id, created_by, location, start_at, end_at, '
+      'id, community_id, created_by, location, start_at, end_at, '
       'starting_players, max_registration, status, title, description';
 
-  /// Matches of one group, newest scheduled first.
-  Future<List<Match>> fetchGroupMatches(String groupId) async {
+  /// Matches of one community, newest scheduled first.
+  Future<List<Match>> fetchCommunityMatches(String communityId) async {
     final rows = await _client
         .from('matches')
         .select(_columns)
-        .eq('group_id', groupId)
+        .eq('community_id', communityId)
         .order('start_at', ascending: false);
     return [for (final row in rows) Match.fromJson(row)];
   }
 
-  /// Upcoming (not yet ended) matches across all my groups. RLS scopes
-  /// visibility to groups the user belongs to.
+  /// Upcoming (not yet ended) matches across all my communities. RLS scopes
+  /// visibility to communities the user belongs to.
   Future<List<Match>> fetchUpcomingMatches() async {
     final rows = await _client
         .from('matches')
-        .select('$_columns, group:groups(name)')
+        .select('$_columns, community:communities(name)')
         .gt('end_at', DateTime.now().toUtc().toIso8601String())
         .order('start_at', ascending: true);
     return [for (final row in rows) Match.fromJson(row)];
@@ -71,7 +71,7 @@ class MatchService {
   Future<Match> fetchMatch(String matchId) async {
     final row = await _client
         .from('matches')
-        .select('$_columns, group:groups(name)')
+        .select('$_columns, community:communities(name)')
         .eq('id', matchId)
         .single();
     return Match.fromJson(row);
@@ -80,14 +80,14 @@ class MatchService {
   /// Creates a match. Maximum registration is derived by the database from
   /// the starting players plus the global reserve setting.
   Future<void> createMatch({
-    required String groupId,
+    required String communityId,
     required String location,
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
   }) async {
     await _client.from('matches').insert({
-      'group_id': groupId,
+      'community_id': communityId,
       'created_by': _client.auth.currentUser!.id,
       'location': location.trim(),
       'start_at': startAt.toUtc().toIso8601String(),
@@ -137,8 +137,8 @@ class MatchService {
 
   Exception _mapManageError(PostgrestException e) {
     final m = e.message;
-    if (m.contains('NOT_ORGANIZER')) {
-      return const ManageException(ManageError.notOrganizer);
+    if (m.contains('NOT_AUTHORIZED')) {
+      return const ManageException(ManageError.notAuthorized);
     }
     if (m.contains('MATCH_COMPLETED')) {
       return const ManageException(ManageError.matchCompleted);
@@ -159,6 +159,17 @@ class MatchService {
       return const ManageException(ManageError.notRegistered);
     }
     return e;
+  }
+
+  /// The global reserve allowance. Capacity is enforced server-side; this is
+  /// only so the create/edit screens can show the derived maximum.
+  Future<int?> fetchReservePlayers() async {
+    final row = await _client
+        .from('app_settings')
+        .select('reserve_players')
+        .limit(1)
+        .maybeSingle();
+    return row?['reserve_players'] as int?;
   }
 
   /// Roster of a match, in registration order.
@@ -186,8 +197,7 @@ class MatchService {
 
   Future<void> withdrawFromMatch(String matchId) async {
     try {
-      await _client
-          .rpc('withdraw_from_match', params: {'p_match_id': matchId});
+      await _client.rpc('withdraw_from_match', params: {'p_match_id': matchId});
     } on PostgrestException catch (e) {
       throw _mapRegistrationError(e);
     }

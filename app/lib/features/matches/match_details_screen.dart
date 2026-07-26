@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
+import '../communities/community_models.dart';
+import '../auth/auth_service.dart';
+import '../members/member_repository.dart';
 import 'match_card.dart';
 import 'match_management_screen.dart';
 import 'match_models.dart';
@@ -18,7 +20,9 @@ class MatchDetailsScreen extends StatefulWidget {
 
 class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   final _matchService = MatchService();
-  late Future<(Match, List<MatchRegistration>)> _dataFuture;
+  final _memberRepository = MemberRepository();
+  final _authService = AuthService();
+  late Future<(Match, List<MatchRegistration>, CommunityRole?)> _dataFuture;
   bool _isActionLoading = false;
 
   @override
@@ -27,12 +31,17 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     _dataFuture = _loadData();
   }
 
-  Future<(Match, List<MatchRegistration>)> _loadData() async {
+  Future<(Match, List<MatchRegistration>, CommunityRole?)> _loadData() async {
+    final match = await _matchService.fetchMatch(widget.matchId);
     final results = await Future.wait([
-      _matchService.fetchMatch(widget.matchId),
       _matchService.fetchRegistrations(widget.matchId),
+      _memberRepository.fetchMyRole(match.communityId),
     ]);
-    return (results[0] as Match, results[1] as List<MatchRegistration>);
+    return (
+      match,
+      results[0] as List<MatchRegistration>,
+      results[1] as CommunityRole?,
+    );
   }
 
   void _refresh() {
@@ -145,11 +154,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final currentUserId = _authService.currentUserId;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.matchDetailsTitle)),
-      body: FutureBuilder<(Match, List<MatchRegistration>)>(
+      body: FutureBuilder<(Match, List<MatchRegistration>, CommunityRole?)>(
         future: _dataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -171,7 +180,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
             );
           }
 
-          final (match, registrations) = snapshot.data!;
+          final (match, registrations, myRole) = snapshot.data!;
           final confirmed = [
             for (final r in registrations)
               if (r.status == RegistrationStatus.confirmed) r,
@@ -180,10 +189,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
             for (final r in registrations)
               if (r.status == RegistrationStatus.reserve) r,
           ];
-          final myRegistration = registrations
-              .where((r) => r.userId == currentUserId)
-              .firstOrNull;
-          final isCreator = match.createdBy == currentUserId;
+          final myRegistration =
+              registrations.where((r) => r.userId == currentUserId).firstOrNull;
+          // Management is a community role now, not a creator privilege
+          // (PD-07). The server enforces it; this only decides what is shown.
+          final canManage = myRole?.atLeast(CommunityRole.admin) ?? false;
           // Registration is possible until kickoff or until the cap is hit.
           final registrationClosed =
               registrations.length >= match.maxRegistration;
@@ -198,14 +208,13 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: Text(
                     match.displayName,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ),
-                if (isCreator)
+                if (canManage)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: OutlinedButton.icon(
@@ -214,10 +223,20 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                       label: Text(l10n.matchManagementTitle),
                     ),
                   ),
-                if (match.groupName != null)
+                // Whoever created this match used to manage it. Say where the
+                // controls went instead of leaving a blank space (PD-07).
+                if (!canManage && match.createdBy == currentUserId)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Text(
+                      l10n.matchManageOrganizersOnly,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                if (match.communityName != null)
                   ListTile(
                     leading: const Icon(Icons.groups),
-                    title: Text(match.groupName!),
+                    title: Text(match.communityName!),
                   ),
                 ListTile(
                   leading: const Icon(Icons.place),
@@ -230,16 +249,14 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                   subtitle: Text(formatMatchTime(context, match)),
                 ),
                 ListTile(
-                  leading: Icon(match.isLocked
-                      ? Icons.lock_outline
-                      : Icons.info_outline),
+                  leading: Icon(
+                      match.isLocked ? Icons.lock_outline : Icons.info_outline),
                   title: Text(matchStatusLabel(context, match.effectiveStatus)),
                   subtitle: Text(match.isLocked
                       ? l10n.matchLockedNote
                       : '${registrations.length}/${match.maxRegistration}'),
                 ),
-                if (match.description != null &&
-                    match.description!.isNotEmpty)
+                if (match.description != null && match.description!.isNotEmpty)
                   ListTile(
                     leading: const Icon(Icons.notes),
                     title: Text(l10n.matchDescriptionLabel),

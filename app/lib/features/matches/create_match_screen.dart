@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/app_settings.dart';
+import 'app_settings.dart';
 import '../../core/l10n.dart';
 import 'match_service.dart';
 
 class CreateMatchScreen extends StatefulWidget {
-  const CreateMatchScreen({super.key, required this.groupId});
+  const CreateMatchScreen({super.key, required this.communityId});
 
-  final String groupId;
+  final String communityId;
 
   @override
   State<CreateMatchScreen> createState() => _CreateMatchScreenState();
@@ -96,7 +96,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     setState(() => _isLoading = true);
     try {
       await _matchService.createMatch(
-        groupId: widget.groupId,
+        communityId: widget.communityId,
         location: _locationController.text,
         startAt: start,
         endAt: end,

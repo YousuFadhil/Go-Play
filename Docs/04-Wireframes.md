@@ -1,5 +1,9 @@
 # 04 Wireframes
 
+> **Historical.** This screen list predates the Community migration; it says
+> Groups where the app now says Communities, and it lists screens (teams,
+> results, leaderboards) that were never built. Kept as a record of the
+> original plan. See 01-PRD.md and 08-UI-UX-Specification.md for what exists.
 
 Wireframes & Screen Architecture - Final Version
 

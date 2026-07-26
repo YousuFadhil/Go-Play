@@ -1,10 +1,8 @@
 {
   "@@locale": "en",
   "appName": "Go Play",
-
   "navHome": "Home",
-  "navGroups": "Groups",
-
+  "navCommunities": "Communities",
   "emailLabel": "Email",
   "emailRequired": "Email is required",
   "emailInvalid": "Enter a valid email address",
@@ -15,12 +13,10 @@
   "phoneInvalid": "Enter an 8-digit phone number",
   "passwordRequired": "Password is required",
   "passwordTooShort": "Password must be at least 8 characters",
-
   "loginTitle": "Log in",
   "loginButton": "Log in",
   "loginFailed": "Login failed. Check your email and password.",
   "noAccountPrompt": "No account? Create one",
-
   "registerTitle": "Create account",
   "registerButton": "Create account",
   "registerFailed": "Registration failed. Please try again.",
@@ -30,40 +26,34 @@
   "positionLabel": "Primary position",
   "positionRequired": "Primary position is required",
   "haveAccountPrompt": "Have an account? Log in",
-
   "positionGk": "Goalkeeper",
   "positionDef": "Defender",
   "positionMid": "Midfielder",
   "positionFwd": "Forward",
-
   "homeTitle": "Home",
   "logoutLabel": "Log out",
-  "welcomeMessage": "Logged in successfully",
-
-  "groupsTitle": "Groups",
-  "groupsEmpty": "You are not in any group yet.\nCreate a group or join one with a code.",
-  "createGroupTitle": "Create group",
-  "createGroupButton": "Create group",
-  "joinGroupTitle": "Join group",
-  "joinGroupButton": "Join",
-  "groupNameLabel": "Group name",
-  "groupNameRequired": "Group name is required",
-  "groupDescriptionLabel": "Description (optional)",
-  "privateGroupLabel": "Private group",
-  "privateGroupHelp": "Private groups can only be joined with the join code.",
+  "communitiesTitle": "Communities",
+  "communitiesEmpty": "You are not in any community yet.\nCreate one or join with a code.",
+  "createCommunityTitle": "Create community",
+  "createCommunityButton": "Create community",
+  "joinCommunityTitle": "Join community",
+  "joinCommunityButton": "Join",
+  "communityNameLabel": "Community name",
+  "communityNameRequired": "Community name is required",
+  "communityDescriptionLabel": "Description (optional)",
+  "privateCommunityLabel": "Private community",
+  "privateCommunityHelp": "Private communities can only be joined with the join code.",
   "joinCodeLabel": "Join code",
   "joinCodeRequired": "Join code is required",
-  "groupNotFound": "No group found with this code.",
-  "alreadyMember": "You are already a member of this group.",
-  "groupCreateFailed": "Failed to create the group. Please try again.",
-  "groupJoinFailed": "Failed to join the group. Please try again.",
+  "communityNotFound": "No community found with this code.",
+  "alreadyMemberOfCommunity": "You are already a member of this community.",
+  "communityCreateFailed": "Failed to create the community. Please try again.",
+  "communityJoinFailed": "Failed to join the community. Please try again.",
   "membersTitle": "Members",
-  "ownerBadge": "Owner",
   "joinCodeCopied": "Join code copied",
-  "myGroupsSection": "My groups",
-  "publicGroupsSection": "Public groups",
-  "joinedGroup": "You joined the group.",
-
+  "myCommunitiesSection": "My communities",
+  "publicCommunitiesSection": "Public communities",
+  "joinedCommunity": "You joined the community.",
   "matchesTitle": "Matches",
   "createMatchTitle": "Create match",
   "createMatchButton": "Create match",
@@ -78,24 +68,25 @@
   "startInPastError": "Match must start in the future",
   "startingPlayersLabel": "Starting players",
   "startingPlayersInvalid": "Enter a number between 2 and 30",
-  "maxRegistrationLabel": "Maximum registration",
   "capacityAutoNote": "Reserve players: {reserve} (automatic) — maximum registration: {max}",
   "@capacityAutoNote": {
     "placeholders": {
-      "reserve": { "type": "int" },
-      "max": { "type": "int" }
+      "reserve": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
     }
   },
   "matchCreateFailed": "Failed to create the match. Please try again.",
-  "groupMatchesEmpty": "No matches in this group yet.",
+  "communityMatchesEmpty": "No matches in this community yet.",
   "upcomingMatchesTitle": "Upcoming matches",
-  "upcomingMatchesEmpty": "No upcoming matches.\nJoin a group and create a match to get started.",
+  "upcomingMatchesEmpty": "No upcoming matches.\nJoin a community to get started.",
   "matchStatusOpen": "Open",
   "matchStatusFull": "Full",
   "matchStatusCompleted": "Completed",
-  "confirmYes": "Yes",
   "confirmNo": "Back",
-
   "joinMatchButton": "Join match",
   "withdrawMatchButton": "Withdraw",
   "joinedConfirmed": "You joined the match.",
@@ -112,12 +103,14 @@
   "errNotRegistered": "You are not registered in this match.",
   "joinMatchFailed": "Failed to join the match. Please try again.",
   "withdrawMatchFailed": "Failed to withdraw. Please try again.",
-
   "homeGreeting": "Hello, {name}",
   "@homeGreeting": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
-
   "notificationsTitle": "Notifications",
   "notificationsEmpty": "No notifications yet.",
   "notifMatchUpdated": "Match details were updated.",
@@ -125,7 +118,6 @@
   "notifRemoved": "The organizer removed you from the match.",
   "notifPromoted": "You were promoted from the reserve list to the starting players.",
   "notifMatchDeleted": "The match was deleted.",
-
   "matchManagementTitle": "Match management",
   "editMatchTitle": "Edit match",
   "managePlayersTitle": "Manage players",
@@ -136,29 +128,99 @@
   "saveButton": "Save",
   "matchUpdatedSaved": "Match updated. Registered players were notified.",
   "matchUpdateFailed": "Failed to save the match. Please try again.",
-
   "deleteMatchButton": "Delete match",
   "deleteMatchHint": "Registered players are notified. Completed matches cannot be deleted.",
   "deleteMatchConfirmTitle": "Delete this match?",
   "deleteMatchConfirmBody": "All registrations will be removed and players notified. This cannot be undone.",
-
   "removePlayerButton": "Remove",
   "removePlayerConfirmTitle": "Remove player?",
   "removePlayerConfirmBody": "Remove {name} from the match?",
   "@removePlayerConfirmBody": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "rosterEmpty": "No players here yet.",
-
   "errMatchCompleted": "This match is completed and can no longer be changed.",
-  "errNotOrganizer": "Only the match organizer can do this.",
+  "errNotAuthorized": "You do not have permission to do this.",
   "errRegistrationClosed": "Registration is closed; the match reached its maximum.",
   "errMatchLocked": "The match has started and is locked until it finishes.",
   "matchLockedNote": "The match has started. Registration, withdrawals and roster changes are locked until it finishes.",
   "errMaxBelowRegistered": "Maximum registration cannot be lower than the number of registered players.",
-
   "networkError": "Could not reach the server. Check your internet connection.",
   "loadFailed": "Failed to load data.",
   "retryButton": "Retry",
-  "genericError": "Something went wrong. Please try again."
+  "genericError": "Something went wrong. Please try again.",
+  "roleOwner": "Owner",
+  "roleAdmin": "Admin",
+  "rolePlayer": "Player",
+  "manageMembersTitle": "Manage members",
+  "myInvitationsTitle": "My invitations",
+  "pendingInvitationsTitle": "Pending invitations",
+  "inviteMemberTitle": "Invite a player",
+  "inviteButton": "Invite",
+  "searchPlayersLabel": "Search by name",
+  "searchPlayersHint": "Type at least two letters",
+  "searchNoResults": "No players found.",
+  "inviteAsRoleLabel": "Invite as",
+  "invitationSent": "Invitation sent.",
+  "invitationsEmpty": "No pending invitations.",
+  "myInvitationsEmpty": "You have no invitations.",
+  "invitationFrom": "Invitation to join {community}",
+  "@invitationFrom": {
+    "placeholders": {
+      "community": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptInvitationButton": "Accept",
+  "revokeInvitationButton": "Revoke",
+  "invitationAccepted": "You joined the community.",
+  "invitationRevoked": "Invitation revoked.",
+  "promoteToAdminButton": "Make admin",
+  "demoteToPlayerButton": "Make player",
+  "transferOwnershipButton": "Transfer ownership",
+  "removeMemberButton": "Remove from community",
+  "memberRoleChanged": "Member role updated.",
+  "ownershipTransferred": "Ownership transferred. You are now an admin.",
+  "memberRemoved": "Member removed from the community.",
+  "transferOwnershipConfirmTitle": "Transfer ownership?",
+  "transferOwnershipConfirmBody": "{name} becomes the owner and you become an admin. Only the new owner can transfer it back.",
+  "@transferOwnershipConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removeMemberConfirmTitle": "Remove this member?",
+  "removeMemberConfirmBody": "{name} will be removed from the community and withdrawn from every match in it.",
+  "@removeMemberConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCommunityButton": "Delete community",
+  "deleteCommunityConfirmTitle": "Delete this community?",
+  "deleteCommunityConfirmBody": "All matches, registrations, members and invitations are deleted. This cannot be undone.",
+  "communityDeleted": "Community deleted.",
+  "permissionOwnerOnly": "Only the owner can do this.",
+  "permissionOrganizersOnly": "Only the owner and admins can do this.",
+  "matchCreateOrganizersOnly": "Only the owner and admins can create matches in this community.",
+  "matchManageOrganizersOnly": "Match management now follows community roles. Ask an owner or admin of this community.",
+  "errCannotChangeOwnRole": "You cannot change your own role.",
+  "errCannotRemoveSelf": "You cannot remove yourself here. Leave the community instead.",
+  "errCannotRemoveOwner": "The owner cannot be removed. Transfer ownership first.",
+  "errAlreadyOwner": "That member is already the owner.",
+  "errMemberNotFound": "That person is not a member of this community.",
+  "errInvitationExists": "There is already a pending invitation for this player.",
+  "errInvitationNotFound": "This invitation no longer exists.",
+  "errInvitationNotPending": "This invitation has already been used.",
+  "errInvitationExpired": "This invitation has expired.",
+  "errInvalidRole": "That role cannot be assigned."
 }
