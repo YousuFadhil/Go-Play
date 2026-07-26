@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/l10n.dart';
 import '../../core/locale_controller.dart';
@@ -38,16 +37,13 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       // Navigation is handled by AuthGate reacting to the auth state change.
-    } on AuthRetryableFetchException catch (e, st) {
-      // Network-level failure: the request never reached Supabase.
-      debugPrint('[GoPlay] login network failure: $e\n$st');
-      _showError(l10n.networkError);
-    } on AuthException catch (e, st) {
-      debugPrint('[GoPlay] login auth failure '
-          '(${e.statusCode}/${e.code}): $e\n$st');
-      _showError(l10n.loginFailed);
-    } catch (e, st) {
-      debugPrint('[GoPlay] login unexpected failure: $e\n$st');
+    } on AuthFailureException catch (e) {
+      _showError(switch (e.failure) {
+        AuthFailure.network => l10n.networkError,
+        AuthFailure.unknown => l10n.genericError,
+        _ => l10n.loginFailed,
+      });
+    } catch (_) {
       _showError(l10n.genericError);
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -290,12 +290,6 @@ abstract class AppLocalizations {
   /// **'Log out'**
   String get logoutLabel;
 
-  /// No description provided for @welcomeMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Logged in successfully'**
-  String get welcomeMessage;
-
   /// No description provided for @communitiesTitle.
   ///
   /// In en, this message translates to:
@@ -403,12 +397,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Members'**
   String get membersTitle;
-
-  /// No description provided for @ownerBadge.
-  ///
-  /// In en, this message translates to:
-  /// **'Owner'**
-  String get ownerBadge;
 
   /// No description provided for @joinCodeCopied.
   ///
@@ -518,12 +506,6 @@ abstract class AppLocalizations {
   /// **'Enter a number between 2 and 30'**
   String get startingPlayersInvalid;
 
-  /// No description provided for @maxRegistrationLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Maximum registration'**
-  String get maxRegistrationLabel;
-
   /// No description provided for @capacityAutoNote.
   ///
   /// In en, this message translates to:
@@ -571,12 +553,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Completed'**
   String get matchStatusCompleted;
-
-  /// No description provided for @confirmYes.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes'**
-  String get confirmYes;
 
   /// No description provided for @confirmNo.
   ///
@@ -914,23 +890,11 @@ abstract class AppLocalizations {
   /// **'Player'**
   String get rolePlayer;
 
-  /// No description provided for @manageCommunityTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage community'**
-  String get manageCommunityTitle;
-
   /// No description provided for @manageMembersTitle.
   ///
   /// In en, this message translates to:
   /// **'Manage members'**
   String get manageMembersTitle;
-
-  /// No description provided for @invitationsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Invitations'**
-  String get invitationsTitle;
 
   /// No description provided for @myInvitationsTitle.
   ///
@@ -1100,12 +1064,6 @@ abstract class AppLocalizations {
   /// **'Delete community'**
   String get deleteCommunityButton;
 
-  /// No description provided for @deleteCommunityHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Removes the community with all its matches, members and invitations.'**
-  String get deleteCommunityHint;
-
   /// No description provided for @deleteCommunityConfirmTitle.
   ///
   /// In en, this message translates to:
@@ -1207,36 +1165,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That role cannot be assigned.'**
   String get errInvalidRole;
-
-  /// No description provided for @leaveCommunityButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Leave community'**
-  String get leaveCommunityButton;
-
-  /// No description provided for @leaveCommunityConfirmTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Leave this community?'**
-  String get leaveCommunityConfirmTitle;
-
-  /// No description provided for @leaveCommunityConfirmBody.
-  ///
-  /// In en, this message translates to:
-  /// **'You will lose access to its matches. You can rejoin with the join code.'**
-  String get leaveCommunityConfirmBody;
-
-  /// No description provided for @leftCommunity.
-  ///
-  /// In en, this message translates to:
-  /// **'You left the community.'**
-  String get leftCommunity;
-
-  /// No description provided for @ownerCannotLeave.
-  ///
-  /// In en, this message translates to:
-  /// **'An owner cannot leave. Transfer ownership first.'**
-  String get ownerCannotLeave;
 }
 
 class _AppLocalizationsDelegate

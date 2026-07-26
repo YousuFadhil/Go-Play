@@ -24,17 +24,17 @@ String formatMatchTime(BuildContext context, Match match) {
   return '$day • $start - $end';
 }
 
-/// Shared list tile for a match; used on Home and in Group Details.
+/// Shared list tile for a match; used on Home and in community details.
 class MatchCard extends StatelessWidget {
   const MatchCard({
     super.key,
     required this.match,
-    this.showGroupName = false,
+    this.showCommunityName = false,
     this.onChanged,
   });
 
   final Match match;
-  final bool showGroupName;
+  final bool showCommunityName;
 
   /// Called when the match may have changed (e.g. cancelled in details).
   final VoidCallback? onChanged;
@@ -53,7 +53,7 @@ class MatchCard extends StatelessWidget {
           child: Icon(completed ? Icons.event_available : Icons.sports_soccer),
         ),
         title: Text(
-          showGroupName && match.communityName != null
+          showCommunityName && match.communityName != null
               ? '${match.communityName} • ${match.displayName}'
               : match.displayName,
         ),

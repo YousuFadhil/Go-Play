@@ -1,32 +1,66 @@
 # 06 ERD
 
+**ERD — Community-first (v3)**
 
-ERD Engineering Version (v2) - Football Community Manager
+Supersedes the Groups-first v2 diagram, replaced during the Community
+migration (`v0.4.0-mvp`). Community is the aggregate root: everything below
+belongs to exactly one community, and nothing is owned by a user.
 
-1. Scope
+## 1. Entities as built
 
-النسخة الهندسية المرجعية لمخطط الكيانات والعلاقات الخاصة بالنظام.
+| Entity | Purpose |
+|---|---|
+| `users` | Player profile, keyed to the Supabase auth user |
+| `communities` | The aggregate root |
+| `community_members` | The membership edge, carrying the role |
+| `invitations` | An offer of membership at a given role |
+| `matches` | A match inside one community |
+| `match_registrations` | Starting and reserve places |
+| `notifications` | In-app notices addressed to one user |
+| `app_settings` | One global row; currently the reserve allowance |
 
-2. Core Entities
+Entities described in the v2 document but never built — `fields`, `teams`,
+`team_players`, `match_results`, `goals`, `rating_history`,
+`player_statistics` — remain out of scope. See `11-Future-Backlog.md`.
 
-Users, Groups, GroupMembers, Fields, Matches, MatchRegistrations, Teams, TeamPlayers, MatchResults, Goals, RatingHistory, PlayerStatistics
+## 2. Relationships
 
-3. Cardinality Rules
+```
+users (1) --< community_members >-- (1) communities
+                                          |
+                                          +--< invitations
+                                          +--< matches
+                                                 +--< match_registrations >-- users
 
-Users (1) -> (N) Groups [Owner] Users (N) <-> (N) Groups عبر GroupMembers Groups (1) -> (N) Fields Groups (1) -> (N) Matches Matches (1) -> (N) MatchRegistrations Matches (1) -> (2) Teams Teams (1) -> (N) TeamPlayers Matches (1) -> (1) MatchResults Matches (1) -> (N) Goals Users (1) -> (N) RatingHistory Users (1) -> (1) PlayerStatistics
+users --< notifications --? matches   (match_id nullable, ON DELETE SET NULL)
+```
 
-4. Business Rules
+- A user belongs to many communities; a community has many members. The
+  membership row carries `role` in (`owner`, `admin`, `player`).
+- Exactly one member per community holds `owner`, always.
+- A match belongs to a community, never to its creator.
+- A registration is unique per `(match_id, user_id)`, and `registration_order`
+  is unique per match.
+- A notification keeps its text after its match is deleted, because `match_id`
+  is set to null rather than cascading.
 
-- أي مستخدم يمكنه إنشاء مجموعة. - المجموعة قد تكون عامة أو خاصة. - اللاعب يمكنه الانضمام لأكثر من مجموعة. - يمنع التسجيل في مباريات متداخلة زمنياً. - أول المسجلين يحصلون على المقاعد الأساسية. - البقية يدخلون الاحتياط حسب أولوية التسجيل. - عند الاعتذار يتم تصعيد أول لاعب احتياط. - يعاد توزيع الفرق تلقائياً بعد أي تغيير مؤثر. - مجموع الأهداف المسجلة يجب أن يساوي نتيجة المباراة. - التقييم يتغير بناءً على الفوز والخسارة والأهداف وأفضل لاعب.
+## 3. Fields that are not authorization
 
-5. Data Dictionary Summary
+Two columns look like ownership and are not:
 
-Users: بيانات اللاعبين. Groups: مجتمعات اللاعبين. GroupMembers: عضوية المجموعات. Fields: الملاعب. Matches: المباريات. MatchRegistrations: التسجيلات والاحتياط. Teams: الفرق الناتجة. TeamPlayers: أعضاء الفرق. MatchResults: نتائج المباريات. Goals: الأهداف. RatingHistory: سجل التقييمات. PlayerStatistics: الإحصائيات المجمعة.
+- `communities.owner_id` — a derived, synchronized mirror of the member holding
+  `owner`. Kept for reporting, analytics and query convenience. Never read to
+  grant or deny anything (PD-15).
+- `matches.created_by` — audit only. It records who created the row and is
+  shown as attribution. Management follows community role (PD-16, PD-07).
 
-6. Constraints
+## 4. Business rules carried by the model
 
-Overall Rating بين 1 و 10. Primary Position مطلوب. Match End > Match Start. لا يمكن تكرار العضوية لنفس اللاعب في نفس المجموعة. لا يمكن تكرار التسجيل لنفس اللاعب في نفس المباراة.
-
-7. Future Scalability Notes
-
-يدعم تعدد المجموعات. يدعم التوسع التجاري مستقبلاً. يدعم إضافة اشتراكات ومدفوعات لاحقاً دون إعادة هيكلة جوهرية.
+- Registration order decides who starts: the first `starting_players` are
+  confirmed, the rest are reserve.
+- No two registrations for one person in overlapping live matches.
+- Withdrawing deletes the registration row, which is what allows re-registering
+  (DD-01).
+- Capacity is derived: `max_registration = starting_players + reserve_players`,
+  the latter a single global setting (DD-06).
+- Status holds only `open`, `full`, `completed` (DD-03).

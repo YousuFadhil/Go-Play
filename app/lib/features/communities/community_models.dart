@@ -9,9 +9,9 @@ enum CommunityRole {
 
   final String dbValue;
 
-  /// The database still stores the legacy `member` value until the schema
-  /// migration; it means [player]. Anything unrecognised falls back to the
-  /// least privileged role rather than granting something by accident.
+  /// Anything unrecognised falls back to the least privileged role rather
+  /// than granting something by accident. The retired `member` value is still
+  /// accepted so an old client cannot be tripped up by it.
   static CommunityRole fromDb(String value) {
     return switch (value) {
       'owner' => CommunityRole.owner,
@@ -24,8 +24,7 @@ enum CommunityRole {
   bool atLeast(CommunityRole other) => index >= other.index;
 }
 
-/// A community of players. Still read from the legacy `groups` table, so the
-/// JSON keys below stay as they are until the database migration.
+/// A community of players.
 class Community {
   const Community({
     required this.id,

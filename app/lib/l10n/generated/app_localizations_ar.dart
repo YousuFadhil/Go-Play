@@ -106,9 +106,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get logoutLabel => 'تسجيل الخروج';
 
   @override
-  String get welcomeMessage => 'تم تسجيل الدخول بنجاح';
-
-  @override
   String get communitiesTitle => 'المجتمعات';
 
   @override
@@ -165,9 +162,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get membersTitle => 'الأعضاء';
 
   @override
-  String get ownerBadge => 'المالك';
-
-  @override
   String get joinCodeCopied => 'تم نسخ رمز الانضمام';
 
   @override
@@ -222,9 +216,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get startingPlayersInvalid => 'أدخل رقماً بين 2 و 30';
 
   @override
-  String get maxRegistrationLabel => 'الحد الأقصى للتسجيل';
-
-  @override
   String capacityAutoNote(int reserve, int max) {
     return 'لاعبو الاحتياط: $reserve (تلقائي) — الحد الأقصى للتسجيل: $max';
   }
@@ -250,9 +241,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get matchStatusCompleted => 'منتهية';
-
-  @override
-  String get confirmYes => 'نعم';
 
   @override
   String get confirmNo => 'رجوع';
@@ -437,13 +425,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get rolePlayer => 'لاعب';
 
   @override
-  String get manageCommunityTitle => 'إدارة المجتمع';
-
-  @override
   String get manageMembersTitle => 'إدارة الأعضاء';
-
-  @override
-  String get invitationsTitle => 'الدعوات';
 
   @override
   String get myInvitationsTitle => 'دعواتي';
@@ -536,10 +518,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get deleteCommunityButton => 'حذف المجتمع';
 
   @override
-  String get deleteCommunityHint =>
-      'يحذف المجتمع مع جميع مبارياته وأعضائه ودعواته.';
-
-  @override
   String get deleteCommunityConfirmTitle => 'حذف هذا المجتمع؟';
 
   @override
@@ -595,20 +573,4 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errInvalidRole => 'لا يمكن تعيين هذه الصلاحية.';
-
-  @override
-  String get leaveCommunityButton => 'مغادرة المجتمع';
-
-  @override
-  String get leaveCommunityConfirmTitle => 'مغادرة هذا المجتمع؟';
-
-  @override
-  String get leaveCommunityConfirmBody =>
-      'ستفقد الوصول إلى مبارياته. يمكنك الانضمام مجدداً برمز الانضمام.';
-
-  @override
-  String get leftCommunity => 'غادرت المجتمع.';
-
-  @override
-  String get ownerCannotLeave => 'لا يمكن للمالك المغادرة. انقل الملكية أولاً.';
 }

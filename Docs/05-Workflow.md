@@ -1,8 +1,15 @@
 # 05 Workflow
 
-> **ملاحظة:** This document represents the historical engineering workflow
-> before the approved V2 Product Decisions. Current implementation behavior
-> is documented in the Design Decisions and CHANGELOG.
+> **Historical.** These workflows were written before the approved V2 product
+> decisions and before the Community-first migration. They still say "مجموعة"
+> where the app now says "مجتمع", they describe workflows that were never built
+> (WF-12 team distribution, WF-15 and WF-24 results), and their global business
+> rules list several rules that are not in the MVP — automatic team
+> redistribution, cancelling a match below a minimum, MVP voting, goal
+> reconciliation, rating recalculation.
+>
+> The behaviour as built is in `10-Design-Decisions.md` (DD-01 to DD-09), the
+> business rules section of `02-SRS.md`, and the CHANGELOG.
 
 Workflow Design Engineering Version (v2)
 

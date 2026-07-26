@@ -71,7 +71,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
   Future<void> _openCreateMatch() async {
     final created = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => CreateMatchScreen(groupId: widget.communityId),
+        builder: (_) => CreateMatchScreen(communityId: widget.communityId),
       ),
     );
     if (created == true) _refresh();

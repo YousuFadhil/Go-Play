@@ -11,7 +11,7 @@ import '../notifications/notifications_screen.dart';
 
 typedef _HomeData = ({String firstName, List<Match> matches, int unread});
 
-/// Home tab: greeting + upcoming matches across all the user's groups.
+/// Home tab: greeting + upcoming matches across all the user's communities.
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
 
@@ -154,7 +154,7 @@ class _HomeTabState extends State<HomeTab> {
                   for (final match in matches)
                     MatchCard(
                       match: match,
-                      showGroupName: true,
+                      showCommunityName: true,
                       onChanged: _refresh,
                     ),
                 ],

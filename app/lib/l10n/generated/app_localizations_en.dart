@@ -105,9 +105,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logoutLabel => 'Log out';
 
   @override
-  String get welcomeMessage => 'Logged in successfully';
-
-  @override
   String get communitiesTitle => 'Communities';
 
   @override
@@ -167,9 +164,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get membersTitle => 'Members';
 
   @override
-  String get ownerBadge => 'Owner';
-
-  @override
   String get joinCodeCopied => 'Join code copied';
 
   @override
@@ -224,9 +218,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startingPlayersInvalid => 'Enter a number between 2 and 30';
 
   @override
-  String get maxRegistrationLabel => 'Maximum registration';
-
-  @override
   String capacityAutoNote(int reserve, int max) {
     return 'Reserve players: $reserve (automatic) — maximum registration: $max';
   }
@@ -253,9 +244,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get matchStatusCompleted => 'Completed';
-
-  @override
-  String get confirmYes => 'Yes';
 
   @override
   String get confirmNo => 'Back';
@@ -447,13 +435,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rolePlayer => 'Player';
 
   @override
-  String get manageCommunityTitle => 'Manage community';
-
-  @override
   String get manageMembersTitle => 'Manage members';
-
-  @override
-  String get invitationsTitle => 'Invitations';
 
   @override
   String get myInvitationsTitle => 'My invitations';
@@ -547,10 +529,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteCommunityButton => 'Delete community';
 
   @override
-  String get deleteCommunityHint =>
-      'Removes the community with all its matches, members and invitations.';
-
-  @override
   String get deleteCommunityConfirmTitle => 'Delete this community?';
 
   @override
@@ -609,21 +587,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errInvalidRole => 'That role cannot be assigned.';
-
-  @override
-  String get leaveCommunityButton => 'Leave community';
-
-  @override
-  String get leaveCommunityConfirmTitle => 'Leave this community?';
-
-  @override
-  String get leaveCommunityConfirmBody =>
-      'You will lose access to its matches. You can rejoin with the join code.';
-
-  @override
-  String get leftCommunity => 'You left the community.';
-
-  @override
-  String get ownerCannotLeave =>
-      'An owner cannot leave. Transfer ownership first.';
 }
