@@ -415,4 +415,94 @@ void main() {
     expect(members, isEmpty);
     expect(matches, isEmpty);
   });
+
+  group('visibility', () {
+    Future<bool?> isPrivate() async {
+      final rows = await owner.client
+          .from('communities')
+          .select('is_private')
+          .eq('id', communityId);
+      return rows.single['is_private'] as bool?;
+    }
+
+    /// What the discovery list actually returns: RLS only exposes public
+    /// communities there, so this is the real test of the setting.
+    Future<bool> discoverableBy(TestUser user) async {
+      final rows = await user.client
+          .from('communities')
+          .select('id')
+          .eq('is_private', false)
+          .eq('id', communityId);
+      return rows.isNotEmpty;
+    }
+
+    test('the owner can switch a community to public and back', () async {
+      expect(await isPrivate(), isTrue,
+          reason: 'the fixture is created private');
+      expect(await discoverableBy(outsider), isFalse);
+
+      await owner.client
+          .from('communities')
+          .update({'is_private': false})
+          .eq('id', communityId);
+      expect(await isPrivate(), isFalse);
+      expect(await discoverableBy(outsider), isTrue,
+          reason: 'a public community is what discovery is for');
+
+      await owner.client
+          .from('communities')
+          .update({'is_private': true})
+          .eq('id', communityId);
+      expect(await isPrivate(), isTrue);
+      expect(await discoverableBy(outsider), isFalse);
+    });
+
+    test('an admin cannot change visibility', () async {
+      final rows = await admin.client
+          .from('communities')
+          .update({'is_private': false})
+          .eq('id', communityId)
+          .select('id');
+      expect(rows, isEmpty,
+          reason: 'RLS filters the row out rather than raising, which is why '
+              'the repository asks for the row back');
+      expect(await isPrivate(), isTrue, reason: 'and nothing changed');
+    });
+
+    test('a player cannot change visibility', () async {
+      final rows = await player.client
+          .from('communities')
+          .update({'is_private': false})
+          .eq('id', communityId)
+          .select('id');
+      expect(rows, isEmpty);
+      expect(await isPrivate(), isTrue);
+    });
+
+    test('an invite link keeps working across a visibility change', () async {
+      final token = await owner.client.rpc('create_invite_link', params: {
+        'p_community_id': communityId,
+        'p_match_id': null,
+      }) as String;
+
+      // Public, then private again: the link is a bearer token either way.
+      for (final private in [false, true]) {
+        await owner.client
+            .from('communities')
+            .update({'is_private': private})
+            .eq('id', communityId);
+        final rows = await outsider.client
+            .rpc('preview_invite_link', params: {'p_token': token})
+            as List<dynamic>;
+        expect((rows.first as Map<String, dynamic>)['state'], 'valid',
+            reason: 'visibility does not gate an invitation');
+      }
+
+      final result = await outsider.client
+          .rpc('redeem_invite_link', params: {'p_token': token})
+          as List<dynamic>;
+      expect((result.first as Map<String, dynamic>)['community_id'],
+          communityId);
+    });
+  });
 }

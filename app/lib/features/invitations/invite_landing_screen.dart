@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/l10n.dart';
+import '../../core/time_format.dart';
 import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../communities/community_details_screen.dart';
@@ -260,14 +261,11 @@ class _InviteBody extends StatelessWidget {
                         const SizedBox(height: 8),
                         _Line(
                           icon: Icons.schedule_outlined,
-                          // A bare "start - end" flips under RTL and reads as
-                          // if the match ended before it began.
-                          isLtr: true,
-                          text: '${DateFormat.Hm(locale).format(
+                          text: formatTimeRange(
+                            context,
                             preview.matchStartAt!,
-                          )} - ${DateFormat.Hm(locale).format(
                             preview.matchEndAt ?? preview.matchStartAt!,
-                          )}',
+                          ),
                         ),
                       ],
                       if (preview.seatsRemaining != null) ...[
@@ -323,20 +321,11 @@ class _InviteBody extends StatelessWidget {
   }
 }
 
-/// Wraps [text] in LEFT-TO-RIGHT ISOLATE / POP DIRECTIONAL ISOLATE, which
-/// fixes the order inside the value without changing how the line is aligned.
-String _isolateLtr(String text) => '\u2066$text\u2069';
-
 class _Line extends StatelessWidget {
-  const _Line({required this.icon, required this.text, this.isLtr = false});
+  const _Line({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
-
-  /// For values whose internal order is not the reader's: a time range reads
-  /// start-to-end in either language. Isolating it keeps the line aligned with
-  /// the rest of the card while fixing only the order inside the value.
-  final bool isLtr;
 
   @override
   Widget build(BuildContext context) {
@@ -344,7 +333,7 @@ class _Line extends StatelessWidget {
       children: [
         Icon(icon, size: 18, color: Theme.of(context).colorScheme.outline),
         const SizedBox(width: 8),
-        Expanded(child: Text(isLtr ? _isolateLtr(text) : text)),
+        Expanded(child: Text(text)),
       ],
     );
   }

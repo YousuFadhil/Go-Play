@@ -273,5 +273,14 @@
   "revokeLinkConfirmTitle": "إلغاء هذه الدعوة؟",
   "revokeLinkConfirmBody": "لن يتمكن أي شخص يملك هذا الرابط من فتحه بعد الآن. من انضم فعلاً يبقى عضواً.",
   "inviteLinkRevokedMessage": "أُلغيت الدعوة.",
-  "inviteLinkMatchLabel": "دعوة لمباراة"
+  "inviteLinkMatchLabel": "دعوة لمباراة",
+  "visibilitySaved": "حُدِّث الظهور.",
+  "matchCapacityLabel": "👥 {count} لاعبًا",
+  "@matchCapacityLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

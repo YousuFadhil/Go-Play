@@ -167,6 +167,24 @@ void main() {
       expect(result, 'NOT_AUTHORIZED');
     });
 
+    test('the owner can demote an admin back to player', () async {
+      final result = await outcomeOf(() async {
+        await owner.client.rpc('set_member_role', params: {
+          'p_community_id': communityId,
+          'p_user_id': admin.id,
+          'p_role': 'player',
+        });
+      });
+      expect(result, 'ALLOW');
+
+      final rows = await owner.client
+          .from('community_members')
+          .select('role')
+          .eq('community_id', communityId)
+          .eq('user_id', admin.id);
+      expect(rows.single['role'], 'player');
+    });
+
     test('nobody can grant the owner role', () async {
       final result = await outcomeOf(() async {
         await owner.client.rpc('set_member_role', params: {

@@ -5,7 +5,8 @@
 ## Functional requirements
 
 - Registration and login with email and password
-- Community management: create, join by code, edit settings, delete
+- Community management: create (private by default), join by code, change
+  visibility, delete
 - Membership: invite, accept, revoke, change role, transfer ownership, remove a
   member, leave
 - Shareable invitation links, for a community alone or for a community and one
@@ -49,6 +50,8 @@ inside each RPC.
 ## Non-functional requirements
 
 - Mobile-first, Arabic by default with English available, RTL throughout.
+- Clock times follow the device's own 12/24-hour preference rather than a
+  format chosen by the app.
 - Secure authentication; no service credentials in the client.
 - PostgreSQL on Supabase, no custom backend.
 - The approved behaviour is covered by an automated regression suite; see

@@ -297,5 +297,14 @@
   "revokeLinkConfirmTitle": "Revoke this invitation?",
   "revokeLinkConfirmBody": "Anyone still holding this link will no longer be able to open it. People who already joined stay members.",
   "inviteLinkRevokedMessage": "Invitation revoked.",
-  "inviteLinkMatchLabel": "Match invitation"
+  "inviteLinkMatchLabel": "Match invitation",
+  "visibilitySaved": "Visibility updated.",
+  "matchCapacityLabel": "👥 {count} players",
+  "@matchCapacityLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

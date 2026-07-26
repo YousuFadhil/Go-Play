@@ -19,7 +19,6 @@
 | Home | Greeting, upcoming matches across the user's communities, notifications |
 | Communities | The user's communities; create, or join by code |
 | Community details | Matches in that community, plus the management entry points the caller's role allows |
-| Community settings | Owner only: edit, transfer ownership, delete |
 | Members | Roster with roles; invite, change role, remove |
 | Invitations | Pending invitations for the signed-in user; accept or decline |
 | Invitation landing | What a shared invitation offers — community, and the match if one is attached. The only screen that works signed out |
@@ -58,6 +57,40 @@ menu as sharing. Only live links are listed — revoking is how an organizer say
 they are finished with one. A link that ended because its match started or was
 deleted is shown greyed with the reason, and cannot be copied: spreading a link
 that will not open helps nobody.
+
+## Visibility
+
+A community is **private by default**. Private means it is not listed for
+anyone to find; people join with an invitation link or the join code. Public
+means it appears in the discovery list for any signed-in user.
+
+The owner changes it from the community menu, next to sharing — visibility is
+the only community setting, so a screen of its own would be navigation without
+content. Nothing else about joining changes: an invitation link is a bearer
+token and works the same either way.
+
+## Time
+
+Clock times follow the device, not the app: `formatTime` and `formatTimeRange`
+in `core/time_format.dart` read the phone's own 12/24-hour preference through
+`TimeOfDay.format`, so neither format is hardcoded. A range is wrapped in a
+left-to-right isolate, because its order is start-then-end in every language
+and an unisolated range reverses under Arabic — making a match look as though
+it ended before it began.
+
+## The match card
+
+Shared by Home and the community's match list. The match's own name is the
+title — bold, one line, ellipsised when it runs long — with location, date and
+time, and total capacity below it. A match with no name keeps falling back to
+its location as the title, and then the location is not repeated underneath.
+
+The last line is playing capacity and nothing else — `starting_players`, the
+number who actually take the field. Deliberately not `max_registration`: that
+is starting players plus the global reserve allowance (DD-06), so it would
+announce twelve players for a six-a-side match. How many have registered, and
+who is on the reserve list, belong to the match screen: a list is for choosing
+which match to open.
 
 ## Role-dependent UI
 

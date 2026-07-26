@@ -721,4 +721,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inviteLinkMatchLabel => 'Match invitation';
+
+  @override
+  String get visibilitySaved => 'Visibility updated.';
+
+  @override
+  String matchCapacityLabel(int count) {
+    return '👥 $count players';
+  }
 }

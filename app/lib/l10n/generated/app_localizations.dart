@@ -1393,6 +1393,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Match invitation'**
   String get inviteLinkMatchLabel;
+
+  /// No description provided for @visibilitySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility updated.'**
+  String get visibilitySaved;
+
+  /// No description provided for @matchCapacityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'👥 {count} players'**
+  String matchCapacityLabel(int count);
 }
 
 class _AppLocalizationsDelegate

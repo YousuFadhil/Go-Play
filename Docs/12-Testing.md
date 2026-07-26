@@ -12,13 +12,14 @@ flutter test
 Runs everywhere with no configuration. The integration files skip themselves
 when credentials are absent, so this stays usable by anyone.
 
-Expected: **69 passed, 5 skipped**.
+Expected: **74 passed, 5 skipped**.
 
 Covered: phone and email validation, the `CommunityRole` enum including its
 cumulative precedence and the fallback for an unrecognised value, match
 lifecycle derivation (lock, completion, capacity), repository construction with
 an injected client, the RPC error-code mapping, invitation-link parsing and the
-pending-invitation holder, and JSON parsing for every model.
+pending-invitation holder, time formatting against both device preferences, and
+JSON parsing for every model.
 
 ## Running the integration suite
 
@@ -26,7 +27,7 @@ pending-invitation holder, and JSON parsing for every model.
 flutter test --dart-define=SUPABASE_URL=https://<ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<publishable key>
 ```
 
-Expected: **159 passed**, which is the unit tests plus 90 integration tests.
+Expected: **169 passed**, which is the unit tests plus 95 integration tests.
 
 To run one file:
 
@@ -40,7 +41,7 @@ flutter test test/integration/authorization_test.dart --dart-define=SUPABASE_URL
 |---|---|
 | `authorization_test.dart` | The approved permission matrix, as all three roles, with the denials asserted as carefully as the grants |
 | `business_rules_test.dart` | DD-01 to DD-08 |
-| `community_management_test.dart` | Invitation limits and lifecycle, leaving, member removal, ownership transfer, community deletion |
+| `community_management_test.dart` | Invitation limits and lifecycle, leaving, member removal, ownership transfer, visibility, community deletion |
 | `concurrency_test.dart` | The last-seat race and racing withdrawals |
 | `invite_link_test.dart` | Both invitation types: who may share, the unauthenticated preview, redemption, the split outcome when registration fails, and every way a link stops working, and the organizer's management list |
 
