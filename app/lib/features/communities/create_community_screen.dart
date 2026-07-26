@@ -15,7 +15,9 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _communityRepository = CommunityRepository();
-  bool _isPrivate = false;
+  // Private by default: a new community should not be discoverable
+  // before its organizer has decided that is what they want.
+  bool _isPrivate = true;
   bool _isLoading = false;
 
   @override

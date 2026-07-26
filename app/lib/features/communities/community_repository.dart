@@ -87,6 +87,24 @@ class CommunityRepository {
     }
   }
 
+  /// Owner only. The `communities_update_owner` policy is what enforces that;
+  /// RLS filters the row out for anyone else, so the update would silently
+  /// match nothing — asking for the row back is how that becomes an error
+  /// instead of a no-op that looks like success.
+  Future<void> setVisibility(
+    String communityId, {
+    required bool isPrivate,
+  }) async {
+    final rows = await _client
+        .from('communities')
+        .update({'is_private': isPrivate})
+        .eq('id', communityId)
+        .select('id');
+    if (rows.isEmpty) {
+      throw const CommunityActionException(CommunityActionError.notAuthorized);
+    }
+  }
+
   Future<Community> fetchCommunity(String communityId) async {
     final row = await _client
         .from('communities')

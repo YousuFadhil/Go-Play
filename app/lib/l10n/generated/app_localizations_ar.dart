@@ -700,4 +700,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get inviteLinkMatchLabel => 'دعوة لمباراة';
+
+  @override
+  String get visibilitySaved => 'حُدِّث الظهور.';
+
+  @override
+  String matchCapacityLabel(int count) {
+    return '👥 $count لاعبًا';
+  }
 }

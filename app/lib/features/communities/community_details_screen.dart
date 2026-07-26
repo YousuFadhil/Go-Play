@@ -90,6 +90,27 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     );
   }
 
+  /// Visibility is the community's only setting, so it lives in the menu
+  /// rather than behind a screen of its own.
+  Future<void> _setVisibility(bool isPrivate) async {
+    final l10n = context.l10n;
+    setState(() => _busy = true);
+    try {
+      await _communityRepository.setVisibility(widget.communityId,
+          isPrivate: isPrivate);
+      _say(l10n.visibilitySaved);
+      _refresh();
+    } on CommunityActionException catch (e) {
+      _say(e.error == CommunityActionError.notAuthorized
+          ? l10n.permissionOwnerOnly
+          : l10n.genericError);
+    } catch (_) {
+      _say(l10n.genericError);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _openMembers(String name) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -226,6 +247,21 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                         onPressed: () => _openInviteLinks(community.name),
                         child: Text(l10n.inviteLinksTitle),
                       ),
+                      if (isOwner)
+                        MenuItemButton(
+                          leadingIcon: Icon(community.isPrivate
+                              ? Icons.lock_outline
+                              : Icons.public),
+                          trailingIcon: Switch(
+                            value: community.isPrivate,
+                            onChanged:
+                                _busy ? null : (value) => _setVisibility(value),
+                          ),
+                          onPressed: _busy
+                              ? null
+                              : () => _setVisibility(!community.isPrivate),
+                          child: Text(l10n.privateCommunityLabel),
+                        ),
                     ],
                     builder: (context, controller, _) => IconButton(
                       tooltip: l10n.shareInvitation,

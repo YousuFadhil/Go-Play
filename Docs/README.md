@@ -1,6 +1,6 @@
 # Project Documentation
 
-Current as of `v0.5.0-mvp` — Community-first, with shareable invitation links.
+Current as of `v0.5.1-mvp` — Community-first, with shareable invitation links.
 
 | Document | Status |
 |---|---|
