@@ -20,54 +20,69 @@
 | Communities | The user's communities; create, or join by code |
 | Community details | Matches in that community, plus the management entry points the caller's role allows |
 | Members | Roster with roles; invite, change role, remove |
-| Invitations | Pending invitations for the signed-in user; accept or decline |
-| Invitation landing | What a shared invitation offers — community, and the match if one is attached. The only screen that works signed out |
-| Invitation links | Owner and admin: the live links for a community, each with copy and revoke |
+| Invitation landing | Which community a shared invitation offers. The only screen that works signed out |
+| Community invitation | Owner and admin: share the link, copy the link, copy the join code, regenerate the code |
 | Create / edit match | Owner and admin |
 | Match details | Roster, reserve list, register and withdraw |
 | Notifications | The user's own notifications |
+| Administration | System Admin only: three tabs — users, communities, matches — each a search box, a list and a delete action |
 
 There is no profile screen; it was removed from MVP scope.
 
 ## Invitations
 
-Two things are shared, and they read differently. A directed invitation reaches
-one named player and can offer the admin role. A **link** is a bearer token that
-anyone may open, so it only ever grants player.
+There is one invitation and one identifier behind it: the community's join
+code. The invitation screen offers three ways to pass it on — share the link,
+copy the link, copy the code — because the link is the code in a URL and some
+people will be told the code over the phone instead.
 
-The landing screen shows the community, and for a match invitation its title,
-date, time and places left, before asking for anything. Someone without an
-account signs in from there and comes back to the same invitation rather than
-losing it.
+The landing screen names the community before asking for anything. Someone
+without an account signs in from there and comes back to the same invitation
+rather than losing it. Redeeming joins the community and nothing else: matches
+are browsed afterwards, and players register themselves.
 
-Two things it must say plainly, because the alternative is a misled player:
+An organizer who has leaked a code regenerates it from the same screen. The
+confirmation says the two things that matter: the current link and code stop
+working immediately, and people already in the community stay members. The new
+code and link replace the old ones in place, so they can be copied or shared
+without reopening the screen.
 
-- when the starting places are gone, that joining now means the reserve list —
-  said before the button, not after;
-- when registration fails but joining succeeded, what actually happened and why
-  (the match filled, it locked, it clashes with another) — the person is a
-  member either way, so the screen goes to the community rather than pretending.
+Links are shared as `https://goplay.app/join/<code>` and opened today by
+`goplay://join/<code>`. See the deferred deep linking note below for why both
+exist. There is also a paste field, because not every messaging app makes a
+link tappable.
 
-Links travel as `goplay://invite/<token>`. Organizers copy one from the
-community screen or from match management; there is also a paste field, because
-not every messaging app makes a custom-scheme link tappable.
+## Deferred deep linking
 
-Organizers can see what they have shared and take a link back, from the same
-menu as sharing. Only live links are listed — revoking is how an organizer says
-they are finished with one. A link that ended because its match started or was
-deleted is shown greyed with the reason, and cannot be copied: spreading a link
-that will not open helps nobody.
+The path is: tap a link, land on the invitation, join. When the app is not
+installed the same code has to survive an install, which needs three things the
+project does not have yet — a domain serving `/join/<code>` and
+`assetlinks.json`, a Play Store listing, and an install referrer.
 
-## Visibility
+What exists today is the part that does not depend on them. `PendingInvite`
+holds a code from any source until a screen consumes it, and it outlives sign-in
+and registration. A code recovered after an install is `offer`ed to the same
+holder and travels the same path as a tapped link, so nothing downstream needs
+to know where it came from. The https intent filter is written in the manifest
+and commented out with the reason: enabling it before the domain verifies would
+show a chooser instead of opening the app.
 
-A community is **private by default**. Private means it is not listed for
-anyone to find; people join with an invitation link or the join code. Public
-means it appears in the discovery list for any signed-in user.
+## Join policy
 
-The owner changes it from the community menu, next to sharing — visibility is
-the only community setting, so a screen of its own would be navigation without
-content. Nothing else about joining changes: an invitation link is a bearer
-token and works the same either way.
+Every community is visible to every signed-in user. Visibility and joining are
+two questions, and only the second is configurable:
+
+- **Open join** — anyone can join from the list.
+- **Join by code** — the list still shows the community, and Join asks for the
+  code instead of joining outright.
+
+Default is open. The owner changes it from the community menu, next to sharing.
+A code-required community carries a small key icon in the list, so the extra
+step is not a surprise when the button asks.
+
+The invitation link is unchanged under either policy: it carries the join code,
+and a code is accepted whichever policy is set. That is what a code is — the
+credential, not the policy.
 
 ## Time
 
@@ -91,6 +106,18 @@ is starting players plus the global reserve allowance (DD-06), so it would
 announce twelve players for a six-a-side match. How many have registered, and
 who is on the reserve list, belong to the match screen: a list is for choosing
 which match to open.
+
+## Administration
+
+Reached from a shield icon on Home that only a System Admin sees. Three lists,
+each with a search field and a delete button, and nothing else — no dashboard,
+no counts worth reading, no moderation. Find a record, remove it.
+
+A System Admin row cannot be deleted: the button is disabled and the RPC refuses
+too. Granting the role happens in SQL, outside the app.
+
+Hiding the icon is a convenience. Every admin function checks `is_system_admin()`
+server-side, so a client that got to the screen anyway would be refused.
 
 ## Role-dependent UI
 

@@ -21,9 +21,8 @@ access lives in:
 
 | Class | Responsibility |
 |---|---|
-| `CommunityRepository` | The community aggregate: overview, create, join, fetch, delete |
+| `CommunityRepository` | The community aggregate: overview, create, join by code, invitation preview, visibility, fetch, delete |
 | `MemberRepository` | Members, roles, ownership transfer, removal |
-| `InvitationRepository` | Invitation lifecycle, and the name lookup used to pick an invitee |
 | `MatchService` | Matches, registration, roster, the reserve setting |
 | `AuthService` | Identity: sign-in, sign-up, session stream, profile name |
 | `NotificationService` | The user's own notifications |
@@ -42,7 +41,7 @@ lib/
     auth/           identity
     communities/    the aggregate: list, create, details, settings
     members/        roster, roles, removal, transfer
-    invitations/    invite, accept, revoke
+    invitations/    the community invitation: link format, share screen, landing
     matches/        lifecycle, registration, roster management, app settings
     home/           shell and dashboard
     notifications/

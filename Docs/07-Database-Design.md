@@ -3,7 +3,7 @@
 **Database Design — Community-first (v3)**
 
 Supersedes the Groups-first v2 document. Reflects the schema as it stands
-after migration `0010`.
+after migration `0017`.
 
 ## Standards
 
@@ -17,9 +17,8 @@ after migration `0010`.
 
 ## Tables
 
-`users`, `communities`, `community_members`, `invitations`,
-`community_invite_links`, `matches`, `match_registrations`, `notifications`,
-`app_settings`.
+`users`, `communities`, `community_members`, `matches`,
+`match_registrations`, `notifications`, `app_settings`.
 
 ## Key constraints
 
@@ -28,18 +27,25 @@ after migration `0010`.
 - One registration per person per match, and `registration_order` unique per
   match.
 - `matches.status` in (`open`, `full`, `completed`) — DD-03.
+- `matches.title` is NOT NULL, 2 to 60 characters: every match has a name.
+- `communities.join_policy` in (`OPEN`, `CODE_REQUIRED`), default `OPEN`.
+  `join_community` joins an OPEN community and raises `JOIN_CODE_REQUIRED`
+  otherwise; `join_community_by_code` accepts the code under either policy,
+  which is why an invitation link never has to care. The
+  `communities_select_visible` policy no longer asks about membership: every
+  active community is visible.
+- `communities.join_code` is the single invitation identifier, 12 characters
+  from a 31-symbol alphabet, unique, and 6 to 32 characters by constraint.
+  `regenerate_join_code` (owner and admin) issues a new one in a single
+  statement: that is how a leaked invitation is invalidated, since replacing
+  the code is the only thing there is to revoke. Membership, matches and
+  registrations are untouched — the code governs joining, not having joined.
 - `starting_players` between 2 and 30; `max_registration` between 2 and 60 and
   never below `starting_players`.
 - `matches.end_at > matches.start_at`.
-- At most one pending invitation per person per community (partial unique
   index), and an invitation can only offer `admin` or `player`.
 - `notifications.match_id` uses **ON DELETE SET NULL**, so a "match deleted"
   notice survives the match it refers to (DD-08).
-- `community_invite_links.role` is checked to be `player`: a link has no named
-  recipient, so it can never confer more (DD-10).
-- `community_invite_links.kind` in (`community`, `match`), with a check that a
-  `community` link carries no `match_id`. Two partial unique indexes keep at
-  most one active link per community and per match.
 
 ## Authorization
 
@@ -66,11 +72,6 @@ v1.2, section 4.2.
   next touches the row — there is no scheduler (DD-05).
 - `communities.owner_id` mirrors the owner membership row and is updated inside
   `transfer_ownership` (PD-15).
-- An invite link's usability is derived rather than stored: `invite_link_state`
-  reads `is_active`, `kind` and the match's `start_at` and returns one of
-  `valid` / `revoked` / `expired` / `match_deleted` / `not_found`. Preview and
-  redemption share it, so the landing screen cannot promise what redemption
-  would refuse (DD-10).
 
 ## Indexes
 
@@ -81,21 +82,59 @@ Primary keys, the membership unique index (which also serves role resolution),
 `match_registrations(user_id)`, `notifications(user_id, created_at desc)`,
 `invitations(invitee_id, status)`.
 
+## System Admin
+
+`system_admins(user_id)` is a role that is not a community role. It appears in
+no `community_members` row, `has_community_role` knows nothing about it, and it
+grants nothing inside any community. It exists so support can remove a user, a
+community or a match.
+
+Membership is granted by hand in SQL. There is no RPC and no screen for it: the
+app must not be able to create its own administrators. The table has RLS on and
+**no policies at all**, so not even an administrator can read the roster from a
+client — `is_system_admin()` answers only about the caller.
+
+Six functions are gated on it: `admin_list_users`, `admin_list_communities`,
+`admin_list_matches`, `admin_delete_user`, `admin_delete_community`,
+`admin_delete_match`. Each raises `NOT_AUTHORIZED` first thing.
+
+Deletion reuses the cascades rather than restating them. `purge_community`,
+`purge_match` and `purge_membership` hold the bodies `delete_community`,
+`delete_match` and `remove_member` already had; those keep their authorization
+checks and delegate. One cascade, two callers, so the admin path cannot drift
+from the member path. The purge helpers are revoked from every client role.
+
+`admin_delete_user` removes the account and everything that would outlive it:
+communities it owns go whole (a community with no owner has nobody who can
+manage it), memberships elsewhere go through `purge_membership` so reserves are
+promoted the way they are for any other departure, matches it created in other
+people's communities are deleted because `created_by` does not cascade, then its
+notifications, registrations, profile and finally the `auth.users` row. It
+refuses to delete the caller, and refuses to delete a System Admin — that
+account is managed outside the app.
+
 ## The one unauthenticated entry point
 
-`preview_invite_link` is the only function granted to `anon`. It exists because
-an invitation has to be readable by someone who has not installed the app yet.
-It is `SECURITY DEFINER` and returns a fixed set of columns — the community
-name, the match's public face, seat counts — and never the row, the join code,
-the roster or who created the link. A revoked or unknown token returns its state
-and nothing else. Everything else about links (`create_invite_link`,
-`revoke_invite_link`, `redeem_invite_link`, and the `invite_link_state` helper)
-is denied to `anon`, and the table itself is readable only by community admins.
+`preview_community_invite` is the only function granted to `anon`. It exists
+because an invitation has to be readable by someone who has not installed the
+app yet. It is `SECURITY DEFINER` and returns four columns — a state, the
+community's id and name, and whether the caller is already a member — and never
+the join code itself, the roster, the matches or the owner. An unknown code
+returns `not_found` and nothing else.
 
 ## Migrations
 
 `0001`–`0006` built the Groups-first MVP. `0007` renamed the aggregate to
 Community, `0008` moved authorization onto `community_members.role` and added
 invitations, `0009` added ownership transfer, member removal and community
-deletion, `0010` added shareable invite links. `supabase/setup_all.sql` is a
-generated concatenation of all ten, in order.
+deletion, `0010` added shareable invite links. `0011`–`0014` are the
+Community-first simplification: a required match title, the removal of both
+invitation systems in favour of the join code, the title guard in
+`update_match`, and the `delete_community` fix that followed from it. `0015`
+added join-code regeneration, `0016` replaced `is_private` with
+`join_policy`, and `0017` added the System Admin role.
+`supabase/setup_all.sql` is a generated concatenation of all seventeen, in order.
+
+The migration sequence keeps the objects it later drops: it records the project's
+history rather than its end state. Reading `0008` and `0012` together is how a
+future reader learns why the invitation tables existed and why they do not now.

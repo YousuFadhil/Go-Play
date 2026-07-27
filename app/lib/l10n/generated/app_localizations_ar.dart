@@ -134,13 +134,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get communityDescriptionLabel => 'الوصف (اختياري)';
 
   @override
-  String get privateCommunityLabel => 'مجتمع خاص';
-
-  @override
-  String get privateCommunityHelp =>
-      'المجتمعات الخاصة لا يمكن الانضمام إليها إلا برمز الانضمام.';
-
-  @override
   String get joinCodeLabel => 'رمز الانضمام';
 
   @override
@@ -335,7 +328,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get manageReserveTitle => 'إدارة قائمة الاحتياط';
 
   @override
-  String get matchTitleLabel => 'عنوان المباراة (اختياري)';
+  String get matchTitleLabel => 'عنوان المباراة';
 
   @override
   String get matchDescriptionLabel => 'الوصف';
@@ -428,18 +421,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get manageMembersTitle => 'إدارة الأعضاء';
 
   @override
-  String get myInvitationsTitle => 'دعواتي';
-
-  @override
-  String get pendingInvitationsTitle => 'الدعوات المعلقة';
-
-  @override
-  String get inviteMemberTitle => 'دعوة لاعب';
-
-  @override
-  String get inviteButton => 'دعوة';
-
-  @override
   String get searchPlayersLabel => 'البحث بالاسم';
 
   @override
@@ -455,21 +436,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get invitationSent => 'تم إرسال الدعوة.';
 
   @override
-  String get invitationsEmpty => 'لا توجد دعوات معلقة.';
-
-  @override
   String get myInvitationsEmpty => 'لا توجد دعوات.';
-
-  @override
-  String invitationFrom(String community) {
-    return 'دعوة للانضمام إلى $community';
-  }
-
-  @override
-  String get acceptInvitationButton => 'قبول';
-
-  @override
-  String get revokeInvitationButton => 'إلغاء';
 
   @override
   String get invitationAccepted => 'تم انضمامك للمجتمع.';
@@ -560,18 +527,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errMemberNotFound => 'هذا الشخص ليس عضواً في هذا المجتمع.';
 
   @override
-  String get errInvitationExists => 'توجد دعوة معلقة لهذا اللاعب بالفعل.';
-
-  @override
-  String get errInvitationNotFound => 'هذه الدعوة لم تعد موجودة.';
-
-  @override
-  String get errInvitationNotPending => 'هذه الدعوة استُخدمت مسبقاً.';
-
-  @override
-  String get errInvitationExpired => 'انتهت صلاحية هذه الدعوة.';
-
-  @override
   String get errInvalidRole => 'لا يمكن تعيين هذه الصلاحية.';
 
   @override
@@ -585,65 +540,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get inviteNotFound => 'لم نعثر على هذه الدعوة. قد يكون الرابط ناقصاً.';
 
   @override
-  String get inviteRevoked => 'أُلغيت هذه الدعوة من قِبل أحد المنظمين.';
-
-  @override
-  String get inviteExpired => 'انتهت هذه الدعوة ببدء المباراة.';
-
-  @override
-  String get inviteMatchDeleted => 'حُذفت المباراة التي تشير إليها هذه الدعوة.';
-
-  @override
-  String get inviteJoinAndRegister => 'انضم وسجّل في المباراة';
-
-  @override
   String get inviteJoinCommunity => 'انضم إلى المجتمع';
 
   @override
   String get inviteSignInFirst => 'سجّل الدخول أو أنشئ حساباً للانضمام.';
 
   @override
-  String inviteSeatsRemaining(int count) {
-    return 'المقاعد المتبقية: $count';
-  }
-
-  @override
-  String get inviteWouldBeReserve =>
-      'المقاعد الأساسية مكتملة. ستنضم إلى قائمة الاحتياط.';
-
-  @override
   String get inviteAlreadyMemberNote => 'أنت عضو في هذا المجتمع بالفعل.';
 
   @override
-  String get inviteAlreadyRegisteredNote => 'أنت مسجّل في هذه المباراة بالفعل.';
-
-  @override
-  String get inviteJoinedConfirmed => 'انضممت، ومقعدك مؤكد.';
-
-  @override
-  String get inviteJoinedReserve => 'انضممت، وأنت في قائمة الاحتياط.';
-
-  @override
-  String get inviteJoinedCommunityOnly => 'انضممت إلى المجتمع.';
-
-  @override
-  String get inviteJoinedButNotRegistered =>
-      'انضممت إلى المجتمع، لكن تعذّر تسجيلك في المباراة.';
-
-  @override
-  String get inviteOpenAction => 'فتح دعوة';
-
-  @override
-  String get invitePasteHint => 'الصق رابط الدعوة';
-
-  @override
-  String get inviteInvalidInput => 'هذا ليس رابط دعوة.';
-
-  @override
   String get shareInvitation => 'مشاركة دعوة';
-
-  @override
-  String get shareMatchInvitation => 'مشاركة دعوة المباراة';
 
   @override
   String get inviteLinkCopied => 'نُسخت الدعوة. الصقها حيث تريد مشاركتها.';
@@ -654,58 +560,117 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String inviteShareMatchBody(String community, String match, String link) {
-    return 'انضم إلى $community على Go Play وسجّل في $match:\n$link';
-  }
-
-  @override
   String get errNotCommunityMember => 'أنت لست عضواً في هذا المجتمع.';
-
-  @override
-  String get inviteLinksTitle => 'روابط الدعوة';
-
-  @override
-  String get inviteLinksEmpty =>
-      'لا توجد روابط بعد. شارك رابطاً من المجتمع أو من مباراة.';
-
-  @override
-  String get inviteLinkCommunityLabel => 'دعوة للمجتمع';
-
-  @override
-  String inviteLinkCreatedOn(String date) {
-    return 'شورك في $date';
-  }
-
-  @override
-  String get inviteLinkExpiredLabel => 'انتهى ببدء المباراة';
-
-  @override
-  String get inviteLinkMatchDeletedLabel => 'حُذفت المباراة';
 
   @override
   String get copyLinkButton => 'نسخ';
 
   @override
-  String get revokeLinkButton => 'إلغاء';
-
-  @override
-  String get revokeLinkConfirmTitle => 'إلغاء هذه الدعوة؟';
-
-  @override
-  String get revokeLinkConfirmBody =>
-      'لن يتمكن أي شخص يملك هذا الرابط من فتحه بعد الآن. من انضم فعلاً يبقى عضواً.';
-
-  @override
-  String get inviteLinkRevokedMessage => 'أُلغيت الدعوة.';
-
-  @override
-  String get inviteLinkMatchLabel => 'دعوة لمباراة';
-
-  @override
-  String get visibilitySaved => 'حُدِّث الظهور.';
-
-  @override
   String matchCapacityLabel(int count) {
     return '👥 $count لاعبًا';
   }
+
+  @override
+  String get matchTitleRequired => 'عنوان المباراة مطلوب';
+
+  @override
+  String get communityInvitationTitle => 'الدعوة';
+
+  @override
+  String get communityInvitationHelp =>
+      'كل من يملك هذا الرابط أو الرمز يمكنه الانضمام إلى المجتمع. وكلاهما يحمل الرمز نفسه.';
+
+  @override
+  String get inviteLinkLabel => 'رابط الدعوة';
+
+  @override
+  String get copyJoinCodeButton => 'نسخ الرمز';
+
+  @override
+  String get inviteOpenCommunity => 'فتح المجتمع';
+
+  @override
+  String get inviteOpenAction => 'فتح دعوة';
+
+  @override
+  String get invitePasteHint => 'الصق رابط الدعوة أو الرمز';
+
+  @override
+  String get inviteInvalidInput => 'هذا ليس رابط دعوة ولا رمزاً.';
+
+  @override
+  String get regenerateJoinCodeButton => 'تجديد الرمز';
+
+  @override
+  String get regenerateJoinCodeConfirmTitle => 'تجديد رمز الانضمام؟';
+
+  @override
+  String get regenerateJoinCodeConfirmBody =>
+      'سيتوقف الرابط والرمز الحاليان فوراً، فلن يتمكن من يملكهما من الانضمام. من هم أعضاء فعلاً يبقون أعضاء.';
+
+  @override
+  String get joinCodeRegenerated => 'صدر رمز جديد. القديم لم يعد يعمل.';
+
+  @override
+  String get joinPolicyLabel => 'الانضمام';
+
+  @override
+  String get joinPolicyOpen => 'انضمام مفتوح';
+
+  @override
+  String get joinPolicyOpenHelp => 'يمكن لأي شخص الانضمام من قائمة المجتمعات.';
+
+  @override
+  String get joinPolicyCodeRequired => 'انضمام برمز';
+
+  @override
+  String get joinPolicyCodeRequiredHelp =>
+      'يحتاج الناس إلى رمز الانضمام، أو رابط دعوة يحمله.';
+
+  @override
+  String get joinPolicySaved => 'حُدّثت طريقة الانضمام.';
+
+  @override
+  String get joinCodeRequiredPrompt => 'هذا المجتمع يحتاج رمز الانضمام.';
+
+  @override
+  String get adminTitle => 'الإدارة';
+
+  @override
+  String get adminUsersTab => 'المستخدمون';
+
+  @override
+  String get adminCommunitiesTab => 'المجتمعات';
+
+  @override
+  String get adminMatchesTab => 'المباريات';
+
+  @override
+  String get adminSearchLabel => 'بحث';
+
+  @override
+  String get adminEmpty => 'لا توجد نتائج.';
+
+  @override
+  String get adminDeleteButton => 'حذف';
+
+  @override
+  String get adminDeleted => 'حُذف.';
+
+  @override
+  String adminDeleteConfirmTitle(String name) {
+    return 'حذف $name؟';
+  }
+
+  @override
+  String get adminDeleteUserConfirmBody =>
+      'يُحذف الحساب وكل ما يتبعه: المجتمعات التي يملكها، والمباريات التي أنشأها، والعضويات والتسجيلات. لا يمكن التراجع.';
+
+  @override
+  String get adminDeleteCommunityConfirmBody =>
+      'يُحذف المجتمع وكل ما تحته: المباريات والعضويات والتسجيلات. لا يمكن التراجع.';
+
+  @override
+  String get adminDeleteMatchConfirmBody =>
+      'تُحذف المباراة وتسجيلاتها، ويُبلَّغ المسجّلون. لا يمكن التراجع.';
 }

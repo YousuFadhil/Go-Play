@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import 'community_models.dart';
 import 'community_repository.dart';
 
 class CreateCommunityScreen extends StatefulWidget {
@@ -15,9 +16,9 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _communityRepository = CommunityRepository();
-  // Private by default: a new community should not be discoverable
-  // before its organizer has decided that is what they want.
-  bool _isPrivate = true;
+  // Open by default: a community is always visible, and the organizer opts
+  // into requiring the code rather than out of it.
+  JoinPolicy _joinPolicy = JoinPolicy.open;
   bool _isLoading = false;
 
   @override
@@ -35,7 +36,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
       await _communityRepository.createCommunity(
         name: _nameController.text,
         description: _descriptionController.text,
-        isPrivate: _isPrivate,
+        joinPolicy: _joinPolicy,
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -81,12 +82,20 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                   maxLength: 200,
                 ),
                 const SizedBox(height: 8),
+                const SizedBox(height: 8),
+                Text(l10n.joinPolicyLabel,
+                    style: Theme.of(context).textTheme.labelLarge),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(l10n.privateCommunityLabel),
-                  subtitle: Text(l10n.privateCommunityHelp),
-                  value: _isPrivate,
-                  onChanged: (value) => setState(() => _isPrivate = value),
+                  title: Text(_joinPolicy == JoinPolicy.codeRequired
+                      ? l10n.joinPolicyCodeRequired
+                      : l10n.joinPolicyOpen),
+                  subtitle: Text(_joinPolicy == JoinPolicy.codeRequired
+                      ? l10n.joinPolicyCodeRequiredHelp
+                      : l10n.joinPolicyOpenHelp),
+                  value: _joinPolicy == JoinPolicy.codeRequired,
+                  onChanged: (value) => setState(() => _joinPolicy =
+                      value ? JoinPolicy.codeRequired : JoinPolicy.open),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(

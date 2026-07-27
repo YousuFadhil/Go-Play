@@ -4,10 +4,7 @@ import '../../core/l10n.dart';
 import '../communities/community_models.dart';
 import '../auth/auth_service.dart';
 import '../communities/community_errors.dart';
-import '../invitations/invitation_repository.dart';
 import 'member_repository.dart';
-import '../invitations/invitation_models.dart';
-import '../invitations/invite_member_screen.dart';
 
 /// Roster of a community with the actions the viewer's role allows.
 /// Every action is re-checked on the server; this screen only decides what to
@@ -26,11 +23,10 @@ class MemberManagementScreen extends StatefulWidget {
   State<MemberManagementScreen> createState() => _MemberManagementScreenState();
 }
 
-typedef _Data = (List<CommunityMember>, List<Invitation>, CommunityRole?);
+typedef _Data = (List<CommunityMember>, CommunityRole?);
 
 class _MemberManagementScreenState extends State<MemberManagementScreen> {
   final _members = MemberRepository();
-  final _invitations = InvitationRepository();
   final _authService = AuthService();
   late Future<_Data> _future;
   bool _busy = false;
@@ -44,11 +40,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
   Future<_Data> _load() async {
     final role = await _members.fetchMyRole(widget.communityId);
     final members = await _members.fetchMembers(widget.communityId);
-    // Only organizers can see the invitation list.
-    final invitations = (role?.atLeast(CommunityRole.admin) ?? false)
-        ? await _invitations.fetchCommunityInvitations(widget.communityId)
-        : <Invitation>[];
-    return (members, invitations, role);
+    return (members, role);
   }
 
   void _refresh() => setState(() => _future = _load());
@@ -68,10 +60,6 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
       CommunityActionError.alreadyOwner => l10n.errAlreadyOwner,
       CommunityActionError.memberNotFound => l10n.errMemberNotFound,
       CommunityActionError.alreadyMember => l10n.alreadyMemberOfCommunity,
-      CommunityActionError.invitationExists => l10n.errInvitationExists,
-      CommunityActionError.invitationNotFound => l10n.errInvitationNotFound,
-      CommunityActionError.invitationNotPending => l10n.errInvitationNotPending,
-      CommunityActionError.invitationExpired => l10n.errInvitationExpired,
       CommunityActionError.invalidRole => l10n.errInvalidRole,
       // The invite-link and match codes cannot come from these RPCs.
       _ => l10n.genericError,
@@ -126,18 +114,6 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     };
   }
 
-  Future<void> _openInvite(CommunityRole myRole) async {
-    final sent = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => InviteMemberScreen(
-          communityId: widget.communityId,
-          myRole: myRole,
-        ),
-      ),
-    );
-    if (sent == true) _refresh();
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -165,7 +141,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
             );
           }
 
-          final (members, invitations, myRole) = snapshot.data!;
+          final (members, myRole) = snapshot.data!;
           final isOwner = myRole == CommunityRole.owner;
           final isOrganizer = myRole?.atLeast(CommunityRole.admin) ?? false;
 
@@ -179,12 +155,6 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                     l10n.permissionOrganizersOnly,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                ),
-              if (isOrganizer)
-                ListTile(
-                  leading: const Icon(Icons.person_add),
-                  title: Text(l10n.inviteMemberTitle),
-                  onTap: _busy ? null : () => _openInvite(myRole!),
                 ),
               const Divider(),
               for (final member in members)
@@ -200,36 +170,6 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                     myId: myId,
                   ),
                 ),
-              if (isOrganizer) ...[
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Text(l10n.pendingInvitationsTitle,
-                      style: Theme.of(context).textTheme.titleMedium),
-                ),
-                if (invitations.isEmpty)
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Text(l10n.invitationsEmpty),
-                  ),
-                for (final invitation in invitations)
-                  ListTile(
-                    leading: const Icon(Icons.mail_outline),
-                    title: Text(invitation.inviteeName ?? '—'),
-                    subtitle: Text(_roleLabel(l10n, invitation.role)),
-                    trailing: TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _run(
-                                () => _invitations
-                                    .revokeInvitation(invitation.id),
-                                l10n.invitationRevoked,
-                              ),
-                      child: Text(l10n.revokeInvitationButton),
-                    ),
-                  ),
-              ],
             ],
           );
         },

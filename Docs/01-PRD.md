@@ -16,7 +16,7 @@ An MVP for running amateur football communities and their matches.
 
 - Register and log in (email + password)
 - Create and join communities
-- Invite players, and manage members and their roles
+- Invite players to the community with a link or join code, and manage members and their roles
 - Create matches
 - Match registration with a reserve list and automatic promotion
 - In-app notifications
@@ -31,7 +31,7 @@ covers player.
 | View the community, join and withdraw from matches | yes | yes | yes |
 | Leave the community | yes | yes | only after transferring ownership |
 | Create, edit and delete matches; manage a roster | no | yes | yes |
-| Invite | no | as player | as player or admin |
+| Share the community invitation | no | yes | yes |
 | Remove a member | no | players only | admins and players |
 | Change roles, edit settings, transfer ownership, delete the community | no | no | yes |
 

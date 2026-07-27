@@ -41,8 +41,6 @@
   "communityNameLabel": "Community name",
   "communityNameRequired": "Community name is required",
   "communityDescriptionLabel": "Description (optional)",
-  "privateCommunityLabel": "Private community",
-  "privateCommunityHelp": "Private communities can only be joined with the join code.",
   "joinCodeLabel": "Join code",
   "joinCodeRequired": "Join code is required",
   "communityNotFound": "No community found with this code.",
@@ -122,7 +120,7 @@
   "editMatchTitle": "Edit match",
   "managePlayersTitle": "Manage players",
   "manageReserveTitle": "Manage reserve list",
-  "matchTitleLabel": "Match title (optional)",
+  "matchTitleLabel": "Match title",
   "matchDescriptionLabel": "Description",
   "reducePlayersNote": "If you lower the starting-player count, the latest players move to the reserve list and are notified.",
   "saveButton": "Save",
@@ -157,27 +155,12 @@
   "roleAdmin": "Admin",
   "rolePlayer": "Player",
   "manageMembersTitle": "Manage members",
-  "myInvitationsTitle": "My invitations",
-  "pendingInvitationsTitle": "Pending invitations",
-  "inviteMemberTitle": "Invite a player",
-  "inviteButton": "Invite",
   "searchPlayersLabel": "Search by name",
   "searchPlayersHint": "Type at least two letters",
   "searchNoResults": "No players found.",
   "inviteAsRoleLabel": "Invite as",
   "invitationSent": "Invitation sent.",
-  "invitationsEmpty": "No pending invitations.",
   "myInvitationsEmpty": "You have no invitations.",
-  "invitationFrom": "Invitation to join {community}",
-  "@invitationFrom": {
-    "placeholders": {
-      "community": {
-        "type": "String"
-      }
-    }
-  },
-  "acceptInvitationButton": "Accept",
-  "revokeInvitationButton": "Revoke",
   "invitationAccepted": "You joined the community.",
   "invitationRevoked": "Invitation revoked.",
   "promoteToAdminButton": "Make admin",
@@ -218,40 +201,14 @@
   "errCannotRemoveOwner": "The owner cannot be removed. Transfer ownership first.",
   "errAlreadyOwner": "That member is already the owner.",
   "errMemberNotFound": "That person is not a member of this community.",
-  "errInvitationExists": "There is already a pending invitation for this player.",
-  "errInvitationNotFound": "This invitation no longer exists.",
-  "errInvitationNotPending": "This invitation has already been used.",
-  "errInvitationExpired": "This invitation has expired.",
   "errInvalidRole": "That role cannot be assigned.",
   "inviteTitle": "Invitation",
   "inviteLoadError": "We could not open this invitation. Check your connection and try again.",
   "inviteNotFound": "We could not find this invitation. The link may be incomplete.",
-  "inviteRevoked": "This invitation was revoked by an organizer.",
-  "inviteExpired": "This invitation ended when the match started.",
-  "inviteMatchDeleted": "The match this invitation pointed to was deleted.",
-  "inviteJoinAndRegister": "Join Community and Register",
   "inviteJoinCommunity": "Join Community",
   "inviteSignInFirst": "Sign in or create an account to join.",
-  "inviteSeatsRemaining": "{count} places left",
-  "@inviteSeatsRemaining": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "inviteWouldBeReserve": "The starting places are taken. You will join the reserve list.",
   "inviteAlreadyMemberNote": "You are already a member of this community.",
-  "inviteAlreadyRegisteredNote": "You are already registered for this match.",
-  "inviteJoinedConfirmed": "You joined, and your place is confirmed.",
-  "inviteJoinedReserve": "You joined, and you are on the reserve list.",
-  "inviteJoinedCommunityOnly": "You joined the community.",
-  "inviteJoinedButNotRegistered": "You joined the community, but could not be registered for the match.",
-  "inviteOpenAction": "Open an invitation",
-  "invitePasteHint": "Paste the invitation link",
-  "inviteInvalidInput": "That is not an invitation link.",
   "shareInvitation": "Share invitation",
-  "shareMatchInvitation": "Share match invitation",
   "inviteLinkCopied": "Invitation copied. Paste it wherever you share it.",
   "inviteShareCommunityBody": "Join {community} on Go Play:\n{link}",
   "@inviteShareCommunityBody": {
@@ -264,46 +221,52 @@
       }
     }
   },
-  "inviteShareMatchBody": "Join {community} on Go Play and register for {match}:\n{link}",
-  "@inviteShareMatchBody": {
-    "placeholders": {
-      "community": {
-        "type": "String"
-      },
-      "match": {
-        "type": "String"
-      },
-      "link": {
-        "type": "String"
-      }
-    }
-  },
   "errNotCommunityMember": "You are not a member of this community.",
-  "inviteLinksTitle": "Invitation links",
-  "inviteLinksEmpty": "No links yet. Share one from the community or from a match.",
-  "inviteLinkCommunityLabel": "Community invitation",
-  "inviteLinkCreatedOn": "Shared {date}",
-  "@inviteLinkCreatedOn": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "inviteLinkExpiredLabel": "Ended when the match started",
-  "inviteLinkMatchDeletedLabel": "The match was deleted",
   "copyLinkButton": "Copy",
-  "revokeLinkButton": "Revoke",
-  "revokeLinkConfirmTitle": "Revoke this invitation?",
-  "revokeLinkConfirmBody": "Anyone still holding this link will no longer be able to open it. People who already joined stay members.",
-  "inviteLinkRevokedMessage": "Invitation revoked.",
-  "inviteLinkMatchLabel": "Match invitation",
-  "visibilitySaved": "Visibility updated.",
   "matchCapacityLabel": "👥 {count} players",
   "@matchCapacityLabel": {
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "matchTitleRequired": "Match title is required",
+  "communityInvitationTitle": "Invitation",
+  "communityInvitationHelp": "Anyone with this link or code can join the community. Both carry the same code.",
+  "inviteLinkLabel": "Invitation link",
+  "copyJoinCodeButton": "Copy code",
+  "inviteOpenCommunity": "Open community",
+  "inviteOpenAction": "Open an invitation",
+  "invitePasteHint": "Paste the invitation link or code",
+  "inviteInvalidInput": "That is not an invitation link or code.",
+  "regenerateJoinCodeButton": "Regenerate code",
+  "regenerateJoinCodeConfirmTitle": "Regenerate the join code?",
+  "regenerateJoinCodeConfirmBody": "The current link and code stop working immediately, so anyone still holding them cannot join. People already in the community stay members.",
+  "joinCodeRegenerated": "New code issued. The old one no longer works.",
+  "joinPolicyLabel": "Joining",
+  "joinPolicyOpen": "Open join",
+  "joinPolicyOpenHelp": "Anyone can join from the community list.",
+  "joinPolicyCodeRequired": "Join by code",
+  "joinPolicyCodeRequiredHelp": "People need the join code, or an invitation link that carries it.",
+  "joinPolicySaved": "Join setting updated.",
+  "joinCodeRequiredPrompt": "This community needs its join code.",
+  "adminTitle": "Administration",
+  "adminUsersTab": "Users",
+  "adminCommunitiesTab": "Communities",
+  "adminMatchesTab": "Matches",
+  "adminSearchLabel": "Search",
+  "adminEmpty": "Nothing found.",
+  "adminDeleteButton": "Delete",
+  "adminDeleted": "Deleted.",
+  "adminDeleteConfirmTitle": "Delete {name}?",
+  "adminDeleteUserConfirmBody": "The account and everything belonging to it are removed: communities they own, matches they created, memberships and registrations. This cannot be undone.",
+  "adminDeleteCommunityConfirmBody": "The community and everything under it are removed: matches, memberships and registrations. This cannot be undone.",
+  "adminDeleteMatchConfirmBody": "The match and its registrations are removed, and registered players are notified. This cannot be undone.",
+  "@adminDeleteConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
       }
     }
   }

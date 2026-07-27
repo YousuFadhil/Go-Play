@@ -1,4 +1,4 @@
--- Go Play: combined setup script (migrations 0001-0010, in order).
+-- Go Play: combined setup script (migrations 0001-0017, in order).
 -- Generated convenience copy - the individual files in migrations/ are the source of truth.
 
 -- ============ migrations/0001_users.sql ============
@@ -2461,3 +2461,808 @@ grant execute on function public.redeem_invite_link(text) to authenticated;
 -- The one deliberately unauthenticated entry point in the system.
 grant execute on function public.preview_invite_link(text)
   to anon, authenticated;
+
+-- ============ migrations/0011_match_title_required.sql ============
+-- Community-first simplification, part 1: every match has a name.
+--
+-- Rows with no title displayed their location, because Match.displayName fell
+-- back to it. Copying the location into the title is therefore the backfill
+-- that changes nothing a user can see. Approved as a one-off for existing rows;
+-- new matches are never given a generated title, the organizer types one.
+
+-- 1) Backfill ------------------------------------------------------------------
+update public.matches
+set title = left(trim(location), 60)
+where title is null or trim(title) = '';
+
+-- The title check requires at least two characters. Nothing in production has a
+-- location that short, but an unusable location should not block the migration.
+update public.matches
+set title = 'Match'
+where char_length(trim(title)) < 2;
+
+-- 2) Require it from here on ---------------------------------------------------
+alter table public.matches
+  alter column title set not null;
+
+alter table public.matches
+  drop constraint if exists matches_title_check;
+alter table public.matches
+  add constraint matches_title_check
+  check (char_length(trim(title)) between 2 and 60);
+
+-- update_match still accepts a null title; with the column NOT NULL the update
+-- would fail on the constraint. 0013 gives it a clear error code instead.
+
+-- ============ migrations/0012_community_first_simplification.sql ============
+-- Community-first simplification: one way into a community.
+--
+-- Before this migration there were three: a directed invitation naming a user,
+-- a shareable link carrying its own 32-character token, and the community's
+-- 6-character join code. They overlapped, and the link and the code were
+-- separate identifiers for the same act of joining.
+--
+-- After it there is one: the community's join_code. It is the token. The
+-- invitation link carries it, the join dialog accepts it, and
+-- join_community_by_code redeems it — the function that already existed.
+--
+-- Removed here: the invitations table and its three RPCs, and the
+-- community_invite_links table with its four RPCs and helper. Nothing else
+-- referenced them; match registration was always self-service.
+
+-- 1) Directed invitations ------------------------------------------------------
+drop function if exists public.create_invitation(uuid, uuid, text);
+drop function if exists public.revoke_invitation(uuid);
+drop function if exists public.accept_invitation(uuid);
+drop table if exists public.invitations cascade;
+
+-- 2) Shareable invite links ----------------------------------------------------
+-- Superseded by join_code. Match-attached links go with them: an organizer no
+-- longer registers anyone, players register themselves.
+drop function if exists public.create_invite_link(uuid, uuid);
+drop function if exists public.revoke_invite_link(uuid);
+drop function if exists public.preview_invite_link(text);
+drop function if exists public.redeem_invite_link(text);
+drop function if exists public.invite_link_state(public.community_invite_links);
+drop table if exists public.community_invite_links cascade;
+
+-- 3) The join code becomes the token -------------------------------------------
+-- Twelve characters from a 31-symbol alphabet (Crockford-style base32 without
+-- I, L, O, 0 and 1, which people mistype): about 59 bits. The old six
+-- characters were guessable by brute force, which matters now that the code is
+-- what an unauthenticated preview accepts.
+create or replace function public.generate_join_code()
+returns text
+language plpgsql
+volatile
+set search_path = public
+as $$
+declare
+  v_alphabet constant text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  v_code text;
+begin
+  loop
+    select string_agg(
+             substr(v_alphabet, 1 + floor(random() * length(v_alphabet))::int, 1),
+             '')
+      into v_code
+      from generate_series(1, 12);
+    exit when not exists (select 1 from communities where join_code = v_code);
+  end loop;
+  return v_code;
+end;
+$$;
+
+alter table public.communities
+  alter column join_code set default public.generate_join_code();
+
+-- Existing codes are six characters, which is the weakness this migration
+-- closes, so they are reissued rather than left as a mixed-strength estate.
+-- BREAKING: any six-character code already shared stops working.
+update public.communities set join_code = public.generate_join_code();
+
+alter table public.communities
+  drop constraint if exists communities_join_code_length_check;
+alter table public.communities
+  add constraint communities_join_code_length_check
+  check (char_length(join_code) between 6 and 32);
+
+-- 4) Preview before signing in -------------------------------------------------
+-- The landing screen has to show what a link offers to someone who has not
+-- installed the app yet, let alone signed in. Deliberately narrow: the
+-- community's name and whether the caller is already in it. Never the join
+-- code itself, the roster, the matches, or who owns it.
+create or replace function public.preview_community_invite(p_code text)
+returns table (
+  state text,
+  community_id uuid,
+  community_name text,
+  is_member boolean
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+declare
+  v_community communities%rowtype;
+begin
+  select * into v_community
+  from communities c
+  where c.join_code = upper(trim(p_code)) and c.is_active;
+
+  if not found then
+    return query select 'not_found'::text, null::uuid, null::text, false;
+    return;
+  end if;
+
+  return query select
+    'valid'::text,
+    v_community.id,
+    v_community.name,
+    auth.uid() is not null and is_community_member(v_community.id, auth.uid());
+end;
+$$;
+
+revoke execute on function public.generate_join_code() from anon, authenticated, public;
+revoke execute on function public.preview_community_invite(text) from public;
+grant execute on function public.preview_community_invite(text)
+  to anon, authenticated;
+
+-- ============ migrations/0013_update_match_requires_title.sql ============
+-- A match cannot be edited into having no name.
+--
+-- 0011 made matches.title NOT NULL, but update_match still wrote null when
+-- handed a blank one, so an edit failed on the constraint with a Postgres
+-- message instead of a code the app can translate. Same rule, said clearly.
+--
+-- Only the title guard and the title assignment change; every other check in
+-- this function is untouched.
+
+create or replace function public.update_match(
+  p_match_id uuid,
+  p_title text,
+  p_location text,
+  p_start_at timestamptz,
+  p_end_at timestamptz,
+  p_starting_players int,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
+  if v_match.start_at <= now() then raise exception 'MATCH_LOCKED'; end if;
+  if p_title is null or char_length(trim(p_title)) < 2 then
+    raise exception 'INVALID_TITLE';
+  end if;
+  if p_end_at <= p_start_at then raise exception 'INVALID_TIME_RANGE'; end if;
+  if p_starting_players < 2 or p_starting_players > 30 then
+    raise exception 'INVALID_STARTING_PLAYERS';
+  end if;
+  select count(*) into v_total from match_registrations where match_id = p_match_id;
+  if p_starting_players + (select reserve_players from app_settings limit 1) < v_total then
+    raise exception 'MAX_BELOW_REGISTERED';
+  end if;
+  update matches set
+    title = trim(p_title),
+    location = trim(p_location),
+    start_at = p_start_at,
+    end_at = p_end_at,
+    starting_players = p_starting_players,
+    description = case when p_description is null or trim(p_description) = '' then null else trim(p_description) end
+  where id = p_match_id;
+  perform rebalance_roster(p_match_id);
+  perform recompute_match_status(p_match_id);
+  perform create_notification(mr.user_id, p_match_id, 'match_updated',
+      'تم تعديل تفاصيل المباراة.')
+  from match_registrations mr where mr.match_id = p_match_id;
+end;
+$$;
+
+-- ============ migrations/0014_delete_community_without_invitations.sql ============
+-- delete_community still deleted from the invitations table that 0012 dropped,
+-- so every call raised "relation does not exist" and no community could be
+-- deleted at all. Same function, one line shorter.
+--
+-- Found because the integration suite's teardown uses this RPC: communities
+-- leaked between tests and later registrations tripped OVERLAPPING_MATCH. The
+-- teardown swallows its own errors, which is why the symptom surfaced far from
+-- the cause.
+
+create or replace function public.delete_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  if not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform 1 from communities where id = p_community_id for update;
+  -- Notifications first: match_id is ON DELETE SET NULL, so they would survive
+  -- the matches and be orphaned rather than removed (DD-08).
+  delete from notifications
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from match_registrations
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from matches where community_id = p_community_id;
+  delete from community_members where community_id = p_community_id;
+  delete from communities where id = p_community_id;
+end;
+$$;
+
+-- ============ migrations/0015_regenerate_join_code.sql ============
+-- Regenerating the join code is how a leaked invitation is invalidated.
+--
+-- The code is the only invitation identifier (DD-12), so there is nothing else
+-- to revoke: issuing a new code retires the old one by replacing it. Membership,
+-- matches and registrations are untouched — the code controls who may *join*,
+-- not who already has.
+--
+-- One statement, so there is never a moment where the community has no code or
+-- two. The row lock is for the read-then-write inside generate_join_code, which
+-- checks the new value is unused before returning it.
+
+create or replace function public.regenerate_join_code(p_community_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_code text;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  -- Owner and admin both share invitations, so both can retire one.
+  if not has_community_role(p_community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+
+  perform 1 from communities where id = p_community_id for update;
+  if not found then
+    raise exception 'COMMUNITY_NOT_FOUND';
+  end if;
+
+  update communities
+  set join_code = generate_join_code()
+  where id = p_community_id
+  returning join_code into v_code;
+
+  return v_code;
+end;
+$$;
+
+revoke execute on function public.regenerate_join_code(uuid) from anon, public;
+grant execute on function public.regenerate_join_code(uuid) to authenticated;
+
+-- ============ migrations/0016_join_policy.sql ============
+-- Visibility and joining were the same switch; they are two questions.
+--
+-- `is_private` hid a community from discovery *and* forced the join code. From
+-- here a community is always visible, and the only setting is how someone is
+-- allowed to join:
+--
+--   OPEN           anyone who can see it can join it
+--   CODE_REQUIRED  joining needs the join code
+--
+-- The invitation link is unchanged and keeps working under both: it carries the
+-- join code, and join_community_by_code accepts it either way. That is the point
+-- of a code — it is the credential, not the policy.
+--
+-- This reverses DD-11 (private by default). Communities that were private become
+-- CODE_REQUIRED, which preserves how people join them but not their obscurity:
+-- their names and descriptions are now visible to every signed-in user. That is
+-- the approved intent of "do not hide communities from discovery", and it is the
+-- one user-visible consequence worth naming.
+
+-- 1) The setting ---------------------------------------------------------------
+alter table public.communities
+  add column if not exists join_policy text not null default 'OPEN';
+
+update public.communities
+set join_policy = case when is_private then 'CODE_REQUIRED' else 'OPEN' end;
+
+alter table public.communities
+  drop constraint if exists communities_join_policy_check;
+alter table public.communities
+  add constraint communities_join_policy_check
+  check (join_policy in ('OPEN', 'CODE_REQUIRED'));
+
+-- 2) Everything is visible -----------------------------------------------------
+-- The policy no longer asks whether the caller is a member: an inactive
+-- community is still hidden, and nothing else is.
+drop policy if exists "communities_select_visible" on public.communities;
+create policy "communities_select_visible"
+  on public.communities
+  for select
+  to authenticated
+  using (is_active);
+
+-- 3) is_private has no meaning left --------------------------------------------
+-- Dropped rather than left behind: a column that no policy reads and no screen
+-- writes is a trap for whoever reads this schema next.
+alter table public.communities drop column if exists is_private;
+
+-- 4) Joining -------------------------------------------------------------------
+-- OPEN only. CODE_REQUIRED keeps its name honest: the code is the way in, and
+-- this function refuses without it rather than quietly accepting.
+create or replace function public.join_community(p_community_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_policy text;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  select join_policy into v_policy
+  from communities
+  where id = p_community_id and is_active;
+  if not found then
+    raise exception 'COMMUNITY_NOT_FOUND';
+  end if;
+  if v_policy <> 'OPEN' then
+    raise exception 'JOIN_CODE_REQUIRED';
+  end if;
+  if is_community_member(p_community_id, auth.uid()) then
+    raise exception 'ALREADY_MEMBER';
+  end if;
+
+  insert into community_members (community_id, user_id, role)
+  values (p_community_id, auth.uid(), 'player');
+
+  return p_community_id;
+end;
+$$;
+
+revoke execute on function public.join_community(uuid) from anon, public;
+grant execute on function public.join_community(uuid) to authenticated;
+
+-- 5) Creating a community ------------------------------------------------------
+-- Same shape as before, one argument renamed. The old signature is dropped so
+-- there is no stale overload for a client to reach.
+drop function if exists public.create_community(text, text, boolean);
+
+create or replace function public.create_community(
+  p_name text,
+  p_description text,
+  p_join_policy text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if p_join_policy not in ('OPEN', 'CODE_REQUIRED') then
+    raise exception 'INVALID_JOIN_POLICY';
+  end if;
+
+  insert into communities (owner_id, name, description, join_policy)
+  values (auth.uid(), p_name, p_description, p_join_policy)
+  returning id into v_id;
+
+  insert into community_members (community_id, user_id, role)
+  values (v_id, auth.uid(), 'owner');
+
+  return v_id;
+end;
+$$;
+
+revoke execute on function public.create_community(text, text, text)
+  from anon, public;
+grant execute on function public.create_community(text, text, text)
+  to authenticated;
+
+-- 6) The invitation preview ----------------------------------------------------
+-- Unchanged behaviour; it never read is_private.
+
+-- ============ migrations/0017_system_admin.sql ============
+-- A minimal internal administration role.
+--
+-- System Admin is not a community role and never appears in community_members:
+-- has_community_role knows nothing about it, and it grants nothing inside any
+-- community. It exists to remove things — users, communities, matches — when
+-- support needs to, and that is all it can do.
+--
+-- Membership of this table is managed by hand in SQL. There is deliberately no
+-- RPC and no screen for granting or revoking it: the app must not be able to
+-- create its own administrators.
+--
+-- Deletion reuses the existing cascades rather than restating them. The three
+-- purge_* helpers below hold the bodies that delete_community, delete_match and
+-- remove_member already had; those functions keep their authorization checks and
+-- now delegate. One cascade, two callers, no chance of the admin path drifting
+-- from the member path.
+
+-- 1) The role ------------------------------------------------------------------
+create table if not exists public.system_admins (
+  user_id uuid primary key references public.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table public.system_admins enable row level security;
+-- No policies at all: the table is reachable only through the definer functions
+-- below. Not even an administrator can read it from the client.
+
+create or replace function public.is_system_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from system_admins where user_id = auth.uid()
+  );
+$$;
+
+revoke execute on function public.is_system_admin() from anon, public;
+grant execute on function public.is_system_admin() to authenticated;
+
+-- 2) Shared cascades -----------------------------------------------------------
+-- No authorization checks in here on purpose: each caller does its own. These
+-- are the bodies the public functions already ran.
+
+create or replace function public.purge_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform create_notification(mr.user_id, p_match_id, 'match_deleted',
+      'تم حذف المباراة.')
+  from match_registrations mr where mr.match_id = p_match_id;
+  delete from match_registrations where match_id = p_match_id;
+  delete from matches where id = p_match_id;
+end;
+$$;
+
+create or replace function public.purge_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform 1 from communities where id = p_community_id for update;
+  -- Notifications first: match_id is ON DELETE SET NULL, so they would outlive
+  -- their matches and be orphaned rather than removed (DD-08).
+  delete from notifications
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from match_registrations
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from matches where community_id = p_community_id;
+  delete from community_members where community_id = p_community_id;
+  delete from communities where id = p_community_id;
+end;
+$$;
+
+-- Withdrawing a member from one community's matches, promoting reserves as it
+-- goes. This is the part of remove_member that is a business rule rather than a
+-- permission check (DD-01, and the promotion rule that goes with it).
+create or replace function public.purge_membership(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+  v_promoted uuid;
+begin
+  for r in
+    select mr.id, mr.status, mr.match_id
+    from match_registrations mr
+    join matches m on m.id = mr.match_id
+    where m.community_id = p_community_id and mr.user_id = p_user_id
+  loop
+    perform 1 from matches where id = r.match_id for update;
+    delete from match_registrations where id = r.id;
+    if r.status = 'confirmed' then
+      update match_registrations set status = 'confirmed'
+      where id = (select id from match_registrations
+                  where match_id = r.match_id and status = 'reserve'
+                  order by registration_order limit 1)
+      returning user_id into v_promoted;
+      if v_promoted is not null then
+        perform create_notification(v_promoted, r.match_id, 'promoted',
+            'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+      end if;
+    end if;
+    perform recompute_match_status(r.match_id);
+  end loop;
+
+  delete from community_members
+  where community_id = p_community_id and user_id = p_user_id;
+end;
+$$;
+
+revoke execute on function public.purge_match(uuid) from anon, authenticated, public;
+revoke execute on function public.purge_community(uuid) from anon, authenticated, public;
+revoke execute on function public.purge_membership(uuid, uuid)
+  from anon, authenticated, public;
+
+-- 3) The existing functions now delegate ---------------------------------------
+create or replace function public.delete_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  if not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform purge_community(p_community_id);
+end;
+$$;
+
+create or replace function public.delete_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_match matches%rowtype;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform purge_match(p_match_id);
+end;
+$$;
+
+create or replace function public.remove_member(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_target_role text;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  if not has_community_role(p_community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_user_id = auth.uid() then raise exception 'CANNOT_REMOVE_SELF'; end if;
+
+  select role into v_target_role from community_members
+  where community_id = p_community_id and user_id = p_user_id;
+  if not found then raise exception 'MEMBER_NOT_FOUND'; end if;
+  if v_target_role = 'owner' then raise exception 'CANNOT_REMOVE_OWNER'; end if;
+  if v_target_role = 'admin'
+     and not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+
+  perform purge_membership(p_community_id, p_user_id);
+end;
+$$;
+
+-- 4) Reading ---------------------------------------------------------------------
+-- Search is a plain case-insensitive contains over the obvious field, capped at
+-- 100 rows. Enough to find a record to delete, which is the only reason these
+-- screens exist.
+
+create or replace function public.admin_list_users(p_search text default null)
+returns table (
+  id uuid,
+  full_name text,
+  phone text,
+  email text,
+  created_at timestamptz,
+  is_system_admin boolean
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  return query
+    select u.id, u.full_name, u.phone, au.email::text, u.created_at,
+           exists (select 1 from system_admins sa where sa.user_id = u.id)
+    from users u
+    join auth.users au on au.id = u.id
+    where p_search is null or trim(p_search) = ''
+       or u.full_name ilike '%' || trim(p_search) || '%'
+       or au.email::text ilike '%' || trim(p_search) || '%'
+    order by u.created_at desc
+    limit 100;
+end;
+$$;
+
+create or replace function public.admin_list_communities(p_search text default null)
+returns table (
+  id uuid,
+  name text,
+  join_policy text,
+  created_at timestamptz,
+  owner_name text,
+  member_count bigint,
+  match_count bigint
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  return query
+    select c.id, c.name, c.join_policy, c.created_at, o.full_name,
+           (select count(*) from community_members cm where cm.community_id = c.id),
+           (select count(*) from matches m where m.community_id = c.id)
+    from communities c
+    left join users o on o.id = c.owner_id
+    where p_search is null or trim(p_search) = ''
+       or c.name ilike '%' || trim(p_search) || '%'
+    order by c.created_at desc
+    limit 100;
+end;
+$$;
+
+create or replace function public.admin_list_matches(p_search text default null)
+returns table (
+  id uuid,
+  title text,
+  location text,
+  start_at timestamptz,
+  status text,
+  community_name text,
+  registration_count bigint
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  return query
+    select m.id, m.title, m.location, m.start_at, m.status, c.name,
+           (select count(*) from match_registrations r where r.match_id = m.id)
+    from matches m
+    join communities c on c.id = m.community_id
+    where p_search is null or trim(p_search) = ''
+       or m.title ilike '%' || trim(p_search) || '%'
+       or m.location ilike '%' || trim(p_search) || '%'
+       or c.name ilike '%' || trim(p_search) || '%'
+    order by m.start_at desc
+    limit 100;
+end;
+$$;
+
+-- 5) Deleting ------------------------------------------------------------------
+
+create or replace function public.admin_delete_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  perform 1 from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  perform purge_match(p_match_id);
+end;
+$$;
+
+create or replace function public.admin_delete_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  perform 1 from communities where id = p_community_id;
+  if not found then raise exception 'COMMUNITY_NOT_FOUND'; end if;
+  perform purge_community(p_community_id);
+end;
+$$;
+
+-- Removes the account and everything that would otherwise outlive it.
+--
+-- Order matters. Communities the user owns go whole, because a community
+-- without an owner has no one who can manage or delete it. Elsewhere the user
+-- is only a member, so they are withdrawn the way remove_member withdraws
+-- anyone — reserves promoted, rosters recomputed — and matches they created in
+-- someone else's community are deleted, since created_by does not cascade.
+create or replace function public.admin_delete_user(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare r record;
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  if p_user_id = auth.uid() then
+    raise exception 'CANNOT_DELETE_SELF';
+  end if;
+  -- System Admin accounts are managed outside the app, so the app cannot
+  -- remove one. Otherwise the last administrator could be deleted from a phone.
+  if exists (select 1 from system_admins where user_id = p_user_id) then
+    raise exception 'CANNOT_DELETE_SYSTEM_ADMIN';
+  end if;
+  perform 1 from users where id = p_user_id;
+  if not found then raise exception 'USER_NOT_FOUND'; end if;
+
+  for r in select id from communities where owner_id = p_user_id loop
+    perform purge_community(r.id);
+  end loop;
+
+  for r in select cm.community_id from community_members cm
+           where cm.user_id = p_user_id loop
+    perform purge_membership(r.community_id, p_user_id);
+  end loop;
+
+  for r in select id from matches where created_by = p_user_id loop
+    perform purge_match(r.id);
+  end loop;
+
+  -- Anything addressed to them, and anything they still hold.
+  delete from notifications where user_id = p_user_id;
+  delete from match_registrations where user_id = p_user_id;
+  delete from community_members where user_id = p_user_id;
+  delete from users where id = p_user_id;
+  delete from auth.users where id = p_user_id;
+end;
+$$;
+
+revoke execute on function public.admin_list_users(text) from anon, public;
+revoke execute on function public.admin_list_communities(text) from anon, public;
+revoke execute on function public.admin_list_matches(text) from anon, public;
+revoke execute on function public.admin_delete_user(uuid) from anon, public;
+revoke execute on function public.admin_delete_community(uuid) from anon, public;
+revoke execute on function public.admin_delete_match(uuid) from anon, public;
+
+grant execute on function public.admin_list_users(text) to authenticated;
+grant execute on function public.admin_list_communities(text) to authenticated;
+grant execute on function public.admin_list_matches(text) to authenticated;
+grant execute on function public.admin_delete_user(uuid) to authenticated;
+grant execute on function public.admin_delete_community(uuid) to authenticated;
+grant execute on function public.admin_delete_match(uuid) to authenticated;

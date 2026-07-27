@@ -215,7 +215,7 @@ void main() {
     final result = await outcomeOf(() async {
       await owner.client.rpc('update_match', params: {
         'p_match_id': matchId,
-        'p_title': null,
+        'p_title': 'ITest edited match',
         'p_location': 'Too late',
         'p_start_at': start.toIso8601String(),
         'p_end_at': start.add(const Duration(hours: 2)).toIso8601String(),

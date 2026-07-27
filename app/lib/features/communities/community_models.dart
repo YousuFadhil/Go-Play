@@ -1,3 +1,22 @@
+/// How someone is allowed to join a community. Every community is visible;
+/// this is the only thing that differs between them.
+enum JoinPolicy {
+  /// Anyone who can see the community can join it.
+  open('OPEN'),
+
+  /// Joining needs the join code, typed or carried by an invitation link.
+  codeRequired('CODE_REQUIRED');
+
+  const JoinPolicy(this.dbValue);
+
+  final String dbValue;
+
+  /// An unrecognised value is treated as the stricter of the two: a policy the
+  /// app does not understand should not fall open.
+  static JoinPolicy fromDb(String value) =>
+      value == 'OPEN' ? JoinPolicy.open : JoinPolicy.codeRequired;
+}
+
 /// Role a user holds inside a community. Roles are cumulative: an owner can do
 /// everything an admin can, and an admin everything a player can.
 enum CommunityRole {
@@ -30,7 +49,7 @@ class Community {
     required this.id,
     required this.ownerId,
     required this.name,
-    required this.isPrivate,
+    required this.joinPolicy,
     required this.joinCode,
     this.description,
   });
@@ -41,7 +60,7 @@ class Community {
   final String ownerId;
   final String name;
   final String? description;
-  final bool isPrivate;
+  final JoinPolicy joinPolicy;
   final String joinCode;
 
   factory Community.fromJson(Map<String, dynamic> json) {
@@ -50,7 +69,7 @@ class Community {
       ownerId: json['owner_id'] as String,
       name: json['name'] as String,
       description: json['description'] as String?,
-      isPrivate: json['is_private'] as bool,
+      joinPolicy: JoinPolicy.fromDb(json['join_policy'] as String),
       joinCode: json['join_code'] as String,
     );
   }
@@ -79,6 +98,34 @@ class CommunityMember {
       fullName: user['full_name'] as String,
       position: user['primary_position'] as String,
       role: CommunityRole.fromDb(json['role'] as String),
+    );
+  }
+}
+
+/// What an invitation link offers, readable before anyone signs in.
+///
+/// Deliberately thin: the community's name and whether the viewer is already a
+/// member. The join code is the credential, so the preview never echoes it back,
+/// and it says nothing about the roster or the matches.
+class CommunityInvitePreview {
+  const CommunityInvitePreview({
+    required this.isValid,
+    this.communityId,
+    this.communityName,
+    this.isMember = false,
+  });
+
+  final bool isValid;
+  final String? communityId;
+  final String? communityName;
+  final bool isMember;
+
+  factory CommunityInvitePreview.fromJson(Map<String, dynamic> json) {
+    return CommunityInvitePreview(
+      isValid: json['state'] == 'valid',
+      communityId: json['community_id'] as String?,
+      communityName: json['community_name'] as String?,
+      isMember: json['is_member'] as bool? ?? false,
     );
   }
 }
