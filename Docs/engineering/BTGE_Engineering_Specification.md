@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.1 |
+| Version | 1.2 |
 | Status | **Approved** |
 | Role | **Implementation Authority** — what to build. |
 | Owner | Product Owner |
@@ -613,24 +613,56 @@ behavioural inference — the distinction `KB-014` was drawn to make.
 
 ### 18.1 Open Parameters
 
-These were deliberately left unfixed at design time. Each must be confirmed by
-the Product Owner before the code depending on it is written. **None of them is
-a business rule, and none may be chosen unilaterally by an implementer.** Each
-`OP-n` is the same question as Knowledge Base open issue `OI-n`.
+These were deliberately left unfixed at design time. **None of them is a business
+rule**, and none classified as a Product Decision may be chosen unilaterally by
+an implementer. Each `OP-n` is the same question as Knowledge Base open issue
+`OI-n`.
 
-| ID | Parameter | Depends on |
-|---|---|---|
-| `OP-1` | Overall Rating scale and precision (range, integer or decimal). | Rating Balance |
-| `OP-2` | Minimum supported player count (specified here as 2). | [§4.3](#43-input-validity), `BTGE-PF-2` |
-| `OP-3` | Tolerance band per priority — how close two solutions must be to count as equally good at each of priorities 1–4. | [§7.1](#71-how-the-ordering-is-applied) |
-| `OP-4` | Cost weighting applied to transition distance in `out_of_position_cost`. | `BTGE-PT-4`, [§15](#15-quality-metrics) |
-| `OP-5` | Which team receives the extra player on an odd count — specified here as the team otherwise weaker on rating. | `BTGE-SC-4`, `KB-012` |
-| `OP-6` | Diversity lookback window — how many recent matches, or what time span, counts as "recent". | `BTGE-DV-4` |
-| `OP-7` | Threshold at which an age spread is reported as wide. | `BTGE-SC-5` |
-| `OP-8` | Whether any absolute ceiling on generation time exists at 30 players. `KB-013` settles the policy — optimality is never traded for speed — but not whether a hard limit exists. | [§14.2](#142-optimality-over-speed) |
+#### What "blocks" means
+
+Two distinct gates, and they must not be conflated:
+
+- **Blocks Implementation** — work cannot begin. The architecture itself cannot
+  be built until the value is known.
+- **Blocks Final Validation** — work can begin and proceed, but the engine
+  cannot be validated or released until the value is known.
+
+**No open parameter blocks implementation.** Every one of them is a configurable
+value that the architecture accommodates rather than depends on. Implementation
+may begin with all eight outstanding, provided each is expressed as
+configuration and no default is silently treated as a decision.
+
+| ID | Parameter | Classification | Blocks Implementation | Blocks Final Validation | Depends on |
+|---|---|---|---|---|---|
+| `OP-1` | Overall Rating scale and precision (range, integer or decimal). | Product Decision | No | **Yes** | Rating Balance; the prerequisite schema change ([§4.4](#44-prerequisite-current-schema-gap)) |
+| `OP-2` | Minimum supported player count (specified here as 2). | Product Decision | No | **Yes** | [§4.3](#43-input-validity), `BTGE-PF-2` |
+| `OP-3` | Tolerance band per priority — how close two solutions must be to count as equally good at each of priorities 1–4. | Product Decision | No | **Yes** | [§7.1](#71-how-the-ordering-is-applied) |
+| `OP-4` | Cost weighting applied to transition distance in `out_of_position_cost`. | Engineering Decision | No | No | `BTGE-PT-4`, [§15](#15-quality-metrics) |
+| `OP-5` | Which team receives the extra player on an odd count — specified here as the team otherwise weaker on rating. | Product Decision | No | **Yes** | `BTGE-SC-4`, `KB-012` |
+| `OP-6` | Diversity lookback window — how many recent matches, or what time span, counts as "recent". | Product Decision | No | **Yes** | `BTGE-DV-4` |
+| `OP-7` | Threshold at which an age spread is reported as wide. | Implementation Detail | No | No | `BTGE-SC-5` |
+| `OP-8` | Whether any absolute ceiling on generation time exists at 30 players. `KB-013` settles the policy — optimality is never traded for speed — but not whether a hard limit exists. | Engineering Decision | No | No | [§14.2](#142-optimality-over-speed) |
+
+**`OP-3` in particular.** The tolerance-band *mechanism* is architecture and can
+be built immediately against configurable parameters. The *values* are a Product
+Decision, required before the engine can be validated or released — the
+priority-ordering scenarios `TS-25` … `TS-28` cannot be written without them.
+This is a Blocks Final Validation gate, not a Blocks Implementation gate.
+
+**Classification meanings.** *Product Decision* — belongs to the Product Owner;
+`BTGE-CC-6` applies. *Engineering Decision* — the product intent is already
+approved and closed; the implementer chooses within it and records the choice
+here (`BTGE-CC-3`). *Implementation Detail* — needs no decision from anyone; it
+is handled during implementation and documented.
 
 **Closed.** `OP-9` (seed reuse on re-generation) is **void**: no seed exists
 under `KB-009`, so the question has no subject. Recorded so it is not reopened.
+
+**Open Parameter review — closed.** All eight parameters were reviewed and
+classified; the results are the table above. Five require Product Owner
+decisions (`OP-1`, `-2`, `-3`, `-5`, `-6`), two are Engineering Decisions the
+implementer may settle and record (`OP-4`, `-8`), and one is an Implementation
+Detail (`OP-7`). The review is not reopened by implementation work.
 
 ### 18.2 Version history
 
@@ -638,3 +670,4 @@ under `KB-009`, so the question has no subject. Recorded so it is not reopened.
 |---|---|---|---|
 | 1.0 | 2026-07-27 | Approved | Initial specification. Adopted as the single source of truth for team generation. |
 | 1.1 | 2026-07-27 | Approved | **Synchronized with Knowledge Base v1.2**, which becomes the governing design authority (`BTGE-CC-0`). Four corrections: **(1)** randomness removed entirely — the seed is gone from §4.2, §14.4, §15 and `TS-37`; ties now resolve by deterministic canonical ordering (`KB-009`, `KB-019`). **(2)** §14.2 reversed from a heuristic time budget to optimality over speed; §14.3 no longer licenses heuristics (`KB-013`). **(3)** Match History restated as Auxiliary Data in a new §4.2.1 (`BTGE-AX-1` … `-AX-5`), bounded to priority 5 and barred from evaluation (`KB-016`, `KB-017`); §17 clarifies it is not the excluded "historical behaviour analysis". **(4)** §10 rewritten for emergency goalkeeper assignment (`KB-018`): the prohibition in the old `BTGE-GK-2` and `BTGE-PT-6` is removed and replaced with the approved guarantee, capped by `BTGE-GK-4` — no stronger guarantee may be derived. **ID changes:** goalkeeper rules renumbered `BTGE-GK-1` … `-GK-16`; `BTGE-PF-3` … `-PF-6` renumbered `-PF-3` … `-PF-8`. **Added:** `BTGE-CC-0`, `BTGE-AX-1` … `-AX-5`, `TS-39`, `TS-40`, metric `emergency_goalkeeper_count`. **Closed:** `OP-9` void; `OP-8` narrowed. |
+| 1.2 | 2026-07-27 | Approved | Open Parameter review closed (`BTGE-CC-7`). §18.1 gained a classification per parameter — Product Decision, Engineering Decision, or Implementation Detail — and split blocking into two gates: **Blocks Implementation** and **Blocks Final Validation**. **No open parameter blocks implementation**; five block final validation (`OP-1`, `-2`, `-3`, `-5`, `-6`). `OP-3` is explicitly recorded as Blocks Final Validation, not Blocks Implementation: the tolerance-band mechanism is architecture and is buildable now against configuration, while the values are a Product Decision required before validation and release. No business rule changed. |

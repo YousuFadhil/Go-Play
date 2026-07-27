@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.2 |
+| Version | 1.3 |
 | Status | **Approved** |
 | Role | **Design Authority** — approved product intent. Governs the Engineering Specification. |
 | Owner | Product Owner |
@@ -679,9 +679,22 @@ completions of the design.
 
 ## Part H: Open Issues
 
-Genuinely unresolved. Each requires a Product Owner decision before the code
-depending on it is written. **None may be settled unilaterally by an
-implementer** — `KB-015` and `BTGE-CC-6` both apply.
+Genuinely unresolved.
+
+Each `OI-n` has been reviewed and classified as a **Product Decision**, an
+**Engineering Decision**, or an **Implementation Detail**. The classification,
+and what each item blocks, is recorded once in **Specification §18.1** — it is
+not repeated here, so that the two documents cannot drift.
+
+Two points from that review belong to the design record:
+
+- **No open issue blocks the start of implementation.** Every one is a
+  configurable value the architecture accommodates rather than depends on.
+- **`OI-1`, `OI-2`, `OI-3`, `OI-5` and `OI-6` are Product Decisions** and block
+  final validation and release. **None may be settled unilaterally by an
+  implementer** — `KB-015` and `BTGE-CC-6` both apply. `OI-4` and `OI-8` are
+  Engineering Decisions whose product intent is already closed; `OI-7` is an
+  Implementation Detail.
 
 | ID | Open issue | Constrained by |
 |---|---|---|
@@ -714,3 +727,4 @@ questions.
 | 1.0 | 2026-07-27 | Initial Knowledge Base. `KB-001` … `KB-015` approved. |
 | 1.1 | 2026-07-27 | Product Owner decision resolving Diversity against `KB-006`/`KB-014`: added `KB-016` (Core Player Inputs vs. Auxiliary Data) and `KB-017` (Match History reflects reality, not learning); scope clarifications noted in `KB-006`, `KB-007`, `KB-014`. Knowledge transfer completed: Parts C–H added. `KB-001` … `KB-015` unchanged. |
 | 1.2 | 2026-07-27 | Product Owner clarifications closing the two open issues raised by the v1.1 transfer: added `KB-018` (Emergency Goalkeeper Assignment, resolving `OI-10`) and `KB-019` (Canonical Ordering as the Final Tie-Break, resolving `OI-11`). `KB-011` trace and `KB-C6` rewritten to match `KB-018`; a fourth required Specification correction recorded in Part E. `KB-001` … `KB-017` otherwise unchanged. Before approval, the Product Owner corrected `KB-018`: the guarantee is capped at the approved interpretation quoted in that entry, and the inference "a goalkeeper-free match never occurs" was struck as not adopted. **Approved.** The Knowledge Base is the design authority for BTGE. |
+| 1.3 | 2026-07-27 | Open Parameter review closed. Part H records that **no open issue blocks the start of implementation**, and that `OI-1`, `-2`, `-3`, `-5`, `-6` are Product Decisions blocking final validation while `OI-4` and `-8` are Engineering Decisions and `OI-7` an Implementation Detail. Per-item classification lives in Specification §18.1 and is deliberately not duplicated here. Design phase complete. No approved entry changed — `KB-001` … `KB-019` unchanged. |
