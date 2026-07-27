@@ -5,16 +5,18 @@
 ## Functional requirements
 
 - Registration and login with email and password
-- Community management: create (private by default), join by code, change
-  visibility, delete
-- Membership: invite, accept, revoke, change role, transfer ownership, remove a
-  member, leave
-- Shareable invitation links, for a community alone or for a community and one
-  match. Opening one shows what is offered without an account; redeeming it
-  joins the community and, when a match is attached, registers for it
-- Match management: create, edit, delete, manage the roster
+- Community management: create, join, change the join policy, delete
+- Membership: change role, transfer ownership, remove a member, leave
+- One invitation system: the community's join code. It is shared as a link or
+  read out as a code, and both carry the same identifier. Opening a link shows
+  which community is offered without an account; redeeming it joins that
+  community
+- Match management: create (with a required title), edit, delete, manage the
+  roster
 - Match registration with a reserve list and automatic promotion
 - In-app notifications
+- A System Admin role, independent of community roles, with three management
+  sections: users, communities and matches. View, search and delete only.
 
 ## Business rules
 
@@ -33,12 +35,23 @@
   promoting reserves as usual.
 - Deleting a community removes everything belonging to it.
 - Exactly one owner per community, always.
-- Redeeming an invitation link grants the player role and nothing more.
-- A community invitation link stays valid until an admin revokes it; a match
-  invitation link ends when the match starts or is deleted.
-- Automatic registration obeys every registration rule above. Joining the
-  community and registering for the match are separate outcomes: if registration
-  fails the membership stands and the reason is shown.
+- Every community is visible to every signed-in user. What differs is the join
+  policy: OPEN lets anyone join from the list, CODE_REQUIRED asks for the join
+  code first. Default is OPEN.
+- The invitation link works under either policy, because it carries the code.
+- Redeeming an invitation grants the player role and nothing more.
+- System Admin is granted only in SQL. The app can neither grant it nor delete
+  an account that holds it.
+- Deleting a user removes everything that would outlive the account, including
+  communities they own; reserves are promoted the way they are for any other
+  departure.
+- An owner or admin can regenerate the join code. The previous code and link
+  stop working immediately and are not retained; existing members, matches and
+  registrations are unaffected.
+- Every match has a title. It is required at creation and cannot be removed by
+  editing.
+- Players register themselves for matches. Nobody is registered by anyone else,
+  so no invitation refers to a match.
 
 ## Authorization
 

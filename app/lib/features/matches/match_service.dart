@@ -106,6 +106,7 @@ class MatchService {
   /// the starting players plus the global reserve setting.
   Future<void> createMatch({
     required String communityId,
+    required String title,
     required String location,
     required DateTime startAt,
     required DateTime endAt,
@@ -114,6 +115,7 @@ class MatchService {
     await _client.from('matches').insert({
       'community_id': communityId,
       'created_by': _client.auth.currentUser!.id,
+      'title': title.trim(),
       'location': location.trim(),
       'start_at': startAt.toUtc().toIso8601String(),
       'end_at': endAt.toUtc().toIso8601String(),

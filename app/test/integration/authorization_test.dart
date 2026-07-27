@@ -31,7 +31,7 @@ void main() {
 
   setUp(() async {
     communityId = await createCommunity(owner, 'ITest Private');
-    publicId = await createCommunity(owner, 'ITest Public', isPrivate: false);
+    publicId = await createCommunity(owner, 'ITest Public', joinPolicy: 'OPEN');
     await addMember(owner, communityId, admin, role: 'admin');
     await addMember(owner, communityId, player);
     // Created by the player so the tests prove management follows role and
@@ -49,7 +49,7 @@ void main() {
         final start = DateTime.now().toUtc().add(const Duration(days: 3));
         await user.client.rpc('update_match', params: {
           'p_match_id': matchId,
-          'p_title': null,
+          'p_title': 'ITest edited match',
           'p_location': 'Moved pitch',
           'p_start_at': start.toIso8601String(),
           'p_end_at':
@@ -64,6 +64,7 @@ void main() {
         await user.client.from('matches').insert({
           'community_id': communityId,
           'created_by': user.id,
+          'title': 'Attempted match',
           'location': 'Attempted',
           'start_at': start.toIso8601String(),
           'end_at': start.add(const Duration(hours: 2)).toIso8601String(),
@@ -208,16 +209,20 @@ void main() {
     });
   });
 
-  group('visibility is unchanged (PD-14)', () {
-    test('an outsider cannot see a private community', () async {
+  group('what an outsider may see', () {
+    // Communities are no longer hidden: the join policy decides how someone
+    // gets in, not whether they can see the door. Matches are still members
+    // only, which is the rule that actually protects a community's activity.
+    test('an outsider can see a code-required community', () async {
       final rows = await outsider.client
           .from('communities')
-          .select('id')
+          .select('id, join_policy')
           .eq('id', communityId);
-      expect(rows, isEmpty);
+      expect(rows, hasLength(1));
+      expect(rows.single['join_policy'], 'CODE_REQUIRED');
     });
 
-    test('an outsider can see a public community', () async {
+    test('an outsider can see an open community', () async {
       final rows = await outsider.client
           .from('communities')
           .select('id')

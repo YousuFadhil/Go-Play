@@ -16,6 +16,7 @@ class CreateMatchScreen extends StatefulWidget {
 
 class _CreateMatchScreenState extends State<CreateMatchScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
   final _locationController = TextEditingController();
   final _startingPlayersController = TextEditingController(text: '14');
   final _matchService = MatchService();
@@ -27,6 +28,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
 
   @override
   void dispose() {
+    _titleController.dispose();
     _locationController.dispose();
     _startingPlayersController.dispose();
     super.dispose();
@@ -97,6 +99,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     try {
       await _matchService.createMatch(
         communityId: widget.communityId,
+        title: _titleController.text,
         location: _locationController.text,
         startAt: start,
         endAt: end,
@@ -128,6 +131,15 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                TextFormField(
+                  controller: _titleController,
+                  decoration: InputDecoration(labelText: l10n.matchTitleLabel),
+                  maxLength: 60,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? l10n.matchTitleRequired
+                      : null,
+                ),
                 TextFormField(
                   controller: _locationController,
                   decoration: InputDecoration(labelText: l10n.locationLabel),

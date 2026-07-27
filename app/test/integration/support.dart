@@ -12,7 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// The four accounts below are permanent MVP testing accounts. The suite
 /// signs in to them and never creates or deletes them, so a run leaves the
 /// account list exactly as it found it. Everything a test creates below the
-/// account level - communities, matches, registrations, invitations - is
+/// account level - communities, matches, registrations - is
 /// removed in teardown through delete_community, which cascades.
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
@@ -67,18 +67,18 @@ Future<TestUser> signInTestUser(String label) async {
 
 /// A community owned by [owner], cleaned up by [disposeCommunity].
 Future<String> createCommunity(TestUser owner, String name,
-    {bool isPrivate = true}) async {
+    {String joinPolicy = 'CODE_REQUIRED'}) async {
   final id = await owner.client.rpc('create_community', params: {
     'p_name': name,
     'p_description': null,
-    'p_is_private': isPrivate,
+    'p_join_policy': joinPolicy,
   });
   return id as String;
 }
 
-/// Adds [user] to [communityId] with the given role. Uses the join code for
-/// the player case and an invitation otherwise, so the paths under test are
-/// the real ones.
+/// Adds [user] to [communityId] with the given role. Joining always goes
+/// through the join code, which is the only way in; a role above player is then
+/// granted by the owner, which is the only way roles change.
 Future<void> addMember(
   TestUser owner,
   String communityId,
@@ -110,6 +110,9 @@ Future<String> createMatch(
   Duration duration = const Duration(hours: 2),
   int startingPlayers = 10,
   String location = 'ITest pitch',
+  // Every match has a name; the column is NOT NULL, so the fixture supplies
+  // one the way the app makes the organizer supply one.
+  String title = 'ITest match',
 }) async {
   final start = DateTime.now().toUtc().add(startsIn);
   final row = await organizer.client
@@ -117,6 +120,7 @@ Future<String> createMatch(
       .insert({
         'community_id': communityId,
         'created_by': organizer.id,
+        'title': title,
         'location': location,
         'start_at': start.toIso8601String(),
         'end_at': start.add(duration).toIso8601String(),
@@ -163,10 +167,6 @@ const _codes = <String>[
   'ALREADY_OWNER',
   'MEMBER_NOT_FOUND',
   'ALREADY_MEMBER',
-  'INVITATION_EXISTS',
-  'INVITATION_NOT_FOUND',
-  'INVITATION_NOT_PENDING',
-  'INVITATION_EXPIRED',
   'INVALID_ROLE',
   'COMMUNITY_NOT_FOUND',
   'MATCH_NOT_FOUND',
@@ -180,9 +180,7 @@ const _codes = <String>[
   'MAX_BELOW_REGISTERED',
   'INVALID_TIME_RANGE',
   'INVALID_STARTING_PLAYERS',
-  'INVITE_NOT_FOUND',
-  'INVITE_REVOKED',
-  'INVITE_EXPIRED',
-  'INVITE_MATCH_DELETED',
-  'MATCH_NOT_IN_COMMUNITY',
+  'INVALID_TITLE',
+  'JOIN_CODE_REQUIRED',
+  'INVALID_JOIN_POLICY',
 ];

@@ -5,9 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support.dart';
 
-/// PD-10 (who may invite as what), PD-11 (who may remove whom, and what it
-/// does to their matches) and PD-12 (who may leave), plus the invitation
-/// lifecycle and ownership transfer.
+/// PD-11 (who may remove whom, and what it does to their matches) and PD-12
+/// (who may leave), plus ownership transfer and visibility.
+///
+/// PD-10 is gone with the directed invitation it governed: there is one way
+/// into a community now, the join code, and it always grants player.
 void main() {
   if (!integrationConfigured) {
     test('community management', () {}, skip: skipReason);
@@ -39,24 +41,6 @@ void main() {
     await disposeCommunity(admin, communityId);
   });
 
-  Future<String> inviteAs(TestUser inviter, TestUser invitee, String role) =>
-      outcomeOf(() async {
-        await inviter.client.rpc('create_invitation', params: {
-          'p_community_id': communityId,
-          'p_invitee_id': invitee.id,
-          'p_role': role,
-        });
-      });
-
-  Future<String?> pendingInvitationFor(TestUser invitee) async {
-    final rows = await invitee.client
-        .from('invitations')
-        .select('id')
-        .eq('invitee_id', invitee.id)
-        .eq('community_id', communityId)
-        .eq('status', 'pending');
-    return rows.isEmpty ? null : rows.first['id'] as String;
-  }
 
   Future<String?> roleOf(TestUser user) async {
     final row = await owner.client
@@ -68,138 +52,7 @@ void main() {
     return row?['role'] as String?;
   }
 
-  group('who may invite as what (PD-10)', () {
-    test('an owner may invite as admin', () async {
-      expect(await inviteAs(owner, outsider, 'admin'), 'ALLOW');
-    });
 
-    test('an admin may invite as player', () async {
-      expect(await inviteAs(admin, outsider, 'player'), 'ALLOW');
-    });
-
-    test('an admin may not invite as admin', () async {
-      expect(await inviteAs(admin, outsider, 'admin'), 'NOT_AUTHORIZED');
-    });
-
-    test('a player may not invite at all', () async {
-      expect(await inviteAs(player, outsider, 'player'), 'NOT_AUTHORIZED');
-    });
-
-    test('nobody may invite as owner', () async {
-      expect(await inviteAs(owner, outsider, 'owner'), 'INVALID_ROLE');
-    });
-
-    test('an existing member cannot be invited', () async {
-      expect(await inviteAs(owner, player, 'player'), 'ALREADY_MEMBER');
-    });
-
-    test('a second pending invitation is refused', () async {
-      expect(await inviteAs(owner, outsider, 'player'), 'ALLOW');
-      expect(await inviteAs(owner, outsider, 'player'), 'INVITATION_EXISTS');
-    });
-  });
-
-  group('invitation lifecycle', () {
-    test('only the invitee can accept, and the role is applied', () async {
-      await inviteAs(owner, outsider, 'admin');
-      final invitationId = await pendingInvitationFor(outsider);
-      expect(invitationId, isNotNull);
-
-      // An admin can see the invitation but is not the invitee.
-      final wrongUser = await outcomeOf(() async {
-        await admin.client.rpc('accept_invitation',
-            params: {'p_invitation_id': invitationId});
-      });
-      expect(wrongUser, 'NOT_AUTHORIZED');
-
-      final accepted = await outcomeOf(() async {
-        await outsider.client.rpc('accept_invitation',
-            params: {'p_invitation_id': invitationId});
-      });
-      expect(accepted, 'ALLOW');
-      expect(await roleOf(outsider), 'admin',
-          reason: 'the invited role is what the membership gets');
-
-      // Leave again so the fixture is stable for the next test.
-      await outsider.client
-          .from('community_members')
-          .delete()
-          .eq('community_id', communityId)
-          .eq('user_id', outsider.id);
-    });
-
-    test('accepting twice is refused', () async {
-      await inviteAs(owner, outsider, 'player');
-      final invitationId = await pendingInvitationFor(outsider);
-      await outsider.client
-          .rpc('accept_invitation', params: {'p_invitation_id': invitationId});
-
-      final second = await outcomeOf(() async {
-        await outsider.client.rpc('accept_invitation',
-            params: {'p_invitation_id': invitationId});
-      });
-      expect(second, 'INVITATION_NOT_PENDING');
-
-      await outsider.client
-          .from('community_members')
-          .delete()
-          .eq('community_id', communityId)
-          .eq('user_id', outsider.id);
-    });
-
-    test('a revoked invitation cannot be accepted', () async {
-      await inviteAs(owner, outsider, 'player');
-      final invitationId = await pendingInvitationFor(outsider);
-
-      expect(
-        await outcomeOf(() async {
-          await admin.client.rpc('revoke_invitation',
-              params: {'p_invitation_id': invitationId});
-        }),
-        'ALLOW',
-        reason: 'an admin may revoke',
-      );
-      expect(
-        await outcomeOf(() async {
-          await outsider.client.rpc('accept_invitation',
-              params: {'p_invitation_id': invitationId});
-        }),
-        'INVITATION_NOT_PENDING',
-      );
-    });
-
-    test('a player cannot revoke an invitation', () async {
-      await inviteAs(owner, outsider, 'player');
-      final invitationId = await pendingInvitationFor(outsider);
-      final result = await outcomeOf(() async {
-        await player.client
-            .rpc('revoke_invitation', params: {'p_invitation_id': invitationId});
-      });
-      expect(result, 'NOT_AUTHORIZED');
-    });
-
-    test('an invitation is visible to its invitee and to organizers only',
-        () async {
-      await inviteAs(owner, outsider, 'player');
-
-      final asInvitee = await outsider.client
-          .from('invitations')
-          .select('id')
-          .eq('community_id', communityId);
-      final asAdmin = await admin.client
-          .from('invitations')
-          .select('id')
-          .eq('community_id', communityId);
-      final asPlayer = await player.client
-          .from('invitations')
-          .select('id')
-          .eq('community_id', communityId);
-
-      expect(asInvitee, isNotEmpty);
-      expect(asAdmin, isNotEmpty);
-      expect(asPlayer, isEmpty);
-    });
-  });
 
   group('leaving (PD-12)', () {
     Future<int> leave(TestUser user) async {
@@ -391,11 +244,13 @@ void main() {
   });
 
   test('deleting a community removes everything under it', () async {
+    // A window no other test file uses: the four accounts are shared, and the
+    // files run concurrently, so a match at the same hour as another file's
+    // would fail the overlap rule rather than the thing under test.
     final matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 4));
+        startsIn: const Duration(days: 12));
     await player.client
         .rpc('register_for_match', params: {'p_match_id': matchId});
-    await inviteAs(owner, outsider, 'player');
 
     await owner.client
         .rpc('delete_community', params: {'p_community_id': communityId});
@@ -416,93 +271,203 @@ void main() {
     expect(matches, isEmpty);
   });
 
-  group('visibility', () {
-    Future<bool?> isPrivate() async {
-      final rows = await owner.client
-          .from('communities')
-          .select('is_private')
-          .eq('id', communityId);
-      return rows.single['is_private'] as bool?;
-    }
+  group('join policy', () {
+    Future<String> policy() async => (await owner.client
+        .from('communities')
+        .select('join_policy')
+        .eq('id', communityId)
+        .single())['join_policy'] as String;
 
-    /// What the discovery list actually returns: RLS only exposes public
-    /// communities there, so this is the real test of the setting.
-    Future<bool> discoverableBy(TestUser user) async {
+    /// Everyone can see every community now; the policy only decides how a
+    /// non-member gets in.
+    Future<bool> visibleTo(TestUser user) async {
       final rows = await user.client
           .from('communities')
           .select('id')
-          .eq('is_private', false)
           .eq('id', communityId);
       return rows.isNotEmpty;
     }
 
-    test('the owner can switch a community to public and back', () async {
-      expect(await isPrivate(), isTrue,
-          reason: 'the fixture is created private');
-      expect(await discoverableBy(outsider), isFalse);
+    test('a community is visible to everyone under either policy', () async {
+      expect(await policy(), 'CODE_REQUIRED');
+      expect(await visibleTo(outsider), isTrue,
+          reason: 'code required is not hidden');
 
       await owner.client
           .from('communities')
-          .update({'is_private': false})
+          .update({'join_policy': 'OPEN'})
           .eq('id', communityId);
-      expect(await isPrivate(), isFalse);
-      expect(await discoverableBy(outsider), isTrue,
-          reason: 'a public community is what discovery is for');
+      expect(await visibleTo(outsider), isTrue);
+    });
+
+    test('OPEN can be joined directly; CODE_REQUIRED cannot', () async {
+      expect(
+        await outcomeOf(() async {
+          await outsider.client.rpc('join_community',
+              params: {'p_community_id': communityId});
+        }),
+        'JOIN_CODE_REQUIRED',
+      );
 
       await owner.client
           .from('communities')
-          .update({'is_private': true})
+          .update({'join_policy': 'OPEN'})
           .eq('id', communityId);
-      expect(await isPrivate(), isTrue);
-      expect(await discoverableBy(outsider), isFalse);
+
+      final joined = await outsider.client
+          .rpc('join_community', params: {'p_community_id': communityId});
+      expect(joined, communityId);
     });
 
-    test('an admin cannot change visibility', () async {
-      final rows = await admin.client
+    test('the code works under either policy, which is what a link carries',
+        () async {
+      final code = (await owner.client
           .from('communities')
-          .update({'is_private': false})
+          .select('join_code')
           .eq('id', communityId)
-          .select('id');
-      expect(rows, isEmpty,
-          reason: 'RLS filters the row out rather than raising, which is why '
-              'the repository asks for the row back');
-      expect(await isPrivate(), isTrue, reason: 'and nothing changed');
-    });
+          .single())['join_code'] as String;
 
-    test('a player cannot change visibility', () async {
-      final rows = await player.client
-          .from('communities')
-          .update({'is_private': false})
-          .eq('id', communityId)
-          .select('id');
-      expect(rows, isEmpty);
-      expect(await isPrivate(), isTrue);
-    });
-
-    test('an invite link keeps working across a visibility change', () async {
-      final token = await owner.client.rpc('create_invite_link', params: {
-        'p_community_id': communityId,
-        'p_match_id': null,
-      }) as String;
-
-      // Public, then private again: the link is a bearer token either way.
-      for (final private in [false, true]) {
+      for (final value in ['CODE_REQUIRED', 'OPEN']) {
         await owner.client
             .from('communities')
-            .update({'is_private': private})
+            .update({'join_policy': value})
             .eq('id', communityId);
         final rows = await outsider.client
-            .rpc('preview_invite_link', params: {'p_token': token})
+            .rpc('preview_community_invite', params: {'p_code': code})
             as List<dynamic>;
-        expect((rows.first as Map<String, dynamic>)['state'], 'valid',
-            reason: 'visibility does not gate an invitation');
+        expect((rows.first as Map<String, dynamic>)['state'], 'valid');
       }
 
-      final result = await outsider.client
-          .rpc('redeem_invite_link', params: {'p_token': token})
+      final joined = await outsider.client
+          .rpc('join_community_by_code', params: {'p_code': code});
+      expect(joined, communityId);
+    });
+
+    test('an admin and a player cannot change the policy', () async {
+      for (final user in [admin, player]) {
+        final rows = await user.client
+            .from('communities')
+            .update({'join_policy': 'OPEN'})
+            .eq('id', communityId)
+            .select('id');
+        expect(rows, isEmpty);
+      }
+      expect(await policy(), 'CODE_REQUIRED', reason: 'and nothing changed');
+    });
+
+    test('an invalid policy is refused at creation', () async {
+      expect(
+        await outcomeOf(() async {
+          await owner.client.rpc('create_community', params: {
+            'p_name': 'ITest Bad Policy',
+            'p_description': null,
+            'p_join_policy': 'SOMETHING_ELSE',
+          });
+        }),
+        'INVALID_JOIN_POLICY',
+      );
+    });
+  });
+
+  group('regenerating the join code', () {
+    Future<String> codeOf() async => (await owner.client
+        .from('communities')
+        .select('join_code')
+        .eq('id', communityId)
+        .single())['join_code'] as String;
+
+    Future<String> regenerateAs(TestUser user) async =>
+        await user.client.rpc('regenerate_join_code',
+            params: {'p_community_id': communityId}) as String;
+
+    test('the owner gets a new code, and the old one stops working', () async {
+      final before = await codeOf();
+      final issued = await regenerateAs(owner);
+
+      expect(issued, isNot(before));
+      expect(issued, await codeOf(), reason: 'the RPC returns what it stored');
+      expect(issued, hasLength(12));
+      expect(RegExp(r'^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{12}$').hasMatch(issued),
+          isTrue,
+          reason: 'same alphabet as every other code');
+
+      // The old code is gone, not merely superseded.
+      final preview = await outsider.client
+          .rpc('preview_community_invite', params: {'p_code': before})
           as List<dynamic>;
-      expect((result.first as Map<String, dynamic>)['community_id'],
-          communityId);
+      expect((preview.first as Map<String, dynamic>)['state'], 'not_found');
+      expect(
+        await outcomeOf(() async {
+          await outsider.client
+              .rpc('join_community_by_code', params: {'p_code': before});
+        }),
+        'COMMUNITY_NOT_FOUND',
+      );
+    });
+
+    test('the new code works immediately', () async {
+      final issued = await regenerateAs(owner);
+
+      final preview = await outsider.client
+          .rpc('preview_community_invite', params: {'p_code': issued})
+          as List<dynamic>;
+      expect((preview.first as Map<String, dynamic>)['state'], 'valid');
+
+      final joined = await outsider.client
+          .rpc('join_community_by_code', params: {'p_code': issued});
+      expect(joined, communityId);
+    });
+
+    test('an admin may regenerate; a player and an outsider may not', () async {
+      expect(await outcomeOf(() => regenerateAs(admin)), 'ALLOW');
+      expect(await outcomeOf(() => regenerateAs(player)), 'NOT_AUTHORIZED');
+      expect(await outcomeOf(() => regenerateAs(outsider)), 'NOT_AUTHORIZED');
+    });
+
+    test('nothing else about the community changes', () async {
+      final matchId = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 14));
+      await player.client
+          .rpc('register_for_match', params: {'p_match_id': matchId});
+
+      Future<List<dynamic>> members() async => await owner.client
+          .from('community_members')
+          .select('user_id, role')
+          .eq('community_id', communityId)
+          .order('user_id', ascending: true);
+      Future<List<dynamic>> registrations() async => await owner.client
+          .from('match_registrations')
+          .select('user_id, status')
+          .eq('match_id', matchId);
+
+      final membersBefore = await members();
+      final registrationsBefore = await registrations();
+      final community = await owner.client
+          .from('communities')
+          .select('name, description, join_policy, owner_id')
+          .eq('id', communityId)
+          .single();
+
+      await regenerateAs(owner);
+
+      expect(await members(), membersBefore,
+          reason: 'people already in stay in, with the roles they had');
+      expect(await registrations(), registrationsBefore,
+          reason: 'the code controls joining, not registering');
+      expect(
+        await owner.client
+            .from('communities')
+            .select('name, description, join_policy, owner_id')
+            .eq('id', communityId)
+            .single(),
+        community,
+        reason: 'and nothing else on the community moved',
+      );
+      final match = await owner.client
+          .from('matches')
+          .select('id')
+          .eq('id', matchId);
+      expect(match, hasLength(1));
     });
   });
 }

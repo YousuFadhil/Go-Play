@@ -41,8 +41,6 @@
   "communityNameLabel": "اسم المجتمع",
   "communityNameRequired": "اسم المجتمع مطلوب",
   "communityDescriptionLabel": "الوصف (اختياري)",
-  "privateCommunityLabel": "مجتمع خاص",
-  "privateCommunityHelp": "المجتمعات الخاصة لا يمكن الانضمام إليها إلا برمز الانضمام.",
   "joinCodeLabel": "رمز الانضمام",
   "joinCodeRequired": "رمز الانضمام مطلوب",
   "communityNotFound": "لا يوجد مجتمع بهذا الرمز.",
@@ -105,7 +103,7 @@
   "editMatchTitle": "تعديل المباراة",
   "managePlayersTitle": "إدارة اللاعبين",
   "manageReserveTitle": "إدارة قائمة الاحتياط",
-  "matchTitleLabel": "عنوان المباراة (اختياري)",
+  "matchTitleLabel": "عنوان المباراة",
   "matchDescriptionLabel": "الوصف",
   "reducePlayersNote": "عند تقليل عدد اللاعبين الأساسيين يُنقل آخر المسجّلين إلى قائمة الاحتياط ويُشعَرون بذلك.",
   "saveButton": "حفظ",
@@ -133,27 +131,12 @@
   "roleAdmin": "مشرف",
   "rolePlayer": "لاعب",
   "manageMembersTitle": "إدارة الأعضاء",
-  "myInvitationsTitle": "دعواتي",
-  "pendingInvitationsTitle": "الدعوات المعلقة",
-  "inviteMemberTitle": "دعوة لاعب",
-  "inviteButton": "دعوة",
   "searchPlayersLabel": "البحث بالاسم",
   "searchPlayersHint": "اكتب حرفين على الأقل",
   "searchNoResults": "لا يوجد لاعبون مطابقون.",
   "inviteAsRoleLabel": "الدعوة بصفة",
   "invitationSent": "تم إرسال الدعوة.",
-  "invitationsEmpty": "لا توجد دعوات معلقة.",
   "myInvitationsEmpty": "لا توجد دعوات.",
-  "invitationFrom": "دعوة للانضمام إلى {community}",
-  "@invitationFrom": {
-    "placeholders": {
-      "community": {
-        "type": "String"
-      }
-    }
-  },
-  "acceptInvitationButton": "قبول",
-  "revokeInvitationButton": "إلغاء",
   "invitationAccepted": "تم انضمامك للمجتمع.",
   "invitationRevoked": "تم إلغاء الدعوة.",
   "promoteToAdminButton": "تعيين مشرفاً",
@@ -194,40 +177,14 @@
   "errCannotRemoveOwner": "لا يمكن إزالة المالك. انقل الملكية أولاً.",
   "errAlreadyOwner": "هذا العضو هو المالك بالفعل.",
   "errMemberNotFound": "هذا الشخص ليس عضواً في هذا المجتمع.",
-  "errInvitationExists": "توجد دعوة معلقة لهذا اللاعب بالفعل.",
-  "errInvitationNotFound": "هذه الدعوة لم تعد موجودة.",
-  "errInvitationNotPending": "هذه الدعوة استُخدمت مسبقاً.",
-  "errInvitationExpired": "انتهت صلاحية هذه الدعوة.",
   "errInvalidRole": "لا يمكن تعيين هذه الصلاحية.",
   "inviteTitle": "دعوة",
   "inviteLoadError": "تعذّر فتح هذه الدعوة. تحقّق من الاتصال وحاول مرة أخرى.",
   "inviteNotFound": "لم نعثر على هذه الدعوة. قد يكون الرابط ناقصاً.",
-  "inviteRevoked": "أُلغيت هذه الدعوة من قِبل أحد المنظمين.",
-  "inviteExpired": "انتهت هذه الدعوة ببدء المباراة.",
-  "inviteMatchDeleted": "حُذفت المباراة التي تشير إليها هذه الدعوة.",
-  "inviteJoinAndRegister": "انضم وسجّل في المباراة",
   "inviteJoinCommunity": "انضم إلى المجتمع",
   "inviteSignInFirst": "سجّل الدخول أو أنشئ حساباً للانضمام.",
-  "inviteSeatsRemaining": "المقاعد المتبقية: {count}",
-  "@inviteSeatsRemaining": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "inviteWouldBeReserve": "المقاعد الأساسية مكتملة. ستنضم إلى قائمة الاحتياط.",
   "inviteAlreadyMemberNote": "أنت عضو في هذا المجتمع بالفعل.",
-  "inviteAlreadyRegisteredNote": "أنت مسجّل في هذه المباراة بالفعل.",
-  "inviteJoinedConfirmed": "انضممت، ومقعدك مؤكد.",
-  "inviteJoinedReserve": "انضممت، وأنت في قائمة الاحتياط.",
-  "inviteJoinedCommunityOnly": "انضممت إلى المجتمع.",
-  "inviteJoinedButNotRegistered": "انضممت إلى المجتمع، لكن تعذّر تسجيلك في المباراة.",
-  "inviteOpenAction": "فتح دعوة",
-  "invitePasteHint": "الصق رابط الدعوة",
-  "inviteInvalidInput": "هذا ليس رابط دعوة.",
   "shareInvitation": "مشاركة دعوة",
-  "shareMatchInvitation": "مشاركة دعوة المباراة",
   "inviteLinkCopied": "نُسخت الدعوة. الصقها حيث تريد مشاركتها.",
   "inviteShareCommunityBody": "انضم إلى {community} على Go Play:\n{link}",
   "@inviteShareCommunityBody": {
@@ -240,46 +197,52 @@
       }
     }
   },
-  "inviteShareMatchBody": "انضم إلى {community} على Go Play وسجّل في {match}:\n{link}",
-  "@inviteShareMatchBody": {
-    "placeholders": {
-      "community": {
-        "type": "String"
-      },
-      "match": {
-        "type": "String"
-      },
-      "link": {
-        "type": "String"
-      }
-    }
-  },
   "errNotCommunityMember": "أنت لست عضواً في هذا المجتمع.",
-  "inviteLinksTitle": "روابط الدعوة",
-  "inviteLinksEmpty": "لا توجد روابط بعد. شارك رابطاً من المجتمع أو من مباراة.",
-  "inviteLinkCommunityLabel": "دعوة للمجتمع",
-  "inviteLinkCreatedOn": "شورك في {date}",
-  "@inviteLinkCreatedOn": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "inviteLinkExpiredLabel": "انتهى ببدء المباراة",
-  "inviteLinkMatchDeletedLabel": "حُذفت المباراة",
   "copyLinkButton": "نسخ",
-  "revokeLinkButton": "إلغاء",
-  "revokeLinkConfirmTitle": "إلغاء هذه الدعوة؟",
-  "revokeLinkConfirmBody": "لن يتمكن أي شخص يملك هذا الرابط من فتحه بعد الآن. من انضم فعلاً يبقى عضواً.",
-  "inviteLinkRevokedMessage": "أُلغيت الدعوة.",
-  "inviteLinkMatchLabel": "دعوة لمباراة",
-  "visibilitySaved": "حُدِّث الظهور.",
   "matchCapacityLabel": "👥 {count} لاعبًا",
   "@matchCapacityLabel": {
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "matchTitleRequired": "عنوان المباراة مطلوب",
+  "communityInvitationTitle": "الدعوة",
+  "communityInvitationHelp": "كل من يملك هذا الرابط أو الرمز يمكنه الانضمام إلى المجتمع. وكلاهما يحمل الرمز نفسه.",
+  "inviteLinkLabel": "رابط الدعوة",
+  "copyJoinCodeButton": "نسخ الرمز",
+  "inviteOpenCommunity": "فتح المجتمع",
+  "inviteOpenAction": "فتح دعوة",
+  "invitePasteHint": "الصق رابط الدعوة أو الرمز",
+  "inviteInvalidInput": "هذا ليس رابط دعوة ولا رمزاً.",
+  "regenerateJoinCodeButton": "تجديد الرمز",
+  "regenerateJoinCodeConfirmTitle": "تجديد رمز الانضمام؟",
+  "regenerateJoinCodeConfirmBody": "سيتوقف الرابط والرمز الحاليان فوراً، فلن يتمكن من يملكهما من الانضمام. من هم أعضاء فعلاً يبقون أعضاء.",
+  "joinCodeRegenerated": "صدر رمز جديد. القديم لم يعد يعمل.",
+  "joinPolicyLabel": "الانضمام",
+  "joinPolicyOpen": "انضمام مفتوح",
+  "joinPolicyOpenHelp": "يمكن لأي شخص الانضمام من قائمة المجتمعات.",
+  "joinPolicyCodeRequired": "انضمام برمز",
+  "joinPolicyCodeRequiredHelp": "يحتاج الناس إلى رمز الانضمام، أو رابط دعوة يحمله.",
+  "joinPolicySaved": "حُدّثت طريقة الانضمام.",
+  "joinCodeRequiredPrompt": "هذا المجتمع يحتاج رمز الانضمام.",
+  "adminTitle": "الإدارة",
+  "adminUsersTab": "المستخدمون",
+  "adminCommunitiesTab": "المجتمعات",
+  "adminMatchesTab": "المباريات",
+  "adminSearchLabel": "بحث",
+  "adminEmpty": "لا توجد نتائج.",
+  "adminDeleteButton": "حذف",
+  "adminDeleted": "حُذف.",
+  "adminDeleteConfirmTitle": "حذف {name}؟",
+  "adminDeleteUserConfirmBody": "يُحذف الحساب وكل ما يتبعه: المجتمعات التي يملكها، والمباريات التي أنشأها، والعضويات والتسجيلات. لا يمكن التراجع.",
+  "adminDeleteCommunityConfirmBody": "يُحذف المجتمع وكل ما تحته: المباريات والعضويات والتسجيلات. لا يمكن التراجع.",
+  "adminDeleteMatchConfirmBody": "تُحذف المباراة وتسجيلاتها، ويُبلَّغ المسجّلون. لا يمكن التراجع.",
+  "@adminDeleteConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
       }
     }
   }

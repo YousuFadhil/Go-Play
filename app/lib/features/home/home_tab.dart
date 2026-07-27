@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../admin/admin_repository.dart';
+import '../admin/admin_screen.dart';
 import '../auth/auth_service.dart';
 import '../matches/app_settings.dart';
 import '../matches/match_card.dart';
@@ -67,6 +69,21 @@ class _HomeTabState extends State<HomeTab> {
       appBar: AppBar(
         title: Text(l10n.homeTitle),
         actions: [
+          // Only a System Admin ever sees this. Hiding it is a convenience:
+          // every admin RPC checks is_system_admin() server-side regardless.
+          FutureBuilder<bool>(
+            future: AdminRepository().isSystemAdmin(),
+            builder: (context, snapshot) {
+              if (snapshot.data != true) return const SizedBox.shrink();
+              return IconButton(
+                tooltip: l10n.adminTitle,
+                icon: const Icon(Icons.shield_outlined),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AdminScreen()),
+                ),
+              );
+            },
+          ),
           FutureBuilder<_HomeData>(
             future: _future,
             builder: (context, snapshot) {

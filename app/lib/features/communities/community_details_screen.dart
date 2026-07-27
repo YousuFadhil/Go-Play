@@ -6,8 +6,7 @@ import '../matches/create_match_screen.dart';
 import '../matches/match_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
-import '../invitations/invite_links_screen.dart';
-import '../invitations/share_invitation.dart';
+import '../invitations/community_invitation_screen.dart';
 import '../members/member_management_screen.dart';
 import 'community_models.dart';
 import '../members/member_repository.dart';
@@ -79,26 +78,15 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     if (created == true) _refresh();
   }
 
-  Future<void> _openInviteLinks(String name) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => InviteLinksScreen(
-          communityId: widget.communityId,
-          communityName: name,
-        ),
-      ),
-    );
-  }
-
-  /// Visibility is the community's only setting, so it lives in the menu
+  /// How people join is the community's only setting, so it lives in the menu
   /// rather than behind a screen of its own.
-  Future<void> _setVisibility(bool isPrivate) async {
+  Future<void> _setJoinPolicy(JoinPolicy policy) async {
     final l10n = context.l10n;
     setState(() => _busy = true);
     try {
-      await _communityRepository.setVisibility(widget.communityId,
-          isPrivate: isPrivate);
-      _say(l10n.visibilitySaved);
+      await _communityRepository.setJoinPolicy(widget.communityId,
+          joinPolicy: policy);
+      _say(l10n.joinPolicySaved);
       _refresh();
     } on CommunityActionException catch (e) {
       _say(e.error == CommunityActionError.notAuthorized
@@ -109,6 +97,20 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _openInvitation(Community community) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CommunityInvitationScreen(
+          communityId: community.id,
+          communityName: community.name,
+          joinCode: community.joinCode,
+        ),
+      ),
+    );
+    // The code may have been regenerated behind that screen.
+    _refresh();
   }
 
   Future<void> _openMembers(String name) async {
@@ -235,32 +237,33 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                     menuChildren: [
                       MenuItemButton(
                         leadingIcon: const Icon(Icons.ios_share),
-                        onPressed: () => shareInvitation(
-                          context,
-                          communityId: community.id,
-                          communityName: community.name,
-                        ),
-                        child: Text(l10n.shareInvitation),
-                      ),
-                      MenuItemButton(
-                        leadingIcon: const Icon(Icons.link),
-                        onPressed: () => _openInviteLinks(community.name),
-                        child: Text(l10n.inviteLinksTitle),
+                        onPressed: () => _openInvitation(community),
+                        child: Text(l10n.communityInvitationTitle),
                       ),
                       if (isOwner)
                         MenuItemButton(
-                          leadingIcon: Icon(community.isPrivate
-                              ? Icons.lock_outline
-                              : Icons.public),
+                          leadingIcon: Icon(
+                              community.joinPolicy == JoinPolicy.codeRequired
+                                  ? Icons.password
+                                  : Icons.public),
                           trailingIcon: Switch(
-                            value: community.isPrivate,
-                            onChanged:
-                                _busy ? null : (value) => _setVisibility(value),
+                            value: community.joinPolicy ==
+                                JoinPolicy.codeRequired,
+                            onChanged: _busy
+                                ? null
+                                : (value) => _setJoinPolicy(value
+                                    ? JoinPolicy.codeRequired
+                                    : JoinPolicy.open),
                           ),
                           onPressed: _busy
                               ? null
-                              : () => _setVisibility(!community.isPrivate),
-                          child: Text(l10n.privateCommunityLabel),
+                              : () => _setJoinPolicy(
+                                    community.joinPolicy ==
+                                            JoinPolicy.codeRequired
+                                        ? JoinPolicy.open
+                                        : JoinPolicy.codeRequired,
+                                  ),
+                          child: Text(l10n.joinPolicyLabel),
                         ),
                     ],
                     builder: (context, controller, _) => IconButton(

@@ -133,13 +133,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get communityDescriptionLabel => 'Description (optional)';
 
   @override
-  String get privateCommunityLabel => 'Private community';
-
-  @override
-  String get privateCommunityHelp =>
-      'Private communities can only be joined with the join code.';
-
-  @override
   String get joinCodeLabel => 'Join code';
 
   @override
@@ -342,7 +335,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get manageReserveTitle => 'Manage reserve list';
 
   @override
-  String get matchTitleLabel => 'Match title (optional)';
+  String get matchTitleLabel => 'Match title';
 
   @override
   String get matchDescriptionLabel => 'Description';
@@ -438,18 +431,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get manageMembersTitle => 'Manage members';
 
   @override
-  String get myInvitationsTitle => 'My invitations';
-
-  @override
-  String get pendingInvitationsTitle => 'Pending invitations';
-
-  @override
-  String get inviteMemberTitle => 'Invite a player';
-
-  @override
-  String get inviteButton => 'Invite';
-
-  @override
   String get searchPlayersLabel => 'Search by name';
 
   @override
@@ -465,21 +446,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invitationSent => 'Invitation sent.';
 
   @override
-  String get invitationsEmpty => 'No pending invitations.';
-
-  @override
   String get myInvitationsEmpty => 'You have no invitations.';
-
-  @override
-  String invitationFrom(String community) {
-    return 'Invitation to join $community';
-  }
-
-  @override
-  String get acceptInvitationButton => 'Accept';
-
-  @override
-  String get revokeInvitationButton => 'Revoke';
 
   @override
   String get invitationAccepted => 'You joined the community.';
@@ -572,20 +539,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'That person is not a member of this community.';
 
   @override
-  String get errInvitationExists =>
-      'There is already a pending invitation for this player.';
-
-  @override
-  String get errInvitationNotFound => 'This invitation no longer exists.';
-
-  @override
-  String get errInvitationNotPending =>
-      'This invitation has already been used.';
-
-  @override
-  String get errInvitationExpired => 'This invitation has expired.';
-
-  @override
   String get errInvalidRole => 'That role cannot be assigned.';
 
   @override
@@ -600,70 +553,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'We could not find this invitation. The link may be incomplete.';
 
   @override
-  String get inviteRevoked => 'This invitation was revoked by an organizer.';
-
-  @override
-  String get inviteExpired => 'This invitation ended when the match started.';
-
-  @override
-  String get inviteMatchDeleted =>
-      'The match this invitation pointed to was deleted.';
-
-  @override
-  String get inviteJoinAndRegister => 'Join Community and Register';
-
-  @override
   String get inviteJoinCommunity => 'Join Community';
 
   @override
   String get inviteSignInFirst => 'Sign in or create an account to join.';
 
   @override
-  String inviteSeatsRemaining(int count) {
-    return '$count places left';
-  }
-
-  @override
-  String get inviteWouldBeReserve =>
-      'The starting places are taken. You will join the reserve list.';
-
-  @override
   String get inviteAlreadyMemberNote =>
       'You are already a member of this community.';
 
   @override
-  String get inviteAlreadyRegisteredNote =>
-      'You are already registered for this match.';
-
-  @override
-  String get inviteJoinedConfirmed =>
-      'You joined, and your place is confirmed.';
-
-  @override
-  String get inviteJoinedReserve =>
-      'You joined, and you are on the reserve list.';
-
-  @override
-  String get inviteJoinedCommunityOnly => 'You joined the community.';
-
-  @override
-  String get inviteJoinedButNotRegistered =>
-      'You joined the community, but could not be registered for the match.';
-
-  @override
-  String get inviteOpenAction => 'Open an invitation';
-
-  @override
-  String get invitePasteHint => 'Paste the invitation link';
-
-  @override
-  String get inviteInvalidInput => 'That is not an invitation link.';
-
-  @override
   String get shareInvitation => 'Share invitation';
-
-  @override
-  String get shareMatchInvitation => 'Share match invitation';
 
   @override
   String get inviteLinkCopied =>
@@ -675,58 +575,118 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String inviteShareMatchBody(String community, String match, String link) {
-    return 'Join $community on Go Play and register for $match:\n$link';
-  }
-
-  @override
   String get errNotCommunityMember => 'You are not a member of this community.';
-
-  @override
-  String get inviteLinksTitle => 'Invitation links';
-
-  @override
-  String get inviteLinksEmpty =>
-      'No links yet. Share one from the community or from a match.';
-
-  @override
-  String get inviteLinkCommunityLabel => 'Community invitation';
-
-  @override
-  String inviteLinkCreatedOn(String date) {
-    return 'Shared $date';
-  }
-
-  @override
-  String get inviteLinkExpiredLabel => 'Ended when the match started';
-
-  @override
-  String get inviteLinkMatchDeletedLabel => 'The match was deleted';
 
   @override
   String get copyLinkButton => 'Copy';
 
   @override
-  String get revokeLinkButton => 'Revoke';
-
-  @override
-  String get revokeLinkConfirmTitle => 'Revoke this invitation?';
-
-  @override
-  String get revokeLinkConfirmBody =>
-      'Anyone still holding this link will no longer be able to open it. People who already joined stay members.';
-
-  @override
-  String get inviteLinkRevokedMessage => 'Invitation revoked.';
-
-  @override
-  String get inviteLinkMatchLabel => 'Match invitation';
-
-  @override
-  String get visibilitySaved => 'Visibility updated.';
-
-  @override
   String matchCapacityLabel(int count) {
     return '👥 $count players';
   }
+
+  @override
+  String get matchTitleRequired => 'Match title is required';
+
+  @override
+  String get communityInvitationTitle => 'Invitation';
+
+  @override
+  String get communityInvitationHelp =>
+      'Anyone with this link or code can join the community. Both carry the same code.';
+
+  @override
+  String get inviteLinkLabel => 'Invitation link';
+
+  @override
+  String get copyJoinCodeButton => 'Copy code';
+
+  @override
+  String get inviteOpenCommunity => 'Open community';
+
+  @override
+  String get inviteOpenAction => 'Open an invitation';
+
+  @override
+  String get invitePasteHint => 'Paste the invitation link or code';
+
+  @override
+  String get inviteInvalidInput => 'That is not an invitation link or code.';
+
+  @override
+  String get regenerateJoinCodeButton => 'Regenerate code';
+
+  @override
+  String get regenerateJoinCodeConfirmTitle => 'Regenerate the join code?';
+
+  @override
+  String get regenerateJoinCodeConfirmBody =>
+      'The current link and code stop working immediately, so anyone still holding them cannot join. People already in the community stay members.';
+
+  @override
+  String get joinCodeRegenerated =>
+      'New code issued. The old one no longer works.';
+
+  @override
+  String get joinPolicyLabel => 'Joining';
+
+  @override
+  String get joinPolicyOpen => 'Open join';
+
+  @override
+  String get joinPolicyOpenHelp => 'Anyone can join from the community list.';
+
+  @override
+  String get joinPolicyCodeRequired => 'Join by code';
+
+  @override
+  String get joinPolicyCodeRequiredHelp =>
+      'People need the join code, or an invitation link that carries it.';
+
+  @override
+  String get joinPolicySaved => 'Join setting updated.';
+
+  @override
+  String get joinCodeRequiredPrompt => 'This community needs its join code.';
+
+  @override
+  String get adminTitle => 'Administration';
+
+  @override
+  String get adminUsersTab => 'Users';
+
+  @override
+  String get adminCommunitiesTab => 'Communities';
+
+  @override
+  String get adminMatchesTab => 'Matches';
+
+  @override
+  String get adminSearchLabel => 'Search';
+
+  @override
+  String get adminEmpty => 'Nothing found.';
+
+  @override
+  String get adminDeleteButton => 'Delete';
+
+  @override
+  String get adminDeleted => 'Deleted.';
+
+  @override
+  String adminDeleteConfirmTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get adminDeleteUserConfirmBody =>
+      'The account and everything belonging to it are removed: communities they own, matches they created, memberships and registrations. This cannot be undone.';
+
+  @override
+  String get adminDeleteCommunityConfirmBody =>
+      'The community and everything under it are removed: matches, memberships and registrations. This cannot be undone.';
+
+  @override
+  String get adminDeleteMatchConfirmBody =>
+      'The match and its registrations are removed, and registered players are notified. This cannot be undone.';
 }

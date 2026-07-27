@@ -1,6 +1,6 @@
 # Project Documentation
 
-Current as of `v0.5.1-mvp` — Community-first, with shareable invitation links.
+Current as of `v0.6.0-mvp` — Community-first: one join code, a join policy, and an internal admin role.
 
 | Document | Status |
 |---|---|

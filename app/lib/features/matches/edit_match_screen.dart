@@ -141,6 +141,9 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
                   controller: _titleController,
                   maxLength: 60,
                   decoration: InputDecoration(labelText: l10n.matchTitleLabel),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? l10n.matchTitleRequired
+                      : null,
                 ),
                 TextFormField(
                   controller: _locationController,

@@ -27,16 +27,28 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Invitation links: goplay://invite/<token>. The app's own scheme
-                 rather than an https address, because Go Play owns no domain
-                 and a link on someone else's would send anyone without the app
-                 to a stranger's site. -->
+            <!-- Invitation links: goplay://join/<code>. The app's own scheme
+                 opens the app today. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="goplay" android:host="invite"/>
+                <data android:scheme="goplay" android:host="join"/>
             </intent-filter>
+            <!-- The shared form is https://goplay.app/join/<code>. Enabling the
+                 filter below is the last step of deferred deep linking, and it
+                 must not be enabled before the domain exists: without
+                 /.well-known/assetlinks.json naming this app, Android shows a
+                 chooser instead of opening the app, which is worse than the
+                 scheme link. Uncomment once the domain serves that file.
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="goplay.app"
+                      android:pathPrefix="/join/"/>
+            </intent-filter>
+            -->
             <!-- Without this Flutter drops the incoming intent's data instead
                  of delivering it as a route. -->
             <meta-data

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
-import '../communities/community_repository.dart';
-import '../invitations/share_invitation.dart';
 import 'edit_match_screen.dart';
 import 'manage_roster_screen.dart';
 import 'match_card.dart';
@@ -42,21 +40,6 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
   }
 
   void _reload() => setState(() => _future = _load());
-
-  /// The invitation carries the community's name, so it is fetched rather than
-  /// guessed from the match.
-  Future<void> _shareMatch(Match match) async {
-    final community =
-        await CommunityRepository().fetchCommunity(match.communityId);
-    if (!mounted) return;
-    await shareInvitation(
-      context,
-      communityId: match.communityId,
-      communityName: community.name,
-      matchId: match.id,
-      matchTitle: match.displayName,
-    );
-  }
 
   String _manageError(AppLocalizations l10n, Object e) {
     if (e is ManageException) {
@@ -206,13 +189,6 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                         style: Theme.of(context).textTheme.bodySmall),
                   ),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.ios_share),
-                  title: Text(l10n.shareMatchInvitation),
-                  // A link that ends at kick-off is worth nothing after it.
-                  enabled: canModify,
-                  onTap: canModify ? () => _shareMatch(match) : null,
-                ),
                 ListTile(
                   leading: const Icon(Icons.edit),
                   title: Text(l10n.editMatchTitle),

@@ -37,9 +37,9 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
   /// not an invitation is left to the default handling.
   @override
   Future<bool> didPushRouteInformation(RouteInformation routeInformation) {
-    final token = InviteLink.parse(routeInformation.uri.toString());
-    if (token == null) return super.didPushRouteInformation(routeInformation);
-    PendingInvite.instance.offer(token);
+    final code = InviteLink.parse(routeInformation.uri.toString());
+    if (code == null) return super.didPushRouteInformation(routeInformation);
+    PendingInvite.instance.offer(code);
     return Future.value(true);
   }
 
@@ -83,12 +83,12 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String?>(
-      valueListenable: PendingInvite.instance.token,
-      builder: (context, token, _) {
-        if (token != null) {
+      valueListenable: PendingInvite.instance.code,
+      builder: (context, code, _) {
+        if (code != null) {
           // Keyed so a second invitation replaces the first rather than
           // reusing the previous one's state.
-          return InviteLandingScreen(key: ValueKey(token), token: token);
+          return InviteLandingScreen(key: ValueKey(code), code: code);
         }
         return StreamBuilder<bool>(
           stream: _authService.signedInChanges,

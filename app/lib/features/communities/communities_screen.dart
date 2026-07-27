@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
-import '../invitations/my_invitations_screen.dart';
 import 'create_community_screen.dart';
 import 'community_details_screen.dart';
 import 'community_models.dart';
@@ -46,13 +45,6 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
   }
 
   /// Accepting an invitation adds a membership, so the list must reload.
-  Future<void> _openInvitations() async {
-    final joined = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const MyInvitationsScreen()),
-    );
-    if (joined == true) _refresh();
-  }
-
   /// Fallback for an invitation that arrived as text rather than as a tap —
   /// some messaging apps will not make a `goplay://` link tappable. Handing the
   /// token to PendingInvite routes it exactly like a tapped link would.
@@ -75,20 +67,46 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     if (joinedId != null) _refresh();
   }
 
-  /// Joins a discoverable public community directly, using its (readable) join
-  /// code. Private communities never appear here, so they stay code-only.
-  Future<void> _joinPublicCommunity(Community community) async {
+  /// Every community is listed, so Join means two different things: an OPEN
+  /// community joins outright, and a CODE_REQUIRED one asks for its code first.
+  /// The server decides either way — this only picks which question to ask.
+  Future<void> _join(Community community) async {
+    final l10n = context.l10n;
+    if (community.joinPolicy == JoinPolicy.codeRequired) {
+      final joinedId = await showDialog<String>(
+        context: context,
+        builder: (_) => _JoinCommunityDialog(
+          repository: _communityRepository,
+          prompt: l10n.joinCodeRequiredPrompt,
+        ),
+      );
+      if (joinedId != null) _refresh();
+      return;
+    }
+
     setState(() => _joiningId = community.id);
     try {
-      await _communityRepository.joinCommunityByCode(community.joinCode);
+      await _communityRepository.joinCommunity(community.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(context.l10n.joinedCommunity)));
+          .showSnackBar(SnackBar(content: Text(l10n.joinedCommunity)));
       _refresh();
+    } on JoinCodeRequiredException {
+      // The policy changed under us; ask for the code rather than fail.
+      if (!mounted) return;
+      setState(() => _joiningId = null);
+      final joinedId = await showDialog<String>(
+        context: context,
+        builder: (_) => _JoinCommunityDialog(
+          repository: _communityRepository,
+          prompt: l10n.joinCodeRequiredPrompt,
+        ),
+      );
+      if (joinedId != null) _refresh();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.communityJoinFailed)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.communityJoinFailed)));
     } finally {
       if (mounted) setState(() => _joiningId = null);
     }
@@ -102,11 +120,6 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
       appBar: AppBar(
         title: Text(l10n.communitiesTitle),
         actions: [
-          IconButton(
-            tooltip: l10n.myInvitationsTitle,
-            icon: const Icon(Icons.mail_outline),
-            onPressed: _openInvitations,
-          ),
           IconButton(
             tooltip: l10n.inviteOpenAction,
             icon: const Icon(Icons.link),
@@ -164,9 +177,10 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                      trailing: community.isPrivate
-                          ? const Icon(Icons.lock_outline)
-                          : null,
+                      trailing:
+                          community.joinPolicy == JoinPolicy.codeRequired
+                              ? const Icon(Icons.password)
+                              : null,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
@@ -201,7 +215,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                               child: FilledButton.tonal(
                                 onPressed: _joiningId != null
                                     ? null
-                                    : () => _joinPublicCommunity(community),
+                                    : () => _join(community),
                                 child: Text(l10n.joinCommunityButton),
                               ),
                             ),
@@ -256,9 +270,13 @@ class _ErrorRetry extends StatelessWidget {
 /// so nothing from the parent screen leaks into the dialog subtree. Returns
 /// the joined community id via [Navigator.pop], or null when dismissed.
 class _JoinCommunityDialog extends StatefulWidget {
-  const _JoinCommunityDialog({required this.repository});
+  const _JoinCommunityDialog({required this.repository, this.prompt});
 
   final CommunityRepository repository;
+
+  /// Shown above the field when the dialog was opened because a community's
+  /// policy requires the code, rather than from the generic join action.
+  final String? prompt;
 
   @override
   State<_JoinCommunityDialog> createState() => _JoinCommunityDialogState();
@@ -313,18 +331,28 @@ class _JoinCommunityDialogState extends State<_JoinCommunityDialog> {
       title: Text(l10n.joinCommunityTitle),
       content: Form(
         key: _formKey,
-        child: TextFormField(
-          controller: _controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-          textDirection: TextDirection.ltr,
-          decoration: InputDecoration(
-            labelText: l10n.joinCodeLabel,
-            errorText: _errorText,
-          ),
-          validator: (value) => (value == null || value.trim().isEmpty)
-              ? l10n.joinCodeRequired
-              : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.prompt != null) ...[
+              Text(widget.prompt!),
+              const SizedBox(height: 12),
+            ],
+            TextFormField(
+              controller: _controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              textDirection: TextDirection.ltr,
+              decoration: InputDecoration(
+                labelText: l10n.joinCodeLabel,
+                errorText: _errorText,
+              ),
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? l10n.joinCodeRequired
+                  : null,
+            ),
+          ],
         ),
       ),
       actions: [
