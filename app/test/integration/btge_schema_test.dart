@@ -111,14 +111,14 @@ void main() {
       expect(result, isNot('ALLOW'));
     });
 
-    test('a player cannot set their own rating', () async {
-      // Rating adjustment is a separate business rule. Until it exists the
-      // column is withheld from clients, or the balance the engine computes
-      // would mean nothing.
+    test('the rating range is enforced (OP-1)', () async {
+      // Who may change a rating is a Product/Business Policy decision that
+      // KB-D3 deliberately leaves open. The range itself is schema, and holds
+      // whoever writes it.
       final result = await outcomeOf(() async {
         await player.client
             .from('users')
-            .update({'overall_rating': 10.0}).eq('id', player.id);
+            .update({'overall_rating': 11.0}).eq('id', player.id);
       });
       expect(result, isNot('ALLOW'));
       expect(double.parse('${(await profileOf(player))['overall_rating']}'), 5.0);

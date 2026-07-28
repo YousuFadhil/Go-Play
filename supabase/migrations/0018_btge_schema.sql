@@ -43,29 +43,7 @@ alter table public.users
       or secondary_position in ('GK', 'DEF', 'MID', 'FWD')
     );
 
--- 2) Rating is not self-service ------------------------------------------------
--- users_update_own_profile lets a player edit their own row, so without this a
--- player could set their own strength to 10.0 and the balance the engine
--- computes would mean nothing. The approved decision states that rating
--- adjustment is a separate business rule, so the column is withheld from
--- clients until that rule exists.
---
--- Column privileges are the precise tool: the rest of the profile stays
--- self-editable. A table-level grant would override a column-level revoke, so
--- the table-level UPDATE is replaced by an explicit column list. That list is
--- every column a client could update before this migration, plus the two new
--- profile fields, minus overall_rating.
-revoke update on public.users from authenticated, anon;
-grant update (
-  phone,
-  full_name,
-  primary_position,
-  is_active,
-  date_of_birth,
-  secondary_position
-) on public.users to authenticated;
-
--- 3) The played lineup ---------------------------------------------------------
+-- 2) The played lineup ---------------------------------------------------------
 -- One row per player per match: the team they were on and the position they
 -- played.
 --
@@ -110,7 +88,7 @@ create trigger match_team_assignments_set_updated_at
   for each row
   execute function public.set_updated_at();
 
--- 4) Authorization -------------------------------------------------------------
+-- 3) Authorization -------------------------------------------------------------
 -- Reading a lineup is a member's business. Writing one is match management,
 -- which PD-06 and PD-07 already placed with the owner and admins.
 --

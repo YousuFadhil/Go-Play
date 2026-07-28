@@ -84,12 +84,11 @@ predicate. Both are `SECURITY DEFINER` because a policy that reached into
 own RLS. Reading a lineup is a member's business; writing one is match
 management, which PD-06 and PD-07 already placed with the owner and admins.
 
-`users.overall_rating` is not client-writable. `users_update_own_profile` lets a
-player edit their own row, so the table-level UPDATE grant is replaced by an
-explicit column list that omits the rating — otherwise a player could set their
-own strength and the balance the engine computes would mean nothing. Rating
-adjustment is a separate business rule; until it exists, nothing writes that
-column from a client.
+Who may change `users.overall_rating` is **not settled**. It is a
+Product/Business Policy decision, not a schema one, and KB-D3 deliberately left
+it open: migration `0018` adds the column and its range constraint and nothing
+about permissions, so `users_update_own_profile` currently governs it like any
+other profile field. The rating-adjustment workflow will decide.
 
 ## Derived values
 

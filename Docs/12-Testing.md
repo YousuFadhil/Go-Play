@@ -45,7 +45,7 @@ flutter test test/integration/authorization_test.dart --dart-define=SUPABASE_URL
 | `community_management_test.dart` | Leaving, member removal, ownership transfer, the join policy and what it does and does not gate, join-code regeneration, community deletion |
 | `concurrency_test.dart` | The last-seat race and racing withdrawals |
 | `system_admin_test.dart` | That an ordinary account is refused by every admin function, and cannot read the roster. The grant path and the delete cascades are verified by hand — no test account holds the role, by design |
-| `btge_schema_test.dart` | Migration `0018`: the three Core Player Inputs on the profile, that a player cannot set their own rating, and the stored lineup — its vocabularies, one assignment per player, one goalkeeper per team, who may read and write, and the cascade with its match |
+| `btge_schema_test.dart` | Migration `0018`: the three Core Player Inputs on the profile including the OP-1 rating range, and the stored lineup — its vocabularies, one assignment per player, one goalkeeper per team, who may read and write, and the cascade with its match |
 
 ### Test accounts
 
