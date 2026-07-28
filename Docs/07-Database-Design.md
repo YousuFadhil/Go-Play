@@ -18,7 +18,8 @@ after migration `0017`.
 ## Tables
 
 `users`, `communities`, `community_members`, `matches`,
-`match_registrations`, `notifications`, `app_settings`.
+`match_registrations`, `notifications`, `app_settings`,
+`match_team_assignments`.
 
 ## Key constraints
 
@@ -46,6 +47,20 @@ after migration `0017`.
   index), and an invitation can only offer `admin` or `player`.
 - `notifications.match_id` uses **ON DELETE SET NULL**, so a "match deleted"
   notice survives the match it refers to (DD-08).
+- `users.overall_rating` is `NUMERIC(3,1)`, NOT NULL, default `5.0`, constrained
+  to `0.0 … 10.0` — the approved OP-1 scale. `users.date_of_birth` and
+  `users.secondary_position` are nullable: existing players have neither, and
+  the database must not invent what the engine is required to reject as missing.
+  `secondary_position` uses the same vocabulary as `primary_position`.
+- `match_team_assignments`: one row per player per match, unique on
+  `(match_id, user_id)` — every player assigned exactly once, never twice
+  (`BTGE-HC-1`, `BTGE-HC-2`). A partial unique index on `(match_id, team)` where
+  `assigned_position = 'GK'` gives no team more than one goalkeeper
+  (`BTGE-HC-6`). `team` in (`A`, `B`), `assigned_position` in the position
+  vocabulary, `assignment_basis` in (`PRIMARY`, `SECONDARY`, `TRANSITION`).
+  Out-of-position is not stored: it is exactly `assignment_basis = 'TRANSITION'`.
+  Rows hold the lineup that **actually played**, including any manual change —
+  a record of reality, not of the engine's proposal (KB-017).
 
 ## Authorization
 
@@ -61,6 +76,20 @@ predicate. Roles are cumulative: owner >= admin >= player.
 
 The approved permission matrix is in the Architecture Migration Specification
 v1.2, section 4.2.
+
+`is_match_community_admin(match_id, user_id)` is the write predicate for
+match-scoped tables, mirroring the existing `is_match_community_member` read
+predicate. Both are `SECURITY DEFINER` because a policy that reached into
+`matches` directly would have that subquery evaluated under the matches table's
+own RLS. Reading a lineup is a member's business; writing one is match
+management, which PD-06 and PD-07 already placed with the owner and admins.
+
+`users.overall_rating` is not client-writable. `users_update_own_profile` lets a
+player edit their own row, so the table-level UPDATE grant is replaced by an
+explicit column list that omits the rating — otherwise a player could set their
+own strength and the balance the engine computes would mean nothing. Rating
+adjustment is a separate business rule; until it exists, nothing writes that
+column from a client.
 
 ## Derived values
 
@@ -80,7 +109,9 @@ Primary keys, the membership unique index (which also serves role resolution),
 `community_members(community_id)`, `matches(community_id, start_at)`,
 `matches(status)`, `match_registrations(match_id, status, registration_order)`,
 `match_registrations(user_id)`, `notifications(user_id, created_at desc)`,
-`invitations(invitee_id, status)`.
+`invitations(invitee_id, status)`, `match_team_assignments(user_id)` and the
+partial unique `match_team_assignments(match_id, team) where assigned_position
+= 'GK'`.
 
 ## System Admin
 
@@ -132,8 +163,10 @@ Community-first simplification: a required match title, the removal of both
 invitation systems in favour of the join code, the title guard in
 `update_match`, and the `delete_community` fix that followed from it. `0015`
 added join-code regeneration, `0016` replaced `is_private` with
-`join_policy`, and `0017` added the System Admin role.
-`supabase/setup_all.sql` is a generated concatenation of all seventeen, in order.
+`join_policy`, and `0017` added the System Admin role. `0018` is KB-D3: the
+three Core Player Inputs on the profile and `match_team_assignments`, the
+lineup that actually played.
+`supabase/setup_all.sql` is a generated concatenation of all eighteen, in order.
 
 The migration sequence keeps the objects it later drops: it records the project's
 history rather than its end state. Reading `0008` and `0012` together is how a

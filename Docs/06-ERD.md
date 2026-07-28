@@ -18,10 +18,12 @@ belongs to exactly one community, and nothing is owned by a user.
 | `notifications` | In-app notices addressed to one user |
 | `app_settings` | One global row; currently the reserve allowance |
 | `system_admins` | The internal administration role; not a community role |
+| `match_team_assignments` | The lineup that actually played a match (KB-D3) |
 
 Entities described in the v2 document but never built — `fields`, `teams`,
-`team_players`, `match_results`, `goals`, `rating_history`,
-`player_statistics` — remain out of scope. See `11-Future-Backlog.md`.
+`match_results`, `goals`, `rating_history`, `player_statistics` — remain out of
+scope. See `11-Future-Backlog.md`. The v2 `team_players` idea is now served by
+`match_team_assignments`, which was built for BTGE rather than for statistics.
 
 ## 2. Relationships
 
@@ -30,6 +32,7 @@ users (1) --< community_members >-- (1) communities
                                           |
                                           +--< matches
                                                  +--< match_registrations >-- users
+                                                 +--< match_team_assignments >-- users
 
 users --< notifications --? matches   (match_id nullable, ON DELETE SET NULL)
 ```
@@ -42,6 +45,9 @@ users --< notifications --? matches   (match_id nullable, ON DELETE SET NULL)
   is unique per match.
 - A notification keeps its text after its match is deleted, because `match_id`
   is set to null rather than cascading.
+- A team assignment is unique per `(match_id, user_id)`, and at most one row per
+  `(match_id, team)` may carry `GK`. It cascades with its match: a deleted match
+  leaves no lineup behind.
 
 ## 3. Fields that are not authorization
 

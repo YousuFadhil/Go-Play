@@ -12,7 +12,7 @@ flutter test
 Runs everywhere with no configuration. The integration files skip themselves
 when credentials are absent, so this stays usable by anyone.
 
-Expected: **54 passed, 4 skipped**.
+Expected: **54 passed, 6 skipped** — one skip per integration file.
 
 Covered: phone and email validation, the `CommunityRole` enum including its
 cumulative precedence and the fallback for an unrecognised value, match
@@ -27,7 +27,8 @@ JSON parsing for every model.
 flutter test --dart-define=SUPABASE_URL=https://<ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<publishable key>
 ```
 
-Expected: **122 passed**, which is the unit tests plus 68 integration tests.
+Expected: **133 passed**, which is the unit tests plus 79 integration tests —
+the 68 that predate KB-D3 plus the 11 in `btge_schema_test.dart`.
 
 To run one file:
 
@@ -44,6 +45,7 @@ flutter test test/integration/authorization_test.dart --dart-define=SUPABASE_URL
 | `community_management_test.dart` | Leaving, member removal, ownership transfer, the join policy and what it does and does not gate, join-code regeneration, community deletion |
 | `concurrency_test.dart` | The last-seat race and racing withdrawals |
 | `system_admin_test.dart` | That an ordinary account is refused by every admin function, and cannot read the roster. The grant path and the delete cascades are verified by hand — no test account holds the role, by design |
+| `btge_schema_test.dart` | Migration `0018`: the three Core Player Inputs on the profile, that a player cannot set their own rating, and the stored lineup — its vocabularies, one assignment per player, one goalkeeper per team, who may read and write, and the cascade with its match |
 
 ### Test accounts
 
