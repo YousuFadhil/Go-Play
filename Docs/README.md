@@ -26,22 +26,27 @@ are right.
 The Balanced Team Generation Engine has its own pair of documents under
 `engineering/`.
 
-**Status: design complete, implementation not started.** No code exists yet.
-Implementation may begin once the prerequisites below are met — no open
-parameter blocks starting.
+**Status: design complete; engine implemented, awaiting review.** The engine
+lives in `packages/btge` — pure Dart, no Flutter, no Supabase, no schema.
+Integration begins only after that branch is reviewed.
 
 | Document | Authority |
 |---|---|
 | `engineering/BTGE_Design_Knowledge_Base.md` | **Design Authority** — approved product intent (v1.3) |
 | `engineering/BTGE_Engineering_Specification.md` | **Implementation Authority** — approved engineering rules (v1.2) |
 
-Before implementation can begin: the schema prerequisite in `KB-D3` — the
-rating, date of birth, secondary position and per-match team assignment records
-do not exist yet, and designing that change sits outside both BTGE documents.
+Before integration can begin: the schema prerequisite in `KB-D3` — the rating,
+date of birth, secondary position and per-match team assignment records do not
+exist yet, and designing that change sits outside both BTGE documents.
 
 Before the engine can be validated and released: five Product Owner decisions,
 `OP-1`, `OP-2`, `OP-3`, `OP-5` and `OP-6`, listed in §18.1 of the Engineering
 Specification.
+
+Two follow-ups are recorded in `11-Future-Backlog.md` for review after
+integration — a documented inconsistency between §8 and §11.1, and a known
+limitation on pools where a whole line shares one rating. Neither changes the
+Knowledge Base or the Engineering Specification.
 
 If any conflict exists, the Knowledge Base governs product intent and the
 Engineering Specification must be updated accordingly.
