@@ -1,0 +1,5 @@
+tags:
+  capacity:
+    # TS-03 searches all 77,558,760 partitions of a 15 v 15 pool. It is slow by
+    # design: BTGE-PF-4 forbids cutting the search short to save time.
+    timeout: 10x

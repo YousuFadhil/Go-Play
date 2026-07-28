@@ -1,0 +1,13 @@
+name: btge
+description: >-
+  Balanced Team Generation Engine. Pure Dart, no Flutter, no Supabase, no
+  database. Implements Docs/engineering/BTGE_Engineering_Specification.md.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^4.0.0

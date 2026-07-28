@@ -12,3 +12,5 @@ Thumbs.db
 
 # Local tool settings
 .claude/settings.local.json
+packages/btge/.dart_tool/
+packages/btge/pubspec.lock
