@@ -1,37 +1,18 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
+import '../../infrastructure/supabase/supabase_notification_adapter.dart';
+import 'notification_adapter.dart';
 import 'notification_models.dart';
 
+/// The user's own notifications. A straight pass-through: which events produce
+/// a notification is decided by the database.
 class NotificationService {
-  NotificationService([SupabaseClient? client])
-      : _client = client ?? Supabase.instance.client;
+  NotificationService([NotificationAdapter? adapter])
+      : _adapter = adapter ?? SupabaseNotificationAdapter();
 
-  final SupabaseClient _client;
+  final NotificationAdapter _adapter;
 
-  Future<List<AppNotification>> fetchAll() async {
-    final rows = await _client
-        .from('notifications')
-        .select('id, type, message, is_read, created_at, match_id')
-        .order('created_at', ascending: false)
-        .limit(100);
-    return [for (final row in rows) AppNotification.fromJson(row)];
-  }
+  Future<List<AppNotification>> fetchAll() => _adapter.fetchAll();
 
-  Future<int> unreadCount() async {
-    final rows = await _client
-        .from('notifications')
-        .select('id')
-        .eq('is_read', false);
-    return rows.length;
-  }
+  Future<int> unreadCount() => _adapter.unreadCount();
 
-  Future<void> markAllRead() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return;
-    await _client
-        .from('notifications')
-        .update({'is_read': true})
-        .eq('user_id', userId)
-        .eq('is_read', false);
-  }
+  Future<void> markAllRead() => _adapter.markAllRead();
 }

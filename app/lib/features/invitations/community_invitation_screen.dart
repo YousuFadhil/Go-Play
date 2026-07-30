@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
-import '../communities/community_errors.dart';
 import '../communities/community_repository.dart';
 import 'invite_link.dart';
 
@@ -77,12 +77,8 @@ class _CommunityInvitationScreenState extends State<CommunityInvitationScreen> {
       messenger.showSnackBar(
         SnackBar(content: Text(l10n.joinCodeRegenerated)),
       );
-    } on CommunityActionException catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(e.error == CommunityActionError.notAuthorized
-            ? l10n.errNotAuthorized
-            : l10n.genericError),
-      ));
+    } on AuthorizationFailure {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.errNotAuthorized)));
     } catch (_) {
       messenger.showSnackBar(SnackBar(content: Text(l10n.genericError)));
     } finally {

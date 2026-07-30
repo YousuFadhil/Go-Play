@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../communities/community_details_screen.dart';
-import '../communities/community_errors.dart';
 import '../communities/community_models.dart';
 import '../communities/community_repository.dart';
 import 'invite_link.dart';
@@ -59,30 +59,37 @@ class _InviteLandingScreenState extends State<InviteLandingScreen> {
 
     setState(() => _isJoining = true);
     try {
-      final communityId = await _communities.joinCommunityByCode(widget.code);
+      final outcome = await _communities.joinCommunityByCode(widget.code);
       if (!mounted) return;
 
-      PendingInvite.instance.clear();
-      navigator.push(MaterialPageRoute(
-        builder: (_) => CommunityDetailsScreen(communityId: communityId),
-      ));
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.joinedCommunity)),
-      );
-    } on AlreadyMemberOfCommunityException {
-      // Already in: still the right destination, just a different sentence.
-      if (!mounted) return;
-      final id = preview.communityId;
-      PendingInvite.instance.clear();
-      if (id != null) {
-        navigator.push(MaterialPageRoute(
-          builder: (_) => CommunityDetailsScreen(communityId: id),
-        ));
+      switch (outcome) {
+        case JoinedCommunity(:final communityId):
+          PendingInvite.instance.clear();
+          navigator.push(MaterialPageRoute(
+            builder: (_) => CommunityDetailsScreen(communityId: communityId),
+          ));
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n.joinedCommunity)),
+          );
+        case AlreadyMember():
+          // Already in: still the right destination, just a different
+          // sentence. The id comes from the preview, since joining returned
+          // none.
+          final id = preview.communityId;
+          PendingInvite.instance.clear();
+          if (id != null) {
+            navigator.push(MaterialPageRoute(
+              builder: (_) => CommunityDetailsScreen(communityId: id),
+            ));
+          }
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n.alreadyMemberOfCommunity)),
+          );
+        case NeedsJoinCode():
+          // Unreachable: the invitation carries the code.
+          _showError(l10n.communityJoinFailed);
       }
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.alreadyMemberOfCommunity)),
-      );
-    } on CommunityNotFoundException {
+    } on NotFoundFailure {
       _showError(l10n.inviteNotFound);
       _reload();
     } catch (_) {

@@ -2,22 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/features/communities/community_models.dart';
 
 void main() {
-  group('CommunityRole.fromDb', () {
-    test('reads the three stored roles', () {
-      expect(CommunityRole.fromDb('owner'), CommunityRole.owner);
-      expect(CommunityRole.fromDb('admin'), CommunityRole.admin);
-      expect(CommunityRole.fromDb('player'), CommunityRole.player);
-    });
-
-    test('maps the legacy member value to player', () {
-      expect(CommunityRole.fromDb('member'), CommunityRole.player);
-    });
-
-    test('falls back to player for an unknown value', () {
-      expect(CommunityRole.fromDb('superuser'), CommunityRole.player);
-      expect(CommunityRole.fromDb(''), CommunityRole.player);
-    });
-  });
+  // Reading a stored role moved to the Adapter Layer; its tests live in
+  // test/mappers_test.dart. What the role *means* stays here.
 
   group('CommunityRole.atLeast', () {
     test('owner covers every role', () {

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import 'create_community_screen.dart';
 import 'community_details_screen.dart';
 import 'community_models.dart';
 import '../invitations/invite_link.dart';
-import 'community_errors.dart';
 import 'community_repository.dart';
 
 class CommunitiesScreen extends StatefulWidget {
@@ -86,23 +86,30 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
 
     setState(() => _joiningId = community.id);
     try {
-      await _communityRepository.joinCommunity(community.id);
+      final outcome = await _communityRepository.joinCommunity(community.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.joinedCommunity)));
-      _refresh();
-    } on JoinCodeRequiredException {
-      // The policy changed under us; ask for the code rather than fail.
-      if (!mounted) return;
-      setState(() => _joiningId = null);
-      final joinedId = await showDialog<String>(
-        context: context,
-        builder: (_) => _JoinCommunityDialog(
-          repository: _communityRepository,
-          prompt: l10n.joinCodeRequiredPrompt,
-        ),
-      );
-      if (joinedId != null) _refresh();
+      switch (outcome) {
+        case JoinedCommunity():
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(l10n.joinedCommunity)));
+          _refresh();
+        case NeedsJoinCode():
+          // The policy changed under us; ask for the code rather than fail.
+          setState(() => _joiningId = null);
+          final joinedId = await showDialog<String>(
+            context: context,
+            builder: (_) => _JoinCommunityDialog(
+              repository: _communityRepository,
+              prompt: l10n.joinCodeRequiredPrompt,
+            ),
+          );
+          if (joinedId != null) _refresh();
+        case AlreadyMember():
+          // Joined from elsewhere while this list was open.
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.alreadyMemberOfCommunity)));
+          _refresh();
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -303,13 +310,20 @@ class _JoinCommunityDialogState extends State<_JoinCommunityDialog> {
       _errorText = null;
     });
     try {
-      final communityId =
+      final outcome =
           await widget.repository.joinCommunityByCode(_controller.text);
-      if (mounted) Navigator.of(context).pop(communityId);
-    } on CommunityNotFoundException {
+      if (!mounted) return;
+      switch (outcome) {
+        case JoinedCommunity(:final communityId):
+          Navigator.of(context).pop(communityId);
+        case AlreadyMember():
+          _setError(l10n.alreadyMemberOfCommunity);
+        case NeedsJoinCode():
+          // Unreachable: this path always sends a code.
+          _setError(l10n.communityJoinFailed);
+      }
+    } on NotFoundFailure {
       _setError(l10n.communityNotFound);
-    } on AlreadyMemberOfCommunityException {
-      _setError(l10n.alreadyMemberOfCommunity);
     } catch (_) {
       _setError(l10n.communityJoinFailed);
     }

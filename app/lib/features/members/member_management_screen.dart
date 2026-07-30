@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../communities/community_models.dart';
 import '../auth/auth_service.dart';
-import '../communities/community_errors.dart';
 import 'member_repository.dart';
 
 /// Roster of a community with the actions the viewer's role allows.
@@ -51,17 +51,19 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _actionError(AppLocalizations l10n, CommunityActionError e) {
-    return switch (e) {
-      CommunityActionError.notAuthorized => l10n.errNotAuthorized,
-      CommunityActionError.cannotChangeOwnRole => l10n.errCannotChangeOwnRole,
-      CommunityActionError.cannotRemoveSelf => l10n.errCannotRemoveSelf,
-      CommunityActionError.cannotRemoveOwner => l10n.errCannotRemoveOwner,
-      CommunityActionError.alreadyOwner => l10n.errAlreadyOwner,
-      CommunityActionError.memberNotFound => l10n.errMemberNotFound,
-      CommunityActionError.alreadyMember => l10n.alreadyMemberOfCommunity,
-      CommunityActionError.invalidRole => l10n.errInvalidRole,
-      // The invite-link and match codes cannot come from these RPCs.
+  /// The failure type decides nothing here — every one of these ends the same
+  /// way, with a sentence — so the reason is free to choose which sentence.
+  String _actionError(AppLocalizations l10n, Failure failure) {
+    if (failure is AuthorizationFailure) return l10n.errNotAuthorized;
+    return switch (failure.reason) {
+      FailureReason.cannotChangeOwnRole => l10n.errCannotChangeOwnRole,
+      FailureReason.cannotRemoveSelf => l10n.errCannotRemoveSelf,
+      FailureReason.cannotRemoveOwner => l10n.errCannotRemoveOwner,
+      FailureReason.alreadyOwner => l10n.errAlreadyOwner,
+      FailureReason.memberNotFound => l10n.errMemberNotFound,
+      FailureReason.alreadyMember => l10n.alreadyMemberOfCommunity,
+      FailureReason.invalidRole => l10n.errInvalidRole,
+      // The registration and joining reasons cannot come from these RPCs.
       _ => l10n.genericError,
     };
   }
@@ -72,8 +74,8 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     try {
       await action();
       _say(success);
-    } on CommunityActionException catch (e) {
-      _say(_actionError(l10n, e.error));
+    } on Failure catch (failure) {
+      _say(_actionError(l10n, failure));
     } catch (_) {
       _say(l10n.genericError);
     } finally {
