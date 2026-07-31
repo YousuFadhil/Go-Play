@@ -98,7 +98,13 @@ enum FailureReason {
   communityNotFound,
   alreadyMember,
 
-  // Team generation
+  // Team generation.
+  //
+  // Raised by the team repository when a Core Player Input is absent (§4.1,
+  // §4.3). **Reserved for the upcoming Team Generation UI**: no screen selects
+  // a sentence from it yet, and until one does the failure reaches the user
+  // through the generic fallback for its type. Nothing branches on it —
+  // behaviour follows the failure type, as OP-5 requires.
   missingPlayerInputs,
 
   // Identity

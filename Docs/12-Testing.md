@@ -12,8 +12,8 @@ flutter test
 Runs everywhere with no configuration. The integration files skip themselves
 when credentials are absent, so this stays usable by anyone.
 
-**Last executed: 147 passed, 7 skipped** — one skip per integration file.
-Observed on 2026-07-31, at the team-generation adapter.
+**Last executed: 168 passed, 7 skipped** — one skip per integration file.
+Observed on 2026-07-31, at the team-generation integration.
 
 Covered: phone and email validation, the `CommunityRole` enum including its
 cumulative precedence and the fallback for an unrecognised value, match
@@ -21,8 +21,23 @@ lifecycle derivation (lock, completion, capacity), repository construction with
 an injected client, the RPC error-code mapping, join-code link parsing and the
 pending-invitation holder, time formatting against both device preferences,
 JSON parsing for every model, and the team-generation layer — what counts as a
-complete profile, the §4 input contract the schema yields, and the lookback
-window the repository refuses to choose for itself.
+complete profile, the §4 input contract the schema yields, the lookback window
+the repository refuses to choose for itself, and the repository driving the
+engine: a generation that succeeds, each way the engine refuses its input, and
+the output mapped back into Domain Models.
+
+## Running the engine's own tests
+
+The Balanced Team Generation Engine is a separate package with a separate
+suite. The application suite does not re-assert its rules.
+
+```bash
+cd packages/btge && dart test
+```
+
+**Last executed: 49 passed**, observed on 2026-07-31. `TS-03` alone searches
+all 77,558,760 partitions of a 30-player pool, so a full run takes about two
+and a half minutes.
 
 ## Running the integration suite
 
@@ -34,13 +49,14 @@ flutter test --dart-define=SUPABASE_URL=https://<ref>.supabase.co --dart-define=
 plus 79 integration tests, and it is the last figure anyone has watched go
 green.
 
-**Expected but not yet executed: 236** — the 147 unit tests above plus 89
+**Expected but not yet executed: 257** — the 168 unit tests above plus 89
 integration tests, being the same 79 plus the 10 in
 `team_generation_test.dart`. It is a count of the tests that exist, not the
-result of a run. Two things have moved since the last observed figure and
-neither has been confirmed against a project: the Adapter Layer phase grew the
-unit suite from 54 to 117 without updating this file, and the team-generation
-adapter added 30 unit and 10 integration tests.
+result of a run. Three things have moved since the last observed figure and
+none has been confirmed against a project: the Adapter Layer phase grew the
+unit suite from 54 to 117 without updating this file, the team-generation
+adapter added 30 unit and 10 integration tests, and the team-generation
+integration added 21 unit tests.
 
 > **The suite cannot currently run.** Every integration file fails in
 > `setUpAll`: the four permanent `goplay.itest.*` accounts no longer exist in
