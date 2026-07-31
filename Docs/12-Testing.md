@@ -12,7 +12,8 @@ flutter test
 Runs everywhere with no configuration. The integration files skip themselves
 when credentials are absent, so this stays usable by anyone.
 
-Expected: **147 passed, 7 skipped** — one skip per integration file.
+**Last executed: 147 passed, 7 skipped** — one skip per integration file.
+Observed on 2026-07-31, at the team-generation adapter.
 
 Covered: phone and email validation, the `CommunityRole` enum including its
 cumulative precedence and the fallback for an unrecognised value, match
@@ -29,9 +30,24 @@ window the repository refuses to choose for itself.
 flutter test --dart-define=SUPABASE_URL=https://<ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<publishable key>
 ```
 
-Expected: **236 passed**, which is the unit tests plus 89 integration tests —
-the 79 that predate the team-generation adapter plus the 10 in
-`team_generation_test.dart`.
+**Last executed: 133 passed**, at `v0.8.0-mvp` (KB-D3). That was 54 unit tests
+plus 79 integration tests, and it is the last figure anyone has watched go
+green.
+
+**Expected but not yet executed: 236** — the 147 unit tests above plus 89
+integration tests, being the same 79 plus the 10 in
+`team_generation_test.dart`. It is a count of the tests that exist, not the
+result of a run. Two things have moved since the last observed figure and
+neither has been confirmed against a project: the Adapter Layer phase grew the
+unit suite from 54 to 117 without updating this file, and the team-generation
+adapter added 30 unit and 10 integration tests.
+
+> **The suite cannot currently run.** Every integration file fails in
+> `setUpAll`: the four permanent `goplay.itest.*` accounts no longer exist in
+> project `odhimoxvuhiyunwutzff` (confirmed 2026-07-31 — the project is healthy
+> and holds 10 other users). Recreate them by hand with the suite password, as
+> the harness message says; a test run must not mint them. Until then the
+> figure above stays unexecuted, and this note stays here.
 
 To run one file:
 
