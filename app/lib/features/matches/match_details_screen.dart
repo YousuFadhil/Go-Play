@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../communities/community_models.dart';
 import '../auth/auth_service.dart';
@@ -56,16 +57,20 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Every registration failure ends the same way, with a sentence, so the
+  /// reason is free to choose which one. [fallback] covers a failure the
+  /// registration RPCs do not name.
   String _registrationErrorMessage(
-      AppLocalizations l10n, RegistrationError error) {
-    return switch (error) {
-      RegistrationError.overlappingMatch => l10n.errOverlappingMatch,
-      RegistrationError.matchClosed => l10n.errMatchClosed,
-      RegistrationError.alreadyRegistered => l10n.errAlreadyRegistered,
-      RegistrationError.notRegistered => l10n.errNotRegistered,
-      RegistrationError.registrationClosed => l10n.errRegistrationClosed,
-      RegistrationError.matchLocked => l10n.errMatchLocked,
-      RegistrationError.notCommunityMember => l10n.errNotCommunityMember,
+      AppLocalizations l10n, Failure failure, String fallback) {
+    return switch (failure.reason) {
+      FailureReason.overlappingMatch => l10n.errOverlappingMatch,
+      FailureReason.matchClosed => l10n.errMatchClosed,
+      FailureReason.alreadyRegistered => l10n.errAlreadyRegistered,
+      FailureReason.notRegistered => l10n.errNotRegistered,
+      FailureReason.registrationClosed => l10n.errRegistrationClosed,
+      FailureReason.matchLocked => l10n.errMatchLocked,
+      FailureReason.notCommunityMember => l10n.errNotCommunityMember,
+      _ => fallback,
     };
   }
 
@@ -77,8 +82,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       _showMessage(status == RegistrationStatus.confirmed
           ? l10n.joinedConfirmed
           : l10n.joinedReserve);
-    } on RegistrationException catch (e) {
-      _showMessage(_registrationErrorMessage(l10n, e.error));
+    } on Failure catch (failure) {
+      _showMessage(
+          _registrationErrorMessage(l10n, failure, l10n.joinMatchFailed));
     } catch (_) {
       _showMessage(l10n.joinMatchFailed);
     } finally {
@@ -113,8 +119,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     setState(() => _isActionLoading = true);
     try {
       await _matchService.withdrawFromMatch(widget.matchId);
-    } on RegistrationException catch (e) {
-      _showMessage(_registrationErrorMessage(l10n, e.error));
+    } on Failure catch (failure) {
+      _showMessage(
+          _registrationErrorMessage(l10n, failure, l10n.withdrawMatchFailed));
     } catch (_) {
       _showMessage(l10n.withdrawMatchFailed);
     } finally {

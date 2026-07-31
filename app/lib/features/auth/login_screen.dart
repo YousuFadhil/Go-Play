@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/locale_controller.dart';
 import 'auth_service.dart';
@@ -40,11 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
       // this screen was pushed on top of something — signing in from an
       // invitation — where it has to get out of the way again.
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-    } on AuthFailureException catch (e) {
-      _showError(switch (e.failure) {
-        AuthFailure.network => l10n.networkError,
-        AuthFailure.unknown => l10n.genericError,
-        _ => l10n.loginFailed,
+    } on Failure catch (failure) {
+      _showError(switch (failure) {
+        NetworkFailure() => l10n.networkError,
+        AuthenticationFailure() => l10n.loginFailed,
+        _ => l10n.genericError,
       });
     } catch (_) {
       _showError(l10n.genericError);

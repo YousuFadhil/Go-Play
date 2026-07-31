@@ -1,54 +1,36 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'community_errors.dart';
+import '../../core/failures.dart';
+import '../../infrastructure/supabase/supabase_community_adapter.dart';
+import 'community_adapter.dart';
 import 'community_models.dart';
 
 /// Data access for the community aggregate itself: what exists, what the user
 /// can see, and creating, joining or deleting one. Membership lives in
-/// MemberRepository and invitations in InvitationRepository.
+/// MemberRepository.
 ///
-/// Writes go through Postgres RPCs so multi-step operations stay atomic and
-/// RLS stays simple (no custom backend).
+/// Everything provider-specific is behind [CommunityAdapter]. What remains
+/// here is the product's own reasoning: how the overview is split, what a join
+/// attempt means, and how input is normalised before it is stored.
 class CommunityRepository {
-  CommunityRepository([SupabaseClient? client])
-      : _client = client ?? Supabase.instance.client;
+  CommunityRepository([CommunityAdapter? adapter])
+      : _adapter = adapter ?? SupabaseCommunityAdapter();
 
-  final SupabaseClient _client;
+  final CommunityAdapter _adapter;
 
-  static const _columns =
-      'id, owner_id, name, description, join_policy, join_code';
-
-  /// Communities the current user belongs to (RLS scopes the membership rows).
-  Future<List<Community>> fetchMyCommunities() async {
-    final userId = _client.auth.currentUser!.id;
-    final rows = await _client
-        .from('community_members')
-        .select('community:communities($_columns)')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-
-    return [
-      for (final row in rows)
-        Community.fromJson(row['community'] as Map<String, dynamic>),
-    ];
-  }
+  /// Communities the current user belongs to.
+  Future<List<Community>> fetchMyCommunities() => _adapter.fetchMyCommunities();
 
   /// What the user can see and act on: [mine] are joined communities,
   /// [discover] is everything else. Every community is visible now; what
   /// differs is whether joining needs the code.
   Future<({List<Community> mine, List<Community> discover})>
       fetchCommunitiesOverview() async {
-    final mine = await fetchMyCommunities();
-    final myIds = {for (final c in mine) c.id};
-
-    final rows = await _client
-        .from('communities')
-        .select(_columns)
-        .order('created_at', ascending: false);
+    final mine = await _adapter.fetchMyCommunities();
+    final myIds = {for (final community in mine) community.id};
+    final all = await _adapter.fetchAllCommunities();
 
     final discover = [
-      for (final row in rows)
-        if (!myIds.contains(row['id'] as String)) Community.fromJson(row),
+      for (final community in all)
+        if (!myIds.contains(community.id)) community,
     ];
     return (mine: mine, discover: discover);
   }
@@ -58,105 +40,67 @@ class CommunityRepository {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
-  }) async {
-    final result = await _client.rpc('create_community', params: {
-      'p_name': name.trim(),
-      'p_description':
-          description?.trim().isEmpty ?? true ? null : description!.trim(),
-      'p_join_policy': joinPolicy.dbValue,
-    });
-    return result as String;
+  }) {
+    final trimmed = description?.trim();
+    return _adapter.createCommunity(
+      name: name.trim(),
+      description: trimmed == null || trimmed.isEmpty ? null : trimmed,
+      joinPolicy: joinPolicy,
+    );
   }
 
-  /// Joins a community whose policy is OPEN. A CODE_REQUIRED community refuses
-  /// here and is joined through [joinCommunityByCode] instead.
-  Future<String> joinCommunity(String communityId) async {
+  /// Joins a community whose policy is OPEN. One that requires its code
+  /// answers [NeedsJoinCode] instead, and is joined through
+  /// [joinCommunityByCode].
+  Future<JoinCommunityOutcome> joinCommunity(String communityId) =>
+      _join(() => _adapter.joinCommunity(communityId));
+
+  /// Joins a community by its join code, however the user typed it.
+  Future<JoinCommunityOutcome> joinCommunityByCode(String code) =>
+      _join(() => _adapter.joinCommunityByCode(code.trim().toUpperCase()));
+
+  /// Both join paths share their outcomes. Reading the reason is this layer's
+  /// job precisely so that no screen has to: above here these are three normal
+  /// answers, not failures carrying a reason. Anything else is still a failure
+  /// and travels on untouched.
+  Future<JoinCommunityOutcome> _join(Future<String> Function() attempt) async {
     try {
-      final result = await _client
-          .rpc('join_community', params: {'p_community_id': communityId});
-      return result as String;
-    } on PostgrestException catch (e) {
-      if (e.message.contains('JOIN_CODE_REQUIRED')) {
-        throw JoinCodeRequiredException();
+      return JoinedCommunity(await attempt());
+    } on ValidationFailure catch (failure) {
+      if (failure.reason == FailureReason.joinCodeRequired) {
+        return const NeedsJoinCode();
       }
-      if (e.message.contains('COMMUNITY_NOT_FOUND')) {
-        throw CommunityNotFoundException();
-      }
-      if (e.message.contains('ALREADY_MEMBER')) {
-        throw AlreadyMemberOfCommunityException();
+      rethrow;
+    } on ConflictFailure catch (failure) {
+      if (failure.reason == FailureReason.alreadyMember) {
+        return const AlreadyMember();
       }
       rethrow;
     }
   }
 
-  /// Joins a community by its join code. Returns the community id.
-  Future<String> joinCommunityByCode(String code) async {
-    try {
-      final result = await _client.rpc('join_community_by_code', params: {
-        'p_code': code.trim().toUpperCase(),
-      });
-      return result as String;
-    } on PostgrestException catch (e) {
-      if (e.message.contains('COMMUNITY_NOT_FOUND')) {
-        throw CommunityNotFoundException();
-      }
-      if (e.message.contains('ALREADY_MEMBER')) {
-        throw AlreadyMemberOfCommunityException();
-      }
-      rethrow;
-    }
-  }
-
-  /// Owner only. The `communities_update_owner` policy is what enforces that;
-  /// RLS filters the row out for anyone else, so the update would silently
-  /// match nothing — asking for the row back is how that becomes an error
-  /// instead of a no-op that looks like success.
+  /// Owner only; the database enforces that.
   Future<void> setJoinPolicy(
     String communityId, {
     required JoinPolicy joinPolicy,
-  }) async {
-    final rows = await _client
-        .from('communities')
-        .update({'join_policy': joinPolicy.dbValue})
-        .eq('id', communityId)
-        .select('id');
-    if (rows.isEmpty) {
-      throw const CommunityActionException(CommunityActionError.notAuthorized);
-    }
-  }
+  }) =>
+      _adapter.setJoinPolicy(communityId, joinPolicy: joinPolicy);
 
   /// What a shared invitation offers. Works signed out, which is the point:
   /// someone deciding whether to install the app can see what they are joining.
-  Future<CommunityInvitePreview> previewInvite(String code) async {
-    final rows = await _client.rpc('preview_community_invite', params: {
-      'p_code': code,
-    }) as List<dynamic>;
-    if (rows.isEmpty) return const CommunityInvitePreview(isValid: false);
-    return CommunityInvitePreview.fromJson(rows.first as Map<String, dynamic>);
-  }
+  Future<CommunityInvitePreview> previewInvite(String code) =>
+      _adapter.previewInvite(code);
 
   /// Issues a new join code, which is how a leaked invitation is invalidated:
   /// the code is the only invitation identifier, so replacing it retires the
   /// old one. Members, matches and registrations are untouched. Owner and admin.
-  Future<String> regenerateJoinCode(String communityId) async {
-    final code = await callCommunityRpc(_client, 'regenerate_join_code', {
-      'p_community_id': communityId,
-    });
-    return code as String;
-  }
+  Future<String> regenerateJoinCode(String communityId) =>
+      _adapter.regenerateJoinCode(communityId);
 
-  Future<Community> fetchCommunity(String communityId) async {
-    final row = await _client
-        .from('communities')
-        .select(_columns)
-        .eq('id', communityId)
-        .single();
-    return Community.fromJson(row);
-  }
+  Future<Community> fetchCommunity(String communityId) =>
+      _adapter.fetchCommunity(communityId);
 
   /// Owner only. Removes the community and everything belonging to it.
   Future<void> deleteCommunity(String communityId) =>
-      callCommunityRpc(_client, 'delete_community', {
-        'p_community_id': communityId,
-      });
+      _adapter.deleteCommunity(communityId);
 }

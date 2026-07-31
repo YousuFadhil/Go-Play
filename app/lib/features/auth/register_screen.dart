@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import 'auth_models.dart';
 import 'auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -55,12 +57,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       // On success the session is active; AuthGate navigates to Home.
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-    } on AuthFailureException catch (e) {
-      _showError(switch (e.failure) {
-        AuthFailure.network => l10n.networkError,
-        AuthFailure.emailAlreadyUsed => l10n.emailAlreadyUsed,
-        AuthFailure.unknown => l10n.genericError,
-        AuthFailure.rejected => l10n.registerFailed,
+    } on Failure catch (failure) {
+      _showError(switch (failure) {
+        NetworkFailure() => l10n.networkError,
+        // The only conflict sign-up can hit is an address already registered.
+        ConflictFailure() => l10n.emailAlreadyUsed,
+        AuthenticationFailure() => l10n.registerFailed,
+        _ => l10n.genericError,
       });
     } catch (_) {
       _showError(l10n.genericError);

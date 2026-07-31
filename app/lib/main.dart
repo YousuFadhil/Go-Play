@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'core/config.dart';
 import 'core/config_error_app.dart';
 import 'core/locale_controller.dart';
+import 'infrastructure/supabase/supabase_bootstrap.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,11 +26,7 @@ Future<void> main() async {
     return;
   }
 
-  await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    // Accepts either the new publishable key or the legacy anon key.
-    publishableKey: AppConfig.supabaseAnonKey,
-  );
+  await SupabaseBootstrap.initialize();
 
   runApp(const GoPlayApp());
 }

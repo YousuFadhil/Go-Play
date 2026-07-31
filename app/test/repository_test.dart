@@ -1,101 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_play/features/communities/community_models.dart';
-import 'package:go_play/features/communities/community_repository.dart';
 import 'package:go_play/features/invitations/invite_link.dart';
-import 'package:go_play/features/matches/match_service.dart';
-import 'package:go_play/features/members/member_repository.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-/// A client pointed at nowhere. Constructing it performs no I/O, so it is
-/// enough to prove the repositories take an injected client and to exercise
-/// the paths that return before any request is made.
-SupabaseClient stubClient() =>
-    SupabaseClient('https://stub.invalid', 'stub-key');
 
 void main() {
-  group('constructor injection', () {
-    test('each repository accepts an injected client', () {
-      final client = stubClient();
-      expect(CommunityRepository(client), isA<CommunityRepository>());
-      expect(MemberRepository(client), isA<MemberRepository>());
-    });
-  });
 
 
 
-  group('JoinPolicy', () {
-    test('reads both values', () {
-      expect(JoinPolicy.fromDb('OPEN'), JoinPolicy.open);
-      expect(JoinPolicy.fromDb('CODE_REQUIRED'), JoinPolicy.codeRequired);
-    });
-
-    test('an unknown policy is treated as the stricter one', () {
-      expect(JoinPolicy.fromDb('SOMETHING_NEW'), JoinPolicy.codeRequired,
-          reason: 'a policy the app cannot read must not open the door');
-    });
-  });
-
-  group('Community.fromJson', () {
-    test('reads the row the repository selects', () {
-      final community = Community.fromJson(const {
-        'id': 'c1',
-        'owner_id': 'u1',
-        'name': 'Friday Football',
-        'description': 'Weekly game',
-        'join_policy': 'CODE_REQUIRED',
-        'join_code': 'AB12CD',
-      });
-
-      expect(community.id, 'c1');
-      expect(community.ownerId, 'u1');
-      expect(community.name, 'Friday Football');
-      expect(community.description, 'Weekly game');
-      expect(community.joinPolicy, JoinPolicy.codeRequired);
-      expect(community.joinCode, 'AB12CD');
-    });
-
-    test('accepts a null description', () {
-      final community = Community.fromJson(const {
-        'id': 'c1',
-        'owner_id': 'u1',
-        'name': 'No description',
-        'description': null,
-        'join_policy': 'OPEN',
-        'join_code': 'EF34GH',
-      });
-      expect(community.description, isNull);
-    });
-  });
-
-  group('CommunityMember.fromJson', () {
-    test('reads the joined profile and the role', () {
-      final member = CommunityMember.fromJson(const {
-        'role': 'admin',
-        'user': {
-          'id': 'u2',
-          'full_name': 'Sara',
-          'primary_position': 'MID',
-        },
-      });
-
-      expect(member.userId, 'u2');
-      expect(member.fullName, 'Sara');
-      expect(member.position, 'MID');
-      expect(member.role, CommunityRole.admin);
-      expect(member.isOwner, isFalse);
-    });
-
-    test('still reads the legacy member value as player', () {
-      final member = CommunityMember.fromJson(const {
-        'role': 'member',
-        'user': {'id': 'u3', 'full_name': 'Ali', 'primary_position': 'GK'},
-      });
-      expect(member.role, CommunityRole.player);
-    });
-  });
-
-
-
+  // Row-to-model mapping moved to the Adapter Layer; its tests live in
+  // test/mappers_test.dart.
 
   group('InviteLink', () {
     // Twelve characters from the join-code alphabet, which omits I, L, O, 0
@@ -165,25 +76,7 @@ void main() {
 
 
 
-  group('registrationErrorFrom', () {
-    test('maps every code the registration RPCs raise', () {
-      expect(registrationErrorFrom('OVERLAPPING_MATCH'),
-          RegistrationError.overlappingMatch);
-      expect(
-          registrationErrorFrom('MATCH_CLOSED'), RegistrationError.matchClosed);
-      expect(registrationErrorFrom('ALREADY_REGISTERED'),
-          RegistrationError.alreadyRegistered);
-      expect(registrationErrorFrom('NOT_REGISTERED'),
-          RegistrationError.notRegistered);
-      expect(registrationErrorFrom('REGISTRATION_CLOSED'),
-          RegistrationError.registrationClosed);
-      expect(
-          registrationErrorFrom('MATCH_LOCKED'), RegistrationError.matchLocked);
-      expect(registrationErrorFrom('NOT_COMMUNITY_MEMBER'),
-          RegistrationError.notCommunityMember);
-      expect(registrationErrorFrom('SOMETHING_ELSE'), isNull);
-    });
-  });
-
-
+  // Reading an RPC's refusal moved to the Adapter Layer; its tests live in
+  // test/failure_mapping_test.dart. Repository behaviour is covered in
+  // test/repository_behaviour_test.dart.
 }

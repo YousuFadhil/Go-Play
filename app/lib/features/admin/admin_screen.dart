@@ -3,6 +3,29 @@ import 'package:flutter/material.dart';
 import '../../core/l10n.dart';
 import 'admin_repository.dart';
 
+/// One line of an admin list, already worded. The three sections show
+/// different records, so each is reduced to a title, a subtitle and the id to
+/// delete — enough to find a record and remove it, which is all these screens
+/// are for. Composing that sentence is the screen's job, not the repository's.
+class _Row {
+  const _Row({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    this.isProtected = false,
+  });
+
+  final String id;
+  final String title;
+  final String subtitle;
+
+  /// A System Admin account, which the app may not delete.
+  final bool isProtected;
+}
+
+/// Stands in for a name the record does not carry.
+const _missing = '—';
+
 /// The whole of internal administration: three lists, each with a search field
 /// and a delete action. Deliberately plain — no dashboard, no counts worth
 /// looking at, nothing to do but find a record and remove it.
@@ -30,17 +53,42 @@ class AdminScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             _AdminList(
-              load: repository.listUsers,
+              load: (search) async => [
+                for (final user in await repository.listUsers(search))
+                  _Row(
+                    id: user.id,
+                    title: user.fullName,
+                    subtitle: user.email,
+                    isProtected: user.isSystemAdmin,
+                  ),
+              ],
               remove: repository.deleteUser,
               confirmBody: l10n.adminDeleteUserConfirmBody,
             ),
             _AdminList(
-              load: repository.listCommunities,
+              load: (search) async => [
+                for (final community
+                    in await repository.listCommunities(search))
+                  _Row(
+                    id: community.id,
+                    title: community.name,
+                    subtitle: '${community.ownerName ?? _missing} · '
+                        '${community.memberCount} · ${community.matchCount}',
+                  ),
+              ],
               remove: repository.deleteCommunity,
               confirmBody: l10n.adminDeleteCommunityConfirmBody,
             ),
             _AdminList(
-              load: repository.listMatches,
+              load: (search) async => [
+                for (final match in await repository.listMatches(search))
+                  _Row(
+                    id: match.id,
+                    title: match.title ?? '',
+                    subtitle: '${match.communityName ?? _missing} · '
+                        '${match.location} · ${match.registrationCount}',
+                  ),
+              ],
               remove: repository.deleteMatch,
               confirmBody: l10n.adminDeleteMatchConfirmBody,
             ),
@@ -58,7 +106,7 @@ class _AdminList extends StatefulWidget {
     required this.confirmBody,
   });
 
-  final Future<List<AdminRow>> Function(String? search) load;
+  final Future<List<_Row>> Function(String? search) load;
   final Future<void> Function(String id) remove;
   final String confirmBody;
 
@@ -68,7 +116,7 @@ class _AdminList extends StatefulWidget {
 
 class _AdminListState extends State<_AdminList> {
   final _searchController = TextEditingController();
-  late Future<List<AdminRow>> _future = widget.load(null);
+  late Future<List<_Row>> _future = widget.load(null);
   bool _busy = false;
 
   @override
@@ -81,7 +129,7 @@ class _AdminListState extends State<_AdminList> {
     setState(() => _future = widget.load(_searchController.text));
   }
 
-  Future<void> _delete(AdminRow row) async {
+  Future<void> _delete(_Row row) async {
     final l10n = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
 
@@ -137,7 +185,7 @@ class _AdminListState extends State<_AdminList> {
           ),
         ),
         Expanded(
-          child: FutureBuilder<List<AdminRow>>(
+          child: FutureBuilder<List<_Row>>(
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {

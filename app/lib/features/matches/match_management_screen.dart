@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import 'edit_match_screen.dart';
 import 'manage_roster_screen.dart';
@@ -42,13 +43,13 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
   void _reload() => setState(() => _future = _load());
 
   String _manageError(AppLocalizations l10n, Object e) {
-    if (e is ManageException) {
-      return switch (e.error) {
-        ManageError.matchCompleted => l10n.errMatchCompleted,
-        ManageError.matchLocked => l10n.errMatchLocked,
-        ManageError.notAuthorized => l10n.errNotAuthorized,
-        ManageError.maxBelowRegistered => l10n.errMaxBelowRegistered,
-        ManageError.invalidStartingPlayers => l10n.startingPlayersInvalid,
+    if (e is AuthorizationFailure) return l10n.errNotAuthorized;
+    if (e is Failure) {
+      return switch (e.reason) {
+        FailureReason.matchCompleted => l10n.errMatchCompleted,
+        FailureReason.matchLocked => l10n.errMatchLocked,
+        FailureReason.maxBelowRegistered => l10n.errMaxBelowRegistered,
+        FailureReason.invalidStartingPlayers => l10n.startingPlayersInvalid,
         _ => l10n.genericError,
       };
     }

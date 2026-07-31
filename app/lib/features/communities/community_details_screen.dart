@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../matches/create_match_screen.dart';
 import '../matches/match_card.dart';
@@ -10,7 +11,6 @@ import '../invitations/community_invitation_screen.dart';
 import '../members/member_management_screen.dart';
 import 'community_models.dart';
 import '../members/member_repository.dart';
-import 'community_errors.dart';
 import 'community_repository.dart';
 
 class CommunityDetailsScreen extends StatefulWidget {
@@ -88,10 +88,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
           joinPolicy: policy);
       _say(l10n.joinPolicySaved);
       _refresh();
-    } on CommunityActionException catch (e) {
-      _say(e.error == CommunityActionError.notAuthorized
-          ? l10n.permissionOwnerOnly
-          : l10n.genericError);
+    } on AuthorizationFailure {
+      _say(l10n.permissionOwnerOnly);
     } catch (_) {
       _say(l10n.genericError);
     } finally {
@@ -162,10 +160,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       await _communityRepository.deleteCommunity(widget.communityId);
       _say(l10n.communityDeleted);
       navigator.pop();
-    } on CommunityActionException catch (e) {
-      _say(e.error == CommunityActionError.notAuthorized
-          ? l10n.permissionOwnerOnly
-          : l10n.genericError);
+    } on AuthorizationFailure {
+      _say(l10n.permissionOwnerOnly);
     } catch (_) {
       _say(l10n.genericError);
     } finally {

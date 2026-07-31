@@ -92,7 +92,7 @@ class _AuthGateState extends State<AuthGate> {
         }
         return StreamBuilder<bool>(
           stream: _authService.signedInChanges,
-          initialData: _authService.currentSession != null,
+          initialData: _authService.isSignedIn,
           builder: (context, snapshot) {
             return (snapshot.data ?? false)
                 ? const HomeShell()

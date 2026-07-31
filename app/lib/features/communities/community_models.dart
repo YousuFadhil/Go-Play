@@ -2,45 +2,48 @@
 /// this is the only thing that differs between them.
 enum JoinPolicy {
   /// Anyone who can see the community can join it.
-  open('OPEN'),
+  open,
 
   /// Joining needs the join code, typed or carried by an invitation link.
-  codeRequired('CODE_REQUIRED');
-
-  const JoinPolicy(this.dbValue);
-
-  final String dbValue;
-
-  /// An unrecognised value is treated as the stricter of the two: a policy the
-  /// app does not understand should not fall open.
-  static JoinPolicy fromDb(String value) =>
-      value == 'OPEN' ? JoinPolicy.open : JoinPolicy.codeRequired;
+  codeRequired,
 }
 
 /// Role a user holds inside a community. Roles are cumulative: an owner can do
-/// everything an admin can, and an admin everything a player can.
+/// everything an admin can, and an admin everything a player can — which is
+/// what [atLeast] reads, so the declaration order is the hierarchy.
 enum CommunityRole {
-  player('player'),
-  admin('admin'),
-  owner('owner');
-
-  const CommunityRole(this.dbValue);
-
-  final String dbValue;
-
-  /// Anything unrecognised falls back to the least privileged role rather
-  /// than granting something by accident. The retired `member` value is still
-  /// accepted so an old client cannot be tripped up by it.
-  static CommunityRole fromDb(String value) {
-    return switch (value) {
-      'owner' => CommunityRole.owner,
-      'admin' => CommunityRole.admin,
-      _ => CommunityRole.player,
-    };
-  }
+  player,
+  admin,
+  owner;
 
   /// True when this role includes everything [other] can do.
   bool atLeast(CommunityRole other) => index >= other.index;
+}
+
+/// What happened when someone asked to join a community.
+///
+/// All three are normal answers to the question, so none of them is a Failure:
+/// a community is allowed to require its code, and asking to join one you are
+/// already in is not an error. Failures stay reserved for the abnormal.
+sealed class JoinCommunityOutcome {
+  const JoinCommunityOutcome();
+}
+
+/// The user is now a member of [communityId].
+final class JoinedCommunity extends JoinCommunityOutcome {
+  const JoinedCommunity(this.communityId);
+
+  final String communityId;
+}
+
+/// The community's policy requires its join code, which was not supplied.
+final class NeedsJoinCode extends JoinCommunityOutcome {
+  const NeedsJoinCode();
+}
+
+/// Already a member. The destination is the same; only the wording differs.
+final class AlreadyMember extends JoinCommunityOutcome {
+  const AlreadyMember();
 }
 
 /// A community of players.
@@ -62,17 +65,6 @@ class Community {
   final String? description;
   final JoinPolicy joinPolicy;
   final String joinCode;
-
-  factory Community.fromJson(Map<String, dynamic> json) {
-    return Community(
-      id: json['id'] as String,
-      ownerId: json['owner_id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String?,
-      joinPolicy: JoinPolicy.fromDb(json['join_policy'] as String),
-      joinCode: json['join_code'] as String,
-    );
-  }
 }
 
 /// A membership row inside a community, joined with the player profile.
@@ -90,16 +82,6 @@ class CommunityMember {
   final CommunityRole role;
 
   bool get isOwner => role == CommunityRole.owner;
-
-  factory CommunityMember.fromJson(Map<String, dynamic> json) {
-    final user = json['user'] as Map<String, dynamic>;
-    return CommunityMember(
-      userId: user['id'] as String,
-      fullName: user['full_name'] as String,
-      position: user['primary_position'] as String,
-      role: CommunityRole.fromDb(json['role'] as String),
-    );
-  }
 }
 
 /// What an invitation link offers, readable before anyone signs in.
@@ -119,13 +101,4 @@ class CommunityInvitePreview {
   final String? communityId;
   final String? communityName;
   final bool isMember;
-
-  factory CommunityInvitePreview.fromJson(Map<String, dynamic> json) {
-    return CommunityInvitePreview(
-      isValid: json['state'] == 'valid',
-      communityId: json['community_id'] as String?,
-      communityName: json['community_name'] as String?,
-      isMember: json['is_member'] as bool? ?? false,
-    );
-  }
 }

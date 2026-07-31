@@ -15,15 +15,4 @@ class AppNotification {
   final bool isRead;
   final DateTime createdAt;
   final String? matchId;
-
-  factory AppNotification.fromJson(Map<String, dynamic> json) {
-    return AppNotification(
-      id: json['id'] as String,
-      type: json['type'] as String,
-      message: json['message'] as String,
-      isRead: json['is_read'] as bool,
-      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
-      matchId: json['match_id'] as String?,
-    );
-  }
 }

@@ -1,14 +1,5 @@
-enum RegistrationStatus {
-  confirmed('confirmed'),
-  reserve('reserve');
-
-  const RegistrationStatus(this.dbValue);
-
-  final String dbValue;
-
-  static RegistrationStatus fromDb(String value) =>
-      values.firstWhere((s) => s.dbValue == value);
-}
+/// A seat in a match: a starting place, or a place in the reserve queue.
+enum RegistrationStatus { confirmed, reserve }
 
 /// A player registered in a match (confirmed seat or reserve queue).
 class MatchRegistration {
@@ -25,33 +16,11 @@ class MatchRegistration {
   final String position;
   final RegistrationStatus status;
   final int registrationOrder;
-
-  factory MatchRegistration.fromJson(Map<String, dynamic> json) {
-    final user = json['user'] as Map<String, dynamic>;
-    return MatchRegistration(
-      userId: user['id'] as String,
-      fullName: user['full_name'] as String,
-      position: user['primary_position'] as String,
-      status: RegistrationStatus.fromDb(json['status'] as String),
-      registrationOrder: json['registration_order'] as int,
-    );
-  }
 }
 
 /// Match lifecycle: open -> full (registration closed) -> back to open when a
 /// slot frees. Completed is automatic once the scheduled end time passes.
-enum MatchStatus {
-  open('open'),
-  full('full'),
-  completed('completed');
-
-  const MatchStatus(this.dbValue);
-
-  final String dbValue;
-
-  static MatchStatus fromDb(String value) => values
-      .firstWhere((s) => s.dbValue == value, orElse: () => MatchStatus.open);
-}
+enum MatchStatus { open, full, completed }
 
 /// A football match scheduled inside a community.
 class Match {
@@ -106,22 +75,4 @@ class Match {
 
   /// True while players can still register or withdraw.
   bool get isOpenForChanges => !isCompleted && !isLocked;
-
-  factory Match.fromJson(Map<String, dynamic> json) {
-    return Match(
-      id: json['id'] as String,
-      communityId: json['community_id'] as String,
-      createdBy: json['created_by'] as String,
-      location: json['location'] as String,
-      startAt: DateTime.parse(json['start_at'] as String).toLocal(),
-      endAt: DateTime.parse(json['end_at'] as String).toLocal(),
-      startingPlayers: json['starting_players'] as int,
-      maxRegistration: json['max_registration'] as int,
-      status: MatchStatus.fromDb(json['status'] as String),
-      title: json['title'] as String?,
-      description: json['description'] as String?,
-      communityName:
-          (json['community'] as Map<String, dynamic>?)?['name'] as String?,
-    );
-  }
 }
