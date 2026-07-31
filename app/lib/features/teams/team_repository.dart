@@ -55,7 +55,9 @@ class TeamRepository {
   ///
   /// This is the readable half of the rejection above: the failure says that
   /// something is missing, and this says whose profile to finish.
-  Future<List<PlayerCoreInputs>> fetchPlayersMissingInputs(String matchId) async {
+  Future<List<PlayerCoreInputs>> fetchPlayersMissingInputs(
+    String matchId,
+  ) async {
     final roster = await _adapter.fetchConfirmedPlayerInputs(matchId);
     return [
       for (final player in roster)

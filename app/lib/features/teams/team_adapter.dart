@@ -24,7 +24,7 @@ abstract interface class TeamAdapter {
   /// recent first, excluding [excludeMatchId] and capped at [limit] matches.
   ///
   /// Auxiliary Data (§4.2.1): the factual record of who played together, and
-  /// nothing else. [limit] is supplied by the caller rather than chosen here —
+  /// nothing else. [limit] is supplied by the caller rather than chosen here:
   /// the lookback window is `OP-6`, an open Product Decision, and no default
   /// may stand in for it (§18.1).
   ///

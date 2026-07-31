@@ -102,7 +102,8 @@ void main() {
       // The third registration exceeds the two starting places.
       await register(player, matchId);
 
-      final roster = await adapterFor(owner).fetchConfirmedPlayerInputs(matchId);
+      final roster =
+          await adapterFor(owner).fetchConfirmedPlayerInputs(matchId);
 
       expect([for (final p in roster) p.userId], [owner.id, admin.id],
           reason: 'a reserve holds no seat, so it is not part of the set');
@@ -144,8 +145,8 @@ void main() {
         throwsA(isA<ValidationFailure>().having(
             (f) => f.reason, 'reason', FailureReason.missingPlayerInputs)),
       );
-      expect([for (final p in await repository.fetchPlayersMissingInputs(matchId)) p.userId],
-          [owner.id]);
+      final missing = await repository.fetchPlayersMissingInputs(matchId);
+      expect([for (final p in missing) p.userId], [owner.id]);
 
       // Finish the profile and the same request goes through.
       await setDateOfBirth(owner, '1990-01-02');
@@ -267,7 +268,8 @@ void main() {
       expect(played.single.teammatePairs().length, 1,
           reason: 'two teammates make one pair; the opponent makes none');
       expect(
-        MatchHistory(played).pairsInWindow(asOf: DateTime.now(), lastNMatches: 10),
+        MatchHistory(played)
+            .pairsInWindow(asOf: DateTime.now(), lastNMatches: 10),
         hasLength(1),
       );
     });

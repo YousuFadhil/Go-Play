@@ -9,9 +9,9 @@ import 'supabase_failure_mapper.dart';
 
 /// Supabase implementation of the team-generation port.
 ///
-/// Everything here is a plain table read or write: migration `0018` put the
-/// permission rules in RLS — members read a lineup, community admins write one
-/// — so there is no RPC to call and no permission for this class to check.
+/// Everything here is a plain table read or write. Migration `0018` put the
+/// permission rules in RLS — members read a lineup, community admins write
+/// one — so there is no RPC to call and no permission for this class to check.
 class SupabaseTeamAdapter implements TeamAdapter {
   SupabaseTeamAdapter([SupabaseClient? client])
       : _client = client ?? SupabaseBootstrap.client;

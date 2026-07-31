@@ -68,8 +68,8 @@ class PlayerCoreInputs {
   }
 }
 
-/// One player's place in the lineup stored for a match — the persisted form of
-/// §5.1.
+/// One player's place in the lineup stored for a match — the persisted form
+/// of §5.1.
 ///
 /// `KB-017` decides what this records: the lineup that **actually played**,
 /// including any manual change the organizer made after generation. It is a
