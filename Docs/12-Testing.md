@@ -12,14 +12,16 @@ flutter test
 Runs everywhere with no configuration. The integration files skip themselves
 when credentials are absent, so this stays usable by anyone.
 
-Expected: **54 passed, 6 skipped** — one skip per integration file.
+Expected: **147 passed, 7 skipped** — one skip per integration file.
 
 Covered: phone and email validation, the `CommunityRole` enum including its
 cumulative precedence and the fallback for an unrecognised value, match
 lifecycle derivation (lock, completion, capacity), repository construction with
 an injected client, the RPC error-code mapping, join-code link parsing and the
-pending-invitation holder, time formatting against both device preferences, and
-JSON parsing for every model.
+pending-invitation holder, time formatting against both device preferences,
+JSON parsing for every model, and the team-generation layer — what counts as a
+complete profile, the §4 input contract the schema yields, and the lookback
+window the repository refuses to choose for itself.
 
 ## Running the integration suite
 
@@ -27,8 +29,9 @@ JSON parsing for every model.
 flutter test --dart-define=SUPABASE_URL=https://<ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<publishable key>
 ```
 
-Expected: **133 passed**, which is the unit tests plus 79 integration tests —
-the 68 that predate KB-D3 plus the 11 in `btge_schema_test.dart`.
+Expected: **236 passed**, which is the unit tests plus 89 integration tests —
+the 79 that predate the team-generation adapter plus the 10 in
+`team_generation_test.dart`.
 
 To run one file:
 
@@ -46,6 +49,13 @@ flutter test test/integration/authorization_test.dart --dart-define=SUPABASE_URL
 | `concurrency_test.dart` | The last-seat race and racing withdrawals |
 | `system_admin_test.dart` | That an ordinary account is refused by every admin function, and cannot read the roster. The grant path and the delete cascades are verified by hand — no test account holds the role, by design |
 | `btge_schema_test.dart` | Migration `0018`: the three Core Player Inputs on the profile including the OP-1 rating range, and the stored lineup — its vocabularies, one assignment per player, one goalkeeper per team, who may read and write, and the cascade with its match |
+| `team_generation_test.dart` | The adapter above that schema: the generation set is the confirmed seats, a missing date of birth is reported rather than invented, a lineup survives a round trip and is replaced rather than appended, a player can neither write one nor destroy one, and the played lineups Diversity may read |
+
+`btge_schema_test.dart` writes the `player` account's profile columns and reads
+the `outsider` account's; `team_generation_test.dart` writes the `owner` and
+`admin` accounts'. The files run in parallel, so a new profile fixture needs an
+account the others leave alone, the same way a match fixture needs its own day
+offset.
 
 ### Test accounts
 

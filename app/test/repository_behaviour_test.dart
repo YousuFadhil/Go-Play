@@ -1,3 +1,4 @@
+import 'package:btge/btge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/features/admin/admin_adapter.dart';
@@ -14,6 +15,9 @@ import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'package:go_play/features/teams/team_adapter.dart';
+import 'package:go_play/features/teams/team_models.dart';
+import 'package:go_play/features/teams/team_repository.dart';
 
 /// What the repositories decide once the provider is out of the way (OP-6).
 ///
@@ -297,6 +301,164 @@ void main() {
       expect(adapter.lastRole, CommunityRole.admin);
     });
   });
+
+  group('TeamRepository.fetchGenerationInputs', () {
+    final kickOff = DateTime(2026, 8, 7, 20);
+    final match = Match(
+      id: 'm1',
+      communityId: 'c1',
+      createdBy: 'u1',
+      location: 'Al Amerat Pitch',
+      startAt: kickOff,
+      endAt: kickOff.add(const Duration(hours: 2)),
+      startingPlayers: 10,
+      maxRegistration: 16,
+      status: MatchStatus.open,
+    );
+
+    PlayerCoreInputs player(String id, {DateTime? dateOfBirth}) =>
+        PlayerCoreInputs(
+          userId: id,
+          fullName: 'Player $id',
+          overallRating: 6,
+          primaryPosition: Position.mid,
+          dateOfBirth: dateOfBirth ?? DateTime(1995, 4, 17),
+        );
+
+    test('the confirmed roster becomes the generation set', () async {
+      final adapter = FakeTeamAdapter(roster: [player('u1'), player('u2')]);
+
+      final inputs = await TeamRepository(adapter)
+          .fetchGenerationInputs(match, historyLookback: null);
+
+      expect([for (final p in inputs.players) p.id], ['u1', 'u2']);
+      expect(adapter.lastMatchId, 'm1');
+    });
+
+    test('age is computed as of the match date (§4.2)', () async {
+      final inputs = await TeamRepository(FakeTeamAdapter(roster: [player('u1')]))
+          .fetchGenerationInputs(match, historyLookback: null);
+
+      expect(inputs.settings.matchDate, kickOff);
+      expect(inputs.players.single.ageAt(inputs.settings.matchDate), 31);
+    });
+
+    test('a player with no date of birth stops the request (§4.3)', () async {
+      final adapter = FakeTeamAdapter(roster: [
+        player('u1'),
+        const PlayerCoreInputs(
+          userId: 'u2',
+          fullName: 'Ahmed',
+          overallRating: 5,
+          primaryPosition: Position.gk,
+        ),
+      ]);
+
+      await expectLater(
+        TeamRepository(adapter)
+            .fetchGenerationInputs(match, historyLookback: null),
+        throwsA(isA<ValidationFailure>().having(
+            (f) => f.reason, 'reason', FailureReason.missingPlayerInputs)),
+        reason: 'the engine is never handed an invented input',
+      );
+    });
+
+    test('an unset window reads no history at all (BTGE-DV-5)', () async {
+      final adapter = FakeTeamAdapter(roster: [player('u1')]);
+
+      final inputs = await TeamRepository(adapter)
+          .fetchGenerationInputs(match, historyLookback: null);
+
+      expect(inputs.history.isEmpty, isTrue);
+      expect(adapter.lastLimit, isNull,
+          reason: 'no window means nothing to look back over, not an error');
+    });
+
+    test('a window is passed to the port exactly as given (OP-6)', () async {
+      final adapter = FakeTeamAdapter(
+        roster: [player('u1')],
+        played: [
+          PastMatch(playedAt: DateTime(2026, 7, 31), teams: const [
+            {'u1', 'u2'},
+            {'u3'},
+          ]),
+        ],
+      );
+
+      final inputs = await TeamRepository(adapter)
+          .fetchGenerationInputs(match, historyLookback: 5);
+
+      expect(adapter.lastLimit, 5);
+      expect(adapter.lastCommunityId, 'c1');
+      expect(adapter.lastExcludedMatchId, 'm1',
+          reason: 'the match being generated is not its own history');
+      expect(inputs.history.isEmpty, isFalse);
+    });
+
+    test('a window of nothing reads nothing', () async {
+      final adapter = FakeTeamAdapter(roster: [player('u1')]);
+
+      final inputs = await TeamRepository(adapter)
+          .fetchGenerationInputs(match, historyLookback: 0);
+
+      expect(inputs.history.isEmpty, isTrue);
+      expect(adapter.lastLimit, isNull);
+    });
+  });
+
+  group('TeamRepository lineups', () {
+    test('names the players whose profile is unfinished', () async {
+      final adapter = FakeTeamAdapter(roster: [
+        PlayerCoreInputs(
+          userId: 'u1',
+          fullName: 'Sara',
+          overallRating: 6,
+          primaryPosition: Position.mid,
+          dateOfBirth: DateTime(1995, 4, 17),
+        ),
+        const PlayerCoreInputs(
+          userId: 'u2',
+          fullName: 'Ahmed',
+          overallRating: 5,
+          primaryPosition: Position.gk,
+        ),
+      ]);
+
+      final missing =
+          await TeamRepository(adapter).fetchPlayersMissingInputs('m1');
+
+      expect([for (final p in missing) p.fullName], ['Ahmed']);
+    });
+
+    test('a generated result and an adjusted one take the same path', () async {
+      // KB-017 and BTGE-MO-5: what is stored is what actually played, however
+      // it came to be.
+      final adapter = FakeTeamAdapter();
+      final generated = [
+        TeamAssignment.fromAssignment(const PlayerAssignment(
+          playerId: 'u1',
+          team: TeamId.a,
+          assignedPosition: Position.gk,
+          basis: AssignmentBasis.primary,
+        )),
+      ];
+
+      await TeamRepository(adapter).saveLineup('m1', generated);
+
+      expect(adapter.lastMatchId, 'm1');
+      expect(adapter.savedLineup, hasLength(1));
+      expect(adapter.savedLineup!.single.userId, 'u1');
+      expect(adapter.savedLineup!.single.team, TeamId.a);
+    });
+
+    test('an empty lineup is stored as an empty lineup', () async {
+      final adapter = FakeTeamAdapter();
+      await TeamRepository(adapter).saveLineup('m1', const []);
+
+      expect(adapter.savedLineup, isEmpty,
+          reason: 'clearing a lineup is a lineup of nobody, not a no-op');
+    });
+  });
 }
 
 // --- Fake ports -------------------------------------------------------------
@@ -521,6 +683,48 @@ class FakeMatchAdapter implements MatchAdapter {
 
   @override
   Future<int?> fetchReservePlayers() => throw UnimplementedError();
+}
+
+class FakeTeamAdapter implements TeamAdapter {
+  FakeTeamAdapter({this.roster = const [], this.played = const []});
+
+  final List<PlayerCoreInputs> roster;
+  final List<PastMatch> played;
+
+  String? lastMatchId;
+  String? lastCommunityId;
+  String? lastExcludedMatchId;
+  int? lastLimit;
+  List<TeamAssignment>? savedLineup;
+
+  @override
+  Future<List<PlayerCoreInputs>> fetchConfirmedPlayerInputs(
+      String matchId) async {
+    lastMatchId = matchId;
+    return roster;
+  }
+
+  @override
+  Future<List<PastMatch>> fetchPlayedLineups({
+    required String communityId,
+    required String excludeMatchId,
+    required int limit,
+  }) async {
+    lastCommunityId = communityId;
+    lastExcludedMatchId = excludeMatchId;
+    lastLimit = limit;
+    return played;
+  }
+
+  @override
+  Future<void> saveLineup(String matchId, List<TeamAssignment> lineup) async {
+    lastMatchId = matchId;
+    savedLineup = lineup;
+  }
+
+  @override
+  Future<List<TeamAssignment>> fetchLineup(String matchId) =>
+      throw UnimplementedError();
 }
 
 class FakeMemberAdapter implements MemberAdapter {
