@@ -98,6 +98,9 @@ enum FailureReason {
   communityNotFound,
   alreadyMember,
 
+  // Team generation
+  missingPlayerInputs,
+
   // Identity
   emailAlreadyUsed,
 }

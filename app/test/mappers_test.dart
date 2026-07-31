@@ -1,3 +1,4 @@
+import 'package:btge/btge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/features/auth/auth_models.dart';
@@ -8,6 +9,7 @@ import 'package:go_play/infrastructure/supabase/mappers/auth_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/community_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/match_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/notification_mapper.dart';
+import 'package:go_play/infrastructure/supabase/mappers/team_mapper.dart';
 
 /// Mapping between provider rows and Domain Models (OP-3). These tests are the
 /// only place a column name and a model field are asserted against each other,
@@ -323,6 +325,186 @@ void main() {
       expect(playerPositionToDb(PlayerPosition.def), 'DEF');
       expect(playerPositionToDb(PlayerPosition.mid), 'MID');
       expect(playerPositionToDb(PlayerPosition.fwd), 'FWD');
+    });
+  });
+
+  group('the team-generation vocabularies', () {
+    test('positions read and write the same four codes', () {
+      expect(positionFromDb('GK'), Position.gk);
+      expect(positionFromDb('DEF'), Position.def);
+      expect(positionFromDb('MID'), Position.mid);
+      expect(positionFromDb('FWD'), Position.fwd);
+      for (final position in Position.values) {
+        expect(positionFromDb(positionToDb(position)), position);
+      }
+    });
+
+    test('teams read and write both labels', () {
+      expect(teamFromDb('A'), TeamId.a);
+      expect(teamFromDb('B'), TeamId.b);
+      for (final team in TeamId.values) {
+        expect(teamFromDb(teamToDb(team)), team);
+      }
+    });
+
+    test('the assignment basis reads and writes all three steps', () {
+      expect(assignmentBasisFromDb('PRIMARY'), AssignmentBasis.primary);
+      expect(assignmentBasisFromDb('SECONDARY'), AssignmentBasis.secondary);
+      expect(assignmentBasisFromDb('TRANSITION'), AssignmentBasis.transition);
+      for (final basis in AssignmentBasis.values) {
+        expect(assignmentBasisFromDb(assignmentBasisToDb(basis)), basis);
+      }
+    });
+
+    test('a value outside a constrained vocabulary is an infrastructure fault',
+        () {
+      // Migration 0018 constrains all three columns, so reaching here means
+      // the database and this build disagree about the schema.
+      expect(() => positionFromDb('SWEEPER'), throwsA(isA<InfrastructureFailure>()));
+      expect(() => teamFromDb('C'), throwsA(isA<InfrastructureFailure>()));
+      expect(() => assignmentBasisFromDb('GUESS'),
+          throwsA(isA<InfrastructureFailure>()));
+    });
+
+    test('a rating arrives as a number or as its text form', () {
+      expect(ratingFromDb(5), 5.0);
+      expect(ratingFromDb(7.5), 7.5);
+      expect(ratingFromDb('7.5'), 7.5);
+    });
+
+    test('a rating that is neither is an infrastructure fault', () {
+      // The column is NOT NULL, so nothing here may stand in for it (§4.3).
+      expect(() => ratingFromDb(null), throwsA(isA<InfrastructureFailure>()));
+      expect(() => ratingFromDb('good'), throwsA(isA<InfrastructureFailure>()));
+    });
+  });
+
+  group('playerCoreInputsFromRow', () {
+    test('reads the whole profile the engine needs', () {
+      final player = playerCoreInputsFromRow(const {
+        'user': {
+          'id': 'u1',
+          'full_name': 'Sara Al Balushi',
+          'overall_rating': 7.5,
+          'date_of_birth': '1995-04-17',
+          'primary_position': 'MID',
+          'secondary_position': 'DEF',
+        },
+      });
+
+      expect(player.userId, 'u1');
+      expect(player.fullName, 'Sara Al Balushi');
+      expect(player.overallRating, 7.5);
+      expect(player.dateOfBirth, DateTime(1995, 4, 17));
+      expect(player.primaryPosition, Position.mid);
+      expect(player.secondaryPosition, Position.def);
+      expect(player.hasEveryRequiredInput, isTrue);
+    });
+
+    test('a profile that has neither optional field invents neither', () {
+      final player = playerCoreInputsFromRow(const {
+        'user': {
+          'id': 'u2',
+          'full_name': 'Ahmed',
+          'overall_rating': 5.0,
+          'date_of_birth': null,
+          'primary_position': 'GK',
+          'secondary_position': null,
+        },
+      });
+
+      expect(player.dateOfBirth, isNull);
+      expect(player.secondaryPosition, isNull);
+      expect(player.hasEveryRequiredInput, isFalse,
+          reason: 'a missing date of birth travels up, it is not filled in');
+    });
+  });
+
+  group('the stored lineup', () {
+    test('an assignment row reads into the model', () {
+      final assignment = teamAssignmentFromRow(const {
+        'user_id': 'u1',
+        'team': 'B',
+        'assigned_position': 'DEF',
+        'assignment_basis': 'TRANSITION',
+      });
+
+      expect(assignment.userId, 'u1');
+      expect(assignment.team, TeamId.b);
+      expect(assignment.assignedPosition, Position.def);
+      expect(assignment.basis, AssignmentBasis.transition);
+      expect(assignment.outOfPosition, isTrue);
+    });
+
+    test('an assignment writes back the row it was read from', () {
+      const row = {
+        'user_id': 'u1',
+        'team': 'A',
+        'assigned_position': 'GK',
+        'assignment_basis': 'PRIMARY',
+      };
+
+      expect(teamAssignmentToRow('m1', teamAssignmentFromRow(row)),
+          {'match_id': 'm1', ...row});
+    });
+
+    test('out of position is derived, never written', () {
+      final row = teamAssignmentToRow(
+          'm1',
+          teamAssignmentFromRow(const {
+            'user_id': 'u1',
+            'team': 'A',
+            'assigned_position': 'MID',
+            'assignment_basis': 'TRANSITION',
+          }));
+
+      expect(row.containsKey('out_of_position'), isFalse,
+          reason: 'a stored copy could disagree with the basis (§5.1)');
+    });
+  });
+
+  group('pastMatchFromRow', () {
+    test('groups the stored lineup into its two sides', () {
+      final past = pastMatchFromRow(const {
+        'start_at': '2026-07-01T17:00:00Z',
+        'assignments': [
+          {'user_id': 'u1', 'team': 'A'},
+          {'user_id': 'u2', 'team': 'B'},
+          {'user_id': 'u3', 'team': 'A'},
+        ],
+      });
+
+      expect(past.teams, hasLength(2));
+      expect(past.teams[0], {'u1', 'u3'});
+      expect(past.teams[1], {'u2'});
+      expect(past.playedAt,
+          DateTime.parse('2026-07-01T17:00:00Z').toLocal());
+    });
+
+    test('the pairs it yields are the teammates and no one else', () {
+      final past = pastMatchFromRow(const {
+        'start_at': '2026-07-01T17:00:00Z',
+        'assignments': [
+          {'user_id': 'u1', 'team': 'A'},
+          {'user_id': 'u2', 'team': 'A'},
+          {'user_id': 'u3', 'team': 'B'},
+        ],
+      });
+
+      expect(past.teammatePairs(), {'u1|u2'},
+          reason: 'opponents are not teammates');
+    });
+
+    test('a one-sided lineup still reads', () {
+      final past = pastMatchFromRow(const {
+        'start_at': '2026-07-01T17:00:00Z',
+        'assignments': [
+          {'user_id': 'u1', 'team': 'A'},
+        ],
+      });
+
+      expect(past.teams, hasLength(1));
+      expect(past.teammatePairs(), isEmpty);
     });
   });
 }
