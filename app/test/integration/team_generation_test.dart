@@ -294,8 +294,12 @@ void main() {
 
     test('a match with no stored lineup takes up none of the window',
         () async {
-      // matchId has no lineup, so a window of one must still reach the match
-      // that does.
+      // A more recent match that nobody generated teams for. A window of one
+      // must still reach the match that has a lineup, or the window would
+      // count matches instead of lineups.
+      await createMatch(owner, communityId,
+          startsIn: const Duration(days: -20, hours: -12));
+
       final played = await adapterFor(owner).fetchPlayedLineups(
         communityId: communityId,
         excludeMatchId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
