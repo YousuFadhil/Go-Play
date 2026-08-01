@@ -549,11 +549,40 @@ Notes:
 ## 7. Community Dashboard
 
 **Status: in MVP.** The *Overall* block is unchanged from v1.0; the *This Week*
-and *This Month* blocks were added in v1.1. Every figure on this screen is
-**Level 2 — Community Statistics**.
+and *This Month* blocks were added in v1.1.
 
 The dashboard describes **one community**, never the whole app and never a
-player's career.
+player's career. **Every figure is Level 2 — community-scoped, never a career
+figure and never a global one.**
+
+**Level 2 is not a single table, and the dashboard reads two sources.** Six of
+the ten figures are per-player measures aggregated from **Community
+Statistics**; four are facts about matches and belong to the **Match domain**:
+
+| # | Figure | Source | Why there |
+|---|---|---|---|
+| 1 | Total Matches | **Match domain** | A count of *matches*. Summing each player's Matches Played counts **appearances** — ten players in one match sums to ten |
+| 2 | Total Players | Community Statistics | Distinct players holding a record with at least one appearance |
+| 3 | Total Goals | Community Statistics | Sum of Goals over the `overall` records |
+| 4 | Last Match Date | **Match domain** | A date. **No date is stored on a statistics record**: the period identifies the window, and storing its bounds would duplicate the reference time zone |
+| 5 | Matches Played (week) | **Match domain** | As #1, within the window |
+| 6 | Goals Scored (week) | Community Statistics | Sum over the `weekly` records |
+| 7 | Most Active Player (week) | Community Statistics | Highest Matches Played among the `weekly` records |
+| 8 | Matches Played (month) | **Match domain** | As #1 |
+| 9 | Goals Scored (month) | Community Statistics | Sum over the `monthly` records |
+| 10 | Most Active Player (month) | Community Statistics | Highest Matches Played among the `monthly` records |
+
+**No measure changes and no rule changes.** This states where each figure has
+always had to come from. A community-wide match count could enter the
+statistics model only as a row describing no player — which the model does not
+have and does not want, because it would duplicate a fact the Match domain
+already owns.
+
+**One definition remains open.** Whether *Total Matches* counts every completed
+match or only those with a recorded result. It matters because Total Goals
+counts only recorded results (`A4`), so the two describe different populations
+unless the same basis is used. **Recommended: matches with a recorded result**,
+so every figure on the screen describes one population.
 
 ### 7.1 Overall
 

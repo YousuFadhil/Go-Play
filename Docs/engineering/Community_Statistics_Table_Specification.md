@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Version | 1.0 |
-| Status | **Engineering Approved — conditional.** Two contradictions between approved documents must be settled; see §19 and §21 |
+| Status | **Engineering Approved.** The two contradictions between approved documents are **resolved**; see §19 |
 | Role | **Engineering Authority** for the physical table `public.community_statistics` |
 | Owner | Product Owner |
 | Phase | Database Design Engineering — Statistics, Level 2 |
@@ -69,7 +69,7 @@ the same six measures as a career, cut by two dimensions a career refuses:
 
 **Its consumers are three:**
 
-1. **The Community Dashboard** — eight of its ten figures (§19.2).
+1. **The Community Dashboard** — **six** of its ten figures (§19.2).
 2. **The nine Community Leaderboards** — *Top Scorers* and *Most MVP* read the
    counters; *Highest Rated* reads only the population.
 3. **Eligibility** — which players appear on a board at all, in a window.
@@ -814,7 +814,7 @@ period has several players — and no other column combination identifies a row.
 
 | ID | Index | Queries it supports |
 |---|---|---|
-| `CS-X1` | **Primary key on `(community_id, period_type, period_key, user_id)`** | (a) **all nine leaderboards** — three equality columns select the population; (b) **eight dashboard figures** (§19.2) — the same seek, aggregated; (c) the apply and reverse paths' conflict target and join; (d) enforcement of `CS-C1`, and of *exactly one overall record* |
+| `CS-X1` | **Primary key on `(community_id, period_type, period_key, user_id)`** | (a) **all nine leaderboards** — three equality columns select the population; (b) **six dashboard figures** (§19.2) — the same seek, aggregated; (c) the apply and reverse paths' conflict target and join; (d) enforcement of `CS-C1`, and of *exactly one overall record* |
 | `CS-X2` | **`(user_id, community_id)`** | (a) **a player's records in one community** — the personal dashboard view, and `SL-4`'s rejoin lookup; (b) **a player's records across communities** — which is what **DP-11's reconciliation needs**: summing every `overall` record for a player and comparing with their career (§16.3); (c) the cascade from `users` |
 
 **Two indexes, and the second earns its place mainly through
@@ -963,7 +963,7 @@ a reconciliation rather than recommending one.
 | Consumer | Dependency |
 |---|---|
 | **The nine leaderboards** | *Top Scorers* and *Most MVP* read the counters; all nine read the population |
-| **The Community Dashboard** | Eight of ten figures (§19.2) |
+| **The Community Dashboard** | Six of ten figures (§19.2) |
 | **The Community Rating** | **None — it is a sibling** (§5.1, DP-10) |
 
 **And one explicit non-dependent:** `player_statistics` neither reads nor is
@@ -1331,9 +1331,14 @@ between approved documents.**
 
 ---
 
-## 19. The two contradictions
+## 19. The two contradictions — both resolved
 
-### 19.1 The Community Rating: stored here, or not?
+**Resolved by the architecture review of 2026-08-02.** Both were contradictions
+*between approved documents*, not defects in this design; this specification
+followed the correct reading throughout and the conflicting passages have been
+corrected at source. `CS-D2` is closed.
+
+### 19.1 The Community Rating: stored here, or not? — **RESOLVED**
 
 | Source | Says |
 |---|---|
@@ -1353,7 +1358,7 @@ item 11: **there is no rating column here.**
 readiness row should be corrected to match `06-ERD.md` §3.2 and item 11.
 Recorded as `CS-D2`.
 
-### 19.2 The Community Dashboard: can this table supply every figure?
+### 19.2 The Community Dashboard: can this table supply every figure? — **RESOLVED**
 
 **`Statistics_Leaderboards_MVP_Specification.md` §7 opens:** *"Every figure on
 this screen is **Level 2 — Community Statistics**."*
@@ -1409,13 +1414,15 @@ Supabase object was touched.
 
 ## 21. Engineering Approval
 
-**Status: Engineering Approved — conditional.**
+**Status: Engineering Approved.**
 
 This document is the authoritative engineering specification for
-`public.community_statistics`. It is **conditional on `CS-D2`** — two
-contradictions **between approved documents** (§19), which are the Product
-Owner's to settle and which this specification has followed item 11 and the ERD
-on rather than resolving by assumption.
+`public.community_statistics`. The two contradictions **between approved
+documents** that it was conditional on (§19) were **resolved on 2026-08-02**:
+the Community Rating is a separate entity, and four of the ten dashboard
+figures belong to the Match domain. This specification had followed both
+correct readings already; the conflicting passages were corrected at source in
+`Statistics_Leaderboards_MVP_Specification.md`. **`CS-D2` is closed.**
 
 **A note on what is different about this one.** Every previous specification in
 the phase documented and audited a table that exists. **This one designs one.**

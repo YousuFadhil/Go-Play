@@ -1384,12 +1384,13 @@ Two, neither of which blocks approval. Both are the Product Owner's to settle.
    `10-Design-Decisions.md`. Reusing those numbers would make `PD-2` ambiguous
    project-wide. **The mapping is stated in the register above**, so nothing is
    lost either way. Overrule with one word if the `PD-n` labels are preferred.
-2. **This file's name.** The path is
+2. **This file's name — RESOLVED 2026-08-02, no change required.** The path is
    `Docs/engineering/Profiles_Table_Specification.md`, which carries the word
-   `UP-5` retires. The file was named before the decision and the path was
-   specified in the task, so it was **not** renamed. Renaming it to
-   `User_Profile_Table_Specification.md` is a one-line change whenever you want
-   it.
+   `UP-5` retires. **`UP-5` governs the logical entity name and the physical
+   table name; a repository filename is neither**, so there is no contradiction
+   to resolve — only an aesthetic mismatch. Renaming would touch thirty
+   cross-references in eleven committed documents for no engineering gain, so
+   the file keeps its name and the issue is closed.
 
 ### Validation caveat, stated rather than glossed
 

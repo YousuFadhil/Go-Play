@@ -966,7 +966,12 @@ draft state the results model refuses.
 **The principle governs BTGE, where the output is a proposal. It correctly does
 not govern evidence submitted with an assertion.**
 
-### DP-8 Historical Independence Principle — **conforms, and this table is the case that proves the principle's worth**
+### DP-8 Historical Record Protection Principle — **conforms, and this table is the case that proves the principle's worth**
+
+*Named "Historical Independence Principle" in this table's brief and
+"Historical Record Protection Principle" from the Player Statistics brief
+onward. The reading applied is unchanged; the later name is used across the
+corpus.*
 
 *Reading applied: a historical record's validity does not depend on the current
 state of the data that produced it — it stands on its own.*
@@ -1244,7 +1249,7 @@ computed from Level 1, `SL-4`'s requirement that a community record survive a
 departure and resume on return would be unimplementable, because Level 1 has no
 community dimension to survive in.
 
-**Recorded as `MG-D5`** for the Product Owner to confirm which reading governs.
+**Recorded as `MG-D5`, and resolved on 2026-08-02** in favour of the reading applied here — see `Player_Statistics_Table_Specification.md` §17.1.
 This specification follows `SL-2` and `SL-3`.
 
 ---
@@ -1267,7 +1272,7 @@ This specification follows `SL-2` and `SL-3`.
 
 | ID | Question | Recommendation |
 |---|---|---|
-| `MG-D5` | **Which derivation chain governs** — approved context items 6 and 7, or `SL-2`/`SL-3`? | **`SL-2` and `SL-3`.** Both levels derive from results independently; neither feeds the other; ratings are not derived from counters. **If items 6 and 7 are intended as decisions rather than shorthand, they overturn `SL-2`, `SL-3` and `SL-5`, and `SL-4` becomes unimplementable** (§17.1) |
+| `MG-D5` | **RESOLVED 2026-08-02.** Which derivation chain governs — approved context items 6 and 7, or `SL-2`/`SL-3`? | **Resolved in favour of `SL-2` and `SL-3`**, confirmed by the Player Statistics brief's items 3-6 and recorded in `Player_Statistics_Table_Specification.md` §17.1. Original reasoning: **`SL-2` and `SL-3`.** Both levels derive from results independently; neither feeds the other; ratings are not derived from counters. **If items 6 and 7 are intended as decisions rather than shorthand, they overturn `SL-2`, `SL-3` and `SL-5`, and `SL-4` becomes unimplementable** (§17.1) |
 | `MG-D1` | **Do the eight `DP-n` readings in §13 match their approved definitions?** | **Confirm.** Six are stated readings. The same request as `BDC-D4` and `MRS-D4`; all three should be answered together |
 | `MG-D2` | **`updated_at` on delete-and-insert tables — present or absent?** | **Absent**, as here. A column that can never differ from `created_at` is not an audit. If the Standards are read as requiring the pair regardless, then `match_team_assignments` is right and this table should match it — **either way, the two should agree** |
 | `MG-D3` | **How should the rating engine treat an own goal?** | **Not an engineering decision.** Football convention credits the goal to the opposing side and does not credit the scorer; the approved engine awards **+0.05 to whoever is named**. Until this is settled, own goals cannot be recorded correctly (§14.1) |
