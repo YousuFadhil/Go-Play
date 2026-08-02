@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Version | 1.0 |
-| Status | **Engineering Approved — conditional.** Two build conditions; see §19 and §21 |
+| Status | **Engineering Approved — conditional.** One build condition (`CR-D1`); see §19 and §21 |
 | Role | **Engineering Authority** for the physical table `public.community_ratings` |
 | Owner | Product Owner |
 | Phase | Database Design Engineering — Level 2 |
@@ -168,7 +168,7 @@ those the Community Statistics specification records, and now doubled because
 |---|---|
 | 1 | **The join paths acquire a second statistics-domain write.** Joining by code, joining an open community, and creating a community all write here as well as to `community_statistics` |
 | 2 | **Creation must be idempotent.** A rejoin must find, never insert — otherwise `SL-4`'s "never reset" is violated by the mechanism meant to honour it |
-| 3 | **Existing memberships must be backfilled** — and **at what value is a real decision**, not a detail. §19.2, `CR-D2` |
+| 3 | **Existing memberships are initialized at `5.00`, like every other first membership.** There is **no backfill and no replay** — approved 2026-08-02, §19.2 |
 
 ### 2.3 Transition 2 — progression
 
@@ -661,6 +661,7 @@ get right. **A greenfield table has no excuse for adding one.**
 | `CR-C14` | **A departure alters nothing; a rejoin reuses the record** | `SL-4` §4.2, §4.3 |
 | `CR-C15` | **Eligibility is never stored** | §4.7 — a read-time filter, always |
 | `CR-C16` | **Every change happens inside the recording operation's transaction, under the match row lock** | Level 1 and Level 2 must move together or not at all |
+| `CR-C17` | **`5.00` at first membership is the *only* way a rating comes into existence. There is no replay, no historical backfill and no migration logic** | **Approved 2026-08-02** (§19.2). It makes `CR-C6`'s default the sole creation path rather than the usual one, and leaves the entity with no migration surface to test or reason about |
 
 ### 7.2 Deliberately not constrained
 
@@ -795,8 +796,8 @@ entry (`CR-C12`).
 ### 10.4 Recalculate and delete
 
 **Recalculate is required**, for the same reason `PS-R2` and DP-11 require it at
-Level 1 — and here it is additionally **the only honest backfill path** for
-existing memberships (§19.2).
+Level 1: drift between a rating and its audit would otherwise be undetectable.
+**It is not a backfill path** — §19.2 settles that there is none.
 
 **Delete has no path** except the two cascades. **No administrative deletion**,
 and none should be added: a rating an administrator can remove is a rating a
@@ -1032,18 +1033,23 @@ a condition (§19.1) rather than a risk to manage.
 No counter, no period, no rank, no copy of the Global Rating, no history. **Five
 columns, two of which are the key.**
 
-### 16.4 The backfill value is a real decision, not a detail
+### 16.4 Initialization is uniform, and there is no migration surface — **settled**
 
-§19.2. Existing members predate this table and have no "first join" event under
-Level 2. **Backfilling every one at `5.00`** means a community that has played
-twenty matches opens its first leaderboard with every member on exactly the same
-number — **a board that ranks nobody and asserts nothing.**
+Existing members predate this table and have no "first join" event under Level
+2. **Approved 2026-08-02: every membership initializes at `5.00`, existing ones
+included. There is no replay and no historical backfill** (§19.2).
 
-**The alternative — replaying the community's own recorded results — is
-available**, because the evidence exists in full, and would also generate the
-`E9` entries that make the result correctable afterwards.
+**The consequence is accepted and worth stating plainly:** an established
+community opens its first leaderboard with every member on `5.00`, and the board
+becomes meaningful as soon as results are recorded against it. **At MVP there is
+no production data for this to misrepresent**, which is the whole of the
+rationale.
 
-**Recorded as `CR-D2`**, with a recommendation.
+**The engineering benefit is real and not merely an absence of work:** the
+table has **no migration surface at all**. There is no replay path to test, no
+partially-replayed state to reason about, and no second way for a rating to come
+into existence — which keeps `CR-C6`'s guarantee (§15.3) absolute rather than
+approximate.
 
 ### 16.5 Two Level 2 writes now hang off the join path
 
@@ -1072,7 +1078,7 @@ communities they belong to)** — the smallest of the three Level 2 entities.
 | Ownership | **None possible** if built as specified |
 | **Build order — `E9` first or together** | **`CR-D1`, a condition** |
 | Duplicate responsibilities | **None** |
-| **Backfill value** | **`CR-D2`, a real decision** |
+| Initialization and migration | **Settled** — uniform `5.00`, no replay (§19.2) |
 | Join-path coupling doubles | **`CR-R4`**, acceptable, one operation required |
 | Performance | **Sound** |
 
@@ -1106,7 +1112,7 @@ two approved decisions coexisting, not a conflict between them.
 |---|---|---|---|
 | `CR-R1` | **Two ratings answer "how good is this player" inside one community**: BTGE balances by the Global Rating, the board ranks by this one. Product-visible, and consistent with every approved document | Low — **an observation** | **Raised, not resolved.** Changing it is a Knowledge Base decision about engine inputs (§4.1) |
 | `CR-R2` | **Built without `E9`, corrections cannot reverse exactly** | **High if it happens** | **Prevented by `CR-D1`**, a build condition |
-| `CR-R3` | **Backfilling existing members at `5.00`** opens every established community's first board with every member on the same number | Medium | **Open**, `CR-D2` |
+| `CR-R3` | **An established community's first leaderboard opens with every member on `5.00`**, so it ranks nobody until results are recorded | Low | **Accepted, approved 2026-08-02** (§19.2). No production communities exist at MVP, so nothing real is misrepresented |
 | `CR-R4` | **Two Level 2 writes hang off the join path.** A partial failure leaves a player with statistics and no rating, or the reverse | Medium | **Open**, §16.5. Must be one operation |
 | `CR-R5` | **Inherited: deleting an MVP or scorer's account destroys a result without reversing**, leaving community ratings holding movements whose cause is gone | Medium | **Inherited** — `MRS-R1`, `MG-R1` |
 | `CR-R6` | **No reconciliation.** A rating moved outside the audited path would leave no trace | Medium | **Open.** DP-11; the check is `5.00 + sum(in-effect E9 deltas) = rating`, per pair |
@@ -1129,22 +1135,36 @@ correction at all.
 **Recommendation: build `E9` first, or in the same phase.** Its template is
 already recorded (`Rating_History_Table_Specification.md` §4.10).
 
-### 19.2 `CR-D2` — the backfill value for existing memberships
+### 19.2 Initialization and migration — **approved architectural decision, 2026-08-02**
 
-| Option | Assessment |
+**No longer an open decision.** Recorded here as an approved decision because it
+governs the entity's shape, not merely its rollout.
+
+> **A player's first membership in a community initializes the Community Rating
+> to `5.00`. This applies to every community in the MVP. There is no replay
+> process, no historical backfill, and no migration logic.**
+
+**Rationale, as approved.** There are no real production communities; every
+existing community and every row of its data is development and test data. **A
+replay mechanism would therefore carry no business value**, and building one to
+reconstruct ratings for data that describes nobody would be work in service of a
+fixture.
+
+**Why this is an architecture decision and not only a migration one.** It fixes
+two properties of the entity itself:
+
+| Property | Consequence |
 |---|---|
-| **`5.00` for everyone** | Matches the letter of `SL-4`, and **is what the approved rule literally says**. But every established community opens its first leaderboard with all members identical — a board that ranks nobody |
-| **Replay the community's recorded results** | The evidence exists in full — results, lineups, goals — and replaying generates the `E9` entries that make the result correctable. **Truthful, and more work** |
+| **`5.00` is the *only* way a rating comes into existence** | `CR-C6`'s column default is not merely the usual path — it is the sole path. Nothing else may create a rating at any other value (`CR-C17`) |
+| **The table has no migration surface** | No replay path to test, no partially-replayed state to reason about, and no second creation route to keep consistent with the first |
 
-**Recommendation: replay.** Three reasons: the evidence exists; `A5`'s
-prohibition is on importing *another* rating, and a community's own past matches
-are not another rating; and a first board that ranks nobody is worse than no
-board.
+**What this does not decide.** *"If the product is ever introduced into an
+environment containing real historical communities before Level 2 exists, replay
+will be evaluated as a separate Data Migration project, not as part of Community
+Rating."* **Replay is explicitly outside this entity's architecture**, in that
+event as in this one.
 
-**This is a Product decision**, because it determines what the first Level 2
-leaderboards say.
-
-### 19.3 Other open decisions
+### 19.3 Remaining open decisions
 
 | ID | Question | Recommendation |
 |---|---|---|
@@ -1161,7 +1181,7 @@ leaderboards say.
 | # | Requirement | Source |
 |---|---|---|
 | 1 | **Build `E9` first, or in the same phase** | `CR-D1` |
-| 2 | Settle `CR-D2` before backfilling | §19.2 |
+| 2 | **No backfill and no replay.** Existing memberships initialize at `5.00` like any other | §19.2, `CR-C17` |
 | 3 | **Make the baseline a column default**, not an application value | `CR-C6`, §15.3 |
 | 4 | **Create at join, idempotently**, in **one** operation with the Community Statistics record | `CR-C8`, `CR-D3` |
 | 5 | **Pair every movement with an `E9` entry in the same statement flow** | `CR-C12` |
@@ -1176,13 +1196,15 @@ Supabase object was touched.
 
 ## 21. Engineering Approval
 
-**Status: Engineering Approved — conditional** on `CR-D1` (build `E9` with it)
-and `CR-D2` (the backfill value).
+**Status: Engineering Approved — conditional** on `CR-D1` alone: Community
+Rating History must be built with this table.
 
-**Neither condition is a defect in this design.** The first is a build-order
-requirement that follows from `RR-5`; the second is a Product decision the
-approved rule does not answer, because `SL-4` describes a first join and
-existing members never had one under Level 2.
+**That condition is not a defect in this design** — it is a build-order
+requirement following from `RR-5`, because reversing by the applied delta needs
+a record of what was applied.
+
+**The initialization and migration question is settled** (§19.2, approved
+2026-08-02): uniform `5.00`, no replay, no backfill, no migration logic.
 
 | Criterion | Status |
 |---|---|
