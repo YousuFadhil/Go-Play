@@ -578,11 +578,18 @@ statistics model only as a row describing no player — which the model does not
 have and does not want, because it would duplicate a fact the Match domain
 already owns.
 
-**One definition remains open.** Whether *Total Matches* counts every completed
-match or only those with a recorded result. It matters because Total Goals
-counts only recorded results (`A4`), so the two describe different populations
-unless the same basis is used. **Recommended: matches with a recorded result**,
-so every figure on the screen describes one population.
+**Which matches the counts include is settled by [`OQ-7`](#13-open-questions)**,
+not open: statistics arise only from a recorded result, so **Total Matches and
+the two windowed *Matches Played* figures count matches with a recorded
+result**. That is the existing decision applied consistently, and it is what
+makes every counting figure on this screen describe one population.
+
+**One figure is not settled by `OQ-7`.** *Last Match Date* answers a **recency**
+question rather than a counting one, and the recorded-result basis would show a
+stale date for as long as an organiser has not yet recorded a result. Its basis
+is recorded as `CD-D1` in
+`engineering/Community_Dashboard_Read_Specification.md` §17, with the
+recommendation that it count every match whose start has passed.
 
 ### 7.1 Overall
 
