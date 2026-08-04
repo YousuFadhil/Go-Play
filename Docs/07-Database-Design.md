@@ -251,3 +251,64 @@ migrations and not one.
 The migration sequence keeps the objects it later drops: it records the project's
 history rather than its end state. Reading `0008` and `0012` together is how a
 future reader learns why the invitation tables existed and why they do not now.
+
+---
+
+# Phase Status
+
+**Database Design Engineering — 2026-08-02**
+
+## 1. Status
+
+**Completed.**
+
+## 2. Implementation Readiness
+
+**Ready.**
+
+## 3. Approved Scope
+
+- **All database tables specified.** Fifteen table specifications, each an
+  Engineering Authority: the eleven built tables, and the four approved but
+  unbuilt (`community_statistics`, `community_ratings`,
+  `community_rating_history`, and the relocated invitation credential).
+- **All Level 2 read models specified.** The Community Dashboard and the nine
+  Community Leaderboards, each frozen before any view, RPC or query exists.
+- **Cross-document consistency verified.** Every specification was validated
+  against the PRD, the ERD, this document, the Design Decisions, and the
+  `SL`, `RR`, `BTGE` and `UP` decision records. The architecture review of
+  2026-08-02 resolved the Community Rating and dashboard-ownership
+  contradictions at source; no contradiction between approved documents
+  remains open.
+- **The BTGE database contract** is frozen alongside the tables.
+
+## 4. Outstanding Decisions
+
+Unresolved only. Approved items are not repeated.
+
+| # | Decision | Gates |
+|---|---|---|
+| 1 | **Confirm the `DP-n` principle readings.** Nine of eleven have no definition in the repository; each specification states the reading it applied | Nothing — but every specification leans on them |
+| 2 | **Leaderboard scope: nine boards or fifteen** (`LB-X1`). *Most Matches Played* and *Most Wins* are not in the approved set | The leaderboard build |
+| 3 | **Leaderboard read rules** — zero-valued entries (`LB-D1`), tie-break order (`LB-D2`), and the `SL-2` §2.3 wording fix (`LB-D3`) | The leaderboard build |
+| 4 | **`Last Match Date` basis** (`CD-D1`) | One dashboard figure |
+| 5 | **Level 2 build order and join-path write** (`CR-D1`, `CR-D3`, `CR-D4`) | The Level 2 build |
+| 6 | **Administrative rating adjustment** (`RR-2`, open since the results phase; `RH-D1`) | Nothing today |
+| 7 | **Invitation credential relocation** (`CI-D0`), which amends `DD-12` | That relocation only |
+| 8 | **Per-table conformance items** recorded in each specification — the unused write rules (`MT-D1`, `NT-D1`, and their siblings), the deletion-cascade ordering (`MRS-D1`), and the integrity constraints `RH-D2` recommends | Their own tables |
+
+## 5. Blocking Issues
+
+**None.** No decision blocks implementation from beginning. Items 2, 3, 5 and 7
+above gate specific deliverables within the next phase rather than the phase
+itself.
+
+## 6. Next Phase
+
+**Database Implementation** — views, RPC functions, triggers and RLS.
+
+Each specification carries its own conformance list and build instruction; those
+are the implementation backlog. Four cross-cutting families recur across
+tables and should be closed together rather than one table at a time: the
+unused write rules, the account-deletion cascade ordering, the missing
+`updated_at` columns, and the absent reconciliation checks.
