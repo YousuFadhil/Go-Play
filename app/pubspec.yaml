@@ -19,6 +19,10 @@ dependencies:
   shared_preferences: ^2.3.0
   supabase_flutter: ^2.8.0
   image_picker: ^1.2.3
+  # Push delivery only. The Notification Center is Supabase either way, and the
+  # app runs without a Firebase project configured — see PushService.
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
 
 dev_dependencies:
   flutter_test:

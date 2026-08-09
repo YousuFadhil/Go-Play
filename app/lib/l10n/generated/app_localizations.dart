@@ -764,6 +764,126 @@ abstract class AppLocalizations {
   /// **'The match was deleted.'**
   String get notifMatchDeleted;
 
+  /// No description provided for @notifMatchCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'A new match has been created.'**
+  String get notifMatchCreated;
+
+  /// No description provided for @notifRegistrationOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration is now open.'**
+  String get notifRegistrationOpened;
+
+  /// No description provided for @notifMatchFull.
+  ///
+  /// In en, this message translates to:
+  /// **'The match is now full.'**
+  String get notifMatchFull;
+
+  /// No description provided for @notifTeamsRegenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'The teams were regenerated.'**
+  String get notifTeamsRegenerated;
+
+  /// No description provided for @notifMatchStartingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Your match starts in less than an hour.'**
+  String get notifMatchStartingSoon;
+
+  /// No description provided for @notifMatchTimeChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The match time has changed.'**
+  String get notifMatchTimeChanged;
+
+  /// No description provided for @notifCommunityInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been invited to a community.'**
+  String get notifCommunityInvitation;
+
+  /// No description provided for @notifCommunityJoinAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your request to join was accepted.'**
+  String get notifCommunityJoinAccepted;
+
+  /// No description provided for @notifCommunityPictureUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'The community picture was updated.'**
+  String get notifCommunityPictureUpdated;
+
+  /// No description provided for @notifCommunityDescriptionUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'The community description was updated.'**
+  String get notifCommunityDescriptionUpdated;
+
+  /// No description provided for @notifCommunitySettingsUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'The community settings were updated.'**
+  String get notifCommunitySettingsUpdated;
+
+  /// No description provided for @pushSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications'**
+  String get pushSettingsTitle;
+
+  /// No description provided for @pushSettingsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Every notification is kept in the app. These switches only decide what your phone alerts you about.'**
+  String get pushSettingsIntro;
+
+  /// No description provided for @pushMatchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Match notifications'**
+  String get pushMatchLabel;
+
+  /// No description provided for @pushMatchSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration, player changes and reminders.'**
+  String get pushMatchSubtitle;
+
+  /// No description provided for @pushCommunityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Community notifications'**
+  String get pushCommunityLabel;
+
+  /// No description provided for @pushCommunitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitations and membership.'**
+  String get pushCommunitySubtitle;
+
+  /// No description provided for @pushMuteAllLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute all push notifications'**
+  String get pushMuteAllLabel;
+
+  /// No description provided for @pushMuteAllSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is sent to your phone. Your notification history is unchanged.'**
+  String get pushMuteAllSubtitle;
+
+  /// No description provided for @pushSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That setting could not be saved. Try again.'**
+  String get pushSaveFailed;
+
   /// No description provided for @matchManagementTitle.
   ///
   /// In en, this message translates to:

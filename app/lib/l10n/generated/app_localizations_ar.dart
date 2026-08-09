@@ -354,6 +354,68 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notifMatchDeleted => 'تم حذف المباراة.';
 
   @override
+  String get notifMatchCreated => 'تم إنشاء مباراة جديدة.';
+
+  @override
+  String get notifRegistrationOpened => 'تم فتح التسجيل.';
+
+  @override
+  String get notifMatchFull => 'اكتمل عدد اللاعبين في المباراة.';
+
+  @override
+  String get notifTeamsRegenerated => 'تمت إعادة توزيع الفرق.';
+
+  @override
+  String get notifMatchStartingSoon => 'تبدأ مباراتك خلال أقل من ساعة.';
+
+  @override
+  String get notifMatchTimeChanged => 'تم تغيير موعد المباراة.';
+
+  @override
+  String get notifCommunityInvitation => 'تمت دعوتك إلى مجتمع.';
+
+  @override
+  String get notifCommunityJoinAccepted => 'تم قبول طلب انضمامك.';
+
+  @override
+  String get notifCommunityPictureUpdated => 'تم تحديث صورة المجتمع.';
+
+  @override
+  String get notifCommunityDescriptionUpdated => 'تم تحديث وصف المجتمع.';
+
+  @override
+  String get notifCommunitySettingsUpdated => 'تم تحديث إعدادات المجتمع.';
+
+  @override
+  String get pushSettingsTitle => 'إشعارات الجوال';
+
+  @override
+  String get pushSettingsIntro =>
+      'تُحفظ جميع الإشعارات داخل التطبيق. هذه الخيارات تحدد ما ينبهك به جوالك فقط.';
+
+  @override
+  String get pushMatchLabel => 'إشعارات المباريات';
+
+  @override
+  String get pushMatchSubtitle => 'التسجيل وتغييرات اللاعبين والتذكيرات.';
+
+  @override
+  String get pushCommunityLabel => 'إشعارات المجتمعات';
+
+  @override
+  String get pushCommunitySubtitle => 'الدعوات والعضوية.';
+
+  @override
+  String get pushMuteAllLabel => 'كتم جميع إشعارات الجوال';
+
+  @override
+  String get pushMuteAllSubtitle =>
+      'لن يصل شيء إلى جوالك. سجل الإشعارات داخل التطبيق لا يتغير.';
+
+  @override
+  String get pushSaveFailed => 'تعذر حفظ هذا الخيار. حاول مرة أخرى.';
+
+  @override
   String get matchManagementTitle => 'إدارة المباراة';
 
   @override

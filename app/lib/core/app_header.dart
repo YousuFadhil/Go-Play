@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../features/auth/auth_service.dart';
+import '../features/notifications/push_service.dart';
 import '../features/profile/current_user.dart';
 import '../features/profile/profile_models.dart';
 import '../features/profile/profile_screen.dart';
@@ -167,6 +168,11 @@ class _CurrentUserMenuState extends State<CurrentUserMenu> {
 /// leave that screen sitting on top of the login form.
 Future<void> logOut(BuildContext context) async {
   final navigator = Navigator.of(context);
+  // Before the sign-out, not after: deregistering the device is a delete on the
+  // player's own row, and there is no session left to authorise it once they are
+  // out. Leaving it would send this account's notices to a phone somebody else
+  // may now be signed in on.
+  await PushService.instance.signOut();
   await AuthService().logout();
   CurrentUser.instance.clear();
   navigator.popUntil((route) => route.isFirst);

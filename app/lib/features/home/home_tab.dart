@@ -14,6 +14,7 @@ import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../notifications/notification_service.dart';
 import '../notifications/notifications_screen.dart';
+import '../notifications/push_service.dart';
 
 typedef _HomeData = ({String firstName, List<Match> matches, int unread});
 
@@ -35,6 +36,16 @@ class _HomeTabState extends State<HomeTab> {
   void initState() {
     super.initState();
     _future = _load();
+    // A push that lands while Home is already open moves the unread count, and
+    // nothing else would tell this screen. The push itself is not rendered —
+    // the badge is re-read from the Notification Center, which is the record.
+    PushService.instance.foregroundPushes.addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    PushService.instance.foregroundPushes.removeListener(_refresh);
+    super.dispose();
   }
 
   Future<_HomeData> _load() async {
@@ -53,6 +64,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   void _refresh() {
+    if (!mounted) return;
     setState(() {
       _future = _load();
     });

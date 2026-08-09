@@ -362,6 +362,73 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifMatchDeleted => 'The match was deleted.';
 
   @override
+  String get notifMatchCreated => 'A new match has been created.';
+
+  @override
+  String get notifRegistrationOpened => 'Registration is now open.';
+
+  @override
+  String get notifMatchFull => 'The match is now full.';
+
+  @override
+  String get notifTeamsRegenerated => 'The teams were regenerated.';
+
+  @override
+  String get notifMatchStartingSoon =>
+      'Your match starts in less than an hour.';
+
+  @override
+  String get notifMatchTimeChanged => 'The match time has changed.';
+
+  @override
+  String get notifCommunityInvitation =>
+      'You have been invited to a community.';
+
+  @override
+  String get notifCommunityJoinAccepted => 'Your request to join was accepted.';
+
+  @override
+  String get notifCommunityPictureUpdated =>
+      'The community picture was updated.';
+
+  @override
+  String get notifCommunityDescriptionUpdated =>
+      'The community description was updated.';
+
+  @override
+  String get notifCommunitySettingsUpdated =>
+      'The community settings were updated.';
+
+  @override
+  String get pushSettingsTitle => 'Push notifications';
+
+  @override
+  String get pushSettingsIntro =>
+      'Every notification is kept in the app. These switches only decide what your phone alerts you about.';
+
+  @override
+  String get pushMatchLabel => 'Match notifications';
+
+  @override
+  String get pushMatchSubtitle => 'Registration, player changes and reminders.';
+
+  @override
+  String get pushCommunityLabel => 'Community notifications';
+
+  @override
+  String get pushCommunitySubtitle => 'Invitations and membership.';
+
+  @override
+  String get pushMuteAllLabel => 'Mute all push notifications';
+
+  @override
+  String get pushMuteAllSubtitle =>
+      'Nothing is sent to your phone. Your notification history is unchanged.';
+
+  @override
+  String get pushSaveFailed => 'That setting could not be saved. Try again.';
+
+  @override
   String get matchManagementTitle => 'Match management';
 
   @override

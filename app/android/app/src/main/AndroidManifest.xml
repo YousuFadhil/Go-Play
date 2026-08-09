@@ -2,6 +2,11 @@
     <!-- Required in the main manifest: the Flutter template only adds it to
          debug/profile, which silently breaks networking in release builds. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ asks before an app may post a notification. Declared here
+         rather than relied on from the firebase_messaging manifest, because
+         PushService.requestPermission() is what prompts for it and a missing
+         declaration turns that prompt into a silent refusal. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="go_play"
         android:name="${applicationName}"
