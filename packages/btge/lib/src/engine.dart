@@ -30,10 +30,28 @@ class BtgeEngine {
 
   final BtgeConfiguration config;
 
+  /// Generates the two teams.
+  ///
+  /// [variant] chooses **which** of the equally optimal solutions to return. The
+  /// search settles on a set of partitions that every priority rates the same,
+  /// and until now the first of them in canonical order was always the answer —
+  /// so asking again for the same match returned the same teams even where the
+  /// engine itself saw no reason to prefer them. `variant` indexes that set
+  /// (wrapping, so any integer is valid), which is what lets a regeneration
+  /// offer a genuinely different but equally good split.
+  ///
+  /// This is **not** randomness. `BTGE-PF-6` still holds: the survivor set is
+  /// canonically ordered and the same inputs with the same `variant` produce the
+  /// same result, every time, with no seed anywhere. The default of 0 is exactly
+  /// the behaviour that came before.
+  ///
+  /// [Diagnostics.equallyOptimalSolutions] reports how large that set was, so a
+  /// caller can tell "there is another answer" from "this is the only one".
   GenerationResult generate({
     required List<Player> players,
     required MatchSettings settings,
     MatchHistory history = const MatchHistory.empty(),
+    int variant = 0,
   }) {
     final stopwatch = Stopwatch()..start();
     _validate(players);
@@ -166,8 +184,13 @@ class BtgeEngine {
     );
 
     // ---- Deterministic canonical ordering (`BTGE-PF-7`) -------------------
+    // The order is what makes `variant` an index rather than a lottery: the same
+    // inputs produce the same list, so the same variant produces the same teams.
     survivors.sort((x, y) => _canonicalKey(x, pool).compareTo(_canonicalKey(y, pool)));
-    final winner = survivors.first;
+    // Dart's `%` on a negative left operand still returns a non-negative result,
+    // so a caller counting backwards lands inside the set rather than off it.
+    final variantIndex = survivors.length == 1 ? 0 : variant % survivors.length;
+    final winner = survivors[variantIndex];
 
     final (teamA, teamB) = _split(winner, pool);
     final plan = plans[winner]!;
@@ -197,6 +220,8 @@ class BtgeEngine {
         emergencyGoalkeeperCount:
             plan.a.emergencyGoalkeepers + plan.b.emergencyGoalkeepers,
         solutionCountAtOptimum: tiedAtOptimum,
+        equallyOptimalSolutions: survivors.length,
+        variantIndex: variantIndex,
         candidatesEvaluated: evaluated,
         searchWasExhaustive: true,
         elapsedMs: stopwatch.elapsedMilliseconds,

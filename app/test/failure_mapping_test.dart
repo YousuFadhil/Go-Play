@@ -48,6 +48,63 @@ void main() {
           FailureReason.invalidTimeRange);
     });
 
+    test('create_match refusals keep their reason', () {
+      expect(map(raised('INVALID_TITLE')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.invalidTitle));
+      expect(map(raised('INVALID_LOCATION')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.invalidLocation));
+      expect(map(raised('START_IN_PAST')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.startInPast));
+    });
+
+    test('an inactive community is a conflict, not bad input', () {
+      // The id sent is the one meant; the community's state is what refuses.
+      // Same shape as MATCH_COMPLETED and MATCH_LOCKED, same classification.
+      expect(map(raised('COMMUNITY_INACTIVE')),
+          isA<ConflictFailure>().having(
+              (f) => f.reason, 'reason', FailureReason.communityInactive));
+    });
+
+    test('a missing match is not found, with its reason', () {
+      expect(map(raised('MATCH_NOT_FOUND')),
+          isA<NotFoundFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.matchNotFound));
+    });
+
+    test('a call with no session is an authentication failure, no reason', () {
+      final failure = map(raised('NOT_AUTHENTICATED'));
+      expect(failure, isA<AuthenticationFailure>());
+      expect(failure.reason, isNull,
+          reason: 'the type already says it, exactly as with NOT_AUTHORIZED');
+    });
+
+    test('NOT_AUTHENTICATED and NOT_AUTHORIZED are not confused', () {
+      // The scan matches by substring and these two share a prefix. Neither
+      // contains the other, and the classification differs, so a mix-up would
+      // report a signed-out caller as forbidden or a forbidden one as
+      // signed out.
+      expect(map(raised('NOT_AUTHENTICATED')), isA<AuthenticationFailure>());
+      expect(map(raised('NOT_AUTHORIZED')), isA<AuthorizationFailure>());
+    });
+
+    test('no create_match token is mistaken for a match-management one', () {
+      // INVALID_TITLE and INVALID_TIME_RANGE share a prefix; MATCH_NOT_FOUND
+      // and COMMUNITY_NOT_FOUND share a suffix.
+      expect(map(raised('INVALID_TITLE')).reason,
+          isNot(FailureReason.invalidTimeRange));
+      expect(map(raised('INVALID_TIME_RANGE')).reason,
+          isNot(FailureReason.invalidTitle));
+      expect(map(raised('MATCH_NOT_FOUND')).reason,
+          isNot(FailureReason.communityNotFound));
+      expect(map(raised('COMMUNITY_NOT_FOUND')).reason,
+          isNot(FailureReason.matchNotFound));
+      expect(map(raised('COMMUNITY_INACTIVE')).reason,
+          isNot(FailureReason.communityNotFound));
+    });
+
     test('membership refusals keep their reason', () {
       expect(map(raised('CANNOT_CHANGE_OWN_ROLE')).reason,
           FailureReason.cannotChangeOwnRole);
@@ -73,6 +130,58 @@ void main() {
       expect(map(raised('COMMUNITY_NOT_FOUND')),
           isA<NotFoundFailure>().having(
               (f) => f.reason, 'reason', FailureReason.communityNotFound));
+    });
+
+    test('result refusals are validation failures with their reason', () {
+      expect(map(raised('INVALID_SCORE')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.invalidScore));
+      expect(map(raised('INVALID_GOALS')).reason, FailureReason.invalidGoals);
+      expect(map(raised('GOALS_DO_NOT_MATCH_SCORE')).reason,
+          FailureReason.goalsDoNotMatchScore);
+      expect(map(raised('MVP_NOT_PARTICIPANT')).reason,
+          FailureReason.mvpNotParticipant);
+      expect(map(raised('SCORER_NOT_PARTICIPANT')).reason,
+          FailureReason.scorerNotParticipant);
+      expect(map(raised('LINEUP_REQUIRED')).reason,
+          FailureReason.lineupRequired);
+    });
+
+    test('correcting a played match has its own refusals', () {
+      // Both are states the operation ran into rather than input the caller got
+      // wrong, so both are conflicts — the same shape as MATCH_COMPLETED.
+      expect(
+          map(raised('RESULT_PARTICIPANT_REMOVED')),
+          isA<ConflictFailure>().having((f) => f.reason, 'reason',
+              FailureReason.resultParticipantRemoved));
+      expect(
+          map(raised('MATCH_NOT_COMPLETED')),
+          isA<ConflictFailure>().having(
+              (f) => f.reason, 'reason', FailureReason.matchNotCompleted));
+
+      expect(map(raised('INVALID_TEAM')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.invalidTeam));
+      expect(map(raised('INVALID_POSITION')).reason,
+          FailureReason.invalidPosition);
+    });
+
+    test('MATCH_NOT_COMPLETED is not read as MATCH_COMPLETED', () {
+      // The scan matches by substring and the two tokens are one word apart, so
+      // this is the pair most likely to be confused.
+      expect(map(raised('MATCH_NOT_COMPLETED')).reason,
+          FailureReason.matchNotCompleted);
+      expect(map(raised('MATCH_COMPLETED')).reason,
+          FailureReason.matchCompleted);
+    });
+
+    test('no result token is mistaken for another', () {
+      // The scan matches by substring, so the tokens have to stay distinct —
+      // `MVP_NOT_PARTICIPANT` and `SCORER_NOT_PARTICIPANT` in particular.
+      expect(map(raised('MVP_NOT_PARTICIPANT')).reason,
+          isNot(FailureReason.scorerNotParticipant));
+      expect(map(raised('INVALID_SCORE')).reason,
+          isNot(FailureReason.goalsDoNotMatchScore));
     });
 
     test('a permission refusal is the type alone, with no reason', () {

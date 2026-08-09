@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.2 |
+| Version | 1.5 |
 | Status | **Approved** |
 | Role | **Implementation Authority** — what to build. |
 | Owner | Product Owner |
-| Governed by | `Docs/engineering/BTGE_Design_Knowledge_Base.md` v1.2 — the **Design Authority**. If any conflict exists, the Knowledge Base governs product intent and this document must be updated accordingly. |
+| Governed by | `Docs/engineering/BTGE_Design_Knowledge_Base.md` v1.6 — the **Design Authority**. If any conflict exists, the Knowledge Base governs product intent and this document must be updated accordingly. |
 | Supersedes | `Docs/archive/BTGE_Engineering_Specification_v1.0.docx` — the original approved v1.0, retained as the historical record. The canonical form is this file. |
 | Applies to | Go Play — Balanced Team Generation Engine |
 
@@ -91,7 +91,7 @@ Provided for every player in the generation set:
 | Input | Type | Required | Notes |
 |---|---|---|---|
 | Player ID | identifier | Yes | Unique within the generation set. |
-| Overall Rating | numeric | Yes | Single scalar strength value. Scale per `OP-1`. |
+| Overall Rating | numeric | Yes | Single scalar strength value. Scale per `OP-1`, resolved — 0.0 to 10.0 to one decimal place ([§18.1.1](#1811-resolved-product-decisions)). |
 | Date of Birth | date | Yes | Age is derived, never stored as a number. |
 | Primary Position | `GK` \| `DEF` \| `MID` \| `FWD` | Yes | The player's declared main position. |
 | Secondary Position | `GK` \| `DEF` \| `MID` \| `FWD` \| *none* | No | May be absent — see [§11.6](#116-btge-sc-6-no-secondary-position). |
@@ -122,8 +122,9 @@ Data, and its use is narrowly bounded:
 
 ### 4.3 Input validity
 
-- The generation set contains between 2 and 30 players inclusive (`OP-2`
-  confirms the lower bound).
+- The generation set contains between **4** and 30 players inclusive (lower
+  bound per `OP-2`, resolved — [§18.1.1](#1811-resolved-product-decisions)). A
+  set of fewer than 4 is an invalid generation request.
 - Player IDs are unique within the set.
 - A player missing a required input is a caller error; the engine rejects the
   request rather than substituting a default. In particular the engine must
@@ -210,7 +211,9 @@ The ordering is **lexicographic with tolerance bands**, not a weighted sum.
   Without them, priorities 3, 4, and 5 would be unreachable dead rules and the
   requirement "if multiple optimal solutions exist" would never be satisfiable.
 
-The tolerance band for each priority is `OP-3`.
+The tolerance band for each priority is `OP-3`, **resolved**. The approved
+widths are recorded in
+[§18.1.1](#1811-resolved-product-decisions).
 
 ### 7.2 Consequences
 
@@ -380,7 +383,9 @@ The generation set holds an odd number of players.
 - One team has exactly one more player than the other (`BTGE-HC-4`).
 - The extra player creates a genuine advantage, so the engine compensates: the
   larger team is the one that is otherwise weaker on Rating Balance. The rule
-  for selecting the larger team is `OP-5`.
+  for selecting the larger team is `OP-5`, **resolved** to exactly that —
+  the weaker team receives the extra player
+  ([§18.1.1](#1811-resolved-product-decisions)).
 - Rating Balance is measured on **mean** rating (see [§15](#15-quality-metrics)),
   which remains meaningful across unequal team sizes.
 
@@ -392,8 +397,9 @@ The generation set spans a wide age range.
 - A wide spread must not be concentrated on one side: the engine also balances
   how many players fall above and below the set's median age, so that one team
   is not built from the oldest players and the other from the youngest even when
-  the two means happen to match. The tolerance for both measures is `OP-3`;
-  the definition of "wide spread" for reporting purposes is `OP-7`.
+  the two means happen to match. The tolerance for both measures is `OP-3`
+  ([§18.1.1](#1811-resolved-product-decisions)); the definition of "wide
+  spread" for reporting purposes is `OP-7`, which remains open.
 - Age Balance never overrides Position Distribution, Rating Balance, or
   Out-of-Position minimization.
 
@@ -413,7 +419,7 @@ A player has no secondary position recorded.
 | `BTGE-DV-1` | Diversity applies **only** when multiple optimal solutions exist — that is, solutions judged equivalent on priorities 1 through 4 within their tolerance bands. |
 | `BTGE-DV-2` | Among those solutions, the engine chooses the one that most reduces repeated teammate combinations relative to recent matches, using Match History as Auxiliary Data under [§4.2.1](#421-auxiliary-data--match-history). |
 | `BTGE-DV-3` | **Solution quality is never reduced for diversity** (`KB-010`). If exactly one solution is optimal, that solution is returned regardless of how familiar the pairings are. Diversity is a tie-breaker and nothing else. |
-| `BTGE-DV-4` | Repetition is measured over a bounded lookback window of recent matches within the same community (`OP-6`), not over all history. |
+| `BTGE-DV-4` | Repetition is measured over a bounded lookback window of recent matches within the same community (`OP-6`, resolved as the **last 5 matches** — [§18.1.1](#1811-resolved-product-decisions)), not over all history. |
 | `BTGE-DV-5` | When Match History contains no information — a new community, a first match, or players with no shared history — **diversity contributes nothing**. If multiple equally optimal solutions still exist, the tie is broken by the deterministic canonical ordering in [§14.4](#144-determinism) (`KB-019`). Absence of history is never an error. |
 
 ## 13. Manual Override
@@ -434,7 +440,7 @@ A player has no secondary position recorded.
 | ID | Requirement |
 |---|---|
 | `BTGE-PF-1` | The engine supports up to **30 players (15 vs 15)**. |
-| `BTGE-PF-2` | The supported range is 2 to 30 players inclusive (lower bound per `OP-2`). Above 30, the engine rejects the request rather than degrading silently. |
+| `BTGE-PF-2` | The supported range is **4** to 30 players inclusive (lower bound per `OP-2`, resolved — [§18.1.1](#1811-resolved-product-decisions)). Outside that range — below 4 or above 30 — the engine rejects the request rather than degrading silently. |
 
 ### 14.2 Optimality over speed
 
@@ -634,20 +640,23 @@ configuration and no default is silently treated as a decision.
 
 | ID | Parameter | Classification | Blocks Implementation | Blocks Final Validation | Depends on |
 |---|---|---|---|---|---|
-| `OP-1` | Overall Rating scale and precision (range, integer or decimal). | Product Decision | No | **Yes** | Rating Balance; the prerequisite schema change ([§4.4](#44-prerequisite-current-schema-gap)) |
-| `OP-2` | Minimum supported player count (specified here as 2). | Product Decision | No | **Yes** | [§4.3](#43-input-validity), `BTGE-PF-2` |
-| `OP-3` | Tolerance band per priority — how close two solutions must be to count as equally good at each of priorities 1–4. | Product Decision | No | **Yes** | [§7.1](#71-how-the-ordering-is-applied) |
+| `OP-1` | Overall Rating scale and precision (range, integer or decimal). | Product Decision | No | No — **resolved**, [§18.1.1](#1811-resolved-product-decisions) | Rating Balance; the prerequisite schema change ([§4.4](#44-prerequisite-current-schema-gap)) |
+| `OP-2` | Minimum supported player count. | Product Decision | No | No — **resolved**, [§18.1.1](#1811-resolved-product-decisions) | [§4.3](#43-input-validity), `BTGE-PF-2` |
+| `OP-3` | Tolerance band per priority — how close two solutions must be to count as equally good at each of priorities 1–4. | Product Decision | No | No — **resolved**, [§18.1.1](#1811-resolved-product-decisions) | [§7.1](#71-how-the-ordering-is-applied) |
 | `OP-4` | Cost weighting applied to transition distance in `out_of_position_cost`. | Engineering Decision | No | No | `BTGE-PT-4`, [§15](#15-quality-metrics) |
-| `OP-5` | Which team receives the extra player on an odd count — specified here as the team otherwise weaker on rating. | Product Decision | No | **Yes** | `BTGE-SC-4`, `KB-012` |
-| `OP-6` | Diversity lookback window — how many recent matches, or what time span, counts as "recent". | Product Decision | No | **Yes** | `BTGE-DV-4` |
+| `OP-5` | Which team receives the extra player on an odd count. | Product Decision | No | No — **resolved**, [§18.1.1](#1811-resolved-product-decisions) | `BTGE-SC-4`, `KB-012` |
+| `OP-6` | Diversity lookback window — how many recent matches, or what time span, counts as "recent". | Product Decision | No | No — **resolved**, [§18.1.1](#1811-resolved-product-decisions) | `BTGE-DV-4` |
 | `OP-7` | Threshold at which an age spread is reported as wide. | Implementation Detail | No | No | `BTGE-SC-5` |
 | `OP-8` | Whether any absolute ceiling on generation time exists at 30 players. `KB-013` settles the policy — optimality is never traded for speed — but not whether a hard limit exists. | Engineering Decision | No | No | [§14.2](#142-optimality-over-speed) |
 
-**`OP-3` in particular.** The tolerance-band *mechanism* is architecture and can
-be built immediately against configurable parameters. The *values* are a Product
-Decision, required before the engine can be validated or released — the
-priority-ordering scenarios `TS-25` … `TS-28` cannot be written without them.
-This is a Blocks Final Validation gate, not a Blocks Implementation gate.
+**`OP-3` in particular — resolved.** The record of why it was held open is kept
+because it explains the shape of the code: the tolerance-band *mechanism* is
+architecture and was built against configurable parameters, while the *values*
+were a Product Decision required before the engine could be validated or
+released. That gate was a Blocks Final Validation gate, never a Blocks
+Implementation gate. The values were approved on 2026-07-31 and are recorded in
+[§18.1.1](#1811-resolved-product-decisions); the priority-ordering scenarios
+`TS-25` … `TS-28`, which could not be written without them, are now writable.
 
 **Classification meanings.** *Product Decision* — belongs to the Product Owner;
 `BTGE-CC-6` applies. *Engineering Decision* — the product intent is already
@@ -659,10 +668,170 @@ is handled during implementation and documented.
 under `KB-009`, so the question has no subject. Recorded so it is not reopened.
 
 **Open Parameter review — closed.** All eight parameters were reviewed and
-classified; the results are the table above. Five require Product Owner
+classified; the results are the table above. Five required Product Owner
 decisions (`OP-1`, `-2`, `-3`, `-5`, `-6`), two are Engineering Decisions the
 implementer may settle and record (`OP-4`, `-8`), and one is an Implementation
 Detail (`OP-7`). The review is not reopened by implementation work.
+
+**The Product Decision gate is closed.** All five parameters that blocked final
+validation — `OP-1`, `OP-2`, `OP-3`, `OP-5` and `OP-6` — were resolved by the
+Product Owner on 2026-07-31 and are recorded in
+[§18.1.1](#1811-resolved-product-decisions). **No Product Decision now blocks
+BTGE final validation.**
+
+This is a statement about the *gate*, not about the outcome. **Final validation
+has not been executed and has not passed.** The two must not be conflated: the
+gate closing means validation may now be planned and run, nothing more. What
+remains outstanding is engineering, not product — `OP-4` and `OP-8` are
+Engineering Decisions and `OP-7` an Implementation Detail, and none of the three
+has ever blocked validation.
+
+Two questions deliberately outside this gate remain open and are **not** settled
+by anything here:
+
+- **Who may change a player's `overall_rating`.** A Product/Business Policy
+  decision, explicitly separate from `OP-1`, which fixes the scale and nothing
+  else. See `Docs/07-Database-Design.md`.
+- The rating engine that would *produce* a rating, which [§17](#17-out-of-scope)
+  places outside BTGE entirely.
+
+#### 18.1.1 Resolved Product Decisions
+
+Recorded under `BTGE-CC-7`. Each entry is the Product Owner's decision as
+approved; no implementer may reinterpret, round, or tune a value here.
+
+**`OP-1` — Overall Rating scale and precision.** Approved 2026-07-31.
+
+| Property | Approved value |
+|---|---|
+| Minimum | **0.0** |
+| Maximum | **10.0** |
+| Precision | **0.1** — one decimal place |
+| Default | **5.0** |
+| Null permitted | **No** |
+
+The scale therefore admits **101 distinct values**: 0.0, 0.1, 0.2 … 9.9, 10.0.
+
+This approval formalized the contract implemented by migration
+`0018_btge_schema.sql` — at the time `numeric(3,1)`, `NOT NULL DEFAULT 5.0`,
+constrained by `users_overall_rating_range` to `0.0 … 10.0`. It required no
+migration and no change to the engine, which treats rating as an opaque number
+and never assumes a range ([§4.1](#41-per-player-inputs-core)).
+
+> **Alignment note — 2026-08-01.** The **approved values above are
+> unchanged.** Two facts around them have moved, and neither touches `OP-1`:
+>
+> - **Storage was widened to `numeric(4,2)`** by migration `0022`, because the
+>   approved rating engine moves a rating by `0.05` for a goal and one decimal
+>   place cannot represent that reversibly (`RR-1` in
+>   `Results_Rating_Engineering_Decisions.md`). `OP-1`'s `0.1` precision is the
+>   **presentation** contract — how a rating is read by a human — and it still
+>   holds. The engine is unaffected either way.
+> - **There are now two ratings** (`SL-3` in
+>   `Statistics_Leaderboards_MVP_Specification.md`): a Global Rating and a
+>   per-community Community Rating. **BTGE balances on the Global Rating**,
+>   `users.overall_rating`, exactly as §4.1 has always specified. The Community
+>   Rating is a leaderboard measure and is never a Core Player Input.
+
+**Who may change a player's rating is not decided here.** That is a separate
+Product/Business Policy question; `OP-1` fixes the scale, its precision and its
+default, and nothing else. Migration `0022` settled it for the *engine* — the
+rating is system-managed and no client may write it (`RR-2`) — while whether an
+**administrator** may adjust one by hand remains open.
+
+**`OP-2` — Minimum supported player count.** Approved 2026-07-31.
+
+| Property | Approved value |
+|---|---|
+| `minPlayers` | **4** |
+| Smallest supported match | **2 v 2** |
+
+Product rationale, as approved: 4 is the minimum size of a supported Go Play
+match. **The rule applies to the product as a whole, not to team generation
+alone** — a match the product does not support should not be creatable, so the
+same bound governs `matches.starting_players` (4 … 30) as governs the
+generation set. Fewer than 4 confirmed players is an invalid generation
+request; 4 or more is eligible, subject to every other approved rule.
+
+**Decision history.** Three values have stood here, and the sequence matters:
+
+1. The Specification originally *proposed* 2, never approved.
+2. The Product Owner approved **6** (3 v 3) on 2026-07-31.
+3. On review of how match capacity relates to team generation — `starting_players`
+   caps the confirmed roster, so a bound of 6 would have made every match below
+   it permanently un-generatable while remaining creatable — that decision was
+   **superseded the same day** by the final approved minimum of **4**.
+
+The values 2 and 6 survive only as history, here and in
+[§18.2](#182-version-history). **No normative rule in this document states
+either as the current minimum.**
+
+**`OP-3` — Tolerance bands.** Approved 2026-07-31.
+
+| Priority | Parameter | Approved value |
+|---|---|---|
+| 1 — Position Distribution | `distributionBand` | **2** |
+| 2 — Rating Balance | `ratingBand` | **0.10** |
+| 3 — Minimize Out-of-Position | `outOfPositionBand` | **2** |
+| 4 — Age Balance | `ageBand` | **1.00** |
+
+Product rationale, as approved:
+
+- Match fairness and generation quality take priority over generation speed.
+- The generator should seek the highest-quality balanced result even when
+  generation takes longer.
+- Strength balance is a major fairness objective.
+- Limited positional flexibility is acceptable when it produces a meaningfully
+  fairer match.
+- Closely related positional transitions are acceptable within the approved
+  transition model of [§9](#9-position-transition-rules).
+- Large or unnecessary positional compromises should remain disfavoured.
+- Age balance matters, but greater tolerance is acceptable relative to the
+  higher-priority criteria.
+- Performance optimization must not silently reduce generation quality or alter
+  these Product Decisions.
+
+Each value is expressed in the units of its own metric as defined in
+[§15](#15-quality-metrics): `distributionBand` and `outOfPositionBand` in the
+integer units of `position_distribution_score` and `out_of_position_cost`,
+`ratingBand` in Overall Rating points, `ageBand` in years of mean age.
+
+**`OP-5` — Odd player count rule.** Approved 2026-07-31.
+
+| Property | Approved decision |
+|---|---|
+| Rule | **`OddCountRule.weakerTeamGetsExtra`** |
+| Behaviour | When the confirmed player count is odd, the team that would otherwise be **weaker by rating** receives the extra player |
+
+Product rationale, as approved: the extra player compensates for the weaker
+team's rating strength, serving the primary objective of the fairest practical
+match.
+
+This confirms the behaviour [§11.4](#114-btge-sc-4-uneven-player-counts) already
+described provisionally, and `KB-012`'s requirement that the numerical advantage
+be offset rather than ignored. **No additional odd-count rule or tie-breaking
+policy is introduced** beyond what this specification already defines.
+
+**`OP-6` — Diversity lookback window.** Approved 2026-07-31.
+
+| Item | Approved decision |
+|---|---|
+| Diversity basis | **Last N matches** |
+| N | **5** |
+| Time-based window | **None approved** |
+
+Product rationale, as approved:
+
+- The system should consider each player's last 5 relevant matches when
+  evaluating historical team diversity.
+- A match-count window provides predictable behaviour regardless of how
+  frequently a community plays.
+- Diversity remains subordinate to the higher-priority balancing criteria of
+  [§7](#7-optimization-priorities), unchanged by this decision.
+
+No time-duration form of `OP-6` is approved. Where an implementation exposes a
+time-span option alongside the match count, that option is outside the approved
+decision and must be left unset.
 
 ### 18.2 Version history
 
@@ -670,4 +839,7 @@ Detail (`OP-7`). The review is not reopened by implementation work.
 |---|---|---|---|
 | 1.0 | 2026-07-27 | Approved | Initial specification. Adopted as the single source of truth for team generation. |
 | 1.1 | 2026-07-27 | Approved | **Synchronized with Knowledge Base v1.2**, which becomes the governing design authority (`BTGE-CC-0`). Four corrections: **(1)** randomness removed entirely — the seed is gone from §4.2, §14.4, §15 and `TS-37`; ties now resolve by deterministic canonical ordering (`KB-009`, `KB-019`). **(2)** §14.2 reversed from a heuristic time budget to optimality over speed; §14.3 no longer licenses heuristics (`KB-013`). **(3)** Match History restated as Auxiliary Data in a new §4.2.1 (`BTGE-AX-1` … `-AX-5`), bounded to priority 5 and barred from evaluation (`KB-016`, `KB-017`); §17 clarifies it is not the excluded "historical behaviour analysis". **(4)** §10 rewritten for emergency goalkeeper assignment (`KB-018`): the prohibition in the old `BTGE-GK-2` and `BTGE-PT-6` is removed and replaced with the approved guarantee, capped by `BTGE-GK-4` — no stronger guarantee may be derived. **ID changes:** goalkeeper rules renumbered `BTGE-GK-1` … `-GK-16`; `BTGE-PF-3` … `-PF-6` renumbered `-PF-3` … `-PF-8`. **Added:** `BTGE-CC-0`, `BTGE-AX-1` … `-AX-5`, `TS-39`, `TS-40`, metric `emergency_goalkeeper_count`. **Closed:** `OP-9` void; `OP-8` narrowed. |
+| 1.5 | 2026-07-31 | Approved | **`OP-2` superseded within the same day: the approved minimum is 4, not 6.** On reviewing how match capacity relates to team generation — `matches.starting_players` caps the confirmed roster, so a minimum of 6 would have left every smaller match creatable but permanently un-generatable — the Product Owner lowered the bound to **4** (2 v 2) and extended it to the product as a whole rather than to generation alone. §4.3 and `BTGE-PF-2` now read 4; §18.1.1's `OP-2` entry carries the value and the full 2 → 6 → 4 sequence. Implemented in the database by migration `0019_minimum_match_size.sql`, which moves `matches_starting_players_check` and the `update_match` guard from 2 to 4. **Only `OP-2` changed** — `OP-1`, `OP-3`, `OP-5` and `OP-6` are untouched, and the Product Decision gate remains closed. |
+| 1.4 | 2026-07-31 | Approved | **`OP-1`, `OP-2` and `OP-5` resolved**, closing the Product Decision gate: with `OP-3` and `OP-6` already settled in v1.3, **no Product Decision blocks final validation any longer**. `OP-1`: 0.0–10.0, precision 0.1, default 5.0, not null — formalizing the contract migration `0018` already implements, with no migration and no engine change. `OP-2`: `minPlayers` **6** (3 v 3), **superseding the provisional lower bound of 2**; §4.3 and `BTGE-PF-2` now read 6, and rejection applies below 6 as well as above 30. `OP-5`: `weakerTeamGetsExtra`, confirming §11.4. All three recorded in [§18.1.1](#1811-resolved-product-decisions). §4.1 and §11.4 now point at the approved values. **The gate closing is not a claim that final validation has been executed or passed.** Still open and unaffected: `OP-4`, `OP-7`, `OP-8` (never blocking), and the separate Product/Business Policy question of who may change a player's rating. |
+| 1.3 | 2026-07-31 | Approved | **`OP-3` and `OP-6` resolved** by Product Owner decision and recorded in a new [§18.1.1](#1811-resolved-product-decisions), per `BTGE-CC-7`. `OP-3`: `distributionBand` 2, `ratingBand` 0.10, `outOfPositionBand` 2, `ageBand` 1.00. `OP-6`: last 5 matches, no time-based window. §18.1's table, its "`OP-3` in particular" note and the `BTGE-DV-4` rule updated to match; §7.1 and §11.5 now point at the approved values. **No business rule changed** — only parameters that were deliberately left unfixed are now fixed. `OP-1`, `OP-2` and `OP-5` remain open and still block final validation; `OP-4`, `-7`, `-8` are unaffected. Governing Knowledge Base reference corrected to v1.4 (it had been left at v1.2 while the Knowledge Base stood at v1.3). |
 | 1.2 | 2026-07-27 | Approved | Open Parameter review closed (`BTGE-CC-7`). §18.1 gained a classification per parameter — Product Decision, Engineering Decision, or Implementation Detail — and split blocking into two gates: **Blocks Implementation** and **Blocks Final Validation**. **No open parameter blocks implementation**; five block final validation (`OP-1`, `-2`, `-3`, `-5`, `-6`). `OP-3` is explicitly recorded as Blocks Final Validation, not Blocks Implementation: the tolerance-band mechanism is architecture and is buildable now against configuration, while the values are a Product Decision required before validation and release. No business rule changed. |

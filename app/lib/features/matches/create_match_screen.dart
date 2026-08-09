@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+
+import '../../core/app_header.dart';
 import 'package:intl/intl.dart';
 
 import 'app_settings.dart';
+import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import 'match_service.dart';
 
@@ -81,6 +84,30 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     return null;
   }
 
+  /// What to tell the organizer when `create_match` refuses.
+  ///
+  /// The screen asks the same questions before it sends, so most of these are
+  /// only reachable when the two disagree — a title of one character passes
+  /// "not empty" here and fails `char_length(trim(...)) >= 2` there, and a
+  /// start time still in the future when it was picked can be in the past by
+  /// the time the request lands. The database is the one that has to be right,
+  /// so what it refuses is what the organizer is told.
+  String _createError(AppLocalizations l10n, Object e) {
+    if (e is AuthorizationFailure) return l10n.errNotAuthorized;
+    if (e is Failure) {
+      return switch (e.reason) {
+        FailureReason.invalidTitle => l10n.errInvalidTitle,
+        FailureReason.invalidLocation => l10n.errInvalidLocation,
+        FailureReason.startInPast => l10n.startInPastError,
+        FailureReason.invalidTimeRange => l10n.endAfterStartError,
+        FailureReason.invalidStartingPlayers => l10n.startingPlayersInvalid,
+        FailureReason.communityInactive => l10n.errCommunityInactive,
+        _ => l10n.matchCreateFailed,
+      };
+    }
+    return l10n.matchCreateFailed;
+  }
+
   Future<void> _submit() async {
     final scheduleError = _validateSchedule();
     final formValid = _formKey.currentState!.validate();
@@ -106,10 +133,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         startingPlayers: int.parse(_startingPlayersController.text),
       );
       if (mounted) Navigator.of(context).pop(true);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.matchCreateFailed)),
+          SnackBar(content: Text(_createError(context.l10n, e))),
         );
         setState(() => _isLoading = false);
       }
@@ -122,7 +149,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     final locale = Localizations.localeOf(context).toString();
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.createMatchTitle)),
+      appBar: AppHeader(title: Text(l10n.createMatchTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -188,8 +215,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       InputDecoration(labelText: l10n.startingPlayersLabel),
                   onChanged: (_) => setState(() {}),
                   validator: (value) {
+                    // 4 is the approved OP-2 minimum match size (2 v 2), the
+                    // same bound the database and update_match enforce.
                     final parsed = int.tryParse(value ?? '');
-                    if (parsed == null || parsed < 2 || parsed > 30) {
+                    if (parsed == null || parsed < 4 || parsed > 30) {
                       return l10n.startingPlayersInvalid;
                     }
                     return null;

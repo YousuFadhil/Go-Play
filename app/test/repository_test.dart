@@ -9,9 +9,8 @@ void main() {
   // test/mappers_test.dart.
 
   group('InviteLink', () {
-    // Twelve characters from the join-code alphabet, which omits I, L, O, 0
-    // and 1 because people mistype them.
-    const code = 'ABCDEFGH2345';
+    // A join code is a number of up to four digits (migration `0030`).
+    const code = '4829';
 
     test('shares the web form, so it survives the domain landing', () {
       expect(InviteLink.format(code), 'https://goplay.app/join/$code');
@@ -37,18 +36,22 @@ void main() {
       );
     });
 
-    test('normalises case, so a code read aloud and retyped still works', () {
-      expect(InviteLink.parse(code.toLowerCase()), code);
+    test('a shorter code is read, because the column accepts one', () {
+      // `generate_join_code` issues 1000..9999, and the column accepts one to
+      // four digits. Reading a shorter code is what keeps this parser from
+      // being stricter than the constraint it stands in front of.
+      expect(InviteLink.parse('482'), '482');
     });
 
     test('rejects anything that is not a code', () {
       expect(InviteLink.parse(null), isNull);
       expect(InviteLink.parse('   '), isNull);
-      expect(InviteLink.parse('ABC'), isNull, reason: 'too short');
+      expect(InviteLink.parse('ABCD'), isNull, reason: 'a code is digits');
+      expect(InviteLink.parse('48291'), isNull, reason: 'five is too many');
       // An unrelated URL must not have a code read out of its path.
-      expect(InviteLink.parse('https://example.com/ABCDEFGH2345'), isNull);
-      // The excluded glyphs are not in the alphabet.
-      expect(InviteLink.parse('ABCDEFGHI011'), isNull);
+      expect(InviteLink.parse('https://example.com/4829'), isNull);
+      // Nor may a longer number in a join path have its first four taken.
+      expect(InviteLink.parse('https://goplay.app/join/48291'), isNull);
     });
   });
 
@@ -57,8 +60,8 @@ void main() {
     tearDown(PendingInvite.instance.clear);
 
     test('holds a code offered as a link', () {
-      PendingInvite.instance.offer('https://goplay.app/join/ABCDEFGH2345');
-      expect(PendingInvite.instance.code.value, 'ABCDEFGH2345');
+      PendingInvite.instance.offer('https://goplay.app/join/4829');
+      expect(PendingInvite.instance.code.value, '4829');
     });
 
     test('ignores a route that is not an invitation', () {
@@ -67,9 +70,9 @@ void main() {
     });
 
     test('keeps the previous code when handed nonsense', () {
-      PendingInvite.instance.offer('ABCDEFGH2345');
+      PendingInvite.instance.offer('4829');
       PendingInvite.instance.offer('nonsense');
-      expect(PendingInvite.instance.code.value, 'ABCDEFGH2345',
+      expect(PendingInvite.instance.code.value, '4829',
           reason: 'an unrelated route must not cancel a real invitation');
     });
   });

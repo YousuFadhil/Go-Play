@@ -20,24 +20,40 @@ class SupabaseAuthAdapter implements AuthAdapter {
   String? get currentUserId => _auth.currentUser?.id;
 
   @override
+  String? get currentUserEmail => _auth.currentUser?.email;
+
+  @override
   bool get isSignedIn => _auth.currentSession != null;
 
   @override
   Stream<bool> get signedInChanges =>
       _auth.onAuthStateChange.map((_) => _auth.currentSession != null);
 
+  /// The signed-in player's name, read through `v_user_profile` (migration
+  /// `0025`) like every other profile read.
+  ///
+  /// The view is `security_invoker = on`, so this is still
+  /// `authenticated_select_active_users` deciding what comes back; only the
+  /// relation named has changed. A missing row stays a null name rather than a
+  /// failure — a greeting is not worth refusing over.
   @override
   Future<String?> fetchCurrentUserFullName() => guarded(() async {
         final id = currentUserId;
         if (id == null) return null;
         final row = await _client
-            .from('users')
+            .from('v_user_profile')
             .select('full_name')
-            .eq('id', id)
+            .eq('user_id', id)
             .maybeSingle();
         return row?['full_name'] as String?;
       });
 
+  /// The profile arrives as Auth metadata, which `handle_new_user` reads when
+  /// it creates the row (migration `0021`).
+  ///
+  /// `overall_rating` is not in the payload. The column default is what sets it
+  /// to 5.0 (`OP-1`), and metadata is client-supplied — a rating sent from here
+  /// would be a system-managed value taken from the sign-up request.
   @override
   Future<void> signUp({
     required String email,
@@ -45,6 +61,8 @@ class SupabaseAuthAdapter implements AuthAdapter {
     required String fullName,
     required PlayerPosition position,
     required String phone,
+    required DateTime dateOfBirth,
+    required PlayerPosition? secondaryPosition,
   }) =>
       guarded(() async {
         await _auth.signUp(
@@ -54,6 +72,12 @@ class SupabaseAuthAdapter implements AuthAdapter {
             'full_name': fullName,
             'primary_position': playerPositionToDb(position),
             'phone': phone,
+            'date_of_birth': dateOnlyToDb(dateOfBirth),
+            // Left out rather than sent as null: the trigger reads a missing
+            // key and an empty one the same way, and no secondary position is
+            // an absence rather than a value (`BTGE-SC-6`).
+            if (secondaryPosition != null)
+              'secondary_position': playerPositionToDb(secondaryPosition),
           },
         );
       });
@@ -65,6 +89,28 @@ class SupabaseAuthAdapter implements AuthAdapter {
   }) =>
       guarded(() async {
         await _auth.signInWithPassword(email: email, password: password);
+      });
+
+  /// Both credentials move through `updateUser`, which is the only thing that
+  /// may touch `auth.users`. Nothing in `public.users` mirrors either of them,
+  /// so there is no second row to keep in step.
+  ///
+  /// Whether the new address has to be confirmed before it replaces the old one
+  /// is the project's Auth setting, not this adapter's business: the call
+  /// returns once the provider has accepted the request, and the screen says so
+  /// rather than claiming the address has already changed.
+  @override
+  Future<void> changeEmail(String email, {required String redirectTo}) =>
+      guarded(() async {
+        await _auth.updateUser(
+          UserAttributes(email: email),
+          emailRedirectTo: redirectTo,
+        );
+      });
+
+  @override
+  Future<void> changePassword(String password) => guarded(() async {
+        await _auth.updateUser(UserAttributes(password: password));
       });
 
   @override

@@ -62,7 +62,12 @@ double ratingFromDb(Object? value) {
 /// A null date of birth or secondary position stays null. Migration `0018`
 /// left them nullable on purpose and §4.3 forbids inventing one, so nothing
 /// here fills a gap in.
-PlayerCoreInputs playerCoreInputsFromRow(Map<String, dynamic> row) {
+/// [avatarUrl] is composed by the adapter from the row's `avatar_path`: the
+/// bucket and the host are provider knowledge, and a row does not carry them.
+PlayerCoreInputs playerCoreInputsFromRow(
+  Map<String, dynamic> row, {
+  String? Function(String? path)? avatarUrl,
+}) {
   final user = row['user'] as Map<String, dynamic>;
   final dateOfBirth = user['date_of_birth'] as String?;
   final secondary = user['secondary_position'] as String?;
@@ -73,6 +78,7 @@ PlayerCoreInputs playerCoreInputsFromRow(Map<String, dynamic> row) {
     primaryPosition: positionFromDb(user['primary_position'] as String),
     dateOfBirth: dateOfBirth == null ? null : DateTime.parse(dateOfBirth),
     secondaryPosition: secondary == null ? null : positionFromDb(secondary),
+    avatarUrl: avatarUrl?.call(user['avatar_path'] as String?),
   );
 }
 
@@ -84,12 +90,11 @@ TeamAssignment teamAssignmentFromRow(Map<String, dynamic> row) =>
       basis: assignmentBasisFromDb(row['assignment_basis'] as String),
     );
 
-Map<String, dynamic> teamAssignmentToRow(
-  String matchId,
-  TeamAssignment assignment,
-) =>
-    {
-      'match_id': matchId,
+/// One player's place in the lineup, as `replace_match_lineup` reads it.
+///
+/// No `match_id`: the match is an argument of that function, which is what
+/// keeps a row from naming a different match than the one being authorized.
+Map<String, dynamic> teamAssignmentToRow(TeamAssignment assignment) => {
       'user_id': assignment.userId,
       'team': teamToDb(assignment.team),
       'assigned_position': positionToDb(assignment.assignedPosition),

@@ -9,11 +9,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///   flutter test --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
 ///                --dart-define=SUPABASE_ANON_KEY=<publishable key>
 ///
-/// The four accounts below are permanent MVP testing accounts. The suite
-/// signs in to them and never creates or deletes them, so a run leaves the
-/// account list exactly as it found it. Everything a test creates below the
-/// account level - communities, matches, registrations - is
+/// The six accounts below are permanent MVP testing accounts, provisioned by
+/// hand. The suite signs in to them and never creates or deletes them, so a run
+/// leaves the account list exactly as it found it. Everything a test creates
+/// below the account level - communities, matches, registrations - is
 /// removed in teardown through delete_community, which cascades.
+///
+/// Their roles:
+///
+///   owner    - creates every fixture community and owns it
+///   admin    - promoted to admin in the community under test
+///   player   - ordinary member
+///   player2  - ordinary member, present so capacity scenarios can reach five
+///   player3  - ordinary member, the fifth body
+///   outsider - the dedicated NON-member, used to prove RLS refuses outsiders
+///
+/// Five genuine members are what the approved minimum match size costs: with
+/// starting_players at 4 (OP-2), producing a reserve needs a fifth registrant.
+/// `outsider` is not that fifth body - it is only ever added to a community by
+/// a test that is specifically exercising a role or authorization rule.
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
@@ -55,7 +69,7 @@ Future<TestUser> signInTestUser(String label) async {
         .signInWithPassword(email: email, password: _password);
   } on AuthException catch (e) {
     fail('Could not sign in the permanent testing account $email '
-        '(${e.message}). These four accounts are fixtures: create the missing '
+        '(${e.message}). These six accounts are fixtures: create the missing '
         'one once, with the suite password, rather than letting a test run '
         'add users to the project.');
   }
@@ -183,4 +197,18 @@ const _codes = <String>[
   'INVALID_TITLE',
   'JOIN_CODE_REQUIRED',
   'INVALID_JOIN_POLICY',
+  'LINEUP_REQUIRED',
+  'INVALID_SCORE',
+  'INVALID_GOALS',
+  'GOALS_DO_NOT_MATCH_SCORE',
+  'MVP_NOT_PARTICIPANT',
+  'SCORER_NOT_PARTICIPANT',
+  // Correcting a match that has already been played (migration 0029).
+  // MATCH_NOT_COMPLETED is listed before MATCH_COMPLETED would match it: the
+  // scan is by substring, and neither token contains the other, but the order
+  // keeps the intent readable.
+  'MATCH_NOT_COMPLETED',
+  'RESULT_PARTICIPANT_REMOVED',
+  'INVALID_TEAM',
+  'INVALID_POSITION',
 ];

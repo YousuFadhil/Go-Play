@@ -30,6 +30,15 @@
   "positionDef": "Defender",
   "positionMid": "Midfielder",
   "positionFwd": "Forward",
+  "secondaryPositionLabel": "Secondary position (optional)",
+  "noSecondaryPosition": "None",
+  "secondaryPositionSameAsPrimary": "Secondary position must differ from the primary position",
+  "dateOfBirthLabel": "Date of birth",
+  "dateOfBirthRequired": "Date of birth is required",
+  "selectDateLabel": "Select date",
+  "profileTitle": "Profile",
+  "profileSaved": "Profile updated.",
+  "profileSaveFailed": "Failed to save your profile. Please try again.",
   "homeTitle": "Home",
   "logoutLabel": "Log out",
   "communitiesTitle": "Communities",
@@ -65,7 +74,7 @@
   "endAfterStartError": "End time must be after start time",
   "startInPastError": "Match must start in the future",
   "startingPlayersLabel": "Starting players",
-  "startingPlayersInvalid": "Enter a number between 2 and 30",
+  "startingPlayersInvalid": "Enter a number between 4 and 30",
   "capacityAutoNote": "Reserve players: {reserve} (automatic) — maximum registration: {max}",
   "@capacityAutoNote": {
     "placeholders": {
@@ -78,6 +87,9 @@
     }
   },
   "matchCreateFailed": "Failed to create the match. Please try again.",
+  "errInvalidTitle": "Enter a match name of at least 2 characters.",
+  "errInvalidLocation": "Enter a location of at least 2 characters.",
+  "errCommunityInactive": "This community is no longer active, so no new match can be created in it.",
   "communityMatchesEmpty": "No matches in this community yet.",
   "upcomingMatchesTitle": "Upcoming matches",
   "upcomingMatchesEmpty": "No upcoming matches.\nJoin a community to get started.",
@@ -127,7 +139,7 @@
   "matchUpdatedSaved": "Match updated. Registered players were notified.",
   "matchUpdateFailed": "Failed to save the match. Please try again.",
   "deleteMatchButton": "Delete match",
-  "deleteMatchHint": "Registered players are notified. Completed matches cannot be deleted.",
+  "deleteMatchHint": "Registered players are notified. Deleting a completed match also takes back every statistic and rating its result produced.",
   "deleteMatchConfirmTitle": "Delete this match?",
   "deleteMatchConfirmBody": "All registrations will be removed and players notified. This cannot be undone.",
   "removePlayerButton": "Remove",
@@ -269,5 +281,245 @@
         "type": "String"
       }
     }
-  }
+  },
+  "teamsTitle": "Teams",
+  "teamsEmpty": "Teams have not been generated for this match yet.",
+  "generateTeamsButton": "Generate teams",
+  "regenerateTeamsButton": "Regenerate teams",
+  "regenerateTeamsConfirmTitle": "Generate the teams again?",
+  "regenerateTeamsConfirmBody": "The current teams are replaced by a new split of the confirmed players.",
+  "teamsGenerated": "Teams generated.",
+  "teamAName": "Team A",
+  "teamBName": "Team B",
+  "teamsOutOfPosition": "Out of position",
+  "teamsPlayerRangeNote": "Generating teams needs between {min} and {max} confirmed players. This match has {count}.",
+  "@teamsPlayerRangeNote": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errMissingPlayerInputs": "Some confirmed players have an incomplete profile. Each of them needs a date of birth before teams can be generated.",
+  "errTeamsNotGenerated": "Teams could not be generated from this roster.",
+  "editPlayerTitle": "Edit {player}",
+  "@editPlayerTitle": {
+    "placeholders": {
+      "player": {
+        "type": "String"
+      }
+    }
+  },
+  "movePlayerAction": "Move to the other team",
+  "swapPlayerAction": "Swap with a player",
+  "changePositionAction": "Change position",
+  "swapPlayerTitle": "Swap with",
+  "swapNobodyAvailable": "The other team has nobody to swap with.",
+  "changePositionTitle": "Assigned position",
+  "lineupUpdated": "Lineup updated.",
+  "errLineupRefused": "That change was refused. A team cannot have two goalkeepers.",
+  "errLineupNotChanged": "That change no longer applies to this lineup. It has been reloaded.",
+  "matchResultTitle": "Match result",
+  "saveResultButton": "Save result",
+  "resultSaved": "Match result saved successfully",
+  "resultOrganizersOnly": "Only the community owner and admins can record a match result.",
+  "mvpLabel": "Best player",
+  "addGoalLabel": "Add a goal",
+  "removeGoalLabel": "Remove a goal",
+  "goalsScoredLabel": "{count, plural, =0{No goals} =1{1 goal} other{{count} goals}}",
+  "@goalsScoredLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "goalsRecordedNote": "{recorded} of {total} goals assigned to a scorer.",
+  "@goalsRecordedNote": {
+    "placeholders": {
+      "recorded": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "editResultConfirmTitle": "Replace the recorded result?",
+  "editResultConfirmBody": "The ratings and statistics the previous result produced are reversed, and the new result is applied instead.",
+  "errGoalsDoNotMatchScore": "The goals assigned to scorers must add up to the final score.",
+  "errMvpNotParticipant": "The best player must be one of the players in this match.",
+  "errScorerNotParticipant": "A goal can only be credited to a player in this match.",
+  "errResultNeedsLineup": "Teams have not been generated for this match yet. The result needs to know which side each player was on.",
+  "errInvalidResultNumbers": "The result could not be saved. Check the scores and the goals.",
+  "dashboardTab": "Dashboard",
+  "communityStatisticsTitle": "Community statistics",
+  "statTotalMatches": "Total matches",
+  "statTotalPlayers": "Total players",
+  "statTotalGoals": "Total goals",
+  "statLeadersTitle": "Leaders",
+  "statTopScorer": "Top scorer",
+  "statMostActivePlayer": "Most active player",
+  "statMostMvp": "Most valuable player",
+  "statNoneYet": "Not yet",
+  "statFormerPlayer": "Former player",
+  "statMatchesPlayedValue": "{count, plural, =0{No matches} =1{1 match} other{{count} matches}}",
+  "@statMatchesPlayedValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statMvpValue": "{count, plural, =0{Never} =1{1 time} other{{count} times}}",
+  "@statMvpValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statScopeNote": "Player statistics count matches whose result has been recorded. Total matches counts every match the community has created.",
+  "statEmptyBody": "No results have been recorded in this community yet. Statistics appear once a match result is saved.",
+  "playerStatisticsTitle": "My statistics",
+  "statCurrentRating": "Current rating",
+  "statMatchesPlayed": "Matches played",
+  "statWins": "Wins",
+  "statDraws": "Draws",
+  "statLosses": "Losses",
+  "statGoals": "Goals",
+  "statMvpCount": "Best player awards",
+  "statCareerNote": "Your record across every community you play in. These figures are set by the app when a match result is recorded, and count matches whose result has been saved.",
+  "statNoMatchesYet": "You have not played a recorded match yet. Your figures start at zero and the rating is the starting rating every player is given.",
+  "leaderboardsTab": "Leaderboards",
+  "leaderboardHighestRated": "Highest rated",
+  "leaderboardTopScorer": "Top scorer",
+  "leaderboardMostMvp": "Most valuable player",
+  "leaderboardMostActive": "Most active",
+  "leaderboardMostWins": "Most wins",
+  "leaderboardsEmpty": "No leaderboards yet. Once a match result is recorded, this is where the community sees who is leading.",
+  "leaderboardRatingNote": "Highest rated ranks by the player's overall rating across every community.",
+
+  "cancelButton": "Cancel",
+  "changeAction": "Change",
+  "editProfileTitle": "Edit profile",
+  "editProfileAction": "Edit profile",
+  "profilePersonalSection": "Personal information",
+  "profileAccountSection": "Account",
+  "profilePlayingSection": "Playing profile",
+  "passwordHiddenNote": "Hidden for your security",
+  "changeEmailTitle": "Change email",
+  "changePasswordTitle": "Change password",
+  "confirmPasswordLabel": "Confirm password",
+  "passwordsDoNotMatch": "The two passwords do not match",
+  "passwordChanged": "Password changed.",
+  "emailChangeRequested": "Check your new address for the confirmation link.",
+  "avatarChangeAction": "Change photo",
+  "avatarSourceCamera": "Take a photo",
+  "avatarSourceGallery": "Choose from gallery",
+  "ageLabel": "Age",
+  "avatarRemoveAction": "Remove photo",
+  "avatarUpdated": "Photo updated.",
+  "avatarRemoved": "Photo removed.",
+  "avatarUploadFailed": "Could not update the photo. Please try again.",
+  "ageYears": "{count, plural, =1{1 year old} other{{count} years old}}",
+  "@ageYears": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logoutConfirmTitle": "Log out?",
+  "logoutConfirmBody": "You will need to sign in again to use Go Play.",
+
+  "completedMatchesTitle": "Completed matches",
+  "addPlayedPlayerAction": "Add a player who played",
+  "addPlayedPlayerNobodyAvailable": "Every community member is already in this lineup.",
+  "removePlayedPlayerAction": "Remove from the match",
+  "removePlayedPlayerConfirmTitle": "Remove this player?",
+  "removePlayedPlayerConfirmBody": "{name} will be taken out of the lineup, and every statistic and rating this match gave them will be taken back.",
+  "@removePlayedPlayerConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editPlayedMatchNote": "Changes to a completed match recalculate statistics, ratings and leaderboards.",
+  "chooseTeamTitle": "Which team?",
+  "choosePositionTitle": "Which position?",
+  "errResultParticipantRemoved": "This player is the best player or a scorer in the recorded result. Edit the result first.",
+  "errMatchNotCompleted": "Only a completed match's players can be corrected this way.",
+
+  "communityTitle": "Community",
+  "discoverHeroTitle": "Football, with your people.",
+  "discoverHeroBody": "Find a community near you, see what is being played this week, and take your place on the pitch.",
+  "discoverAlreadyHaveAccount": "Already have an account? Log in",
+  "discoverSeatsLeft": "{count, plural, =1{1 place left} other{{count} places left}}",
+  "@discoverSeatsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverMemberCount": "{count, plural, =0{No members} =1{1 member} other{{count} members}}",
+  "@discoverMemberCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverUpcomingCount": "{count, plural, =1{1 upcoming match} other{{count} upcoming matches}}",
+  "@discoverUpcomingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverNoUpcomingMatches": "Nothing is scheduled just yet. Check back soon.",
+  "discoverNoCommunities": "No communities yet. Be the first to start one.",
+  "discoverCtaTitle": "Ready to play?",
+  "discoverCtaBody": "Create an account to join a community, register for matches, and start your own.",
+  "authRequiredTitle": "Account needed",
+  "authRequiredJoinCommunity": "Create an account to join this community.",
+  "authRequiredRegisterMatch": "Create an account to register for this match.",
+  "authRequiredCreateCommunity": "Create an account to start your own community.",
+  "mvpOptionalNote": "Tap a star to name the best player. This is optional — the result saves without one.",
+
+  "navDiscover": "Discover",
+  "viewCommunityAction": "View community",
+  "viewMatchAction": "View match",
+  "discoverWelcomeBack": "Welcome back, {name}",
+  "@discoverWelcomeBack": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverHeroBodySignedIn": "See what your communities are playing this week, and find new ones to join.",
+  "discoverCommunityCount": "{count, plural, =0{No communities} =1{1 community} other{{count} communities}}",
+  "@discoverCommunityCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverCtaTitleSignedIn": "Start something of your own",
+  "discoverCtaBodySignedIn": "Create a community and bring your regular game together in one place.",
+
+  "discoverMatchesSubtitle": "Games with places still open",
+  "discoverCommunitiesSubtitle": "Clubs you can join",
+  "homeUpcomingSubtitle": "Across your communities"
 }

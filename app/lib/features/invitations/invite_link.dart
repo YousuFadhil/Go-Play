@@ -30,9 +30,13 @@ class InviteLink {
   static const scheme = 'goplay';
   static const appBase = '$scheme://join/';
 
-  /// Join codes are twelve characters from a 31-symbol alphabet that omits the
-  /// glyphs people mistype: I, L, O, 0 and 1.
-  static const _codePattern = r'[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6,32}';
+  /// A join code is a number of up to four digits (migration `0030`).
+  ///
+  /// Four is what `generate_join_code` issues, and the shorter forms are here so
+  /// that a code entered by hand is read the same way the database would read
+  /// it — the length constraint on the column is `1..4`, and a parser stricter
+  /// than the column would reject a code the column accepts.
+  static const _codePattern = r'[0-9]{1,4}';
 
   /// What gets shared. The web form, so it stays a link when the domain lands.
   static String format(String code) => '$webBase$code';
@@ -48,8 +52,10 @@ class InviteLink {
     if (text.isEmpty) return null;
 
     // Anchored to a join path when one is present, so an unrelated URL that
-    // happens to contain code-shaped characters is not mistaken for one.
-    final inLink = RegExp('JOIN/($_codePattern)').firstMatch(text);
+    // happens to contain code-shaped characters is not mistaken for one. The
+    // trailing guard matters now the code is digits: without it a longer number
+    // in the path would have its first six taken and read as a code.
+    final inLink = RegExp('JOIN/($_codePattern)(?![0-9])').firstMatch(text);
     if (inLink != null) return inLink.group(1);
     if (text.contains('/') || text.contains(':')) return null;
 

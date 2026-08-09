@@ -35,6 +35,20 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="goplay" android:host="join"/>
             </intent-filter>
+            <!-- Auth callbacks: goplay://login-callback. This is where the
+                 confirmation link for an email change comes back to. Without
+                 this filter the link opens nothing, and without the same URL in
+                 the Supabase project's Redirect URLs allow-list Auth ignores the
+                 emailRedirectTo parameter and falls back to the Site URL — so
+                 both have to be in place, and neither is visible from Dart.
+                 supabase_flutter's own deep-link handler reads the intent and
+                 completes the change; nothing in this app parses it. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="goplay" android:host="login-callback"/>
+            </intent-filter>
             <!-- The shared form is https://goplay.app/join/<code>. Enabling the
                  filter below is the last step of deferred deep linking, and it
                  must not be enabled before the domain exists: without

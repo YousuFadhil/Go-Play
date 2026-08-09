@@ -100,6 +100,34 @@ class AppLocalizationsAr extends AppLocalizations {
   String get positionFwd => 'مهاجم';
 
   @override
+  String get secondaryPositionLabel => 'المركز الثانوي (اختياري)';
+
+  @override
+  String get noSecondaryPosition => 'بدون';
+
+  @override
+  String get secondaryPositionSameAsPrimary =>
+      'المركز الثانوي يجب أن يختلف عن المركز الأساسي';
+
+  @override
+  String get dateOfBirthLabel => 'تاريخ الميلاد';
+
+  @override
+  String get dateOfBirthRequired => 'تاريخ الميلاد مطلوب';
+
+  @override
+  String get selectDateLabel => 'اختر التاريخ';
+
+  @override
+  String get profileTitle => 'الملف الشخصي';
+
+  @override
+  String get profileSaved => 'تم تحديث الملف الشخصي.';
+
+  @override
+  String get profileSaveFailed => 'فشل حفظ الملف الشخصي. حاول مرة أخرى.';
+
+  @override
   String get homeTitle => 'الرئيسية';
 
   @override
@@ -206,7 +234,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get startingPlayersLabel => 'اللاعبون الأساسيون';
 
   @override
-  String get startingPlayersInvalid => 'أدخل رقماً بين 2 و 30';
+  String get startingPlayersInvalid => 'أدخل رقماً بين 4 و 30';
 
   @override
   String capacityAutoNote(int reserve, int max) {
@@ -215,6 +243,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get matchCreateFailed => 'فشل إنشاء المباراة. حاول مرة أخرى.';
+
+  @override
+  String get errInvalidTitle => 'أدخل اسم مباراة لا يقل عن حرفين.';
+
+  @override
+  String get errInvalidLocation => 'أدخل موقعاً لا يقل عن حرفين.';
+
+  @override
+  String get errCommunityInactive =>
+      'هذا المجتمع لم يعد نشطاً، ولا يمكن إنشاء مباراة فيه.';
 
   @override
   String get communityMatchesEmpty => 'لا توجد مباريات في هذا المجتمع بعد.';
@@ -352,7 +390,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get deleteMatchHint =>
-      'يتم إشعار اللاعبين المسجّلين. لا يمكن حذف المباريات المنتهية.';
+      'يتم إشعار اللاعبين المسجّلين. حذف مباراة منتهية يلغي أيضاً كل الإحصائيات والتقييمات التي نتجت عن نتيجتها.';
 
   @override
   String get deleteMatchConfirmTitle => 'حذف هذه المباراة؟';
@@ -673,4 +711,533 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get adminDeleteMatchConfirmBody =>
       'تُحذف المباراة وتسجيلاتها، ويُبلَّغ المسجّلون. لا يمكن التراجع.';
+
+  @override
+  String get teamsTitle => 'الفريقان';
+
+  @override
+  String get teamsEmpty => 'لم تُنشأ فرق هذه المباراة بعد.';
+
+  @override
+  String get generateTeamsButton => 'إنشاء الفرق';
+
+  @override
+  String get regenerateTeamsButton => 'إعادة إنشاء الفرق';
+
+  @override
+  String get regenerateTeamsConfirmTitle => 'إعادة إنشاء الفرق؟';
+
+  @override
+  String get regenerateTeamsConfirmBody =>
+      'تُستبدل الفرق الحالية بتوزيع جديد للاعبين المؤكدين.';
+
+  @override
+  String get teamsGenerated => 'أُنشئت الفرق.';
+
+  @override
+  String get teamAName => 'الفريق أ';
+
+  @override
+  String get teamBName => 'الفريق ب';
+
+  @override
+  String get teamsOutOfPosition => 'خارج مركزه';
+
+  @override
+  String teamsPlayerRangeNote(int min, int max, int count) {
+    return 'إنشاء الفرق يحتاج من $min إلى $max لاعباً مؤكداً. في هذه المباراة $count.';
+  }
+
+  @override
+  String get errMissingPlayerInputs =>
+      'بعض اللاعبين المؤكدين ملفهم غير مكتمل. كل واحد منهم يحتاج تاريخ ميلاد قبل إنشاء الفرق.';
+
+  @override
+  String get errTeamsNotGenerated => 'تعذّر إنشاء الفرق من هذه القائمة.';
+
+  @override
+  String editPlayerTitle(String player) {
+    return 'تعديل $player';
+  }
+
+  @override
+  String get movePlayerAction => 'نقل إلى الفريق الآخر';
+
+  @override
+  String get swapPlayerAction => 'تبديل مع لاعب';
+
+  @override
+  String get changePositionAction => 'تغيير المركز';
+
+  @override
+  String get swapPlayerTitle => 'التبديل مع';
+
+  @override
+  String get swapNobodyAvailable =>
+      'لا يوجد في الفريق الآخر من يمكن التبديل معه.';
+
+  @override
+  String get changePositionTitle => 'المركز في هذه المباراة';
+
+  @override
+  String get lineupUpdated => 'حُدّثت التشكيلة.';
+
+  @override
+  String get errLineupRefused =>
+      'رُفض هذا التغيير. لا يمكن أن يضم فريق حارسَي مرمى.';
+
+  @override
+  String get errLineupNotChanged =>
+      'هذا التغيير لم يعد ينطبق على هذه التشكيلة. أُعيد تحميلها.';
+
+  @override
+  String get matchResultTitle => 'نتيجة المباراة';
+
+  @override
+  String get saveResultButton => 'حفظ النتيجة';
+
+  @override
+  String get resultSaved => 'تم حفظ نتيجة المباراة بنجاح';
+
+  @override
+  String get resultOrganizersOnly =>
+      'تسجيل نتيجة المباراة متاح لمالك المجتمع والمشرفين فقط.';
+
+  @override
+  String get mvpLabel => 'أفضل لاعب';
+
+  @override
+  String get addGoalLabel => 'إضافة هدف';
+
+  @override
+  String get removeGoalLabel => 'حذف هدف';
+
+  @override
+  String goalsScoredLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count هدفاً',
+      few: '$count أهداف',
+      two: 'هدفان',
+      one: 'هدف واحد',
+      zero: 'لا أهداف',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String goalsRecordedNote(int recorded, int total) {
+    return 'أُسند $recorded من $total هدفاً إلى مسجّليها.';
+  }
+
+  @override
+  String get editResultConfirmTitle => 'استبدال النتيجة المسجّلة؟';
+
+  @override
+  String get editResultConfirmBody =>
+      'تُعكس التقييمات والإحصائيات الناتجة عن النتيجة السابقة، ثم تُطبَّق النتيجة الجديدة بدلاً منها.';
+
+  @override
+  String get errGoalsDoNotMatchScore =>
+      'مجموع الأهداف المسندة إلى المسجّلين يجب أن يساوي النتيجة النهائية.';
+
+  @override
+  String get errMvpNotParticipant =>
+      'أفضل لاعب يجب أن يكون أحد لاعبي هذه المباراة.';
+
+  @override
+  String get errScorerNotParticipant =>
+      'لا يمكن إسناد هدف إلا إلى لاعب شارك في هذه المباراة.';
+
+  @override
+  String get errResultNeedsLineup =>
+      'لم تُولَّد فرق هذه المباراة بعد. تحتاج النتيجة إلى معرفة فريق كل لاعب.';
+
+  @override
+  String get errInvalidResultNumbers =>
+      'تعذّر حفظ النتيجة. تحقّق من النتيجة ومن الأهداف.';
+
+  @override
+  String get dashboardTab => 'لوحة المعلومات';
+
+  @override
+  String get communityStatisticsTitle => 'إحصائيات المجتمع';
+
+  @override
+  String get statTotalMatches => 'إجمالي المباريات';
+
+  @override
+  String get statTotalPlayers => 'إجمالي اللاعبين';
+
+  @override
+  String get statTotalGoals => 'إجمالي الأهداف';
+
+  @override
+  String get statLeadersTitle => 'المتصدّرون';
+
+  @override
+  String get statTopScorer => 'الهدّاف';
+
+  @override
+  String get statMostActivePlayer => 'الأكثر مشاركة';
+
+  @override
+  String get statMostMvp => 'الأكثر اختياراً كأفضل لاعب';
+
+  @override
+  String get statNoneYet => 'لا يوجد بعد';
+
+  @override
+  String get statFormerPlayer => 'لاعب سابق';
+
+  @override
+  String statMatchesPlayedValue(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مباراة',
+      few: '$count مباريات',
+      two: 'مباراتان',
+      one: 'مباراة واحدة',
+      zero: 'لا مباريات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String statMvpValue(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مرة',
+      few: '$count مرات',
+      two: 'مرتان',
+      one: 'مرة واحدة',
+      zero: 'لم يحدث',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get statScopeNote =>
+      'تُحتسب إحصائيات اللاعبين من المباريات المسجَّلة نتائجها، بينما يشمل إجمالي المباريات كل مباراة أنشأها المجتمع.';
+
+  @override
+  String get statEmptyBody =>
+      'لم تُسجَّل أي نتيجة في هذا المجتمع بعد. تظهر الإحصائيات بمجرّد حفظ نتيجة مباراة.';
+
+  @override
+  String get playerStatisticsTitle => 'إحصائياتي';
+
+  @override
+  String get statCurrentRating => 'التقييم الحالي';
+
+  @override
+  String get statMatchesPlayed => 'المباريات المُلعوبة';
+
+  @override
+  String get statWins => 'الانتصارات';
+
+  @override
+  String get statDraws => 'التعادلات';
+
+  @override
+  String get statLosses => 'الخسارات';
+
+  @override
+  String get statGoals => 'الأهداف';
+
+  @override
+  String get statMvpCount => 'مرات أفضل لاعب';
+
+  @override
+  String get statCareerNote =>
+      'سجلّك في كل المجتمعات التي تلعب فيها. يضبط التطبيق هذه الأرقام عند تسجيل نتيجة مباراة، وتُحتسب من المباريات المحفوظة نتائجها.';
+
+  @override
+  String get statNoMatchesYet =>
+      'لم تلعب بعد أي مباراة مسجَّلة النتيجة. تبدأ أرقامك من الصفر، والتقييم هو التقييم الابتدائي الذي يبدأ به كل لاعب.';
+
+  @override
+  String get leaderboardsTab => 'لوحات الصدارة';
+
+  @override
+  String get leaderboardHighestRated => 'الأعلى تقييماً';
+
+  @override
+  String get leaderboardTopScorer => 'الهدّاف';
+
+  @override
+  String get leaderboardMostMvp => 'الأكثر اختياراً كأفضل لاعب';
+
+  @override
+  String get leaderboardMostActive => 'الأكثر مشاركة';
+
+  @override
+  String get leaderboardMostWins => 'الأكثر فوزاً';
+
+  @override
+  String get leaderboardsEmpty =>
+      'لا توجد لوحات صدارة بعد. بمجرّد تسجيل نتيجة مباراة، سيظهر هنا من يتصدّر المجتمع.';
+
+  @override
+  String get leaderboardRatingNote =>
+      'يعتمد ترتيب «الأعلى تقييماً» على التقييم العام للاعب في كل المجتمعات.';
+
+  @override
+  String get cancelButton => 'إلغاء';
+
+  @override
+  String get changeAction => 'تغيير';
+
+  @override
+  String get editProfileTitle => 'تعديل الملف الشخصي';
+
+  @override
+  String get editProfileAction => 'تعديل الملف الشخصي';
+
+  @override
+  String get profilePersonalSection => 'المعلومات الشخصية';
+
+  @override
+  String get profileAccountSection => 'الحساب';
+
+  @override
+  String get profilePlayingSection => 'الملف الرياضي';
+
+  @override
+  String get passwordHiddenNote => 'مخفية لحماية حسابك';
+
+  @override
+  String get changeEmailTitle => 'تغيير البريد الإلكتروني';
+
+  @override
+  String get changePasswordTitle => 'تغيير كلمة المرور';
+
+  @override
+  String get confirmPasswordLabel => 'تأكيد كلمة المرور';
+
+  @override
+  String get passwordsDoNotMatch => 'كلمتا المرور غير متطابقتين';
+
+  @override
+  String get passwordChanged => 'تم تغيير كلمة المرور.';
+
+  @override
+  String get emailChangeRequested => 'تحقق من بريدك الجديد لتأكيد التغيير.';
+
+  @override
+  String get avatarChangeAction => 'تغيير الصورة';
+
+  @override
+  String get avatarSourceCamera => 'التقاط صورة';
+
+  @override
+  String get avatarSourceGallery => 'الاختيار من المعرض';
+
+  @override
+  String get ageLabel => 'العمر';
+
+  @override
+  String get avatarRemoveAction => 'إزالة الصورة';
+
+  @override
+  String get avatarUpdated => 'تم تحديث الصورة.';
+
+  @override
+  String get avatarRemoved => 'تمت إزالة الصورة.';
+
+  @override
+  String get avatarUploadFailed => 'تعذّر تحديث الصورة. حاول مرة أخرى.';
+
+  @override
+  String ageYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count سنة',
+      many: '$count سنة',
+      few: '$count سنوات',
+      two: 'سنتان',
+      one: 'سنة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get logoutConfirmTitle => 'تسجيل الخروج؟';
+
+  @override
+  String get logoutConfirmBody =>
+      'ستحتاج إلى تسجيل الدخول مجدداً لاستخدام Go Play.';
+
+  @override
+  String get completedMatchesTitle => 'المباريات المنتهية';
+
+  @override
+  String get addPlayedPlayerAction => 'إضافة لاعب شارك في المباراة';
+
+  @override
+  String get addPlayedPlayerNobodyAvailable =>
+      'كل أعضاء المجتمع موجودون في التشكيلة.';
+
+  @override
+  String get removePlayedPlayerAction => 'إزالة من المباراة';
+
+  @override
+  String get removePlayedPlayerConfirmTitle => 'إزالة هذا اللاعب؟';
+
+  @override
+  String removePlayedPlayerConfirmBody(String name) {
+    return 'سيُزال $name من التشكيلة، وستُسترجع كل الإحصائيات والتقييمات التي منحتها له هذه المباراة.';
+  }
+
+  @override
+  String get editPlayedMatchNote =>
+      'أي تعديل على مباراة منتهية يعيد احتساب الإحصائيات والتقييمات ولوحات الصدارة.';
+
+  @override
+  String get chooseTeamTitle => 'أي فريق؟';
+
+  @override
+  String get choosePositionTitle => 'أي مركز؟';
+
+  @override
+  String get errResultParticipantRemoved =>
+      'هذا اللاعب هو أفضل لاعب أو مسجّل هدف في النتيجة المسجّلة. عدّل النتيجة أولاً.';
+
+  @override
+  String get errMatchNotCompleted =>
+      'لا يمكن تصحيح لاعبي المباراة بهذه الطريقة إلا بعد انتهائها.';
+
+  @override
+  String get communityTitle => 'المجتمع';
+
+  @override
+  String get discoverHeroTitle => 'كرة القدم أجمل مع مجتمعك.';
+
+  @override
+  String get discoverHeroBody =>
+      'اكتشف المجتمعات من حولك، وتابع مباريات هذا الأسبوع، واحجز مكانك في الملعب.';
+
+  @override
+  String get discoverAlreadyHaveAccount => 'لديك حساب؟ سجّل الدخول';
+
+  @override
+  String discoverSeatsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مقاعد متبقية',
+      two: 'مقعدان متبقيان',
+      one: 'مقعد واحد متبقٍ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoverMemberCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count أعضاء',
+      two: 'عضوان',
+      one: 'عضو واحد',
+      zero: 'لا أعضاء',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoverUpcomingCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مباريات قادمة',
+      two: 'مباراتان قادمتان',
+      one: 'مباراة قادمة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get discoverNoUpcomingMatches =>
+      'لا توجد مباريات مجدولة حالياً. عد إلينا قريباً.';
+
+  @override
+  String get discoverNoCommunities =>
+      'لا توجد مجتمعات بعد. كن أول من ينشئ واحداً.';
+
+  @override
+  String get discoverCtaTitle => 'جاهز للعب؟';
+
+  @override
+  String get discoverCtaBody =>
+      'أنشئ حساباً للانضمام إلى المجتمعات، والتسجيل في المباريات، وبدء مجتمعك الخاص.';
+
+  @override
+  String get authRequiredTitle => 'تحتاج إلى حساب';
+
+  @override
+  String get authRequiredJoinCommunity =>
+      'أنشئ حساباً للانضمام إلى هذا المجتمع.';
+
+  @override
+  String get authRequiredRegisterMatch =>
+      'أنشئ حساباً للتسجيل في هذه المباراة.';
+
+  @override
+  String get authRequiredCreateCommunity => 'أنشئ حساباً لبدء مجتمعك الخاص.';
+
+  @override
+  String get mvpOptionalNote =>
+      'اضغط على النجمة لاختيار أفضل لاعب. هذا اختياري — يمكنك حفظ النتيجة بدونه.';
+
+  @override
+  String get navDiscover => 'استكشف';
+
+  @override
+  String get viewCommunityAction => 'عرض المجتمع';
+
+  @override
+  String get viewMatchAction => 'عرض المباراة';
+
+  @override
+  String discoverWelcomeBack(String name) {
+    return 'أهلاً بعودتك، $name';
+  }
+
+  @override
+  String get discoverHeroBodySignedIn =>
+      'تابع ما تلعبه مجتمعاتك هذا الأسبوع، واكتشف مجتمعات جديدة للانضمام إليها.';
+
+  @override
+  String discoverCommunityCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مجتمعات',
+      two: 'مجتمعان',
+      one: 'مجتمع واحد',
+      zero: 'لا مجتمعات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get discoverCtaTitleSignedIn => 'ابدأ مجتمعك الخاص';
+
+  @override
+  String get discoverCtaBodySignedIn =>
+      'أنشئ مجتمعاً واجمع مباراتك المعتادة في مكان واحد.';
+
+  @override
+  String get discoverMatchesSubtitle => 'مباريات ما زالت فيها مقاعد';
+
+  @override
+  String get discoverCommunitiesSubtitle => 'مجتمعات يمكنك الانضمام إليها';
+
+  @override
+  String get homeUpcomingSubtitle => 'من جميع مجتمعاتك';
 }

@@ -31,6 +31,8 @@ void main() {
   late TestUser owner;
   late TestUser admin;
   late TestUser player;
+  late TestUser player2;
+  late TestUser player3;
   late String communityId;
   late String matchId;
 
@@ -38,6 +40,8 @@ void main() {
     owner = await signInTestUser('owner');
     admin = await signInTestUser('admin');
     player = await signInTestUser('player');
+    player2 = await signInTestUser('player2');
+    player3 = await signInTestUser('player3');
   });
 
   setUp(() async {
@@ -46,12 +50,12 @@ void main() {
     await addMember(owner, communityId, player);
     // Days 20 and 21 are this file's window; nothing else uses them.
     matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 20), startingPlayers: 2);
+        startsIn: const Duration(days: 20), startingPlayers: 4);
   });
 
   tearDown(() async {
     await disposeCommunity(owner, communityId);
-    // The four accounts are permanent fixtures: leave their profiles as found.
+    // The six accounts are permanent fixtures: leave their profiles as found.
     for (final user in [owner, admin]) {
       await user.client.from('users').update({
         'date_of_birth': null,
@@ -89,23 +93,30 @@ void main() {
       location: 'ITest pitch',
       startAt: DateTime.parse(row['start_at'] as String).toLocal(),
       endAt: DateTime.parse(row['end_at'] as String).toLocal(),
-      startingPlayers: 2,
-      maxRegistration: 8,
+      startingPlayers: 4,
+      maxRegistration: 10,
       status: MatchStatus.open,
     );
   }
 
   group('the generation set (§4.1)', () {
-    test('a confirmed seat is in it and a reserve one is not', () async {
-      await register(owner, matchId);
-      await register(admin, matchId);
-      // The third registration exceeds the two starting places.
-      await register(player, matchId);
+    test('every confirmed seat is in it and the reserve one is not', () async {
+      // Four seats — the approved OP-2 minimum — filled, then a fifth
+      // registration that can only be a reserve.
+      await addMember(owner, communityId, player2);
+      await addMember(owner, communityId, player3);
+      for (final user in [owner, admin, player, player2]) {
+        await register(user, matchId);
+      }
+      await register(player3, matchId);
 
       final roster =
           await adapterFor(owner).fetchConfirmedPlayerInputs(matchId);
 
-      expect([for (final p in roster) p.userId], [owner.id, admin.id],
+      expect([for (final p in roster) p.userId],
+          [owner.id, admin.id, player.id, player2.id],
+          reason: 'registration order, and every confirmed seat present');
+      expect([for (final p in roster) p.userId], isNot(contains(player3.id)),
           reason: 'a reserve holds no seat, so it is not part of the set');
     });
 
@@ -211,6 +222,15 @@ void main() {
     test('an empty lineup clears what was stored', () async {
       await adapterFor(owner).saveLineup(matchId, lineup());
       await adapterFor(owner).saveLineup(matchId, const []);
+
+      expect(await adapterFor(owner).fetchLineup(matchId), isEmpty);
+    });
+
+    test('clearing an already-empty lineup is not an error', () async {
+      // Surfacing the unauthorized clear must not turn an authorized no-op
+      // into a refusal: an admin clearing nothing is still allowed to.
+      await adapterFor(admin).saveLineup(matchId, const []);
+      await adapterFor(admin).saveLineup(matchId, const []);
 
       expect(await adapterFor(owner).fetchLineup(matchId), isEmpty);
     });

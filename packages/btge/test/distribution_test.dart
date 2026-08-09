@@ -63,12 +63,12 @@ void main() {
     });
 
     test('TS-17: forced displacement is spread across both teams', () {
-      // No natural goalkeeper and emergency assignment on, so each side needs
-      // one keeper. The shape scales evenly here, so nothing but BTGE-PT-3
-      // decides how the displacement lands.
+      // Four natural goalkeepers and BTGE-HC-6's cap of one per side: two of
+      // them have to play outfield. The pool splits two-and-two, so nothing but
+      // BTGE-PT-3 decides how the displacement lands.
       final pool = [
-        ...many('d', Position.def, 8),
-        ...many('m', Position.mid, 2),
+        ...many('g', Position.gk, 4),
+        ...many('d', Position.def, 6),
       ];
       final result = const BtgeEngine(strict)
           .generate(players: pool, settings: settings);
@@ -82,19 +82,18 @@ void main() {
 
     test('an uneven outfield shape can force an imbalance, and it is reported',
         () {
-      // 12 players and two keeper slots leave 10 outfield slots for a 4/4/4
-      // pool — no integer split of that is symmetric, so BTGE-PT-3's spreading
-      // clause cannot reach zero. The engine reports the imbalance rather than
-      // hiding it.
+      // Three natural goalkeepers cannot split evenly across two sides, so one
+      // team carries a spare and the other does not. BTGE-PT-3's spreading
+      // clause has nowhere to put the second displacement, and the engine
+      // reports the imbalance rather than hiding it.
       final pool = [
-        ...many('d', Position.def, 4),
-        ...many('m', Position.mid, 4),
-        ...many('f', Position.fwd, 4),
+        ...many('g', Position.gk, 3),
+        ...many('d', Position.def, 7),
       ];
       final result = const BtgeEngine(strict)
           .generate(players: pool, settings: settings);
 
-      expect(result.metrics.positionDistributionScore, 0);
+      expect(result.metrics.outOfPositionCount, 1);
       expect(result.metrics.outOfPositionImbalance, 1);
     });
   });

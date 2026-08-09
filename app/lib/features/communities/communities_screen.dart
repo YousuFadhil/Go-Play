@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../core/failures.dart';
+import '../../core/app_header.dart';
 import '../../core/l10n.dart';
 import 'create_community_screen.dart';
 import 'community_details_screen.dart';
 import 'community_models.dart';
 import '../invitations/invite_link.dart';
 import 'community_repository.dart';
+import 'join_community_flow.dart';
 
 class CommunitiesScreen extends StatefulWidget {
   const CommunitiesScreen({super.key});
@@ -62,58 +63,27 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     // subtree. It returns the joined community id, or null if cancelled.
     final joinedId = await showDialog<String>(
       context: context,
-      builder: (_) => _JoinCommunityDialog(repository: _communityRepository),
+      builder: (_) => JoinCommunityDialog(repository: _communityRepository),
     );
     if (joinedId != null) _refresh();
   }
 
   /// Every community is listed, so Join means two different things: an OPEN
   /// community joins outright, and a CODE_REQUIRED one asks for its code first.
-  /// The server decides either way — this only picks which question to ask.
+  /// Which of the two, and what each outcome means, lives in
+  /// [runJoinCommunity] — Discover offers the same action and the two must not
+  /// drift. What stays here is this screen's own business: the spinner on the
+  /// row being joined, and reloading the list afterwards.
   Future<void> _join(Community community) async {
-    final l10n = context.l10n;
-    if (community.joinPolicy == JoinPolicy.codeRequired) {
-      final joinedId = await showDialog<String>(
-        context: context,
-        builder: (_) => _JoinCommunityDialog(
-          repository: _communityRepository,
-          prompt: l10n.joinCodeRequiredPrompt,
-        ),
-      );
-      if (joinedId != null) _refresh();
-      return;
-    }
-
     setState(() => _joiningId = community.id);
     try {
-      final outcome = await _communityRepository.joinCommunity(community.id);
-      if (!mounted) return;
-      switch (outcome) {
-        case JoinedCommunity():
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(l10n.joinedCommunity)));
-          _refresh();
-        case NeedsJoinCode():
-          // The policy changed under us; ask for the code rather than fail.
-          setState(() => _joiningId = null);
-          final joinedId = await showDialog<String>(
-            context: context,
-            builder: (_) => _JoinCommunityDialog(
-              repository: _communityRepository,
-              prompt: l10n.joinCodeRequiredPrompt,
-            ),
-          );
-          if (joinedId != null) _refresh();
-        case AlreadyMember():
-          // Joined from elsewhere while this list was open.
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.alreadyMemberOfCommunity)));
-          _refresh();
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.communityJoinFailed)));
+      final joined = await runJoinCommunity(
+        context,
+        repository: _communityRepository,
+        communityId: community.id,
+        joinPolicy: community.joinPolicy,
+      );
+      if (joined && mounted) _refresh();
     } finally {
       if (mounted) setState(() => _joiningId = null);
     }
@@ -124,7 +94,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppHeader(
         title: Text(l10n.communitiesTitle),
         actions: [
           IconButton(
@@ -268,119 +238,6 @@ class _ErrorRetry extends StatelessWidget {
           OutlinedButton(onPressed: onRetry, child: Text(l10n.retryButton)),
         ],
       ),
-    );
-  }
-}
-
-/// Self-contained "join by code" dialog. It owns its text controller and
-/// resolves all inherited widgets (l10n, messenger) through its own context,
-/// so nothing from the parent screen leaks into the dialog subtree. Returns
-/// the joined community id via [Navigator.pop], or null when dismissed.
-class _JoinCommunityDialog extends StatefulWidget {
-  const _JoinCommunityDialog({required this.repository, this.prompt});
-
-  final CommunityRepository repository;
-
-  /// Shown above the field when the dialog was opened because a community's
-  /// policy requires the code, rather than from the generic join action.
-  final String? prompt;
-
-  @override
-  State<_JoinCommunityDialog> createState() => _JoinCommunityDialogState();
-}
-
-class _JoinCommunityDialogState extends State<_JoinCommunityDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _controller = TextEditingController();
-  bool _isLoading = false;
-  String? _errorText;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final l10n = context.l10n;
-
-    setState(() {
-      _isLoading = true;
-      _errorText = null;
-    });
-    try {
-      final outcome =
-          await widget.repository.joinCommunityByCode(_controller.text);
-      if (!mounted) return;
-      switch (outcome) {
-        case JoinedCommunity(:final communityId):
-          Navigator.of(context).pop(communityId);
-        case AlreadyMember():
-          _setError(l10n.alreadyMemberOfCommunity);
-        case NeedsJoinCode():
-          // Unreachable: this path always sends a code.
-          _setError(l10n.communityJoinFailed);
-      }
-    } on NotFoundFailure {
-      _setError(l10n.communityNotFound);
-    } catch (_) {
-      _setError(l10n.communityJoinFailed);
-    }
-  }
-
-  void _setError(String message) {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _errorText = message;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return AlertDialog(
-      title: Text(l10n.joinCommunityTitle),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.prompt != null) ...[
-              Text(widget.prompt!),
-              const SizedBox(height: 12),
-            ],
-            TextFormField(
-              controller: _controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.characters,
-              textDirection: TextDirection.ltr,
-              decoration: InputDecoration(
-                labelText: l10n.joinCodeLabel,
-                errorText: _errorText,
-              ),
-              validator: (value) => (value == null || value.trim().isEmpty)
-                  ? l10n.joinCodeRequired
-                  : null,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        FilledButton(
-          onPressed: _isLoading ? null : _submit,
-          child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(l10n.joinCommunityButton),
-        ),
-      ],
     );
   }
 }

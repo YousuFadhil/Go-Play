@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/app_header.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/failures.dart';
@@ -92,7 +94,7 @@ class _CommunityInvitationScreenState extends State<CommunityInvitationScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.communityInvitationTitle)),
+      appBar: AppHeader(title: Text(l10n.communityInvitationTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),

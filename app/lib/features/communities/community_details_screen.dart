@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/app_header.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/failures.dart';
@@ -9,6 +11,8 @@ import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../invitations/community_invitation_screen.dart';
 import '../members/member_management_screen.dart';
+import '../statistics/community_dashboard_tab.dart';
+import '../statistics/community_leaderboards_tab.dart';
 import 'community_models.dart';
 import '../members/member_repository.dart';
 import 'community_repository.dart';
@@ -193,14 +197,14 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       future: _dataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return Scaffold(
-            appBar: AppBar(),
-            body: const Center(child: CircularProgressIndicator()),
+          return const Scaffold(
+            appBar: AppHeader(),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
         if (snapshot.hasError || !snapshot.hasData) {
           return Scaffold(
-            appBar: AppBar(),
+            appBar: const AppHeader(),
             body: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -223,9 +227,9 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
         final canCreateMatch = myRole?.atLeast(CommunityRole.admin) ?? false;
 
         return DefaultTabController(
-          length: 2,
+          length: 4,
           child: Scaffold(
-            appBar: AppBar(
+            appBar: AppHeader(
               title: Text(community.name),
               actions: [
                 if (canCreateMatch)
@@ -283,9 +287,16 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                   ),
               ],
               bottom: TabBar(
+                // Four tabs no longer fit side by side on a phone, so the bar
+                // scrolls rather than squeezing every label into a third of
+                // its width.
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 tabs: [
                   Tab(text: l10n.matchesTitle),
                   Tab(text: '${l10n.membersTitle} (${members.length})'),
+                  Tab(text: l10n.dashboardTab),
+                  Tab(text: l10n.leaderboardsTab),
                 ],
               ),
             ),
@@ -312,6 +323,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                   positionLabel: _positionLabel,
                   onCopyJoinCode: _copyJoinCode,
                 ),
+                CommunityDashboardTab(communityId: widget.communityId),
+                CommunityLeaderboardsTab(communityId: widget.communityId),
               ],
             ),
           ),
@@ -358,11 +371,33 @@ class _MatchesTab extends StatelessWidget {
       );
     }
 
+    // Two lists, not one. A played match and one still to come are different
+    // things to a member — one is a plan, the other is a record — and mixing
+    // them by date buried this week's fixture under last season's. Completion is
+    // read from `effectiveStatus`, so a match whose end time has passed sorts as
+    // played whether or not its stored row has been touched since.
+    final upcoming = [
+      for (final match in matches)
+        if (!match.isCompleted) match,
+    ];
+    final completed = [
+      for (final match in matches)
+        if (match.isCompleted) match,
+    ];
+
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        for (final match in matches)
-          MatchCard(match: match, onChanged: onChanged),
+        if (upcoming.isNotEmpty) ...[
+          _sectionHeader(context, l10n.upcomingMatchesTitle, upcoming.length),
+          for (final match in upcoming)
+            MatchCard(match: match, onChanged: onChanged),
+        ],
+        if (completed.isNotEmpty) ...[
+          _sectionHeader(context, l10n.completedMatchesTitle, completed.length),
+          for (final match in completed)
+            MatchCard(match: match, onChanged: onChanged),
+        ],
         if (permissionNote != null)
           Padding(
             padding: const EdgeInsets.all(16),
@@ -375,6 +410,15 @@ class _MatchesTab extends StatelessWidget {
       ],
     );
   }
+
+  Widget _sectionHeader(BuildContext context, String title, int count) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: Text(
+          '$title ($count)',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      );
 }
 
 class _MembersTab extends StatelessWidget {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/app_header.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/l10n.dart';
@@ -64,7 +66,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final locale = Localizations.localeOf(context).toString();
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.notificationsTitle)),
+      appBar: AppHeader(title: Text(l10n.notificationsTitle)),
       body: FutureBuilder<List<AppNotification>>(
         future: _future,
         builder: (context, snapshot) {

@@ -84,6 +84,15 @@ enum FailureReason {
   maxBelowRegistered,
   invalidStartingPlayers,
   invalidTimeRange,
+  invalidTitle,
+  invalidLocation,
+  matchNotFound,
+
+  // A match may not be scheduled to start in the past. `update_match` refuses
+  // any match whose start has passed (matchLocked), so one created that way
+  // could never be edited or cancelled by its organizer — this is that rule
+  // seen from the creating end, not a new one.
+  startInPast,
 
   // Membership
   cannotChangeOwnRole,
@@ -93,10 +102,14 @@ enum FailureReason {
   memberNotFound,
   invalidRole,
 
-  // Joining a community
+  // The community named in a request
   joinCodeRequired,
   communityNotFound,
   alreadyMember,
+
+  // The community exists but is not active, so nothing new may be created
+  // inside it. A state the operation ran into, not input the caller got wrong.
+  communityInactive,
 
   // Team generation.
   //
@@ -106,6 +119,36 @@ enum FailureReason {
   // through the generic fallback for its type. Nothing branches on it —
   // behaviour follows the failure type, as OP-5 requires.
   missingPlayerInputs,
+
+  // Recording a match result.
+  //
+  // Each one is a rule the approved result rules state, and each selects its own
+  // sentence because the organizer has to know which number to correct. As
+  // everywhere else, behaviour follows the failure type — every one of these is
+  // a ValidationFailure, and nothing branches on the reason.
+  invalidScore,
+  invalidGoals,
+  goalsDoNotMatchScore,
+  mvpNotParticipant,
+  scorerNotParticipant,
+  lineupRequired,
+
+  // Correcting a match that has already been played.
+  //
+  // The record of who was on the pitch may only be corrected once the match is
+  // over; before that the roster belongs to capacity, the reserve queue and the
+  // player's own decision to join.
+  matchNotCompleted,
+
+  // The player being taken out of the lineup is the recorded MVP or a scorer.
+  // Removing them would leave goals credited to somebody who did not play, or a
+  // best player who was not on the pitch, so the result is corrected first.
+  resultParticipantRemoved,
+
+  // The side or the position asked for is not one of the values the lineup
+  // recognises.
+  invalidTeam,
+  invalidPosition,
 
   // Identity
   emailAlreadyUsed,

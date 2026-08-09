@@ -12,8 +12,8 @@ flutter test
 Runs everywhere with no configuration. The integration files skip themselves
 when credentials are absent, so this stays usable by anyone.
 
-**Last executed: 168 passed, 7 skipped** — one skip per integration file.
-Observed on 2026-07-31, at the team-generation integration.
+**Last executed: 172 passed, 7 skipped** — one skip per integration file.
+Observed on 2026-07-31, at the `OP-2` minimum match size change.
 
 Covered: phone and email validation, the `CommunityRole` enum including its
 cumulative precedence and the fallback for an unrecognised value, match
@@ -45,25 +45,27 @@ and a half minutes.
 flutter test --dart-define=SUPABASE_URL=https://<ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<publishable key>
 ```
 
-**Last executed: 133 passed**, at `v0.8.0-mvp` (KB-D3). That was 54 unit tests
-plus 79 integration tests, and it is the last figure anyone has watched go
-green.
+**Last executed: 267 passed, 0 failed, 267 total** — observed 2026-07-31
+against project `odhimoxvuhiyunwutzff`, on the six-account fixture model. That
+is 172 unit tests plus 95 integration tests; the seven per-file skip guards do
+not run when credentials are supplied.
 
-**Expected but not yet executed: 257** — the 168 unit tests above plus 89
-integration tests, being the same 79 plus the 10 in
-`team_generation_test.dart`. It is a count of the tests that exist, not the
-result of a run. Three things have moved since the last observed figure and
-none has been confirmed against a project: the Adapter Layer phase grew the
-unit suite from 54 to 117 without updating this file, the team-generation
-adapter added 30 unit and 10 integration tests, and the team-generation
-integration added 21 unit tests.
+This is the full suite green. It is **not** BTGE Final Validation, which is a
+separate approved procedure and **has not been executed**.
 
-> **The suite cannot currently run.** Every integration file fails in
-> `setUpAll`: the four permanent `goplay.itest.*` accounts no longer exist in
-> project `odhimoxvuhiyunwutzff` (confirmed 2026-07-31 — the project is healthy
-> and holds 10 other users). Recreate them by hand with the suite password, as
-> the harness message says; a test run must not mint them. Until then the
-> figure above stays unexecuted, and this note stays here.
+> **Resolved — `saveLineup` now surfaces an unauthorized clear.** On its first
+> ever execution, "a player cannot write a lineup, and cannot destroy one
+> either" failed: `SupabaseTeamAdapter.saveLineup` deletes before it inserts,
+> and PostgREST expresses a delete refused by RLS as zero rows matched rather
+> than an error. With an empty lineup no insert followed, so the call returned
+> success having changed nothing.
+>
+> Data was never at risk — `match_team_assignments_delete_admins` held
+> throughout. The adapter now asks `is_match_community_admin`, the same
+> predicate all three write policies use, before touching the table, and raises
+> `AuthorizationFailure` when it says no. RLS is still the only enforcement;
+> this only reports what it decided. A new test covers the case the fix must
+> not break: an admin clearing an already-empty lineup still succeeds.
 
 To run one file:
 
@@ -91,27 +93,44 @@ offset.
 
 ### Test accounts
 
-The suite signs in to four permanent accounts and never creates or deletes
-them:
+The suite signs in to **six** permanent accounts and never creates or deletes
+them. They are **provisioned by hand**, once, in the Supabase Dashboard — a test
+run must never mint a user in the project.
 
-```
-goplay.itest.owner@example.com
-goplay.itest.admin@example.com
-goplay.itest.player@example.com
-goplay.itest.outsider@example.com
-```
+| Account | Role |
+|---|---|
+| `goplay.itest.owner@example.com` | Creates every fixture community and owns it |
+| `goplay.itest.admin@example.com` | Promoted to `admin` in the community under test |
+| `goplay.itest.player@example.com` | Ordinary member |
+| `goplay.itest.player2@example.com` | Ordinary member — the fourth body |
+| `goplay.itest.player3@example.com` | Ordinary member — the fifth body |
+| `goplay.itest.outsider@example.com` | The dedicated **non-member**, for RLS and authorization coverage |
+
+**Why five members and not four.** The approved minimum match is 4 players
+(`OP-2`), and a reserve only exists at the `starting_players + 1`-th
+registration — so any scenario that needs a reserve needs **five genuine
+community members**: `owner`, `admin`, `player`, `player2`, `player3`. That
+covers reserve and promotion in `business_rules_test.dart`, the last-seat race
+and the racing withdrawals in `concurrency_test.dart`, and reserve exclusion in
+`team_generation_test.dart`.
+
+**`outsider` is not that fifth body.** It is reserved for proving that a
+non-member is refused, and is added to a community only by a test specifically
+exercising a role or authorization rule — currently just "an admin may not
+remove another admin" in `community_management_test.dart`. Do not broaden that
+exception.
 
 They share one password, held in `test/integration/support.dart`. If one is
-missing the suite fails with a message naming it — create it once by hand
-rather than letting a test run add users to the project.
+missing the suite fails with a message naming it — create it once by hand.
 
-Everything below the account level — communities, matches, registrations,
-invitations — is created per test and removed in teardown through
-`delete_community`, which cascades. A run leaves the project as it found it.
+Everything below the account level — communities, matches, memberships,
+registrations, lineups — is created per test and removed in teardown through
+`delete_community`, which cascades. Nothing depends on application rows
+surviving between runs, and a run leaves the project as it found it.
 
 ### Fixture windows
 
-The four accounts are shared and the files run concurrently, so two matches at
+The six accounts are shared and the files run concurrently, so two matches at
 the same hour in different files make one registration fail the overlap rule
 rather than the thing under test. Each file keeps to its own day offsets; if you
 add a fixture, pick an offset nothing else uses.

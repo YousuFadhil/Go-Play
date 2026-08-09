@@ -24,6 +24,7 @@ class PlayerCoreInputs {
     required this.primaryPosition,
     this.dateOfBirth,
     this.secondaryPosition,
+    this.avatarUrl,
   });
 
   final String userId;
@@ -38,6 +39,19 @@ class PlayerCoreInputs {
 
   /// A missing secondary is ordinary input, never an error (`BTGE-SC-6`).
   final Position? secondaryPosition;
+
+  /// Not an engine input either, and for the same reason as [fullName]: the
+  /// pitch shows a face beside a name, and `toPlayer` leaves both behind.
+  final String? avatarUrl;
+
+  /// True when the player names `GK` as primary or secondary — §10.1's
+  /// **natural goalkeeper**, the same test the engine applies.
+  ///
+  /// The pitch reads it to decide whether a goalkeeper row exists at all: a
+  /// squad with nobody who keeps goal does not field one, and drawing an empty
+  /// goal would show a position the match did not have.
+  bool get isNaturalGoalkeeper =>
+      primaryPosition == Position.gk || secondaryPosition == Position.gk;
 
   /// Whether every input §4.1 marks required is present.
   ///

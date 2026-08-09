@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
+import 'package:go_play/features/teams/team_generation_settings.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/team_repository.dart';
 
@@ -15,9 +16,10 @@ import 'package:go_play/features/teams/team_repository.dart';
 /// nothing here re-asserts them beyond the hard constraints that prove the
 /// mapping kept the output intact.
 ///
-/// Every configuration below is a **test** configuration. `OP-2`, `OP-3`,
-/// `OP-5` and `OP-6` are open Product Decisions, and none of these values
-/// proposes one.
+/// Most configurations below are **test** configurations chosen to isolate one
+/// behaviour; they propose nothing. The approved Product Decisions live in
+/// `team_generation_settings.dart`, and the group at the end exercises that
+/// configuration as the product will actually use it.
 void main() {
   final kickOff = DateTime(2026, 8, 7, 20);
 
@@ -74,12 +76,19 @@ void main() {
     BtgeConfiguration configuration = strict,
     int? historyLookback,
     Match? forMatch,
+    List<TeamAssignment> avoiding = const [],
   }) =>
       TeamRepository(adapter).generateTeams(
         forMatch ?? match,
         configuration: configuration,
         historyLookback: historyLookback,
+        avoiding: avoiding,
       );
+
+  /// Which side each player ended on, which is what "a different distribution"
+  /// means: positions may move without the split changing (`KB-D6`).
+  Map<String, TeamId> splitOf(List<TeamAssignment> lineup) =>
+      {for (final a in lineup) a.userId: a.team};
 
   group('a generation that succeeds', () {
     test('every confirmed player is assigned exactly once (BTGE-HC-1, -HC-2)',
@@ -355,7 +364,120 @@ void main() {
       expect(adapter.savedLineup, isNull,
           reason: 'the organizer may still move a player (BTGE-MO-2)');
     });
+  });
 
+  group('regenerating', () {
+    /// Six indistinguishable players, so every split ties on all five
+    /// priorities and the engine genuinely has more than one answer.
+    List<PlayerCoreInputs> sixAlike() => [
+          for (var i = 1; i <= 6; i++) input('u$i', Position.mid),
+        ];
+
+    const banded = BtgeConfiguration(
+      distributionBand: ToleranceBand(absolute: 2),
+      ratingBand: ToleranceBand(absolute: 1),
+      outOfPositionBand: ToleranceBand(absolute: 2),
+      ageBand: ToleranceBand(absolute: 1),
+      oddCountRule: OddCountRule.weakerTeamGetsExtra,
+      minPlayers: 4,
+      assignEmergencyGoalkeeper: false,
+    );
+
+    test('asking again for the teams on screen produces a different split',
+        () async {
+      final adapter = FakeTeamAdapter(roster: sixAlike());
+      final first = await generate(adapter, configuration: banded);
+
+      final second =
+          await generate(adapter, configuration: banded, avoiding: first);
+
+      expect(splitOf(second), isNot(splitOf(first)),
+          reason: 'regenerate is a request for other teams, not the same ones');
+      expect(second, hasLength(6),
+          reason: 'a different answer, not a smaller one (BTGE-HC-3)');
+    });
+
+    test('the alternative is a function of the inputs, not a roll of a die',
+        () async {
+      final adapter = FakeTeamAdapter(roster: sixAlike());
+      final first = await generate(adapter, configuration: banded);
+
+      final a = await generate(adapter, configuration: banded, avoiding: first);
+      final b = await generate(adapter, configuration: banded, avoiding: first);
+
+      // `BTGE-PF-6`: the same match with the same stored lineup always
+      // regenerates to the same teams.
+      expect(splitOf(b), splitOf(a));
+    });
+
+    test('a lineup that is not what the engine would produce is left alone',
+        () async {
+      final adapter = FakeTeamAdapter(roster: sixAlike());
+      final plain = await generate(adapter, configuration: banded);
+
+      // An organizer's own arrangement: everybody on one side. The first answer
+      // does not repeat it, so nothing is varied away from.
+      final manual = [
+        for (final a in plain)
+          TeamAssignment(
+            userId: a.userId,
+            team: TeamId.a,
+            assignedPosition: a.assignedPosition,
+            basis: a.basis,
+          ),
+      ];
+
+      final regenerated =
+          await generate(adapter, configuration: banded, avoiding: manual);
+
+      expect(splitOf(regenerated), splitOf(plain));
+    });
+
+    test('a search with one optimal answer returns it rather than a worse one',
+        () async {
+      // Distinct ratings, so priority 2 settles it outright. `BTGE-PF-4` does
+      // not bend to make the button feel productive.
+      final roster = [
+        input('u1', Position.def, rating: 10),
+        input('u2', Position.def, rating: 20),
+        input('u3', Position.mid, rating: 30),
+        input('u4', Position.mid, rating: 44),
+      ];
+      final adapter = FakeTeamAdapter(roster: roster);
+      final first = await generate(adapter);
+
+      final again = await generate(adapter, avoiding: first);
+
+      expect(splitOf(again), splitOf(first));
+    });
+  });
+
+  group('correcting who played', () {
+    test('adding a player is a pass-through to the port', () async {
+      final adapter = FakeTeamAdapter();
+
+      await TeamRepository(adapter).addPlayedPlayer(
+        'm1',
+        'u9',
+        team: TeamId.b,
+        position: Position.def,
+      );
+
+      expect(adapter.addedUserId, 'u9');
+      expect(adapter.addedTeam, TeamId.b);
+      expect(adapter.addedPosition, Position.def);
+    });
+
+    test('removing one is too', () async {
+      final adapter = FakeTeamAdapter();
+
+      await TeamRepository(adapter).removePlayedPlayer('m1', 'u9');
+
+      expect(adapter.removedUserId, 'u9');
+    });
+  });
+
+  group('the repository driving the engine, continued', () {
     test('the lineup it returns is what saveLineup takes', () async {
       final adapter = FakeTeamAdapter(roster: sixPlayers());
       final repository = TeamRepository(adapter);
@@ -367,6 +489,24 @@ void main() {
       expect(adapter.savedLineup, hasLength(6));
       expect({for (final a in adapter.savedLineup!) a.userId},
           {for (final a in lineup) a.userId});
+    });
+
+    test('the approved configuration is the one the product will use', () async {
+      // Not a test configuration: these are the values recorded in §18.1.1.
+      expect(approvedTeamGeneration.minPlayers, 4, reason: 'OP-2');
+      expect(approvedTeamGeneration.distributionBand.absolute, 2, reason: 'OP-3');
+      expect(approvedTeamGeneration.ratingBand.absolute, 0.10, reason: 'OP-3');
+      expect(approvedTeamGeneration.outOfPositionBand.absolute, 2,
+          reason: 'OP-3');
+      expect(approvedTeamGeneration.ageBand.absolute, 1.00, reason: 'OP-3');
+      expect(approvedTeamGeneration.oddCountRule,
+          OddCountRule.weakerTeamGetsExtra,
+          reason: 'OP-5');
+      expect(approvedTeamGeneration.diversityLastNMatches, 5, reason: 'OP-6');
+      expect(approvedTeamGeneration.diversityWithin, isNull,
+          reason: 'OP-6 approved no time-based window');
+      expect(approvedHistoryLookback, 5,
+          reason: 'the read bound follows the approved window');
     });
 
     test('age is measured against the match date, not today (§4.2)', () async {
@@ -381,6 +521,92 @@ void main() {
       expect(inputs.settings.matchDate, DateTime(2030, 1, 1));
       expect(inputs.players.first.ageAt(inputs.settings.matchDate), 28,
           reason: 'a 25-year-old at the 2026 kick-off is 28 in 2030');
+    });
+  });
+
+  _minimumMatchSizeTests();
+}
+
+/// The approved minimum match size, exercised through the real product
+/// configuration rather than a test one.
+///
+/// `OP-2` is 4 — a 2 v 2 — and it is a product rule, not an engine one: the
+/// engine stays configurable, and what fixes the bound is the configuration the
+/// product supplies.
+void _minimumMatchSizeTests() {
+  final kickOff = DateTime(2026, 8, 7, 20);
+  final match = Match(
+    id: 'm1',
+    communityId: 'c1',
+    createdBy: 'u1',
+    location: 'Al Amerat Pitch',
+    startAt: kickOff,
+    endAt: kickOff.add(const Duration(hours: 2)),
+    startingPlayers: 4,
+    maxRegistration: 10,
+    status: MatchStatus.open,
+  );
+
+  PlayerCoreInputs player(String id, Position primary) => PlayerCoreInputs(
+        userId: id,
+        fullName: 'Player $id',
+        overallRating: 5 + id.hashCode % 3,
+        primaryPosition: primary,
+        dateOfBirth: DateTime(kickOff.year - 25, kickOff.month, kickOff.day),
+      );
+
+  Future<List<TeamAssignment>> generateUnderApproved(
+    List<PlayerCoreInputs> roster,
+  ) =>
+      TeamRepository(FakeTeamAdapter(roster: roster)).generateTeams(
+        match,
+        configuration: approvedTeamGeneration,
+        historyLookback: approvedHistoryLookback,
+      );
+
+  group('the approved minimum match size (OP-2 = 4)', () {
+    test('three confirmed players are refused', () async {
+      await expectLater(
+        generateUnderApproved([
+          player('u1', Position.gk),
+          player('u2', Position.def),
+          player('u3', Position.mid),
+        ]),
+        throwsA(isA<ValidationFailure>()),
+        reason: 'below the minimum supported match, the product does not '
+            'generate',
+      );
+    });
+
+    test('four confirmed players are accepted and make 2 v 2', () async {
+      final lineup = await generateUnderApproved([
+        player('u1', Position.gk),
+        player('u2', Position.def),
+        player('u3', Position.mid),
+        player('u4', Position.fwd),
+      ]);
+
+      expect(lineup, hasLength(4));
+      expect(lineup.where((a) => a.team == TeamId.a), hasLength(2));
+      expect(lineup.where((a) => a.team == TeamId.b), hasLength(2));
+      expect({for (final a in lineup) a.userId}, {'u1', 'u2', 'u3', 'u4'},
+          reason: 'every player assigned exactly once (BTGE-HC-1, -HC-2)');
+    });
+
+    test('an odd count above the minimum still follows OP-5 (BTGE-HC-4)',
+        () async {
+      final lineup = await generateUnderApproved([
+        player('u1', Position.gk),
+        player('u2', Position.def),
+        player('u3', Position.def),
+        player('u4', Position.mid),
+        player('u5', Position.fwd),
+      ]);
+
+      final a = lineup.where((x) => x.team == TeamId.a).length;
+      final b = lineup.where((x) => x.team == TeamId.b).length;
+      expect({a, b}, {3, 2},
+          reason: 'five players split by exactly one, never more');
     });
   });
 }
@@ -429,4 +655,28 @@ class FakeTeamAdapter implements TeamAdapter {
   @override
   Future<List<TeamAssignment>> fetchLineup(String matchId) =>
       throw UnimplementedError();
+
+  String? addedUserId;
+  TeamId? addedTeam;
+  Position? addedPosition;
+  String? removedUserId;
+
+  @override
+  Future<void> addPlayedPlayer(
+    String matchId,
+    String userId, {
+    required TeamId team,
+    required Position position,
+  }) async {
+    lastMatchId = matchId;
+    addedUserId = userId;
+    addedTeam = team;
+    addedPosition = position;
+  }
+
+  @override
+  Future<void> removePlayedPlayer(String matchId, String userId) async {
+    lastMatchId = matchId;
+    removedUserId = userId;
+  }
 }

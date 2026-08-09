@@ -25,8 +25,9 @@ abstract interface class TeamAdapter {
   ///
   /// Auxiliary Data (§4.2.1): the factual record of who played together, and
   /// nothing else. [limit] is supplied by the caller rather than chosen here:
-  /// the lookback window is `OP-6`, an open Product Decision, and no default
-  /// may stand in for it (§18.1).
+  /// the lookback window is `OP-6`, a Product Decision, and this layer does not
+  /// hold product decisions (OP-2). The approved value lives in
+  /// `team_generation_settings.dart`.
   ///
   /// Matches with no stored lineup are absent rather than empty: there is
   /// nothing to record about who played with whom.
@@ -45,4 +46,27 @@ abstract interface class TeamAdapter {
   /// and `BTGE-MO-5` make the lineup that actually played the thing recorded,
   /// however it came to be. An empty [lineup] clears what was stored.
   Future<void> saveLineup(String matchId, List<TeamAssignment> lineup);
+
+  /// Records that [userId] played [matchId] on [team] at [position].
+  ///
+  /// For a **completed** match only: correcting who was on the pitch is a
+  /// different operation from claiming a seat in a match still to come, and the
+  /// roster of a live match belongs to capacity, the reserve queue and the
+  /// player's own decision to join. An implementation raises rather than
+  /// applying this to one.
+  ///
+  /// The assignment basis is not a parameter. §5.1 defines it as which rule
+  /// produced the position, so it is derived from the player's profile where
+  /// that profile is authoritative — in the database, alongside the write.
+  Future<void> addPlayedPlayer(
+    String matchId,
+    String userId, {
+    required TeamId team,
+    required Position position,
+  });
+
+  /// Records that [userId] did not play [matchId] after all, removing them from
+  /// both the lineup and the roster. Completed matches only, for the same
+  /// reason.
+  Future<void> removePlayedPlayer(String matchId, String userId);
 }

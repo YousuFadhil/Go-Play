@@ -12,7 +12,7 @@ import 'fixtures.dart';
 
 void main() {
   group('§16.2 goalkeepers', () {
-    test('TS-06: no natural GK — generation succeeds, no stronger claim', () {
+    test('TS-06: no natural GK — generation succeeds and nobody keeps goal', () {
       final pool = [
         ...many('d', Position.def, 4),
         ...many('m', Position.mid, 4),
@@ -25,19 +25,22 @@ void main() {
       expect(result.assignments, hasLength(12));
       expect(result.diagnostics.goalkeeperMode, GoalkeeperMode.none);
 
-      // BTGE-GK-2 / BTGE-GK-7: any goalkeeper here is an emergency one, so it
-      // is a transition and counts as out-of-position.
-      for (final keeper in result.at(Position.gk)) {
-        expect(keeper.basis, AssignmentBasis.transition);
-        expect(keeper.outOfPosition, isTrue);
-      }
-      expect(
-        result.diagnostics.emergencyGoalkeeperCount,
-        result.at(Position.gk).length,
-      );
+      // Product Decision: an emergency keeper covers for a goalkeeper the pool
+      // has and cannot spare. A pool naming none has no goal to fill, and the
+      // emergency setting does not create one.
+      expect(result.at(Position.gk), isEmpty);
+      expect(result.diagnostics.emergencyGoalkeeperCount, 0);
+    });
 
-      // Deliberately absent: any assertion that a goalkeeper is present, or
-      // that one is absent. BTGE-GK-4 forbids deriving either.
+    test('TS-06a: the same holds when every player is a FWD', () {
+      // The shape has to come from somewhere even when one line holds the whole
+      // pool; it is still not allowed to come from goal.
+      final result = const BtgeEngine(strict)
+          .generate(players: many('f', Position.fwd, 8), settings: settings);
+
+      expect(result.assignments, hasLength(8));
+      expect(result.at(Position.gk), isEmpty);
+      expect(result.diagnostics.emergencyGoalkeeperCount, 0);
     });
 
     test('TS-06b: with emergency assignment disabled, no goal is filled', () {
@@ -138,15 +141,20 @@ void main() {
     });
 
     test('TS-39: an emergency keeper is a DEF, never a FWD', () {
-      // No natural goalkeeper. DEF is one step from GK, FWD is three.
+      // One natural goalkeeper, so the other side needs an emergency one. DEF is
+      // one step from GK, FWD is three.
       final pool = [
-        ...many('d', Position.def, 4),
+        p('gk1', Position.gk),
+        ...many('d', Position.def, 3),
         ...many('f', Position.fwd, 4),
       ];
       final result = const BtgeEngine(strict)
           .generate(players: pool, settings: settings);
 
-      for (final keeper in result.at(Position.gk)) {
+      final emergency =
+          result.at(Position.gk).where((a) => a.playerId != 'gk1');
+      expect(emergency, isNotEmpty);
+      for (final keeper in emergency) {
         final player = pool.firstWhere((x) => x.id == keeper.playerId);
         // BTGE-GK-6, BTGE-PT-4: selection is by transition distance only.
         expect(player.primaryPosition, Position.def);
