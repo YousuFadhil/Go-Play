@@ -20,6 +20,18 @@ An MVP for running amateur football communities and their matches.
 - Create matches
 - Match registration with a reserve list and automatic promotion
 - In-app notifications
+- Balanced team generation (BTGE)
+- Record match results: score, goal scorers and the MVP
+- A system-managed player rating, applied and reversed with each result
+- **Statistics and leaderboards**, at two levels:
+  - **Global** — the player's career, shown on the Player Profile
+  - **Community** — per-community statistics, the Community Dashboard, and
+    nine leaderboards over three periods (overall, weekly, monthly)
+
+Statistics and leaderboards are specified in
+`engineering/Statistics_Leaderboards_MVP_Specification.md` (v2.0), which is the
+authoritative source for that feature. Decisions `SL-1` … `SL-5` are recorded
+in `10-Design-Decisions.md`.
 
 ## Roles
 
@@ -37,13 +49,21 @@ covers player.
 
 ## Out of scope
 
-- Team generator
-- Rating engine
-- Statistics and leaderboards
-- Match results
 - Push notifications (in-app notifications are in scope and built)
+- Charts and any graphical presentation of statistics
+- Analytics — trends, form curves, projections
+- AI recommendations, player comparison, and **Most Improved** boards
+- Global rankings across communities (a career record is not a leaderboard)
+- Displaying a Community Rating on the Player Profile
 
-Deferred ideas are recorded in `11-Future-Backlog.md`.
+The team generator, the rating engine and match results were previously listed
+here. All three are now in scope and built — see `Docs/README.md` for the
+current state and `engineering/Results_Rating_Engineering_Decisions.md` for the
+results and rating phase.
+
+The statistics and leaderboards exclusions above are the approved list in §12
+of the Statistics & Leaderboards MVP Specification v2.0. Deferred ideas are
+recorded in `11-Future-Backlog.md`.
 
 ## Success criteria
 

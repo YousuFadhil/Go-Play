@@ -1,7 +1,7 @@
 name: go_play
 description: Football community manager MVP.
 publish_to: none
-version: 0.1.0
+version: 0.4.0-public-beta+1
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -11,9 +11,22 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  # The Balanced Team Generation Engine. Pure Dart, no Flutter and no provider,
+  # so it is a Domain-side dependency rather than an infrastructure one.
+  btge:
+    path: ../packages/btge
   intl: any
   shared_preferences: ^2.3.0
   supabase_flutter: ^2.8.0
+  # Already in the graph beneath supabase_flutter, declared here only because
+  # the failure mapper names ClientException to classify a dropped connection
+  # without dart:io. No version moves: this is the version already locked.
+  http: ^1.6.0
+  image_picker: ^1.2.3
+  # Push delivery only. The Notification Center is Supabase either way, and the
+  # app runs without a Firebase project configured — see PushService.
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
 
 dev_dependencies:
   flutter_test:

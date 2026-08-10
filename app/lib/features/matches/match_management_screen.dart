@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_header.dart';
+import '../../core/diagnostics.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import 'edit_match_screen.dart';
@@ -10,16 +12,26 @@ import 'match_service.dart';
 
 /// Organizer-only hub for managing a match. Reachable only by the creator.
 class MatchManagementScreen extends StatefulWidget {
-  const MatchManagementScreen({super.key, required this.matchId});
+  const MatchManagementScreen({
+    super.key,
+    required this.matchId,
+    this.matchService,
+  });
 
   final String matchId;
+
+  /// Supplied only by tests, exactly as every other screen takes an optional
+  /// port. Without it this screen built its own `MatchService` — and so reached
+  /// the data provider from a widget test, which is why the delete flow had no
+  /// coverage between the RPC and what the user is shown.
+  final MatchService? matchService;
 
   @override
   State<MatchManagementScreen> createState() => _MatchManagementScreenState();
 }
 
 class _MatchManagementScreenState extends State<MatchManagementScreen> {
-  final _service = MatchService();
+  late final MatchService _service = widget.matchService ?? MatchService();
   late Future<(Match, List<MatchRegistration>)> _future;
   bool _busy = false;
 
@@ -42,7 +54,17 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
 
   void _reload() => setState(() => _future = _load());
 
-  String _manageError(AppLocalizations l10n, Object e) {
+  /// The sentence a refused management action gets.
+  ///
+  /// While `Diagnostics.verboseErrors` is on the chosen sentence is replaced by
+  /// the failure itself and the provider message behind it. That is a
+  /// development instrument and nothing else: the branch below is unchanged, so
+  /// what the screen *does* still follows the failure type exactly as `OP-5`
+  /// requires, and a release build without the flag shows the sentence.
+  String _manageError(AppLocalizations l10n, Object e) =>
+      Diagnostics.describe(e, _manageSentence(l10n, e));
+
+  String _manageSentence(AppLocalizations l10n, Object e) {
     if (e is AuthorizationFailure) return l10n.errNotAuthorized;
     if (e is Failure) {
       return switch (e.reason) {
@@ -91,15 +113,29 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
         l10n.deleteMatchConfirmBody, l10n.deleteMatchButton,
         destructive: true);
     if (!ok) return;
+
+    // Forgotten first, so a message shown for this attempt cannot be text left
+    // over from an earlier one.
+    Diagnostics.clear();
+    Diagnostics.trace('screen', 'delete ${widget.matchId}');
     setState(() => _busy = true);
     try {
       await _service.deleteMatch(widget.matchId);
-      navigator.pop(true);
     } catch (e) {
+      Diagnostics.trace('screen', 'delete failed: $e');
       if (!mounted) return;
       setState(() => _busy = false);
       messenger.showSnackBar(SnackBar(content: Text(_manageError(l10n, e))));
+      return;
     }
+
+    // Outside the try on purpose. Leaving this screen is not part of deleting
+    // the match, and while it sat inside the catch a pop that threw — on a
+    // Navigator the dialog above had already changed — reported the delete as
+    // failed after it had succeeded.
+    Diagnostics.trace('screen', 'delete ok, leaving');
+    if (!mounted) return;
+    navigator.pop(true);
   }
 
   Future<void> _edit(Match match) async {
@@ -138,7 +174,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
       canPop: true,
       onPopInvokedWithResult: (didPop, _) {},
       child: Scaffold(
-        appBar: AppBar(
+        appBar: AppHeader(
           title: Text(l10n.matchManagementTitle),
           leading: BackButton(
             onPressed: () => Navigator.of(context).pop(_changed),

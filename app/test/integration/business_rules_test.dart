@@ -17,12 +17,16 @@ void main() {
   late TestUser owner;
   late TestUser admin;
   late TestUser player;
+  late TestUser player2;
+  late TestUser player3;
   late String communityId;
 
   setUpAll(() async {
     owner = await signInTestUser('owner');
     admin = await signInTestUser('admin');
     player = await signInTestUser('player');
+    player2 = await signInTestUser('player2');
+    player3 = await signInTestUser('player3');
   });
 
   setUp(() async {
@@ -79,28 +83,36 @@ void main() {
   });
 
   test('first registrations are confirmed, the rest go to reserve', () async {
-    // Two starting places, three sign-ups.
+    // Four starting places — the approved minimum match (OP-2) — and five
+    // sign-ups, which is what it now takes to produce a reserve.
     final matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 4), startingPlayers: 2);
+        startsIn: const Duration(days: 4), startingPlayers: 4);
+    await addMember(owner, communityId, player2);
+    await addMember(owner, communityId, player3);
 
-    for (final user in [owner, admin, player]) {
+    for (final user in [owner, admin, player, player2, player3]) {
       final status = await user.client
           .rpc('register_for_match', params: {'p_match_id': matchId});
       expect(status, isIn(['confirmed', 'reserve']));
     }
 
     final rows = await roster(matchId);
-    expect(rows, hasLength(3));
-    expect(rows[0]['status'], 'confirmed');
-    expect(rows[1]['status'], 'confirmed');
-    expect(rows[2]['status'], 'reserve', reason: 'third exceeds the two seats');
+    expect(rows, hasLength(5));
+    for (var i = 0; i < 4; i++) {
+      expect(rows[i]['status'], 'confirmed',
+          reason: 'the first four registrations take the four seats');
+    }
+    expect(rows[4]['status'], 'reserve', reason: 'fifth exceeds the four seats');
   });
 
   test('DD-01 withdrawing deletes the row and promotes the first reserve',
       () async {
     final matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 4), startingPlayers: 2);
-    for (final user in [owner, admin, player]) {
+        startsIn: const Duration(days: 4), startingPlayers: 4);
+    await addMember(owner, communityId, player2);
+    await addMember(owner, communityId, player3);
+    // Four confirmed and one reserve, so a withdrawal has someone to promote.
+    for (final user in [owner, admin, player, player2, player3]) {
       await user.client
           .rpc('register_for_match', params: {'p_match_id': matchId});
     }
@@ -156,28 +168,32 @@ void main() {
         .limit(1)
         .single();
     final reserve = settings['reserve_players'] as int;
-    // Three participants exist, so this only closes when the cap is tiny.
+    // Five participants exist, so this only closes when the cap is tiny.
     if (reserve > 0) {
-      // With a reserve allowance there is always room for three; assert the
+      // With a reserve allowance there is always room for five; assert the
       // cap is what the trigger derived rather than forcing an artificial one.
       final matchId = await createMatch(owner, communityId,
-          startsIn: const Duration(days: 6), startingPlayers: 2);
+          startsIn: const Duration(days: 6), startingPlayers: 4);
       final row = await owner.client
           .from('matches')
           .select('max_registration')
           .eq('id', matchId)
           .single();
-      expect(row['max_registration'], 2 + reserve);
+      expect(row['max_registration'], 4 + reserve);
       return;
     }
+    // No reserve allowance: the four seats are the whole cap, so the fifth
+    // registration is refused outright rather than queued.
     final matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 6), startingPlayers: 2);
-    for (final user in [owner, admin]) {
+        startsIn: const Duration(days: 6), startingPlayers: 4);
+    await addMember(owner, communityId, player2);
+    await addMember(owner, communityId, player3);
+    for (final user in [owner, admin, player, player2]) {
       await user.client
           .rpc('register_for_match', params: {'p_match_id': matchId});
     }
     final result = await outcomeOf(() async {
-      await player.client
+      await player3.client
           .rpc('register_for_match', params: {'p_match_id': matchId});
     });
     expect(result, 'REGISTRATION_CLOSED');
@@ -244,7 +260,7 @@ void main() {
 
   test('DD-03 status only ever holds open, full or completed', () async {
     final matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 4), startingPlayers: 2);
+        startsIn: const Duration(days: 4), startingPlayers: 4);
     expect(await statusOf(matchId), 'open');
 
     // The organizer may update the row, so this reaches the CHECK rather than
@@ -311,15 +327,15 @@ void main() {
   });
 
   test('DD-08 removal and promotion both notify', () async {
-    // Two seats, three sign-ups: owner and admin start, player waits.
+    // Four seats, five sign-ups: the first four start, player3 waits.
     final matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 4), startingPlayers: 2);
-    await owner.client
-        .rpc('register_for_match', params: {'p_match_id': matchId});
-    await admin.client
-        .rpc('register_for_match', params: {'p_match_id': matchId});
-    await player.client
-        .rpc('register_for_match', params: {'p_match_id': matchId});
+        startsIn: const Duration(days: 4), startingPlayers: 4);
+    await addMember(owner, communityId, player2);
+    await addMember(owner, communityId, player3);
+    for (final user in [owner, admin, player, player2, player3]) {
+      await user.client
+          .rpc('register_for_match', params: {'p_match_id': matchId});
+    }
 
     await owner.client.rpc('remove_player', params: {
       'p_match_id': matchId,
@@ -331,7 +347,7 @@ void main() {
         .select('id')
         .eq('type', 'removed')
         .eq('match_id', matchId);
-    final promoted = await player.client
+    final promoted = await player3.client
         .from('notifications')
         .select('id')
         .eq('type', 'promoted')
@@ -350,5 +366,84 @@ void main() {
     for (final row in rows) {
       expect(row['user_id'], player.id);
     }
+  });
+
+  group('OP-2 minimum match size', () {
+    // The approved minimum is 4 players (2 v 2), enforced twice: the CHECK on
+    // matches.starting_players and the guard inside update_match. Migration
+    // 0019 moved both from the original lower bound of 2.
+    Future<String> createWith(int startingPlayers) => outcomeOf(() async {
+          await owner.client.from('matches').insert({
+            'community_id': communityId,
+            'created_by': owner.id,
+            'title': 'ITest bound $startingPlayers',
+            'location': 'ITest pitch',
+            'start_at': DateTime.now()
+                .toUtc()
+                .add(const Duration(days: 9))
+                .toIso8601String(),
+            'end_at': DateTime.now()
+                .toUtc()
+                .add(const Duration(days: 9, hours: 2))
+                .toIso8601String(),
+            'starting_players': startingPlayers,
+          });
+        });
+
+    test('a match below the minimum cannot be created', () async {
+      expect(await createWith(2), isNot('ALLOW'));
+      expect(await createWith(3), isNot('ALLOW'));
+    });
+
+    test('the minimum itself, and everything up to 30, is accepted', () async {
+      expect(await createWith(4), 'ALLOW');
+      expect(await createWith(30), 'ALLOW');
+    });
+
+    test('above 30 is still rejected', () async {
+      expect(await createWith(31), isNot('ALLOW'));
+    });
+
+    test('capacity is still derived at the new minimum (DD-06)', () async {
+      // The reserve rule is untouched by 0019: max_registration remains
+      // starting_players + the global reserve allowance.
+      final matchId = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 9, hours: 6), startingPlayers: 4);
+      final reserve = await owner.client
+          .from('app_settings')
+          .select('reserve_players')
+          .limit(1)
+          .single();
+      final row = await owner.client
+          .from('matches')
+          .select('max_registration')
+          .eq('id', matchId)
+          .single();
+
+      expect(row['max_registration'], 4 + (reserve['reserve_players'] as int));
+    });
+
+    test('editing a match below the minimum is refused, at 4 it is not',
+        () async {
+      final matchId = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 9, hours: 9), startingPlayers: 6);
+      final start = DateTime.now().toUtc().add(const Duration(days: 9, hours: 9));
+
+      Future<String> editTo(int startingPlayers) => outcomeOf(() async {
+            await owner.client.rpc('update_match', params: {
+              'p_match_id': matchId,
+              'p_title': 'ITest bound edit',
+              'p_location': 'ITest pitch',
+              'p_start_at': start.toIso8601String(),
+              'p_end_at':
+                  start.add(const Duration(hours: 2)).toIso8601String(),
+              'p_starting_players': startingPlayers,
+              'p_description': null,
+            });
+          });
+
+      expect(await editTo(3), 'INVALID_STARTING_PLAYERS');
+      expect(await editTo(4), 'ALLOW');
+    });
   });
 }

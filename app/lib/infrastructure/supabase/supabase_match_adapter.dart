@@ -1,14 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/diagnostics.dart';
 import '../../features/matches/match_adapter.dart';
 import '../../features/matches/match_models.dart';
 import 'mappers/match_mapper.dart';
 import 'supabase_bootstrap.dart';
 import 'supabase_failure_mapper.dart';
 
-/// Supabase implementation of the match port. Creation is a direct insert
-/// guarded by RLS; everything that touches a roster is a transactional,
-/// race-safe RPC.
+/// Supabase implementation of the match port. Every write is an RPC that
+/// carries its own authorization check and its own validation server-side.
 class SupabaseMatchAdapter implements MatchAdapter {
   SupabaseMatchAdapter([SupabaseClient? client])
       : _client = client ?? SupabaseBootstrap.client;
@@ -50,6 +50,31 @@ class SupabaseMatchAdapter implements MatchAdapter {
         return matchFromRow(row);
       });
 
+  /// Creates a match through `create_match` (migration `0026`).
+  ///
+  /// This was a direct insert, guarded by `matches_insert_community_admins`.
+  /// That policy was correct — it pinned `created_by` to `auth.uid()` and
+  /// required the admin role — but it left match creation as the only write in
+  /// the product whose guards lived in the client, and a policy can only refuse
+  /// a row, not say why. `update_match` and `delete_match` were already RPCs
+  /// that validate before they write; this joins them and fails the same way on
+  /// the same input.
+  ///
+  /// One guard is new, and it is not a new rule: `START_IN_PAST`. `update_match`
+  /// refuses any match whose start has passed, so a match created in that state
+  /// could never be edited or cancelled by its organizer. The insert path
+  /// allowed it; this does not.
+  ///
+  /// `created_by` is no longer sent. The function takes it from `auth.uid()`,
+  /// which is what the policy checked it against anyway.
+  ///
+  /// `max_registration` is still left to the `matches_set_capacity` trigger —
+  /// the function does not compute it, and neither does this.
+  ///
+  /// The function returns the new match's id. Nothing above this needs it: the
+  /// create screen pops back to the caller, exactly as it did when the insert
+  /// returned nothing. It is discarded here rather than propagated, which keeps
+  /// the port's contract unchanged.
   @override
   Future<void> createMatch({
     required String communityId,
@@ -60,14 +85,14 @@ class SupabaseMatchAdapter implements MatchAdapter {
     required int startingPlayers,
   }) =>
       guarded(() async {
-        await _client.from('matches').insert({
-          'community_id': communityId,
-          'created_by': _client.auth.currentUser!.id,
-          'title': title,
-          'location': location,
-          'start_at': startAt.toUtc().toIso8601String(),
-          'end_at': endAt.toUtc().toIso8601String(),
-          'starting_players': startingPlayers,
+        await _client.rpc('create_match', params: {
+          'p_community_id': communityId,
+          'p_title': title,
+          'p_location': location,
+          'p_start_at': startAt.toUtc().toIso8601String(),
+          'p_end_at': endAt.toUtc().toIso8601String(),
+          'p_starting_players': startingPlayers,
+          'p_description': null,
         });
       });
 
@@ -94,9 +119,17 @@ class SupabaseMatchAdapter implements MatchAdapter {
       });
 
   @override
-  Future<void> deleteMatch(String matchId) => guarded(() async {
-        await _client.rpc('delete_match', params: {'p_match_id': matchId});
-      });
+  Future<void> deleteMatch(String matchId) => guarded(
+        () async {
+          final response =
+              await _client.rpc('delete_match', params: {'p_match_id': matchId});
+          // `delete_match` returns void, so the body is null. Traced anyway:
+          // "the RPC came back, and this is what it came back with" is exactly
+          // the fact that separates a server refusal from a client-side fault.
+          Diagnostics.trace('rpc', 'delete_match returned ${response.runtimeType}');
+        },
+        operation: 'rpc delete_match',
+      );
 
   @override
   Future<List<MatchRegistration>> fetchRegistrations(String matchId) =>

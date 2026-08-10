@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_header.dart';
 import '../../core/l10n.dart';
 import 'community_models.dart';
 import 'community_repository.dart';
@@ -54,7 +55,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.createCommunityTitle)),
+      appBar: AppHeader(title: Text(l10n.createCommunityTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

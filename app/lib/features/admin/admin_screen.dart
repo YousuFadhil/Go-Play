@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_header.dart';
 import '../../core/l10n.dart';
 import 'admin_repository.dart';
 
@@ -40,7 +41,7 @@ class AdminScreen extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        appBar: AppBar(
+        appBar: AppHeader(
           title: Text(l10n.adminTitle),
           bottom: TabBar(
             tabs: [

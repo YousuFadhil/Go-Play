@@ -6,7 +6,7 @@ import 'core/l10n.dart';
 import 'core/locale_controller.dart';
 import 'core/theme.dart';
 import 'features/auth/auth_service.dart';
-import 'features/auth/login_screen.dart';
+import 'features/discover/discover_screen.dart';
 import 'features/home/home_shell.dart';
 import 'features/invitations/invite_landing_screen.dart';
 import 'features/invitations/invite_link.dart';
@@ -70,6 +70,16 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
 
 /// Decides what the app opens on: a pending invitation outranks both, because
 /// someone who tapped an invitation asked for that and nothing else.
+///
+/// Without a session the answer is now [DiscoverScreen] rather than the login
+/// form. That is the whole of Sprint 1's entry change, and it is made here
+/// because here is where "signed in or not" was already being asked — the login
+/// screen still exists, unchanged, and is reached by pushing it from Discover
+/// when a visitor asks to sign in or tries something that needs an account.
+///
+/// A signed-in player still lands on [HomeShell] directly. Sending them through
+/// a public landing page they would immediately be moved off would be a flicker,
+/// not a first impression.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -96,7 +106,7 @@ class _AuthGateState extends State<AuthGate> {
           builder: (context, snapshot) {
             return (snapshot.data ?? false)
                 ? const HomeShell()
-                : const LoginScreen();
+                : const DiscoverScreen();
           },
         );
       },

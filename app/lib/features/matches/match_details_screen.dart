@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_header.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../communities/community_models.dart';
 import '../auth/auth_service.dart';
 import '../members/member_repository.dart';
+import '../results/result_entry_screen.dart';
+import '../teams/teams_screen.dart';
 import 'match_card.dart';
 import 'match_management_screen.dart';
 import 'match_models.dart';
@@ -148,6 +151,43 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     }
   }
 
+  /// The teams of this match. Reading a lineup is a member's business, so the
+  /// way in is offered to everyone who can already see the match; which
+  /// controls the Teams screen then shows is its own decision.
+  void _openTeams() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TeamsScreen(matchId: widget.matchId),
+      ),
+    );
+  }
+
+  /// The result of this match. Offered once the match has been played and only
+  /// to an owner or admin — recording one is match management, and a match still
+  /// to come has no result to enter. The database enforces the role; this only
+  /// decides what is shown.
+  /// A saved result closes the entry form and reports here, which is the screen
+  /// that can actually show what changed. The form used to announce the save
+  /// over itself and stay put, leaving the organizer to find their way back to
+  /// see it — so the confirmation now arrives on the same screen as the result
+  /// it is confirming.
+  Future<void> _openResult() async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ResultEntryScreen(matchId: widget.matchId),
+      ),
+    );
+    if (!mounted) return;
+
+    // The reload comes first. Announcing the save over stale figures would be
+    // the same mistake in a different place.
+    _refresh();
+    if (saved == true) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.resultSaved)));
+    }
+  }
+
   String _positionLabel(BuildContext context, String position) {
     final l10n = context.l10n;
     return switch (position) {
@@ -165,7 +205,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     final currentUserId = _authService.currentUserId;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.matchDetailsTitle)),
+      appBar: AppHeader(title: Text(l10n.matchDetailsTitle)),
       body: FutureBuilder<(Match, List<MatchRegistration>, CommunityRole?)>(
         future: _dataFuture,
         builder: (context, snapshot) {
@@ -269,6 +309,19 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                     leading: const Icon(Icons.notes),
                     title: Text(l10n.matchDescriptionLabel),
                     subtitle: Text(match.description!),
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.groups_2),
+                  title: Text(l10n.teamsTitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _openTeams,
+                ),
+                if (canManage && match.isCompleted)
+                  ListTile(
+                    leading: const Icon(Icons.scoreboard),
+                    title: Text(l10n.matchResultTitle),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _openResult,
                   ),
 
                 // Player status card + join/withdraw actions.

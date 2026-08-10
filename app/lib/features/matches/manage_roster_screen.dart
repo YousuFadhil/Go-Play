@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_header.dart';
 import '../../core/l10n.dart';
 import 'match_models.dart';
 import 'match_service.dart';
@@ -102,7 +103,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppHeader(
         title: Text(widget.title),
         leading: BackButton(
           onPressed: () => Navigator.of(context).pop(_changed),

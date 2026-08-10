@@ -49,6 +49,15 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Lets a push wake the app. The other half of iOS push is the Push
+	     Notifications capability and an aps-environment entitlement, and both
+	     are set in Xcode against a paid Apple Developer team rather than in
+	     this file. Without them the app still runs and still shows the
+	     Notification Center; only push is missing. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

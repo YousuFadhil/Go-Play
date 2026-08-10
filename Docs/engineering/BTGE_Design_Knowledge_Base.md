@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.3 |
+| Version | 1.6 |
 | Status | **Approved** |
 | Role | **Design Authority** — approved product intent. Governs the Engineering Specification. |
 | Owner | Product Owner |
@@ -248,7 +248,9 @@ advantage, so it is offset rather than ignored.
 possible. Ignoring the numerical advantage when scoring the result.
 
 **Traces to.** Specification §11.4 (`BTGE-SC-4`), `BTGE-HC-4`. The compensation
-*mechanism* is open — see [Part H](#part-h-open-issues), `OI-5`.
+*mechanism* was open as `OI-5`; the Product Owner settled it on 2026-07-31 —
+the extra player joins the team otherwise weaker on rating. Recorded in
+Specification §18.1.1.
 
 ### `KB-013` Performance Philosophy
 
@@ -484,7 +486,9 @@ enough to the best at a given priority count as equal *at that priority* and pas
 to the next.
 
 The bands are what make `KB-010` and `KB-016` operable at all. Without them,
-Diversity would be permanently dead code. Band widths are open (`OI-3`).
+Diversity would be permanently dead code. Band widths were open as `OI-3`;
+the Product Owner approved them on 2026-07-31 and the values are recorded in
+Specification §18.1.1.
 
 ### `KB-C2` Why "closest logical position" follows the pitch axis
 
@@ -595,6 +599,12 @@ Facts a future engineer needs, recorded without recommendation.
 BTGE supports up to 30 players (15 vs 15). Above that, the request is rejected
 rather than degraded.
 
+The lower bound was `OI-2` and was settled on 2026-07-31: the minimum supported
+match is **4** players (2 v 2). Below that, as above 30, the request is
+rejected — and because the bound is a product rule rather than a generation-only
+one, `matches.starting_players` carries it too. Recorded in Specification
+§18.1.1.
+
 ### `KB-D2` Search space at capacity
 
 Splitting 30 players into two teams of 15 admits 77,558,760 distinct partitions
@@ -690,20 +700,24 @@ Two points from that review belong to the design record:
 
 - **No open issue blocks the start of implementation.** Every one is a
   configurable value the architecture accommodates rather than depends on.
-- **`OI-1`, `OI-2`, `OI-3`, `OI-5` and `OI-6` are Product Decisions** and block
-  final validation and release. **None may be settled unilaterally by an
-  implementer** — `KB-015` and `BTGE-CC-6` both apply. `OI-4` and `OI-8` are
-  Engineering Decisions whose product intent is already closed; `OI-7` is an
-  Implementation Detail.
+- **Five issues were classified as Product Decisions** blocking final validation
+  and release — `OI-1`, `OI-2`, `OI-3`, `OI-5` and `OI-6`. **None may be settled
+  unilaterally by an implementer** — `KB-015` and `BTGE-CC-6` both apply.
+  `OI-4` and `OI-8` are Engineering Decisions whose product intent is already
+  closed; `OI-7` is an Implementation Detail.
+
+  **All five were resolved by the Product Owner on 2026-07-31** and have moved
+  to [Closed](#closed) below. **No Product Decision blocks final validation any
+  longer.** That closes the gate; it does not mean final validation has been
+  run, and the two must not be confused.
+
+What remains below is not a Product Decision: `OI-4` and `OI-8` are Engineering
+Decisions and `OI-7` an Implementation Detail, and none of the three has ever
+blocked validation.
 
 | ID | Open issue | Constrained by |
 |---|---|---|
-| `OI-1` | Overall Rating scale and precision. | `KB-006` |
-| `OI-2` | Minimum supported player count (Specification proposes 2). | `KB-D1` |
-| `OI-3` | Tolerance band width per priority. Without these, priorities 3–5 are unreachable. | `KB-C1` |
 | `OI-4` | Cost weighting applied to transition distance. | `KB-003`, `KB-C2` |
-| `OI-5` | The compensation mechanism for odd player counts. `KB-012` approves that compensation must happen; *how* is undecided. The Specification proposes giving the extra player to the team otherwise weaker on rating. | `KB-012` |
-| `OI-6` | Diversity lookback window — how far back Match History is consulted. | `KB-016` |
 | `OI-7` | The threshold at which an age spread is reported as wide. | `KB-C8` |
 | `OI-8` | Whether any hard ceiling on generation time exists at 30 players. `KB-013` settles the policy — optimality is not traded for speed — but not whether an absolute limit exists. | `KB-013`, `KB-D2` |
 
@@ -714,6 +728,11 @@ questions.
 
 | ID | Outcome |
 |---|---|
+| `OI-1` | **Resolved by Product Owner decision, 2026-07-31.** Overall Rating runs **0.0 to 10.0 to one decimal place**, default **5.0**, never null — 101 distinct values. This formalized the contract migration `0018` already implemented; it required no migration and no engine change, the engine having always treated rating as an opaque number (`KB-006`). **Who may change a rating is a separate Product/Business Policy question and stays open** — `OI-1` fixed the scale and nothing else. Values in Specification §18.1.1. |
+| `OI-2` | **Resolved by Product Owner decision, 2026-07-31.** The minimum supported match is **4 players (2 v 2)**. Three values stood in sequence: the Specification proposed 2 (never approved); the Product Owner approved 6 (3 v 3); the same day, on review of how `matches.starting_players` caps the confirmed roster — a bound of 6 would have left smaller matches creatable but permanently un-generatable — that was superseded by the final 4. The bound is a **product** rule, not a generation-only one, so it governs match capacity as well. Recorded in Specification §18.1.1. |
+| `OI-3` | **Resolved by Product Owner decision, 2026-07-31.** Tolerance band widths approved: position distribution 2, rating 0.10, out-of-position 2, age 1.00. The values and the product rationale behind them are recorded once, in Specification §18.1.1, and are deliberately not duplicated here. Fairness and quality were approved as taking priority over generation speed. |
+| `OI-5` | **Resolved by Product Owner decision, 2026-07-31.** On an odd count the extra player joins the team **otherwise weaker on rating**, which is the compensation `KB-012` required without specifying. No further odd-count or tie-breaking policy was introduced. Recorded in Specification §18.1.1. |
+| `OI-6` | **Resolved by Product Owner decision, 2026-07-31.** Diversity consults the **last 5 matches**. A match-count window was approved over a time-based one because it behaves predictably however often a community plays; **no time-duration window is approved**. Diversity remains subordinate to priorities 1–4, unchanged (`KB-010`). Recorded in Specification §18.1.1. |
 | `OI-9` | **Void.** Seed reuse on re-generation. No seed exists under `KB-009`, so the question has no subject. |
 | `OI-10` | **Resolved by `KB-018`.** The engine always attempts to assign a goalkeeper, natural goalkeepers first; where none is available it may assign an emergency goalkeeper under the approved transition rules, and it must never fail to generate solely for want of a natural goalkeeper. No stronger guarantee than `KB-018`'s approved interpretation may be derived. |
 | `OI-11` | **Resolved by `KB-019`.** With no Match History, Diversity contributes nothing; any remaining tie is broken by the engine's deterministic canonical ordering. Randomness is never introduced. |
@@ -727,4 +746,7 @@ questions.
 | 1.0 | 2026-07-27 | Initial Knowledge Base. `KB-001` … `KB-015` approved. |
 | 1.1 | 2026-07-27 | Product Owner decision resolving Diversity against `KB-006`/`KB-014`: added `KB-016` (Core Player Inputs vs. Auxiliary Data) and `KB-017` (Match History reflects reality, not learning); scope clarifications noted in `KB-006`, `KB-007`, `KB-014`. Knowledge transfer completed: Parts C–H added. `KB-001` … `KB-015` unchanged. |
 | 1.2 | 2026-07-27 | Product Owner clarifications closing the two open issues raised by the v1.1 transfer: added `KB-018` (Emergency Goalkeeper Assignment, resolving `OI-10`) and `KB-019` (Canonical Ordering as the Final Tie-Break, resolving `OI-11`). `KB-011` trace and `KB-C6` rewritten to match `KB-018`; a fourth required Specification correction recorded in Part E. `KB-001` … `KB-017` otherwise unchanged. Before approval, the Product Owner corrected `KB-018`: the guarantee is capped at the approved interpretation quoted in that entry, and the inference "a goalkeeper-free match never occurs" was struck as not adopted. **Approved.** The Knowledge Base is the design authority for BTGE. |
+| 1.6 | 2026-07-31 | **`OI-2` superseded within the same day: the approved minimum is 4, not 6.** The bound was lowered to **4 players (2 v 2)** and widened from a generation-only rule to a product-wide one, after review showed that `matches.starting_players` caps the confirmed roster and a minimum of 6 would have left smaller matches creatable but permanently un-generatable. `KB-D1` and Part H's `OI-2` entry updated; the 2 → 6 → 4 sequence is preserved in both. **No other decision changed** — `OI-1`, `OI-3`, `OI-5`, `OI-6` untouched, the Product Decision gate stays closed, and `KB-001` … `KB-019` are unchanged. |
+| 1.5 | 2026-07-31 | Product Owner resolved the remaining three blocking Product Decisions, **closing the Product Decision gate**. `OI-1` (rating scale 0.0–10.0, precision 0.1, default 5.0, not null), `OI-2` (minimum 6 players, 3 v 3, superseding the provisional 2) and `OI-5` (odd count: the weaker team receives the extra player) moved to Part H's Closed table; values live once, in Specification §18.1.1. `KB-D1` gained the lower bound; `KB-012`'s open compensation mechanism is now settled. **No Product Decision blocks final validation — which is not a claim that validation has been run.** `OI-4`, `OI-7` and `OI-8` remain, none of them a Product Decision. The separate question of who may change a rating stays open. **No approved entry changed** — `KB-001` … `KB-019` unchanged. |
+| 1.4 | 2026-07-31 | Product Owner resolved two of the five blocking Product Decisions. `OI-3` (tolerance band widths) and `OI-6` (diversity lookback window) moved from Part H's open table to its Closed table; the approved values live once, in Specification §18.1.1, and are not duplicated here. `KB-C1` updated to say the band widths are settled rather than open. `OI-1`, `OI-2` and `OI-5` remain open and still block final validation. **No approved entry changed** — `KB-001` … `KB-019` unchanged, and no design rule was reinterpreted; two parameters deliberately left unfixed are now fixed. |
 | 1.3 | 2026-07-27 | Open Parameter review closed. Part H records that **no open issue blocks the start of implementation**, and that `OI-1`, `-2`, `-3`, `-5`, `-6` are Product Decisions blocking final validation while `OI-4` and `-8` are Engineering Decisions and `OI-7` an Implementation Detail. Per-item classification lives in Specification §18.1 and is deliberately not duplicated here. Design phase complete. No approved entry changed — `KB-001` … `KB-019` unchanged. |

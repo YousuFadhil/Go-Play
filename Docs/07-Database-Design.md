@@ -3,7 +3,7 @@
 **Database Design — Community-first (v3)**
 
 Supersedes the Groups-first v2 document. Reflects the schema as it stands
-after migration `0017`.
+after migration `0024`.
 
 ## Standards
 
@@ -19,7 +19,11 @@ after migration `0017`.
 
 `users`, `communities`, `community_members`, `matches`,
 `match_registrations`, `notifications`, `app_settings`,
-`match_team_assignments`.
+`match_team_assignments`, `system_admins`.
+
+From the Results / Rating phase (`0022`): `match_results`, `match_goals`,
+`rating_history`, `player_statistics`. All four are written only by
+`record_match_result` and carry select policies and nothing else.
 
 ## Key constraints
 
@@ -41,14 +45,24 @@ after migration `0017`.
   statement: that is how a leaked invitation is invalidated, since replacing
   the code is the only thing there is to revoke. Membership, matches and
   registrations are untouched — the code governs joining, not having joined.
-- `starting_players` between 2 and 30; `max_registration` between 2 and 60 and
-  never below `starting_players`.
+- `starting_players` between **4** and 30 — the approved `OP-2` minimum match
+  size, 2 v 2, applied to the product as a whole and not to team generation
+  alone (Engineering Specification §18.1.1, migration `0019`). The same guard
+  sits inside `update_match`. `max_registration` stays between 2 and 60 and
+  never below `starting_players`: it is a derived value, and narrowing it was
+  not part of that decision.
 - `matches.end_at > matches.start_at`.
   index), and an invitation can only offer `admin` or `player`.
 - `notifications.match_id` uses **ON DELETE SET NULL**, so a "match deleted"
   notice survives the match it refers to (DD-08).
-- `users.overall_rating` is `NUMERIC(3,1)`, NOT NULL, default `5.0`, constrained
-  to `0.0 … 10.0` — the approved OP-1 scale. `users.date_of_birth` and
+- `users.overall_rating` is `NUMERIC(4,2)`, NOT NULL, default `5.00`,
+  constrained to `0.0 … 10.0` — the approved OP-1 scale, recorded in §18.1.1 of
+  the BTGE Engineering Specification. It was widened from `NUMERIC(3,1)` by
+  migration `0022`, because the approved engine moves a rating by `0.05` for a
+  goal and one decimal place cannot represent that reversibly (`RR-1`). One
+  decimal remains a *presentation* choice; round for the eye, never for the
+  record. Under `SL-3` this column is the **Global Rating** — Level 1.
+  `users.date_of_birth` and
   `users.secondary_position` are nullable: existing players have neither, and
   the database must not invent what the engine is required to reject as missing.
   `secondary_position` uses the same vocabulary as `primary_position`.
@@ -84,11 +98,72 @@ predicate. Both are `SECURITY DEFINER` because a policy that reached into
 own RLS. Reading a lineup is a member's business; writing one is match
 management, which PD-06 and PD-07 already placed with the owner and admins.
 
-Who may change `users.overall_rating` is **not settled**. It is a
-Product/Business Policy decision, not a schema one, and KB-D3 deliberately left
-it open: migration `0018` adds the column and its range constraint and nothing
-about permissions, so `users_update_own_profile` currently governs it like any
-other profile field. The rating-adjustment workflow will decide.
+Who may change `users.overall_rating` is **settled for the engine and open for
+administrators**. Migration `0018` added the column and its range constraint
+and said nothing about permissions, which left `users_update_own_profile`
+governing it like any other profile field. Migration `0022` closed that
+(`RR-2`): `UPDATE` on `public.users` was revoked from `authenticated` and
+re-granted **per column** on the five profile fields a player owns — `phone`,
+`full_name`, `primary_position`, `secondary_position`, `date_of_birth`. RLS
+answers *which rows*, not *which columns*, so a column-level `GRANT` is what
+enforces it.
+
+The rating is therefore system-managed: the rating engine is its sole author.
+Whether an **administrator** may adjust a rating by hand remains a
+Product/Business Policy question and is still open.
+
+Under `SL-3` the same rule governs the approved **Community Rating**: no client
+may write either rating, and the community tables should carry select policies
+only, as the four results tables already do.
+
+## Statistics and leaderboards — approved architecture, not yet built
+
+**No schema exists for this yet, and none is designed here.** The authoritative
+source is `engineering/Statistics_Leaderboards_MVP_Specification.md` (v2.0);
+this section records what the schema must express so that the future design
+follows it rather than rediscovering it.
+
+**Two levels (`SL-2`, `SL-3`).**
+
+| Level | What it is | Where it lives today |
+|---|---|---|
+| **1 — Global** | The player's career: `player_statistics` counters plus `users.overall_rating` as the Global Rating | **Built** (`0022`) |
+| **2 — Community** | The player's record inside one community, plus a Community Rating | **Not built** |
+
+**Level 2 identity (`SL-1`).** One model, not three tables. A record is
+identified by `(player, community_id, period_type, period_key)`, where
+`period_type` is one of `overall`, `weekly`, `monthly`, and `period_key` is
+`overall`, an ISO-8601 week such as `2026-W31`, or a month such as `2026-08`.
+Adding a period later is a new `period_type` value, not a new table.
+
+**Rules the schema must not contradict:**
+
+- **Isolation.** A player's record in one community must never affect another
+  community's figures. `community_id` is what makes that a property of the
+  model rather than a discipline expected of each query.
+- **Lifetime (`SL-4`).** A Level 2 record **outlives its membership row**. It
+  is keyed by player and community and must not cascade from
+  `community_members`: leaving preserves it, rejoining restores it, and a
+  Community Rating is created once at the neutral baseline `5.00` and never
+  reset. It still cascades with the community itself.
+- **Audit.** A Community Rating History is required for the same reason
+  `rating_history` is — a corrected result must reverse by the *applied* delta,
+  which is the only exact reversal under clamping (`RR-1`, `RR-5`). It has no
+  reader in the MVP; it is not optional.
+- **Write path.** One system-managed writer, select-only policies, no client
+  writes — the pattern `0022` established (`RR-2`).
+- **Reversal.** Apply and reverse stay separate statements over shared
+  arithmetic. `INSERT … ON CONFLICT DO UPDATE` validates the *proposed* row
+  before it detects the conflict, which is what produced the `RR-4` defect; the
+  community counters will meet the same behaviour.
+- **Eligibility is a read-time filter**, never a stored flag: leaderboards show
+  active members only.
+
+**The reference time zone is `Asia/Muscat` (UTC+4)**, approved 2026-08-01. It
+is the single application-wide constant from which `period_key` is derived, and
+it **must not change once figures exist** — changing it re-buckets history into
+different weeks and months. The conceptual model and the rest of the
+engineering assumptions are in `06-ERD.md` §3.
 
 ## Derived values
 
@@ -164,9 +239,76 @@ invitation systems in favour of the join code, the title guard in
 added join-code regeneration, `0016` replaced `is_private` with
 `join_policy`, and `0017` added the System Admin role. `0018` is KB-D3: the
 three Core Player Inputs on the profile and `match_team_assignments`, the
-lineup that actually played.
-`supabase/setup_all.sql` is a generated concatenation of all eighteen, in order.
+lineup that actually played. `0019` applied the `OP-2` minimum match size,
+`0020` made the lineup write atomic, and `0021` added the signup profile
+inputs. `0022`–`0024` are the Results / Rating phase: the four results tables
+and `record_match_result`, the statistics reversal fix, and the trigger
+hardening that followed the linter — see
+`engineering/Results_Rating_Engineering_Decisions.md` for why they are three
+migrations and not one.
+`supabase/setup_all.sql` is a generated concatenation of all of them, in order.
 
 The migration sequence keeps the objects it later drops: it records the project's
 history rather than its end state. Reading `0008` and `0012` together is how a
 future reader learns why the invitation tables existed and why they do not now.
+
+---
+
+# Phase Status
+
+**Database Design Engineering — 2026-08-02**
+
+## 1. Status
+
+**Completed.**
+
+## 2. Implementation Readiness
+
+**Ready.**
+
+## 3. Approved Scope
+
+- **All database tables specified.** Fifteen table specifications, each an
+  Engineering Authority: the eleven built tables, and the four approved but
+  unbuilt (`community_statistics`, `community_ratings`,
+  `community_rating_history`, and the relocated invitation credential).
+- **All Level 2 read models specified.** The Community Dashboard and the nine
+  Community Leaderboards, each frozen before any view, RPC or query exists.
+- **Cross-document consistency verified.** Every specification was validated
+  against the PRD, the ERD, this document, the Design Decisions, and the
+  `SL`, `RR`, `BTGE` and `UP` decision records. The architecture review of
+  2026-08-02 resolved the Community Rating and dashboard-ownership
+  contradictions at source; no contradiction between approved documents
+  remains open.
+- **The BTGE database contract** is frozen alongside the tables.
+
+## 4. Outstanding Decisions
+
+Unresolved only. Approved items are not repeated.
+
+| # | Decision | Gates |
+|---|---|---|
+| 1 | **Confirm the `DP-n` principle readings.** Nine of eleven have no definition in the repository; each specification states the reading it applied | Nothing — but every specification leans on them |
+| 2 | **Leaderboard scope: nine boards or fifteen** (`LB-X1`). *Most Matches Played* and *Most Wins* are not in the approved set | The leaderboard build |
+| 3 | **Leaderboard read rules** — zero-valued entries (`LB-D1`), tie-break order (`LB-D2`), and the `SL-2` §2.3 wording fix (`LB-D3`) | The leaderboard build |
+| 4 | **`Last Match Date` basis** (`CD-D1`) | One dashboard figure |
+| 5 | **Level 2 build order and join-path write** (`CR-D1`, `CR-D3`, `CR-D4`) | The Level 2 build |
+| 6 | **Administrative rating adjustment** (`RR-2`, open since the results phase; `RH-D1`) | Nothing today |
+| 7 | **Invitation credential relocation** (`CI-D0`), which amends `DD-12` | That relocation only |
+| 8 | **Per-table conformance items** recorded in each specification — the unused write rules (`MT-D1`, `NT-D1`, and their siblings), the deletion-cascade ordering (`MRS-D1`), and the integrity constraints `RH-D2` recommends | Their own tables |
+
+## 5. Blocking Issues
+
+**None.** No decision blocks implementation from beginning. Items 2, 3, 5 and 7
+above gate specific deliverables within the next phase rather than the phase
+itself.
+
+## 6. Next Phase
+
+**Database Implementation** — views, RPC functions, triggers and RLS.
+
+Each specification carries its own conformance list and build instruction; those
+are the implementation backlog. Four cross-cutting families recur across
+tables and should be closed together rather than one table at a time: the
+unused write rules, the account-deletion cascade ordering, the missing
+`updated_at` columns, and the absent reconciliation checks.

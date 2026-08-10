@@ -147,7 +147,7 @@ void main() {
         'the reserve', () async {
       // Two seats: player and admin start, owner waits in reserve.
       final matchId = await createMatch(owner, communityId,
-          startsIn: const Duration(days: 4), startingPlayers: 2);
+          startsIn: const Duration(days: 4), startingPlayers: 4);
       await player.client
           .rpc('register_for_match', params: {'p_match_id': matchId});
       await admin.client
@@ -244,7 +244,7 @@ void main() {
   });
 
   test('deleting a community removes everything under it', () async {
-    // A window no other test file uses: the four accounts are shared, and the
+    // A window no other test file uses: the six accounts are shared, and the
     // files run concurrently, so a match at the same hour as another file's
     // would fail the overlap rule rather than the thing under test.
     final matchId = await createMatch(owner, communityId,
@@ -386,10 +386,13 @@ void main() {
 
       expect(issued, isNot(before));
       expect(issued, await codeOf(), reason: 'the RPC returns what it stored');
-      expect(issued, hasLength(12));
-      expect(RegExp(r'^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{12}$').hasMatch(issued),
-          isTrue,
-          reason: 'same alphabet as every other code');
+      // Migration `0030` made the code a number of up to four digits, issued in
+      // 1000..9999. A regenerated code is the same kind of thing as an issued
+      // one — `regenerate_join_code` calls `generate_join_code` — so this is
+      // where the two are held to each other.
+      expect(issued, hasLength(4));
+      expect(RegExp(r'^[1-9][0-9]{3}$').hasMatch(issued), isTrue,
+          reason: 'the same shape every other code is issued in');
 
       // The old code is gone, not merely superseded.
       final preview = await outsider.client

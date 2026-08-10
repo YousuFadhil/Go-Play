@@ -127,6 +127,11 @@ class BtgeConfiguration {
   /// The latitude in "may" is exposed here rather than resolved in code.
   /// `BTGE-GK-4` forbids deriving a stronger guarantee than §10 states, so this
   /// flag must not be read as a promise that every goal is filled.
+  ///
+  /// It only ever covers for a goalkeeper the pool **has**. Where no player
+  /// names `GK` as primary or secondary, no goalkeeper is assigned whatever this
+  /// is set to — §10 governs how the natural goalkeepers of a pool are used, and
+  /// a pool with none has nothing for it to govern.
   final bool assignEmergencyGoalkeeper;
 
   static const List<double> defaultTransitionCost = [0, 1, 3, 9];

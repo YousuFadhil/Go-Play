@@ -1,4 +1,4 @@
--- Go Play: combined setup script (migrations 0001-0018, in order).
+-- Go Play: combined setup script (migrations 0001-0024, in order).
 -- Generated convenience copy - the individual files in migrations/ are the source of truth.
 
 -- ============ migrations/0001_users.sql ============
@@ -3422,3 +3422,1013 @@ create policy "match_team_assignments_delete_admins"
   for delete
   to authenticated
   using (public.is_match_community_admin(match_id, auth.uid()));
+
+-- ============ migrations/0019_minimum_match_size.sql ============
+-- The minimum supported match is 4 players (2 v 2).
+--
+-- Product Owner decision, 2026-07-31, recorded as `OP-2` in §18.1.1 of
+-- `Docs/engineering/BTGE_Engineering_Specification.md`. It supersedes the
+-- earlier approval of 6 and the original schema range of 2, and it applies to
+-- the product as a whole rather than to team generation alone: a match Go Play
+-- does not support should not be creatable in the first place.
+--
+-- Two server-side rules still carried the old lower bound of 2 — the CHECK on
+-- matches.starting_players from 0006, and the guard inside update_match, last
+-- rewritten by 0013. Both move to 4. Nothing else changes.
+--
+-- Verified before applying: no row in public.matches has starting_players
+-- below 4 (2 matches, minimum 4), so the constraint holds over existing data
+-- and no row is rewritten.
+--
+-- Deliberately unchanged: reserve capacity. max_registration is still derived
+-- as starting_players + app_settings.reserve_players by matches_set_capacity,
+-- and matches_max_registration_check still spans 2 to 60 — that constraint
+-- governs a derived value, not the product minimum, and narrowing it is not
+-- part of this decision.
+
+-- 1) The capacity constraint ---------------------------------------------------
+alter table public.matches
+  drop constraint if exists matches_starting_players_check;
+alter table public.matches
+  add constraint matches_starting_players_check
+    check (starting_players between 4 and 30);
+
+-- 2) The edit guard ------------------------------------------------------------
+-- Reproduced from 0013 with one line changed: the lower bound of the
+-- INVALID_STARTING_PLAYERS check. Every other guard, the update itself, the
+-- roster rebalance, the status recomputation and the notification are byte for
+-- byte what 0013 established.
+create or replace function public.update_match(
+  p_match_id uuid,
+  p_title text,
+  p_location text,
+  p_start_at timestamptz,
+  p_end_at timestamptz,
+  p_starting_players int,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
+  if v_match.start_at <= now() then raise exception 'MATCH_LOCKED'; end if;
+  if p_title is null or char_length(trim(p_title)) < 2 then
+    raise exception 'INVALID_TITLE';
+  end if;
+  if p_end_at <= p_start_at then raise exception 'INVALID_TIME_RANGE'; end if;
+  if p_starting_players < 4 or p_starting_players > 30 then
+    raise exception 'INVALID_STARTING_PLAYERS';
+  end if;
+  select count(*) into v_total from match_registrations where match_id = p_match_id;
+  if p_starting_players + (select reserve_players from app_settings limit 1) < v_total then
+    raise exception 'MAX_BELOW_REGISTERED';
+  end if;
+  update matches set
+    title = trim(p_title),
+    location = trim(p_location),
+    start_at = p_start_at,
+    end_at = p_end_at,
+    starting_players = p_starting_players,
+    description = case when p_description is null or trim(p_description) = '' then null else trim(p_description) end
+  where id = p_match_id;
+  perform rebalance_roster(p_match_id);
+  perform recompute_match_status(p_match_id);
+  perform create_notification(mr.user_id, p_match_id, 'match_updated',
+      'تم تعديل تفاصيل المباراة.')
+  from match_registrations mr where mr.match_id = p_match_id;
+end;
+$$;
+
+-- ============ migrations/0020_atomic_lineup_write.sql ============
+-- Replacing a stored lineup, atomically.
+--
+-- Why this exists: storing a lineup replaces the previous one, and the client
+-- did that as two separate PostgREST statements — delete every row for the
+-- match, then insert the new set. Those are two transactions. A failure between
+-- them leaves the match with no lineup at all, having been told nothing was
+-- wrong about the one it destroyed.
+--
+-- Generation could live with that: it writes a lineup that did not exist a
+-- moment earlier, so the window is small and what is at risk is a result the
+-- organizer can simply produce again. Manual Override cannot. Every manual
+-- edit — a move, a swap, a position change — rewrites the whole lineup, so
+-- the same window sits under a routine adjustment of a lineup that matters.
+--
+-- Scope is deliberately narrow. This makes the existing write atomic and states
+-- its authorization; it changes no table, no constraint, and no policy. The
+-- rules that decide what a valid lineup is were set by 0018 and still are:
+--   * unique (match_id, user_id)          — BTGE-HC-1, BTGE-HC-2
+--   * match_team_assignments_one_gk_idx   — BTGE-HC-6
+--   * the team, position and basis CHECKs — BTGE-HC-5, §5.1
+-- All of them are enforced against the state this function leaves behind, and
+-- a breach rolls the whole replacement back rather than half-applying it.
+
+-- 1) The atomic replacement ----------------------------------------------------
+-- security definer, so the function's own check is the authorization — the same
+-- shape every other RPC in this project uses. The predicate is
+-- is_match_community_admin, which is what 0018 already gates the table's
+-- insert, update and delete policies on: one rule, read from one place.
+--
+-- A plpgsql function body is a single transaction. The delete and the insert
+-- below therefore either both take effect or neither does, which is the whole
+-- point of the change.
+create or replace function public.replace_match_lineup(
+  p_match_id uuid,
+  p_assignments jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  if not public.is_match_community_admin(p_match_id, auth.uid()) then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+
+  delete from match_team_assignments where match_id = p_match_id;
+
+  -- Clearing a lineup is a lineup of nobody, not a no-op: the delete above is
+  -- the whole operation, and there is nothing to insert.
+  if p_assignments is null
+     or jsonb_typeof(p_assignments) <> 'array'
+     or jsonb_array_length(p_assignments) = 0 then
+    return;
+  end if;
+
+  -- The match is taken from the argument, never from the payload, so a row
+  -- cannot name a different match than the one being authorized.
+  insert into match_team_assignments
+    (match_id, user_id, team, assigned_position, assignment_basis)
+  select
+    p_match_id,
+    (assignment->>'user_id')::uuid,
+    assignment->>'team',
+    assignment->>'assigned_position',
+    assignment->>'assignment_basis'
+  from jsonb_array_elements(p_assignments) as assignment;
+end;
+$$;
+
+revoke execute on function public.replace_match_lineup(uuid, jsonb)
+  from anon, public;
+grant execute on function public.replace_match_lineup(uuid, jsonb)
+  to authenticated;
+
+-- ============ migrations/0021_signup_profile_inputs.sql ============
+-- The profile a new account arrives with.
+--
+-- Registration now asks for the two Core Player Inputs (§4.1) the sign-up form
+-- never collected: the date of birth the engine derives age from, and the
+-- optional secondary position. Both travel the path the three existing fields
+-- already take — Auth metadata read by this trigger — so the only change the
+-- database needs is for the trigger to carry them across.
+--
+-- Nothing else moves. No column is added, altered or dropped: migration `0018`
+-- created `date_of_birth`, `secondary_position` and `overall_rating` already,
+-- and `date_of_birth` stays nullable because the accounts that predate this
+-- have none. Inventing one for them is exactly what §4.3 forbids; they complete
+-- their own profile through the application instead.
+--
+-- `overall_rating` is deliberately absent from the insert. `OP-1` makes it
+-- system-managed at 5.0 and the column default is what sets it. Passing it
+-- through Auth metadata would put a system-managed value in the hands of
+-- whoever composes the sign-up request.
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.users (
+    id,
+    phone,
+    full_name,
+    primary_position,
+    date_of_birth,
+    secondary_position
+  )
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'phone', ''),
+    coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+    coalesce(new.raw_user_meta_data ->> 'primary_position', 'MID'),
+    -- Absent and empty both mean "not supplied", and neither may become a date
+    -- the player never gave: the column is nullable for exactly this reason.
+    nullif(new.raw_user_meta_data ->> 'date_of_birth', '')::date,
+    nullif(new.raw_user_meta_data ->> 'secondary_position', '')
+  );
+  return new;
+end;
+$$;
+
+-- Migration `0005` revoked this. `create or replace` keeps a function's
+-- privileges, so restating it changes nothing — it is here because the rule is
+-- that no role may reach a trigger function through the API, and a reader of
+-- this file should not have to check another one to know it still holds.
+revoke execute on function public.handle_new_user()
+  from anon, authenticated, public;
+
+-- ============ migrations/0022_match_results.sql ============
+-- Results, ratings and player statistics.
+--
+-- What a played match leaves behind: the score, who scored it, who was best on
+-- the pitch, what that did to every participant's rating, and the counters that
+-- follow from it.
+--
+-- Four tables, one entry point. `record_match_result` is the only way any of
+-- this is written, because the six things it does are one thing: a result whose
+-- ratings were applied but whose statistics were not is not a partial success,
+-- it is corruption. A plpgsql body is a single transaction, so the whole of it
+-- lands or none of it does.
+--
+-- The rating arithmetic lives here rather than in the client. `OP-1` makes the
+-- rating system-managed, so no policy lets a client write `users.overall_rating`
+-- and no client is trusted to say what a win is worth. The approved constants
+-- are restated in Dart as `ratingRules` so the rule is unit-testable, and the
+-- integration suite asserts the two agree.
+--
+-- Backward compatible: no table is dropped, no column is renamed, every existing
+-- row stays valid, and no existing policy or function changes. Idempotent: every
+-- statement is `if not exists`, `or replace`, or guarded.
+
+-- 1) Rating precision ----------------------------------------------------------
+-- The approved engine moves a rating by 0.05 for a goal. `numeric(3,1)` cannot
+-- hold that: a single goal would round to nothing or to a tenth, two goals would
+-- be indistinguishable from one, and — worse — rounding is not reversible, which
+-- the modification rules require it to be.
+--
+-- So the stored scale widens to two decimal places. Every existing value is a
+-- tenth and survives unchanged, the approved 0.0-10.0 range is untouched, and
+-- `OP-1`'s one-decimal *presentation* is a display question this does not touch.
+-- The guard keeps a re-run from rewriting the table for nothing.
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'users'
+      and column_name = 'overall_rating'
+      and numeric_scale <> 2
+  ) then
+    alter table public.users
+      alter column overall_rating type numeric(4,2);
+    alter table public.users
+      alter column overall_rating set default 5.00;
+  end if;
+end $$;
+
+-- 1b) The rating is system-managed, stated where it holds -----------------------
+-- `OP-1` says the rating is system-managed, and until now nothing enforced it.
+-- `users_update_own_profile` allows a signed-in player to update their own row,
+-- and a policy cannot restrict which *columns* an update touches — so a client
+-- could set its own `overall_rating` to 10.0, and the engine below would read it
+-- as if it had been earned. An engine whose input any client may write is
+-- decoration, so the privilege is narrowed to the columns a player owns.
+--
+-- What a player may still write is exactly what they could write before, minus
+-- the rating: the profile fields the registration and profile screens send.
+-- `is_active` is left out because soft deletion is administrative, and
+-- `overall_rating` because this migration is what earns it.
+--
+-- `security definer` functions are unaffected: they run as the owner, which is
+-- how `record_match_result` moves a rating that nothing else can.
+revoke update on public.users from authenticated;
+grant update (phone, full_name, primary_position, secondary_position,
+  date_of_birth) on public.users to authenticated;
+
+-- 2) The result ----------------------------------------------------------------
+-- One row per match, which is how "exactly one MVP per match" is stated: the
+-- MVP is a NOT NULL column of a row that is unique per match, so there is no
+-- shape in which a match has two of them or none.
+--
+-- `recorded_by` is attribution, never authorization — the same reading
+-- `matches.created_by` gets (PD-16). It is nullable and clears itself when the
+-- account goes, so recording a result can never be the reason a user cannot be
+-- deleted.
+create table if not exists public.match_results (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null unique
+    references public.matches (id) on delete cascade,
+  team_a_score int not null check (team_a_score >= 0),
+  team_b_score int not null check (team_b_score >= 0),
+  mvp_user_id uuid not null references public.users (id) on delete cascade,
+  recorded_by uuid references public.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists match_results_set_updated_at on public.match_results;
+create trigger match_results_set_updated_at
+  before update on public.match_results
+  for each row
+  execute function public.set_updated_at();
+
+-- 3) The goals -----------------------------------------------------------------
+-- One row per scorer per match, carrying how many they scored. A hat-trick is
+-- one row saying three, not three rows saying one: no approved document asks for
+-- the minute a goal was scored or the order of them, and rows that recorded
+-- neither would be three copies of the same fact.
+--
+-- `goals > 0` because the row asserts that this player scored. Nobody scoring
+-- nothing is the absence of a row, and a match with no goals has none at all.
+--
+-- The reference is to the *result*, not to the match: a goal is part of a
+-- recorded score, and one belonging to a match that has no result would be a
+-- number nothing adds up. A deleted match still takes them with it, one cascade
+-- further along.
+create table if not exists public.match_goals (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null
+    references public.match_results (match_id) on delete cascade,
+  user_id uuid not null references public.users (id) on delete cascade,
+  goals int not null check (goals > 0),
+  created_at timestamptz not null default now(),
+  unique (match_id, user_id)
+);
+
+create index if not exists match_goals_user_id_idx
+  on public.match_goals (user_id);
+
+-- 4) The rating audit ----------------------------------------------------------
+-- Every rating change, immutable, forever.
+--
+-- `delta` is the change that was *applied*, which is what makes reversal exact.
+-- It equals the approved constant except at the ends of the 0.0-10.0 range,
+-- where a player at 10.00 who wins gains nothing — and subtracting the constant
+-- from them later would invent a rating they never held.
+--
+-- `reverses_id` is how a reversal is recorded without touching what it reverses.
+-- An original entry has none; a reversal names the row it undoes. "Still in
+-- effect" is therefore a query, not a flag somebody has to keep up to date, and
+-- no historical row is ever written twice.
+--
+-- `entry_no` orders entries within a transaction, where `created_at` cannot: a
+-- reversal walks a player's changes backwards so that no intermediate rating
+-- falls outside the range, and `now()` is the same instant for all of them.
+create table if not exists public.rating_history (
+  id uuid primary key default gen_random_uuid(),
+  entry_no bigint generated always as identity,
+  user_id uuid not null references public.users (id) on delete cascade,
+  match_id uuid not null references public.matches (id) on delete cascade,
+  change_reason text not null
+    check (change_reason in ('WIN', 'LOSS', 'GOAL', 'MVP', 'REVERSAL')),
+  delta numeric(4,2) not null,
+  rating_before numeric(4,2) not null,
+  rating_after numeric(4,2) not null,
+  reverses_id uuid references public.rating_history (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists rating_history_user_id_idx
+  on public.rating_history (user_id);
+create index if not exists rating_history_match_id_idx
+  on public.rating_history (match_id);
+
+-- A row may be reversed once. Two reversals of one entry would subtract a change
+-- that was only ever applied once.
+create unique index if not exists rating_history_reverses_id_idx
+  on public.rating_history (reverses_id)
+  where reverses_id is not null;
+
+-- Immutability, stated where it cannot be worked around. The policies below
+-- grant no UPDATE and no DELETE, which settles it for every client; this settles
+-- it for the `security definer` functions too, which run past RLS. Deletion is
+-- deliberately not blocked: a deleted match takes its own audit with it, the way
+-- every other row under a match does.
+create or replace function public.reject_rating_history_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  raise exception 'RATING_HISTORY_IMMUTABLE';
+end;
+$$;
+
+drop trigger if exists rating_history_immutable on public.rating_history;
+create trigger rating_history_immutable
+  before update on public.rating_history
+  for each row
+  execute function public.reject_rating_history_update();
+
+-- 5) The counters --------------------------------------------------------------
+-- One row per player, across every community they play in — the same scope the
+-- rating already has. A per-community split would be a second answer to "how
+-- good is this player" sitting next to `users.overall_rating`, and no approved
+-- document asks for one.
+--
+-- The current rating is deliberately absent. It is `users.overall_rating`, which
+-- this migration's own functions maintain; a copy here would be a second
+-- number for the same thing, free to disagree. The application reads it by
+-- joining, exactly as §5.1's out-of-position marker is derived rather than
+-- stored.
+create table if not exists public.player_statistics (
+  user_id uuid primary key references public.users (id) on delete cascade,
+  matches_played int not null default 0 check (matches_played >= 0),
+  wins int not null default 0 check (wins >= 0),
+  losses int not null default 0 check (losses >= 0),
+  draws int not null default 0 check (draws >= 0),
+  goals int not null default 0 check (goals >= 0),
+  mvp_count int not null default 0 check (mvp_count >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists player_statistics_set_updated_at
+  on public.player_statistics;
+create trigger player_statistics_set_updated_at
+  before update on public.player_statistics
+  for each row
+  execute function public.set_updated_at();
+
+-- 6) Applying one rating change ------------------------------------------------
+-- The single place a rating moves. It clamps to the approved range, records what
+-- it actually did, and writes the audit row in the same statement — so a rating
+-- that changed without an audit entry is not a state this schema can reach.
+create or replace function public.apply_rating_delta(
+  p_user_id uuid,
+  p_match_id uuid,
+  p_reason text,
+  p_delta numeric,
+  p_reverses_id uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_before numeric(4,2);
+  v_after numeric(4,2);
+begin
+  select overall_rating into v_before
+  from users where id = p_user_id
+  for update;
+  -- The account is gone. There is no rating to move and nothing to record
+  -- against it; the caller is reversing or applying a match it still remembers.
+  if not found then return; end if;
+
+  v_after := least(10.00, greatest(0.00, v_before + p_delta));
+
+  update users set overall_rating = v_after where id = p_user_id;
+
+  insert into rating_history (
+    user_id, match_id, change_reason, delta,
+    rating_before, rating_after, reverses_id
+  )
+  values (
+    p_user_id, p_match_id, p_reason, v_after - v_before,
+    v_before, v_after, p_reverses_id
+  );
+end;
+$$;
+
+-- 7) Reversing what a match did ------------------------------------------------
+-- Undoes every rating change this match still has in effect, newest first.
+--
+-- Newest first is the guarantee, not a preference. Walking back through the
+-- states a player actually held means every intermediate value is one the range
+-- already accepted, so no clamp fires on the way out and the player lands on the
+-- rating they had before the match was recorded.
+--
+-- Nothing is edited or removed. Each reversal is a new row pointing at the one
+-- it undoes, so the audit after a correction says what was recorded, that it was
+-- taken back, and what replaced it.
+create or replace function public.reverse_match_rating_effects(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+begin
+  for r in
+    select h.id, h.user_id, h.delta
+    from rating_history h
+    where h.match_id = p_match_id
+      and h.reverses_id is null
+      and not exists (
+        select 1 from rating_history x where x.reverses_id = h.id
+      )
+    order by h.entry_no desc
+  loop
+    perform apply_rating_delta(r.user_id, p_match_id, 'REVERSAL', -r.delta, r.id);
+  end loop;
+end;
+$$;
+
+-- Adds this match's contribution to every participant's counters, or takes it
+-- away again when [p_sign] is -1.
+--
+-- The participants are the stored lineup — `KB-017` makes that the record of who
+-- actually played, and a win belongs to the side a player was on. Reversal reads
+-- the same lineup and the result rows that are still there, so it subtracts
+-- exactly what was added.
+create or replace function public.apply_match_statistics(
+  p_match_id uuid,
+  p_sign int
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result match_results%rowtype;
+begin
+  select * into v_result from match_results where match_id = p_match_id;
+  if not found then return; end if;
+
+  insert into player_statistics as ps (
+    user_id, matches_played, wins, losses, draws, goals, mvp_count
+  )
+  select
+    a.user_id,
+    p_sign,
+    p_sign * (case
+      when (a.team = 'A' and v_result.team_a_score > v_result.team_b_score)
+        or (a.team = 'B' and v_result.team_b_score > v_result.team_a_score)
+      then 1 else 0 end),
+    p_sign * (case
+      when (a.team = 'A' and v_result.team_a_score < v_result.team_b_score)
+        or (a.team = 'B' and v_result.team_b_score < v_result.team_a_score)
+      then 1 else 0 end),
+    p_sign * (case
+      when v_result.team_a_score = v_result.team_b_score
+      then 1 else 0 end),
+    p_sign * coalesce(g.goals, 0),
+    p_sign * (case when a.user_id = v_result.mvp_user_id then 1 else 0 end)
+  from match_team_assignments a
+  left join match_goals g
+    on g.match_id = a.match_id and g.user_id = a.user_id
+  where a.match_id = p_match_id
+  on conflict (user_id) do update set
+    matches_played = ps.matches_played + excluded.matches_played,
+    wins = ps.wins + excluded.wins,
+    losses = ps.losses + excluded.losses,
+    draws = ps.draws + excluded.draws,
+    goals = ps.goals + excluded.goals,
+    mvp_count = ps.mvp_count + excluded.mvp_count;
+end;
+$$;
+
+-- Applies the approved rating engine to a match whose result and goals are
+-- already stored.
+--
+--   winner  +0.10   loser  -0.10   goal  +0.05 each   MVP  +0.20
+--
+-- A draw produces neither a win nor a loss, so drawn sides get no entry from the
+-- outcome — the goals and the MVP still count. This is the only statement of
+-- these constants in the database; `ratingRules` in Dart is the same statement
+-- for the application, and the integration suite holds them to each other.
+create or replace function public.apply_match_rating_effects(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result match_results%rowtype;
+  r record;
+begin
+  select * into v_result from match_results where match_id = p_match_id;
+  if not found then return; end if;
+
+  -- Outcome first, then goals, then the MVP. Any order reaches the same rating;
+  -- a fixed one makes the audit read the same way every time.
+  if v_result.team_a_score <> v_result.team_b_score then
+    for r in
+      select a.user_id,
+        case
+          when (a.team = 'A' and v_result.team_a_score > v_result.team_b_score)
+            or (a.team = 'B' and v_result.team_b_score > v_result.team_a_score)
+          then 'WIN' else 'LOSS' end as outcome
+      from match_team_assignments a
+      where a.match_id = p_match_id
+      order by a.team, a.user_id
+    loop
+      perform apply_rating_delta(
+        r.user_id, p_match_id, r.outcome,
+        case when r.outcome = 'WIN' then 0.10 else -0.10 end
+      );
+    end loop;
+  end if;
+
+  for r in
+    select g.user_id, g.goals
+    from match_goals g
+    where g.match_id = p_match_id
+    order by g.user_id
+  loop
+    perform apply_rating_delta(
+      r.user_id, p_match_id, 'GOAL', 0.05 * r.goals
+    );
+  end loop;
+
+  perform apply_rating_delta(
+    v_result.mvp_user_id, p_match_id, 'MVP', 0.20
+  );
+end;
+$$;
+
+revoke execute on function public.apply_rating_delta(uuid, uuid, text, numeric,
+  uuid) from anon, authenticated, public;
+revoke execute on function public.reverse_match_rating_effects(uuid)
+  from anon, authenticated, public;
+revoke execute on function public.apply_match_statistics(uuid, int)
+  from anon, authenticated, public;
+revoke execute on function public.apply_match_rating_effects(uuid)
+  from anon, authenticated, public;
+
+-- 8) Recording a result --------------------------------------------------------
+-- The only entry point, and the only one there should be: recording a result for
+-- the first time and correcting one already recorded are the same operation with
+-- the same rules, and two functions would be two chances for them to drift.
+--
+-- What it does, in order:
+--   1. checks the caller may manage this match
+--   2. checks the result against the approved rules
+--   3. reverses the rating changes the previous result made, if there was one
+--   4. reverses the statistics it produced
+--   5. replaces the stored result and its goals
+--   6. applies the new rating changes, recording each one
+--   7. applies the new statistics
+--
+-- Steps 3 and 4 are skipped when there is nothing to reverse, which is what
+-- makes the first recording and a correction the same call.
+--
+-- `p_goals` is `[{"user_id": "...", "goals": 2}, ...]`, one entry per scorer.
+create or replace function public.record_match_result(
+  p_match_id uuid,
+  p_team_a_score int,
+  p_team_b_score int,
+  p_mvp_user_id uuid,
+  p_goals jsonb default '[]'::jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_participants int;
+  v_total_goals int;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  perform 1 from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+
+  -- Management is a community role (PD-07, PD-16): the same predicate that gates
+  -- the lineup gates its result. Who created the match is attribution.
+  if not public.is_match_community_admin(p_match_id, auth.uid()) then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+
+  if p_team_a_score < 0 or p_team_b_score < 0 then
+    raise exception 'INVALID_SCORE';
+  end if;
+
+  -- Who played is the stored lineup. Without one there is no side for a player
+  -- to have been on, so there is no winner to reward and no loser to charge —
+  -- the rating engine has nothing to work from and the result cannot be taken.
+  select count(*) into v_participants
+  from match_team_assignments where match_id = p_match_id;
+  if v_participants = 0 then
+    raise exception 'LINEUP_REQUIRED';
+  end if;
+
+  if p_goals is null or jsonb_typeof(p_goals) <> 'array' then
+    raise exception 'INVALID_GOALS';
+  end if;
+
+  -- A scorer's entry says they scored, so nothing and less than nothing are both
+  -- refused rather than quietly dropped.
+  if exists (
+    select 1 from jsonb_array_elements(p_goals) as e
+    where coalesce((e->>'goals')::int, 0) <= 0
+  ) then
+    raise exception 'INVALID_GOALS';
+  end if;
+
+  -- Two entries for one player is not a bigger number, it is the same fact
+  -- recorded twice, and which of them counted would be arbitrary.
+  if (
+    select count(distinct e->>'user_id') from jsonb_array_elements(p_goals) as e
+  ) <> jsonb_array_length(p_goals) then
+    raise exception 'INVALID_GOALS';
+  end if;
+
+  select coalesce(sum((e->>'goals')::int), 0) into v_total_goals
+  from jsonb_array_elements(p_goals) as e;
+
+  if v_total_goals <> p_team_a_score + p_team_b_score then
+    raise exception 'GOALS_DO_NOT_MATCH_SCORE';
+  end if;
+
+  if not exists (
+    select 1 from match_team_assignments
+    where match_id = p_match_id and user_id = p_mvp_user_id
+  ) then
+    raise exception 'MVP_NOT_PARTICIPANT';
+  end if;
+
+  -- A goal is credited to somebody who played it. Otherwise a rating could be
+  -- raised for a player who was never in the match.
+  if exists (
+    select 1 from jsonb_array_elements(p_goals) as e
+    where not exists (
+      select 1 from match_team_assignments a
+      where a.match_id = p_match_id
+        and a.user_id = (e->>'user_id')::uuid
+    )
+  ) then
+    raise exception 'SCORER_NOT_PARTICIPANT';
+  end if;
+
+  -- Nothing has been written yet: everything above refuses before the previous
+  -- result is disturbed. From here the old result comes apart and the new one
+  -- goes on, in one transaction.
+  perform reverse_match_rating_effects(p_match_id);
+  perform apply_match_statistics(p_match_id, -1);
+
+  delete from match_goals where match_id = p_match_id;
+
+  insert into match_results (
+    match_id, team_a_score, team_b_score, mvp_user_id, recorded_by
+  )
+  values (
+    p_match_id, p_team_a_score, p_team_b_score, p_mvp_user_id, auth.uid()
+  )
+  on conflict (match_id) do update set
+    team_a_score = excluded.team_a_score,
+    team_b_score = excluded.team_b_score,
+    mvp_user_id = excluded.mvp_user_id,
+    recorded_by = excluded.recorded_by;
+
+  insert into match_goals (match_id, user_id, goals)
+  select p_match_id, (e->>'user_id')::uuid, (e->>'goals')::int
+  from jsonb_array_elements(p_goals) as e;
+
+  perform apply_match_rating_effects(p_match_id);
+  perform apply_match_statistics(p_match_id, 1);
+end;
+$$;
+
+revoke execute on function public.record_match_result(uuid, int, int, uuid,
+  jsonb) from anon, public;
+grant execute on function public.record_match_result(uuid, int, int, uuid,
+  jsonb) to authenticated;
+
+-- 9) A deleted match takes its effects with it ---------------------------------
+-- Deleting a match already removes its result, its goals and its audit by
+-- cascade. Without this it would leave the ratings and the counters that result
+-- produced standing, credited to a match that no longer exists and with nothing
+-- left to explain them.
+--
+-- It runs `before delete on matches`, which is the only point where all of it is
+-- still there: the referential actions that clear the children are performed
+-- after this fires, so the reversal reads a complete picture. The deliberate
+-- consequence is that deletion stays time-independent, as `delete_match` says it
+-- is — a recorded result makes a match no harder to remove, only tidier to.
+create or replace function public.reverse_match_effects_before_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform apply_match_statistics(old.id, -1);
+  perform reverse_match_rating_effects(old.id);
+  return old;
+end;
+$$;
+
+drop trigger if exists matches_reverse_result_effects on public.matches;
+create trigger matches_reverse_result_effects
+  before delete on public.matches
+  for each row
+  execute function public.reverse_match_effects_before_delete();
+
+-- 10) Authorization ------------------------------------------------------------
+-- Reading a result, its goals and the lineup's ratings is a member's business,
+-- the same way reading the lineup is. Writing any of it is not a client
+-- operation at all: `record_match_result` is the only writer, it runs
+-- `security definer`, and the absence of an insert, update or delete policy is
+-- what says so.
+--
+-- `rating_history` gets select and nothing else, which is the immutability the
+-- audit promises. `player_statistics` is world-readable to members of the app —
+-- counters are not private to their owner, and a leaderboard is the obvious next
+-- reader — while remaining unwritable from any client.
+alter table public.match_results enable row level security;
+alter table public.match_goals enable row level security;
+alter table public.rating_history enable row level security;
+alter table public.player_statistics enable row level security;
+
+drop policy if exists "match_results_select_members" on public.match_results;
+create policy "match_results_select_members"
+  on public.match_results
+  for select
+  to authenticated
+  using (public.is_match_community_member(match_id, auth.uid()));
+
+drop policy if exists "match_goals_select_members" on public.match_goals;
+create policy "match_goals_select_members"
+  on public.match_goals
+  for select
+  to authenticated
+  using (public.is_match_community_member(match_id, auth.uid()));
+
+drop policy if exists "rating_history_select_members" on public.rating_history;
+create policy "rating_history_select_members"
+  on public.rating_history
+  for select
+  to authenticated
+  using (public.is_match_community_member(match_id, auth.uid()));
+
+drop policy if exists "player_statistics_select_authenticated"
+  on public.player_statistics;
+create policy "player_statistics_select_authenticated"
+  on public.player_statistics
+  for select
+  to authenticated
+  using (true);
+
+-- ============ migrations/0023_statistics_reversal.sql ============
+-- Taking a result's counters back off.
+--
+-- Migration `0022` reversed a result's statistics with the same statement that
+-- applied them — one `insert ... on conflict (user_id) do update`, handed a
+-- contribution of -1 per counter. That cannot work, and the reason is worth
+-- writing down: PostgreSQL validates a proposed row's CHECK constraints
+-- **before** it looks for the conflict. So `(matches_played, goals) = (-1, -3)`
+-- was rejected by `player_statistics_goals_check` even though the row already
+-- existed and the statement would have taken the `do update` branch and left a
+-- perfectly valid row behind.
+--
+-- What that broke was everything that takes a result away: correcting one, and
+-- the `before delete on matches` trigger that gives a deleted match's ratings
+-- and counters back. Both raised, so a correction was refused and a match with a
+-- result could not be deleted at all.
+--
+-- The fix is to stop pretending the two directions are one statement. Adding a
+-- result may have to create a counters row; taking one away never does, because
+-- there is nothing to subtract from a player who was never added. So applying is
+-- an upsert and reversing is an update, and the arithmetic they share is stated
+-- once, below, rather than twice.
+--
+-- Scope: two functions, both `create or replace`. No table, column, constraint,
+-- policy or trigger changes, and `0022` is left exactly as it was applied.
+
+-- 1) What a result is worth to each player who played it ------------------------
+-- One row per participant, carrying the numbers their counters move by. The
+-- participants are the stored lineup — `KB-017` makes that the record of who
+-- actually played, and a win belongs to the side a player was on.
+--
+-- A match with no recorded result yields no rows, which is what the two callers
+-- below used to check for themselves.
+create or replace function public.match_result_contribution(p_match_id uuid)
+returns table (
+  user_id uuid,
+  played int,
+  won int,
+  lost int,
+  drawn int,
+  scored int,
+  mvp int
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select
+    a.user_id,
+    1,
+    case
+      when (a.team = 'A' and r.team_a_score > r.team_b_score)
+        or (a.team = 'B' and r.team_b_score > r.team_a_score)
+      then 1 else 0 end,
+    case
+      when (a.team = 'A' and r.team_a_score < r.team_b_score)
+        or (a.team = 'B' and r.team_b_score < r.team_a_score)
+      then 1 else 0 end,
+    case when r.team_a_score = r.team_b_score then 1 else 0 end,
+    coalesce(g.goals, 0),
+    case when a.user_id = r.mvp_user_id then 1 else 0 end
+  from match_results r
+  join match_team_assignments a on a.match_id = r.match_id
+  left join match_goals g
+    on g.match_id = a.match_id and g.user_id = a.user_id
+  where r.match_id = p_match_id;
+$$;
+
+-- 2) Applying and reversing, as the two statements they are ---------------------
+-- Reversing subtracts from rows that already exist. A player in the lineup with
+-- no counters row is left alone rather than created at zero and decremented:
+-- there is nothing of theirs recorded to take away.
+create or replace function public.apply_match_statistics(
+  p_match_id uuid,
+  p_sign int
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_sign < 0 then
+    update player_statistics ps set
+      matches_played = ps.matches_played - c.played,
+      wins = ps.wins - c.won,
+      losses = ps.losses - c.lost,
+      draws = ps.draws - c.drawn,
+      goals = ps.goals - c.scored,
+      mvp_count = ps.mvp_count - c.mvp
+    from match_result_contribution(p_match_id) c
+    where ps.user_id = c.user_id;
+    return;
+  end if;
+
+  insert into player_statistics as ps (
+    user_id, matches_played, wins, losses, draws, goals, mvp_count
+  )
+  select c.user_id, c.played, c.won, c.lost, c.drawn, c.scored, c.mvp
+  from match_result_contribution(p_match_id) c
+  on conflict (user_id) do update set
+    matches_played = ps.matches_played + excluded.matches_played,
+    wins = ps.wins + excluded.wins,
+    losses = ps.losses + excluded.losses,
+    draws = ps.draws + excluded.draws,
+    goals = ps.goals + excluded.goals,
+    mvp_count = ps.mvp_count + excluded.mvp_count;
+end;
+$$;
+
+-- `create or replace` keeps a function's privileges, so `apply_match_statistics`
+-- stays revoked as `0022` left it. The new helper is stated here for the same
+-- reason `0022` states them: no role reaches these through the API, and
+-- `record_match_result` remains the only entry point.
+revoke execute on function public.match_result_contribution(uuid)
+  from anon, authenticated, public;
+revoke execute on function public.apply_match_statistics(uuid, int)
+  from anon, authenticated, public;
+
+-- ============ migrations/0024_result_trigger_hardening.sql ============
+-- Holding the result triggers to the rules the project already keeps.
+--
+-- Two omissions in `0022`, both caught by the database linter and both against
+-- a rule this schema states elsewhere rather than against anything new:
+--
+--   * `reject_rating_history_update` was the one function in `0022` without
+--     `set search_path`. Every other function it added has one, and so does
+--     every function the migrations before it added.
+--
+--   * neither of the two trigger functions was revoked. Migration `0005` set the
+--     rule for `handle_new_user` and `0021` restates it: no role may reach a
+--     trigger function through the API. PostgREST exposes anything callable in
+--     `public`, and while calling a trigger function directly only earns an
+--     error, the rule is that it should not be reachable to try.
+--
+-- Behaviour is unchanged: same bodies, same triggers, same effects. `0022` and
+-- `0023` are left exactly as they were applied.
+
+create or replace function public.reject_rating_history_update()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  raise exception 'RATING_HISTORY_IMMUTABLE';
+end;
+$$;
+
+revoke execute on function public.reject_rating_history_update()
+  from anon, authenticated, public;
+revoke execute on function public.reverse_match_effects_before_delete()
+  from anon, authenticated, public;

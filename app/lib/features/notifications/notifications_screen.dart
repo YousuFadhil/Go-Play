@@ -1,19 +1,29 @@
 import 'package:flutter/material.dart';
+
 import 'package:intl/intl.dart';
 
+import '../../core/app_header.dart';
+import '../../core/design.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
+import 'notification_display.dart';
 import 'notification_models.dart';
 import 'notification_service.dart';
+import 'notification_settings_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+  const NotificationsScreen({super.key, this.service});
+
+  /// Supplied only by tests, exactly as the repositories take an optional port.
+  final NotificationService? service;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final _service = NotificationService();
+  late final NotificationService _service =
+      widget.service ?? NotificationService();
   late Future<List<AppNotification>> _future;
 
   @override
@@ -35,28 +45,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
   }
 
-  /// Localized text for a notification, falling back to the stored message.
-  String _text(AppLocalizations l10n, AppNotification n) {
-    return switch (n.type) {
-      'match_updated' => l10n.notifMatchUpdated,
-      'moved_to_reserve' => l10n.notifMovedToReserve,
-      'removed' => l10n.notifRemoved,
-      'promoted' => l10n.notifPromoted,
-      'match_deleted' => l10n.notifMatchDeleted,
-      _ => n.message,
-    };
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationSettingsScreen()),
+    );
   }
 
-  IconData _icon(String type) {
-    return switch (type) {
-      'match_updated' => Icons.edit_calendar,
-      'moved_to_reserve' => Icons.hourglass_top,
-      'removed' => Icons.person_remove,
-      'promoted' => Icons.arrow_upward,
-      'match_deleted' => Icons.delete_forever,
-      _ => Icons.notifications,
-    };
-  }
+  /// Localized text for a notification, falling back to the stored message.
+  ///
+  /// The fallback is Arabic whatever the reader's language, so a type with no
+  /// entry in [notificationDisplays] is a defect rather than a graceful
+  /// degradation — it renders in one language for everybody and says nothing
+  /// about why.
+  String _text(AppLocalizations l10n, AppNotification n) =>
+      notificationDisplays[n.type]?.label(l10n) ?? n.message;
 
   @override
   Widget build(BuildContext context) {
@@ -64,37 +66,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final locale = Localizations.localeOf(context).toString();
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.notificationsTitle)),
+      appBar: AppHeader(
+        title: Text(l10n.notificationsTitle),
+        actions: [
+          IconButton(
+            tooltip: l10n.pushSettingsTitle,
+            icon: const Icon(Icons.notifications_active_outlined),
+            onPressed: _openSettings,
+          ),
+        ],
+      ),
       body: FutureBuilder<List<AppNotification>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingState();
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(l10n.loadFailed),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _refresh,
-                    child: Text(l10n.retryButton),
-                  ),
-                ],
-              ),
-            );
+            return ErrorState(onRetry: _refresh);
           }
 
           final items = snapshot.data ?? const [];
           if (items.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(l10n.notificationsEmpty,
-                    textAlign: TextAlign.center),
-              ),
+            return EmptyState(
+              icon: Icons.notifications_none,
+              message: l10n.notificationsEmpty,
             );
           }
 
@@ -102,15 +98,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             onRefresh: () async => _refresh(),
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: Gap.xl),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, indent: Gap.xxl + Gap.xl),
               itemBuilder: (context, index) {
                 final n = items[index];
+                final display = notificationDisplays[n.type];
+                // An unregistered type still renders — as a plain notice in
+                // whatever language it was stored in, which is what an
+                // unrecognised kind of thing honestly looks like.
+                final (background, foreground) =
+                    (display?.tone ?? NotificationTone.neutral)
+                        .colours(Theme.of(context).colorScheme);
+
+                final theme = Theme.of(context);
+
                 return ListTile(
-                  leading: CircleAvatar(child: Icon(_icon(n.type))),
-                  title: Text(_text(l10n, n)),
+                  leading: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: background,
+                    foregroundColor: foreground,
+                    child: Icon(display?.icon ?? Icons.notifications, size: 20),
+                  ),
+                  title: Text(_text(l10n, n), style: theme.textTheme.bodyLarge),
                   subtitle: Text(
                     DateFormat.yMMMEd(locale).add_Hm().format(n.createdAt),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 );
               },

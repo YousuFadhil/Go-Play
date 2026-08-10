@@ -1,3 +1,4 @@
+import '../../core/diagnostics.dart';
 import '../../infrastructure/supabase/supabase_match_adapter.dart';
 import 'match_adapter.dart';
 import 'match_models.dart';
@@ -66,8 +67,22 @@ class MatchService {
   Future<void> removePlayer(String matchId, String userId) =>
       _adapter.removePlayer(matchId, userId);
 
-  /// Deletes a match that is not completed, after notifying registered players.
-  Future<void> deleteMatch(String matchId) => _adapter.deleteMatch(matchId);
+  /// Deletes a match, after notifying registered players.
+  ///
+  /// Completion is no bar to it: `delete_match` has never checked, and the
+  /// `before delete on matches` trigger gives back every rating and counter the
+  /// match's result produced, so a played match is no harder to remove than an
+  /// empty one — only tidier to.
+  Future<void> deleteMatch(String matchId) async {
+    Diagnostics.trace('service', 'deleteMatch $matchId');
+    try {
+      await _adapter.deleteMatch(matchId);
+      Diagnostics.trace('service', 'deleteMatch ok');
+    } catch (error) {
+      Diagnostics.trace('service', 'deleteMatch threw $error');
+      rethrow;
+    }
+  }
 
   /// The global reserve allowance. Capacity is enforced server-side; this is
   /// only so the create/edit screens can show the derived maximum.

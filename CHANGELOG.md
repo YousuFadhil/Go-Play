@@ -1,5 +1,46 @@
 # سجل التغييرات — Go Play
 
+## v0.4.0-public-beta — 2026-08-09
+
+**The first public beta.** Go Play opens to visitors: the app now has a public
+front door, communities are the place everything happens, and the whole
+interface has been redrawn around both.
+
+### Discover, and browsing without an account
+
+- **A public Discover homepage.** Opening the app now shows the communities and
+  matches that are open to everyone, rather than a login screen.
+- **Guest browsing.** A visitor can look around — browse communities, read
+  match details, see who is playing — before deciding to sign up. Signing in is
+  asked for at the point it is actually needed, and not before.
+- **Public view security hardening.** What a guest can see is defined
+  deliberately and narrowly: public reads expose only the fields meant to be
+  public, and everything else stays behind membership as it always did.
+
+### Community-first experience
+
+- The community is the centre of the app. Joining, members, matches, results
+  and standings are all reached from the community itself, with one join code
+  and one join policy per community.
+
+### Matches and results
+
+- **The best player is now optional.** A match result can be recorded without
+  naming an MVP, and one can be named later without redoing anything.
+- **Team formation visualization.** Generated teams are shown on a pitch, in
+  formation, so a line-up can be read at a glance instead of as a list.
+
+### Interface
+
+- **A redesigned interface** across the app: clearer screens, consistent
+  navigation, and loading states that show the shape of what is coming.
+- **A redesigned profile** bringing a player's rating, statistics and details
+  together in one place.
+- **A shared design system.** One set of colours, type, spacing and components
+  used by every screen, so the app looks and behaves the same throughout.
+- **12-hour localized time.** Times read the way they are spoken — 12-hour with
+  a localized AM/PM — in both Arabic and English.
+
 ## v0.6.0-mvp — 2026-07-27
 
 **تبسيط Community-first، سياسة الانضمام، ودور مدير النظام.**

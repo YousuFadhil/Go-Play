@@ -4,6 +4,17 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase, and only if it is set up.
+//
+// `google-services` fails the build outright when `google-services.json` is
+// missing, which would mean nobody could build the app until somebody added a
+// file that is deliberately not in the repository (it carries project keys).
+// Applied conditionally instead: with the file, push works; without it, the app
+// builds and runs and PushService reports push as unavailable.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.goplay.go_play"
     compileSdk = flutter.compileSdkVersion

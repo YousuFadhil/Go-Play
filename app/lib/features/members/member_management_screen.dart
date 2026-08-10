@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_header.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../communities/community_models.dart';
@@ -122,7 +123,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     final myId = _authService.currentUserId;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.manageMembersTitle)),
+      appBar: AppHeader(title: Text(l10n.manageMembersTitle)),
       body: FutureBuilder<_Data>(
         future: _future,
         builder: (context, snapshot) {

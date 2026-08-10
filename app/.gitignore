@@ -18,6 +18,11 @@ ios/.symlinks/
 
 # Secrets
 *.env
+# Firebase project configuration. Carries the project's own identifiers, is
+# per-environment, and the Android build applies google-services only when the
+# file is present — so a checkout without it still builds, without push.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
 
 # Kotlin build logs
 android/.kotlin/

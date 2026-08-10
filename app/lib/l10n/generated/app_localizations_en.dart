@@ -99,6 +99,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get positionFwd => 'Forward';
 
   @override
+  String get secondaryPositionLabel => 'Secondary position (optional)';
+
+  @override
+  String get noSecondaryPosition => 'None';
+
+  @override
+  String get secondaryPositionSameAsPrimary =>
+      'Secondary position must differ from the primary position';
+
+  @override
+  String get dateOfBirthLabel => 'Date of birth';
+
+  @override
+  String get dateOfBirthRequired => 'Date of birth is required';
+
+  @override
+  String get selectDateLabel => 'Select date';
+
+  @override
+  String get profileTitle => 'Profile';
+
+  @override
+  String get profileSaved => 'Profile updated.';
+
+  @override
+  String get profileSaveFailed =>
+      'Failed to save your profile. Please try again.';
+
+  @override
   String get homeTitle => 'Home';
 
   @override
@@ -208,7 +237,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startingPlayersLabel => 'Starting players';
 
   @override
-  String get startingPlayersInvalid => 'Enter a number between 2 and 30';
+  String get startingPlayersInvalid => 'Enter a number between 4 and 30';
 
   @override
   String capacityAutoNote(int reserve, int max) {
@@ -218,6 +247,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get matchCreateFailed =>
       'Failed to create the match. Please try again.';
+
+  @override
+  String get errInvalidTitle => 'Enter a match name of at least 2 characters.';
+
+  @override
+  String get errInvalidLocation => 'Enter a location of at least 2 characters.';
+
+  @override
+  String get errCommunityInactive =>
+      'This community is no longer active, so no new match can be created in it.';
 
   @override
   String get communityMatchesEmpty => 'No matches in this community yet.';
@@ -323,6 +362,73 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifMatchDeleted => 'The match was deleted.';
 
   @override
+  String get notifMatchCreated => 'A new match has been created.';
+
+  @override
+  String get notifRegistrationOpened => 'Registration is now open.';
+
+  @override
+  String get notifMatchFull => 'The match is now full.';
+
+  @override
+  String get notifTeamsRegenerated => 'The teams were regenerated.';
+
+  @override
+  String get notifMatchStartingSoon =>
+      'Your match starts in less than an hour.';
+
+  @override
+  String get notifMatchTimeChanged => 'The match time has changed.';
+
+  @override
+  String get notifCommunityInvitation =>
+      'You have been invited to a community.';
+
+  @override
+  String get notifCommunityJoinAccepted => 'Your request to join was accepted.';
+
+  @override
+  String get notifCommunityPictureUpdated =>
+      'The community picture was updated.';
+
+  @override
+  String get notifCommunityDescriptionUpdated =>
+      'The community description was updated.';
+
+  @override
+  String get notifCommunitySettingsUpdated =>
+      'The community settings were updated.';
+
+  @override
+  String get pushSettingsTitle => 'Push notifications';
+
+  @override
+  String get pushSettingsIntro =>
+      'Every notification is kept in the app. These switches only decide what your phone alerts you about.';
+
+  @override
+  String get pushMatchLabel => 'Match notifications';
+
+  @override
+  String get pushMatchSubtitle => 'Registration, player changes and reminders.';
+
+  @override
+  String get pushCommunityLabel => 'Community notifications';
+
+  @override
+  String get pushCommunitySubtitle => 'Invitations and membership.';
+
+  @override
+  String get pushMuteAllLabel => 'Mute all push notifications';
+
+  @override
+  String get pushMuteAllSubtitle =>
+      'Nothing is sent to your phone. Your notification history is unchanged.';
+
+  @override
+  String get pushSaveFailed => 'That setting could not be saved. Try again.';
+
+  @override
   String get matchManagementTitle => 'Match management';
 
   @override
@@ -359,7 +465,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteMatchHint =>
-      'Registered players are notified. Completed matches cannot be deleted.';
+      'Registered players are notified. Deleting a completed match also takes back every statistic and rating its result produced.';
 
   @override
   String get deleteMatchConfirmTitle => 'Delete this match?';
@@ -689,4 +795,523 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get adminDeleteMatchConfirmBody =>
       'The match and its registrations are removed, and registered players are notified. This cannot be undone.';
+
+  @override
+  String get teamsTitle => 'Teams';
+
+  @override
+  String get teamsEmpty => 'Teams have not been generated for this match yet.';
+
+  @override
+  String get generateTeamsButton => 'Generate teams';
+
+  @override
+  String get regenerateTeamsButton => 'Regenerate teams';
+
+  @override
+  String get regenerateTeamsConfirmTitle => 'Generate the teams again?';
+
+  @override
+  String get regenerateTeamsConfirmBody =>
+      'The current teams are replaced by a new split of the confirmed players.';
+
+  @override
+  String get teamsGenerated => 'Teams generated.';
+
+  @override
+  String get teamAName => 'Team A';
+
+  @override
+  String get teamBName => 'Team B';
+
+  @override
+  String get teamsOutOfPosition => 'Out of position';
+
+  @override
+  String teamsPlayerRangeNote(int min, int max, int count) {
+    return 'Generating teams needs between $min and $max confirmed players. This match has $count.';
+  }
+
+  @override
+  String get errMissingPlayerInputs =>
+      'Some confirmed players have an incomplete profile. Each of them needs a date of birth before teams can be generated.';
+
+  @override
+  String get errTeamsNotGenerated =>
+      'Teams could not be generated from this roster.';
+
+  @override
+  String editPlayerTitle(String player) {
+    return 'Edit $player';
+  }
+
+  @override
+  String get movePlayerAction => 'Move to the other team';
+
+  @override
+  String get swapPlayerAction => 'Swap with a player';
+
+  @override
+  String get changePositionAction => 'Change position';
+
+  @override
+  String get swapPlayerTitle => 'Swap with';
+
+  @override
+  String get swapNobodyAvailable => 'The other team has nobody to swap with.';
+
+  @override
+  String get changePositionTitle => 'Assigned position';
+
+  @override
+  String get lineupUpdated => 'Lineup updated.';
+
+  @override
+  String get errLineupRefused =>
+      'That change was refused. A team cannot have two goalkeepers.';
+
+  @override
+  String get errLineupNotChanged =>
+      'That change no longer applies to this lineup. It has been reloaded.';
+
+  @override
+  String get matchResultTitle => 'Match result';
+
+  @override
+  String get saveResultButton => 'Save result';
+
+  @override
+  String get resultSaved => 'Match result saved successfully';
+
+  @override
+  String get resultOrganizersOnly =>
+      'Only the community owner and admins can record a match result.';
+
+  @override
+  String get mvpLabel => 'Best player';
+
+  @override
+  String get addGoalLabel => 'Add a goal';
+
+  @override
+  String get removeGoalLabel => 'Remove a goal';
+
+  @override
+  String goalsScoredLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count goals',
+      one: '1 goal',
+      zero: 'No goals',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String goalsRecordedNote(int recorded, int total) {
+    return '$recorded of $total goals assigned to a scorer.';
+  }
+
+  @override
+  String get editResultConfirmTitle => 'Replace the recorded result?';
+
+  @override
+  String get editResultConfirmBody =>
+      'The ratings and statistics the previous result produced are reversed, and the new result is applied instead.';
+
+  @override
+  String get errGoalsDoNotMatchScore =>
+      'The goals assigned to scorers must add up to the final score.';
+
+  @override
+  String get errMvpNotParticipant =>
+      'The best player must be one of the players in this match.';
+
+  @override
+  String get errScorerNotParticipant =>
+      'A goal can only be credited to a player in this match.';
+
+  @override
+  String get errResultNeedsLineup =>
+      'Teams have not been generated for this match yet. The result needs to know which side each player was on.';
+
+  @override
+  String get errInvalidResultNumbers =>
+      'The result could not be saved. Check the scores and the goals.';
+
+  @override
+  String get dashboardTab => 'Dashboard';
+
+  @override
+  String get communityStatisticsTitle => 'Community statistics';
+
+  @override
+  String get statTotalMatches => 'Total matches';
+
+  @override
+  String get statTotalPlayers => 'Total players';
+
+  @override
+  String get statTotalGoals => 'Total goals';
+
+  @override
+  String get statLeadersTitle => 'Leaders';
+
+  @override
+  String get statTopScorer => 'Top scorer';
+
+  @override
+  String get statMostActivePlayer => 'Most active player';
+
+  @override
+  String get statMostMvp => 'Most valuable player';
+
+  @override
+  String get statNoneYet => 'Not yet';
+
+  @override
+  String get statFormerPlayer => 'Former player';
+
+  @override
+  String statMatchesPlayedValue(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count matches',
+      one: '1 match',
+      zero: 'No matches',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String statMvpValue(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count times',
+      one: '1 time',
+      zero: 'Never',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get statScopeNote =>
+      'Player statistics count matches whose result has been recorded. Total matches counts every match the community has created.';
+
+  @override
+  String get statEmptyBody =>
+      'No results have been recorded in this community yet. Statistics appear once a match result is saved.';
+
+  @override
+  String get playerStatisticsTitle => 'My statistics';
+
+  @override
+  String get statCurrentRating => 'Current rating';
+
+  @override
+  String get statMatchesPlayed => 'Matches played';
+
+  @override
+  String get statWins => 'Wins';
+
+  @override
+  String get statDraws => 'Draws';
+
+  @override
+  String get statLosses => 'Losses';
+
+  @override
+  String get statGoals => 'Goals';
+
+  @override
+  String get statMvpCount => 'Best player awards';
+
+  @override
+  String get statCareerNote =>
+      'Your record across every community you play in. These figures are set by the app when a match result is recorded, and count matches whose result has been saved.';
+
+  @override
+  String get statNoMatchesYet =>
+      'You have not played a recorded match yet. Your figures start at zero and the rating is the starting rating every player is given.';
+
+  @override
+  String get leaderboardsTab => 'Leaderboards';
+
+  @override
+  String get leaderboardHighestRated => 'Highest rated';
+
+  @override
+  String get leaderboardTopScorer => 'Top scorer';
+
+  @override
+  String get leaderboardMostMvp => 'Most valuable player';
+
+  @override
+  String get leaderboardMostActive => 'Most active';
+
+  @override
+  String get leaderboardMostWins => 'Most wins';
+
+  @override
+  String get leaderboardsEmpty =>
+      'No leaderboards yet. Once a match result is recorded, this is where the community sees who is leading.';
+
+  @override
+  String get leaderboardRatingNote =>
+      'Highest rated ranks by the player\'s overall rating across every community.';
+
+  @override
+  String get cancelButton => 'Cancel';
+
+  @override
+  String get changeAction => 'Change';
+
+  @override
+  String get editProfileTitle => 'Edit profile';
+
+  @override
+  String get editProfileAction => 'Edit profile';
+
+  @override
+  String get profilePersonalSection => 'Personal information';
+
+  @override
+  String get profileAccountSection => 'Account';
+
+  @override
+  String get profilePlayingSection => 'Playing profile';
+
+  @override
+  String get passwordHiddenNote => 'Hidden for your security';
+
+  @override
+  String get changeEmailTitle => 'Change email';
+
+  @override
+  String get changePasswordTitle => 'Change password';
+
+  @override
+  String get confirmPasswordLabel => 'Confirm password';
+
+  @override
+  String get passwordsDoNotMatch => 'The two passwords do not match';
+
+  @override
+  String get passwordChanged => 'Password changed.';
+
+  @override
+  String get emailChangeRequested =>
+      'Check your new address for the confirmation link.';
+
+  @override
+  String get avatarChangeAction => 'Change photo';
+
+  @override
+  String get avatarSourceCamera => 'Take a photo';
+
+  @override
+  String get avatarSourceGallery => 'Choose from gallery';
+
+  @override
+  String get ageLabel => 'Age';
+
+  @override
+  String get avatarRemoveAction => 'Remove photo';
+
+  @override
+  String get avatarUpdated => 'Photo updated.';
+
+  @override
+  String get avatarRemoved => 'Photo removed.';
+
+  @override
+  String get avatarUploadFailed =>
+      'Could not update the photo. Please try again.';
+
+  @override
+  String ageYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count years old',
+      one: '1 year old',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get logoutConfirmTitle => 'Log out?';
+
+  @override
+  String get logoutConfirmBody =>
+      'You will need to sign in again to use Go Play.';
+
+  @override
+  String get completedMatchesTitle => 'Completed matches';
+
+  @override
+  String get addPlayedPlayerAction => 'Add a player who played';
+
+  @override
+  String get addPlayedPlayerNobodyAvailable =>
+      'Every community member is already in this lineup.';
+
+  @override
+  String get removePlayedPlayerAction => 'Remove from the match';
+
+  @override
+  String get removePlayedPlayerConfirmTitle => 'Remove this player?';
+
+  @override
+  String removePlayedPlayerConfirmBody(String name) {
+    return '$name will be taken out of the lineup, and every statistic and rating this match gave them will be taken back.';
+  }
+
+  @override
+  String get editPlayedMatchNote =>
+      'Changes to a completed match recalculate statistics, ratings and leaderboards.';
+
+  @override
+  String get chooseTeamTitle => 'Which team?';
+
+  @override
+  String get choosePositionTitle => 'Which position?';
+
+  @override
+  String get errResultParticipantRemoved =>
+      'This player is the best player or a scorer in the recorded result. Edit the result first.';
+
+  @override
+  String get errMatchNotCompleted =>
+      'Only a completed match\'s players can be corrected this way.';
+
+  @override
+  String get communityTitle => 'Community';
+
+  @override
+  String get discoverHeroTitle => 'Football, with your people.';
+
+  @override
+  String get discoverHeroBody =>
+      'Find a community near you, see what is being played this week, and take your place on the pitch.';
+
+  @override
+  String get discoverAlreadyHaveAccount => 'Already have an account? Log in';
+
+  @override
+  String discoverSeatsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count places left',
+      one: '1 place left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoverMemberCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count members',
+      one: '1 member',
+      zero: 'No members',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoverUpcomingCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count upcoming matches',
+      one: '1 upcoming match',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get discoverNoUpcomingMatches =>
+      'Nothing is scheduled just yet. Check back soon.';
+
+  @override
+  String get discoverNoCommunities =>
+      'No communities yet. Be the first to start one.';
+
+  @override
+  String get discoverCtaTitle => 'Ready to play?';
+
+  @override
+  String get discoverCtaBody =>
+      'Create an account to join a community, register for matches, and start your own.';
+
+  @override
+  String get authRequiredTitle => 'Account needed';
+
+  @override
+  String get authRequiredJoinCommunity =>
+      'Create an account to join this community.';
+
+  @override
+  String get authRequiredRegisterMatch =>
+      'Create an account to register for this match.';
+
+  @override
+  String get authRequiredCreateCommunity =>
+      'Create an account to start your own community.';
+
+  @override
+  String get mvpOptionalNote =>
+      'Tap a star to name the best player. This is optional — the result saves without one.';
+
+  @override
+  String get navDiscover => 'Discover';
+
+  @override
+  String get viewCommunityAction => 'View community';
+
+  @override
+  String get viewMatchAction => 'View match';
+
+  @override
+  String discoverWelcomeBack(String name) {
+    return 'Welcome back, $name';
+  }
+
+  @override
+  String get discoverHeroBodySignedIn =>
+      'See what your communities are playing this week, and find new ones to join.';
+
+  @override
+  String discoverCommunityCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count communities',
+      one: '1 community',
+      zero: 'No communities',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get discoverCtaTitleSignedIn => 'Start something of your own';
+
+  @override
+  String get discoverCtaBodySignedIn =>
+      'Create a community and bring your regular game together in one place.';
+
+  @override
+  String get discoverMatchesSubtitle => 'Games with places still open';
+
+  @override
+  String get discoverCommunitiesSubtitle => 'Clubs you can join';
+
+  @override
+  String get homeUpcomingSubtitle => 'Across your communities';
 }

@@ -5,6 +5,7 @@ import 'app.dart';
 import 'core/config.dart';
 import 'core/config_error_app.dart';
 import 'core/locale_controller.dart';
+import 'features/notifications/push_service.dart';
 import 'infrastructure/supabase/supabase_bootstrap.dart';
 
 Future<void> main() async {
@@ -27,6 +28,12 @@ Future<void> main() async {
   }
 
   await SupabaseBootstrap.initialize();
+
+  // Follows the session from here on: registers this device when somebody signs
+  // in, forgets it when they sign out. Returns as soon as it is listening —
+  // Firebase itself is reached on the first signed-in event, and an unconfigured
+  // or refused Firebase costs the app nothing but push.
+  await PushService.instance.start();
 
   runApp(const GoPlayApp());
 }

@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:btge/btge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/features/admin/admin_adapter.dart';
@@ -14,6 +17,12 @@ import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'package:go_play/features/profile/profile_adapter.dart';
+import 'package:go_play/features/profile/profile_models.dart';
+import 'package:go_play/features/profile/profile_repository.dart';
+import 'package:go_play/features/teams/team_adapter.dart';
+import 'package:go_play/features/teams/team_models.dart';
+import 'package:go_play/features/teams/team_repository.dart';
 
 /// What the repositories decide once the provider is out of the way (OP-6).
 ///
@@ -215,15 +224,30 @@ void main() {
   });
 
   group('AuthService.register', () {
+    final birthday = DateTime(1995, 4, 17);
+
+    Future<void> register(
+      FakeAuthAdapter adapter, {
+      String email = 'player@example.com',
+      String localPhone = '90123456',
+      String fullName = 'Sara',
+      PlayerPosition position = PlayerPosition.mid,
+      DateTime? dateOfBirth,
+      PlayerPosition? secondaryPosition,
+    }) =>
+        AuthService(adapter).register(
+          email: email,
+          localPhone: localPhone,
+          password: 'secret',
+          fullName: fullName,
+          position: position,
+          dateOfBirth: dateOfBirth ?? birthday,
+          secondaryPosition: secondaryPosition,
+        );
+
     test('stores the phone in its full international form', () async {
       final adapter = FakeAuthAdapter();
-      await AuthService(adapter).register(
-        email: 'player@example.com',
-        localPhone: '9012 3456',
-        password: 'secret',
-        fullName: 'Sara',
-        position: PlayerPosition.mid,
-      );
+      await register(adapter, localPhone: '9012 3456');
 
       expect(adapter.lastPhone, '+96890123456');
       expect(adapter.lastPosition, PlayerPosition.mid);
@@ -231,16 +255,76 @@ void main() {
 
     test('trims the email and the name', () async {
       final adapter = FakeAuthAdapter();
-      await AuthService(adapter).register(
-        email: '  player@example.com ',
-        localPhone: '90123456',
-        password: 'secret',
-        fullName: '  Sara  ',
-        position: PlayerPosition.gk,
-      );
+      await register(adapter,
+          email: '  player@example.com ',
+          fullName: '  Sara  ',
+          position: PlayerPosition.gk);
 
       expect(adapter.lastEmail, 'player@example.com');
       expect(adapter.lastFullName, 'Sara');
+    });
+
+    test('the profile §4.1 asks for reaches the adapter as it was given',
+        () async {
+      final adapter = FakeAuthAdapter();
+      await register(adapter,
+          position: PlayerPosition.gk, secondaryPosition: PlayerPosition.def);
+
+      expect(adapter.lastDateOfBirth, birthday);
+      expect(adapter.lastPosition, PlayerPosition.gk);
+      expect(adapter.lastSecondaryPosition, PlayerPosition.def);
+    });
+
+    test('a player who named no secondary position registers without one',
+        () async {
+      final adapter = FakeAuthAdapter();
+      await register(adapter);
+
+      expect(adapter.signUpCount, 1);
+      expect(adapter.lastSecondaryPosition, isNull,
+          reason: 'a missing secondary is ordinary input (BTGE-SC-6), and no '
+              'value stands in for it');
+    });
+
+    test('the date of birth is stored as a date, with no time of day',
+        () async {
+      final adapter = FakeAuthAdapter();
+      await register(adapter, dateOfBirth: DateTime(1995, 4, 17, 23, 30));
+
+      expect(adapter.lastDateOfBirth, DateTime(1995, 4, 17));
+    });
+
+    test('a secondary position that repeats the primary is refused before the '
+        'adapter is reached', () async {
+      final adapter = FakeAuthAdapter();
+
+      await expectLater(
+        register(adapter,
+            position: PlayerPosition.mid,
+            secondaryPosition: PlayerPosition.mid),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.signUpCount, 0);
+    });
+
+    test('a date of birth that has not happened yet is refused before the '
+        'adapter is reached', () async {
+      final adapter = FakeAuthAdapter();
+
+      await expectLater(
+        register(adapter,
+            dateOfBirth: DateTime.now().add(const Duration(days: 1))),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.signUpCount, 0);
+    });
+
+    test('today is a date of birth, not a future one', () async {
+      // The boundary the rule is stated at: born today is behind us.
+      final adapter = FakeAuthAdapter();
+      await register(adapter, dateOfBirth: DateTime.now());
+
+      expect(adapter.signUpCount, 1);
     });
 
     test('sign-in trims the email too', () async {
@@ -249,6 +333,244 @@ void main() {
           .login(email: '  player@example.com ', password: 'secret');
 
       expect(adapter.lastEmail, 'player@example.com');
+    });
+  });
+
+  group('ProfileRepository', () {
+    final birthday = DateTime(1995, 4, 17);
+
+    Future<void> save(
+      FakeProfileAdapter adapter, {
+      DateTime? dateOfBirth,
+      PlayerPosition primary = PlayerPosition.mid,
+      PlayerPosition? secondary,
+    }) =>
+        ProfileRepository(adapter).saveMyProfile(
+          dateOfBirth: dateOfBirth ?? birthday,
+          primaryPosition: primary,
+          secondaryPosition: secondary,
+        );
+
+    test('reads back what is stored, missing date of birth and all', () async {
+      // The nine accounts that predate the date-of-birth field look like this,
+      // and §4.3 forbids the layer below inventing one for them.
+      final profile = await ProfileRepository(
+        FakeProfileAdapter(
+          profile: const PlayerProfile(
+            fullName: 'Salim Al Harthy',
+            phone: '+96890123456',
+            primaryPosition: PlayerPosition.fwd,
+          ),
+        ),
+      ).fetchMyProfile();
+
+      expect(profile.dateOfBirth, isNull);
+      expect(profile.secondaryPosition, isNull);
+      expect(profile.primaryPosition, PlayerPosition.fwd);
+      expect(profile.isComplete, isFalse);
+    });
+
+    test('a completed profile reports itself complete', () async {
+      final profile = await ProfileRepository(
+        FakeProfileAdapter(
+          profile: PlayerProfile(
+            fullName: 'Salim Al Harthy',
+            phone: '+96890123456',
+            primaryPosition: PlayerPosition.gk,
+            dateOfBirth: birthday,
+            secondaryPosition: PlayerPosition.def,
+          ),
+        ),
+      ).fetchMyProfile();
+
+      expect(profile.isComplete, isTrue);
+    });
+
+    test('the three inputs reach the adapter as they were given', () async {
+      final adapter = FakeProfileAdapter();
+      await save(adapter,
+          primary: PlayerPosition.gk, secondary: PlayerPosition.def);
+
+      expect(adapter.writes, 1);
+      expect(adapter.lastDateOfBirth, birthday);
+      expect(adapter.lastPrimaryPosition, PlayerPosition.gk);
+      expect(adapter.lastSecondaryPosition, PlayerPosition.def);
+    });
+
+    test('removing the secondary position writes its absence', () async {
+      final adapter = FakeProfileAdapter();
+      await save(adapter);
+
+      expect(adapter.writes, 1);
+      expect(adapter.lastSecondaryPosition, isNull);
+    });
+
+    test('the date of birth is stored as a date, with no time of day',
+        () async {
+      final adapter = FakeProfileAdapter();
+      await save(adapter, dateOfBirth: DateTime(1995, 4, 17, 23, 30));
+
+      expect(adapter.lastDateOfBirth, DateTime(1995, 4, 17));
+    });
+
+    test('a secondary position that repeats the primary is refused before the '
+        'adapter is reached', () async {
+      final adapter = FakeProfileAdapter();
+
+      await expectLater(
+        save(adapter, primary: PlayerPosition.mid, secondary: PlayerPosition.mid),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.writes, 0);
+    });
+
+    test('a date of birth that has not happened yet is refused before the '
+        'adapter is reached', () async {
+      final adapter = FakeProfileAdapter();
+
+      await expectLater(
+        save(adapter, dateOfBirth: DateTime.now().add(const Duration(days: 1))),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.writes, 0);
+    });
+
+    test('the account is written by its own call, trimmed', () async {
+      final adapter = FakeProfileAdapter();
+      await ProfileRepository(adapter).saveMyAccount(
+        fullName: '  Salim Al Harthy  ',
+        phone: '+96890123456',
+      );
+
+      expect(adapter.accountWrites, 1);
+      expect(adapter.lastFullName, 'Salim Al Harthy');
+      expect(adapter.lastPhone, '+96890123456');
+      expect(adapter.writes, 0,
+          reason: 'correcting a name never rewrites the playing inputs');
+    });
+
+    test('a name too short to identify anybody is refused before the adapter',
+        () async {
+      final adapter = FakeProfileAdapter();
+
+      await expectLater(
+        ProfileRepository(adapter)
+            .saveMyAccount(fullName: '  a ', phone: '+96890123456'),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.accountWrites, 0);
+    });
+
+    test('a picture is stored and its address handed back', () async {
+      final adapter = FakeProfileAdapter();
+      final url = await ProfileRepository(adapter).uploadMyAvatar(
+        bytes: Uint8List.fromList(const [1, 2, 3]),
+        fileExtension: 'png',
+      );
+
+      expect(adapter.avatarUploads, 1);
+      expect(adapter.lastFileExtension, 'png');
+      expect(url, 'https://example.test/avatar.png');
+    });
+
+    test('removing a picture is a pass-through', () async {
+      final adapter = FakeProfileAdapter();
+      await ProfileRepository(adapter).removeMyAvatar();
+
+      expect(adapter.avatarRemovals, 1);
+    });
+  });
+
+  group('AuthService credentials', () {
+    test('the address is trimmed and checked before the port is reached',
+        () async {
+      final adapter = FakeAuthAdapter();
+      await AuthService(adapter).changeEmail('  new@example.com ');
+
+      expect(adapter.changedEmail, 'new@example.com');
+    });
+
+    test('the confirmation link is told to come back to the app', () async {
+      final adapter = FakeAuthAdapter();
+      await AuthService(adapter).changeEmail('new@example.com');
+
+      // Without a redirect the provider falls back to its configured Site URL,
+      // and the player confirms the change and never returns to Go Play. The
+      // scheme has to match the Android manifest's intent filter and the
+      // Supabase project's Redirect URLs allow-list; neither is checkable from
+      // here, which is why the value is stated once and asserted rather than
+      // inlined at the call.
+      expect(adapter.changedRedirect, AuthService.emailChangeRedirect);
+      // These tests run on the VM, so this is the native answer.
+      expect(AuthService.emailChangeRedirect, 'goplay://login-callback');
+      expect(AuthService.nativeEmailChangeRedirect, 'goplay://login-callback');
+    });
+
+    test('the web callback is the origin of the page serving the app', () {
+      // The web build cannot send `goplay://` — a browser has no way to follow
+      // it. What it sends instead is read off the running page, because this
+      // project has no registered web origin to hard-code.
+      expect(
+        AuthService.webEmailChangeRedirect(Uri.parse('https://play.example.com/')),
+        'https://play.example.com/login-callback',
+      );
+
+      // The path of whatever page the reader was on is not part of the origin,
+      // so the callback is the same wherever the change was started from.
+      expect(
+        AuthService.webEmailChangeRedirect(
+          Uri.parse('https://play.example.com/profile/edit?tab=account'),
+        ),
+        'https://play.example.com/login-callback',
+      );
+
+      // A non-default port survives, which is what makes a local build work.
+      expect(
+        AuthService.webEmailChangeRedirect(Uri.parse('http://localhost:8111/')),
+        'http://localhost:8111/login-callback',
+      );
+
+      // The default port does not, or the origin would not match the one the
+      // allow-list was given.
+      expect(
+        AuthService.webEmailChangeRedirect(Uri.parse('https://play.example.com:443/')),
+        'https://play.example.com/login-callback',
+      );
+    });
+
+    test('an address that is not one is refused here', () async {
+      final adapter = FakeAuthAdapter();
+
+      await expectLater(
+        AuthService(adapter).changeEmail('not-an-email'),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.changedEmail, isNull);
+    });
+
+    test('changing an email to the one already held is not a change', () async {
+      final adapter = FakeAuthAdapter()..email = 'player@example.com';
+
+      await expectLater(
+        AuthService(adapter).changeEmail('PLAYER@example.com'),
+        throwsA(isA<ValidationFailure>()),
+        // Case-insensitively: it is the same address, and the provider would
+        // send a confirmation for nothing.
+      );
+      expect(adapter.changedEmail, isNull);
+    });
+
+    test('a password shorter than the product accepts never leaves', () async {
+      final adapter = FakeAuthAdapter();
+
+      await expectLater(
+        AuthService(adapter).changePassword('short'),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.changedPassword, isNull);
+
+      await AuthService(adapter).changePassword('longenough');
+      expect(adapter.changedPassword, 'longenough');
     });
   });
 
@@ -295,6 +617,164 @@ void main() {
       expect(adapter.lastCommunityId, 'c1');
       expect(adapter.lastUserId, 'u2');
       expect(adapter.lastRole, CommunityRole.admin);
+    });
+  });
+
+  group('TeamRepository.fetchGenerationInputs', () {
+    final kickOff = DateTime(2026, 8, 7, 20);
+    final match = Match(
+      id: 'm1',
+      communityId: 'c1',
+      createdBy: 'u1',
+      location: 'Al Amerat Pitch',
+      startAt: kickOff,
+      endAt: kickOff.add(const Duration(hours: 2)),
+      startingPlayers: 10,
+      maxRegistration: 16,
+      status: MatchStatus.open,
+    );
+
+    PlayerCoreInputs player(String id, {DateTime? dateOfBirth}) =>
+        PlayerCoreInputs(
+          userId: id,
+          fullName: 'Player $id',
+          overallRating: 6,
+          primaryPosition: Position.mid,
+          dateOfBirth: dateOfBirth ?? DateTime(1995, 4, 17),
+        );
+
+    test('the confirmed roster becomes the generation set', () async {
+      final adapter = FakeTeamAdapter(roster: [player('u1'), player('u2')]);
+
+      final inputs = await TeamRepository(adapter)
+          .fetchGenerationInputs(match, historyLookback: null);
+
+      expect([for (final p in inputs.players) p.id], ['u1', 'u2']);
+      expect(adapter.lastMatchId, 'm1');
+    });
+
+    test('age is computed as of the match date (§4.2)', () async {
+      final inputs = await TeamRepository(FakeTeamAdapter(roster: [player('u1')]))
+          .fetchGenerationInputs(match, historyLookback: null);
+
+      expect(inputs.settings.matchDate, kickOff);
+      expect(inputs.players.single.ageAt(inputs.settings.matchDate), 31);
+    });
+
+    test('a player with no date of birth stops the request (§4.3)', () async {
+      final adapter = FakeTeamAdapter(roster: [
+        player('u1'),
+        const PlayerCoreInputs(
+          userId: 'u2',
+          fullName: 'Ahmed',
+          overallRating: 5,
+          primaryPosition: Position.gk,
+        ),
+      ]);
+
+      await expectLater(
+        TeamRepository(adapter)
+            .fetchGenerationInputs(match, historyLookback: null),
+        throwsA(isA<ValidationFailure>().having(
+            (f) => f.reason, 'reason', FailureReason.missingPlayerInputs)),
+        reason: 'the engine is never handed an invented input',
+      );
+    });
+
+    test('an unset window reads no history at all (BTGE-DV-5)', () async {
+      final adapter = FakeTeamAdapter(roster: [player('u1')]);
+
+      final inputs = await TeamRepository(adapter)
+          .fetchGenerationInputs(match, historyLookback: null);
+
+      expect(inputs.history.isEmpty, isTrue);
+      expect(adapter.lastLimit, isNull,
+          reason: 'no window means nothing to look back over, not an error');
+    });
+
+    test('a window is passed to the port exactly as given (OP-6)', () async {
+      final adapter = FakeTeamAdapter(
+        roster: [player('u1')],
+        played: [
+          PastMatch(playedAt: DateTime(2026, 7, 31), teams: const [
+            {'u1', 'u2'},
+            {'u3'},
+          ]),
+        ],
+      );
+
+      final inputs = await TeamRepository(adapter)
+          .fetchGenerationInputs(match, historyLookback: 5);
+
+      expect(adapter.lastLimit, 5);
+      expect(adapter.lastCommunityId, 'c1');
+      expect(adapter.lastExcludedMatchId, 'm1',
+          reason: 'the match being generated is not its own history');
+      expect(inputs.history.isEmpty, isFalse);
+    });
+
+    test('a window of nothing reads nothing', () async {
+      final adapter = FakeTeamAdapter(roster: [player('u1')]);
+
+      final inputs = await TeamRepository(adapter)
+          .fetchGenerationInputs(match, historyLookback: 0);
+
+      expect(inputs.history.isEmpty, isTrue);
+      expect(adapter.lastLimit, isNull);
+    });
+  });
+
+  group('TeamRepository lineups', () {
+    test('names the players whose profile is unfinished', () async {
+      final adapter = FakeTeamAdapter(roster: [
+        PlayerCoreInputs(
+          userId: 'u1',
+          fullName: 'Sara',
+          overallRating: 6,
+          primaryPosition: Position.mid,
+          dateOfBirth: DateTime(1995, 4, 17),
+        ),
+        const PlayerCoreInputs(
+          userId: 'u2',
+          fullName: 'Ahmed',
+          overallRating: 5,
+          primaryPosition: Position.gk,
+        ),
+      ]);
+
+      final missing =
+          await TeamRepository(adapter).fetchPlayersMissingInputs('m1');
+
+      expect([for (final p in missing) p.fullName], ['Ahmed']);
+    });
+
+    test('a generated result and an adjusted one take the same path', () async {
+      // KB-017 and BTGE-MO-5: what is stored is what actually played, however
+      // it came to be.
+      final adapter = FakeTeamAdapter();
+      final generated = [
+        TeamAssignment.fromAssignment(const PlayerAssignment(
+          playerId: 'u1',
+          team: TeamId.a,
+          assignedPosition: Position.gk,
+          basis: AssignmentBasis.primary,
+        )),
+      ];
+
+      await TeamRepository(adapter).saveLineup('m1', generated);
+
+      expect(adapter.lastMatchId, 'm1');
+      expect(adapter.savedLineup, hasLength(1));
+      expect(adapter.savedLineup!.single.userId, 'u1');
+      expect(adapter.savedLineup!.single.team, TeamId.a);
+    });
+
+    test('an empty lineup is stored as an empty lineup', () async {
+      final adapter = FakeTeamAdapter();
+      await TeamRepository(adapter).saveLineup('m1', const []);
+
+      expect(adapter.savedLineup, isEmpty,
+          reason: 'clearing a lineup is a lineup of nobody, not a no-op');
     });
   });
 }
@@ -412,6 +892,69 @@ class FakeAdminAdapter implements AdminAdapter {
   Future<void> deleteMatch(String id) => throw UnimplementedError();
 }
 
+class FakeProfileAdapter implements ProfileAdapter {
+  FakeProfileAdapter({
+    this.profile = const PlayerProfile(
+      fullName: 'Salim Al Harthy',
+      phone: '+96890123456',
+      primaryPosition: PlayerPosition.mid,
+    ),
+  });
+
+  final PlayerProfile profile;
+
+  int writes = 0;
+  DateTime? lastDateOfBirth;
+  PlayerPosition? lastPrimaryPosition;
+  PlayerPosition? lastSecondaryPosition;
+
+  int accountWrites = 0;
+  String? lastFullName;
+  String? lastPhone;
+
+  int avatarUploads = 0;
+  int avatarRemovals = 0;
+  String? lastFileExtension;
+
+  @override
+  Future<PlayerProfile> fetchMyProfile() async => profile;
+
+  @override
+  Future<void> updateMyProfile({
+    required DateTime dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+  }) async {
+    writes++;
+    lastDateOfBirth = dateOfBirth;
+    lastPrimaryPosition = primaryPosition;
+    lastSecondaryPosition = secondaryPosition;
+  }
+
+  @override
+  Future<void> updateMyAccount({
+    required String fullName,
+    required String phone,
+  }) async {
+    accountWrites++;
+    lastFullName = fullName;
+    lastPhone = phone;
+  }
+
+  @override
+  Future<String> uploadMyAvatar({
+    required Uint8List bytes,
+    required String fileExtension,
+  }) async {
+    avatarUploads++;
+    lastFileExtension = fileExtension;
+    return 'https://example.test/avatar.$fileExtension';
+  }
+
+  @override
+  Future<void> removeMyAvatar() async => avatarRemovals++;
+}
+
 class FakeAuthAdapter implements AuthAdapter {
   FakeAuthAdapter({this.fullName});
 
@@ -421,6 +964,9 @@ class FakeAuthAdapter implements AuthAdapter {
   String? lastFullName;
   String? lastPhone;
   PlayerPosition? lastPosition;
+  DateTime? lastDateOfBirth;
+  PlayerPosition? lastSecondaryPosition;
+  int signUpCount = 0;
 
   @override
   Future<String?> fetchCurrentUserFullName() async => fullName;
@@ -432,11 +978,16 @@ class FakeAuthAdapter implements AuthAdapter {
     required String fullName,
     required PlayerPosition position,
     required String phone,
+    required DateTime dateOfBirth,
+    required PlayerPosition? secondaryPosition,
   }) async {
+    signUpCount++;
     lastEmail = email;
     lastFullName = fullName;
     lastPhone = phone;
     lastPosition = position;
+    lastDateOfBirth = dateOfBirth;
+    lastSecondaryPosition = secondaryPosition;
   }
 
   @override
@@ -449,6 +1000,25 @@ class FakeAuthAdapter implements AuthAdapter {
 
   @override
   String? get currentUserId => 'u1';
+
+  @override
+  String? get currentUserEmail => email;
+
+  String email = 'player@example.com';
+
+  String? changedEmail;
+  String? changedPassword;
+
+  String? changedRedirect;
+
+  @override
+  Future<void> changeEmail(String value, {required String redirectTo}) async {
+    changedEmail = value;
+    changedRedirect = redirectTo;
+  }
+
+  @override
+  Future<void> changePassword(String value) async => changedPassword = value;
 
   @override
   bool get isSignedIn => true;
@@ -521,6 +1091,72 @@ class FakeMatchAdapter implements MatchAdapter {
 
   @override
   Future<int?> fetchReservePlayers() => throw UnimplementedError();
+}
+
+class FakeTeamAdapter implements TeamAdapter {
+  FakeTeamAdapter({this.roster = const [], this.played = const []});
+
+  final List<PlayerCoreInputs> roster;
+  final List<PastMatch> played;
+
+  String? lastMatchId;
+  String? lastCommunityId;
+  String? lastExcludedMatchId;
+  int? lastLimit;
+  List<TeamAssignment>? savedLineup;
+
+  @override
+  Future<List<PlayerCoreInputs>> fetchConfirmedPlayerInputs(
+      String matchId) async {
+    lastMatchId = matchId;
+    return roster;
+  }
+
+  @override
+  Future<List<PastMatch>> fetchPlayedLineups({
+    required String communityId,
+    required String excludeMatchId,
+    required int limit,
+  }) async {
+    lastCommunityId = communityId;
+    lastExcludedMatchId = excludeMatchId;
+    lastLimit = limit;
+    return played;
+  }
+
+  @override
+  Future<void> saveLineup(String matchId, List<TeamAssignment> lineup) async {
+    lastMatchId = matchId;
+    savedLineup = lineup;
+  }
+
+  @override
+  Future<List<TeamAssignment>> fetchLineup(String matchId) =>
+      throw UnimplementedError();
+
+  String? addedUserId;
+  TeamId? addedTeam;
+  Position? addedPosition;
+  String? removedUserId;
+
+  @override
+  Future<void> addPlayedPlayer(
+    String matchId,
+    String userId, {
+    required TeamId team,
+    required Position position,
+  }) async {
+    lastMatchId = matchId;
+    addedUserId = userId;
+    addedTeam = team;
+    addedPosition = position;
+  }
+
+  @override
+  Future<void> removePlayedPlayer(String matchId, String userId) async {
+    lastMatchId = matchId;
+    removedUserId = userId;
+  }
 }
 
 class FakeMemberAdapter implements MemberAdapter {

@@ -1,10 +1,22 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/infrastructure/supabase/supabase_failure_mapper.dart';
+import 'package:http/http.dart' show ClientException;
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Stands in for the private `_ClientSocketException` that `IOClient` throws on
+/// Android when the socket fails.
+///
+/// The real one cannot be constructed from here and naming its `SocketException`
+/// half would put `dart:io` back in this file, which is what stopped the suite
+/// compiling for the web. What matters to the mapper is the shape rather than
+/// the identity: the native type is a [ClientException] *subclass*, so this
+/// asserts the classification follows the subtype and not just the exact class.
+class _SocketClientException extends ClientException {
+  _SocketClientException(super.message);
+}
 
 /// Provider exception -> Failure (OP-5). This is the whole classification
 /// contract: if a rule is not asserted here, it is not enforced anywhere.
@@ -48,6 +60,63 @@ void main() {
           FailureReason.invalidTimeRange);
     });
 
+    test('create_match refusals keep their reason', () {
+      expect(map(raised('INVALID_TITLE')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.invalidTitle));
+      expect(map(raised('INVALID_LOCATION')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.invalidLocation));
+      expect(map(raised('START_IN_PAST')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.startInPast));
+    });
+
+    test('an inactive community is a conflict, not bad input', () {
+      // The id sent is the one meant; the community's state is what refuses.
+      // Same shape as MATCH_COMPLETED and MATCH_LOCKED, same classification.
+      expect(map(raised('COMMUNITY_INACTIVE')),
+          isA<ConflictFailure>().having(
+              (f) => f.reason, 'reason', FailureReason.communityInactive));
+    });
+
+    test('a missing match is not found, with its reason', () {
+      expect(map(raised('MATCH_NOT_FOUND')),
+          isA<NotFoundFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.matchNotFound));
+    });
+
+    test('a call with no session is an authentication failure, no reason', () {
+      final failure = map(raised('NOT_AUTHENTICATED'));
+      expect(failure, isA<AuthenticationFailure>());
+      expect(failure.reason, isNull,
+          reason: 'the type already says it, exactly as with NOT_AUTHORIZED');
+    });
+
+    test('NOT_AUTHENTICATED and NOT_AUTHORIZED are not confused', () {
+      // The scan matches by substring and these two share a prefix. Neither
+      // contains the other, and the classification differs, so a mix-up would
+      // report a signed-out caller as forbidden or a forbidden one as
+      // signed out.
+      expect(map(raised('NOT_AUTHENTICATED')), isA<AuthenticationFailure>());
+      expect(map(raised('NOT_AUTHORIZED')), isA<AuthorizationFailure>());
+    });
+
+    test('no create_match token is mistaken for a match-management one', () {
+      // INVALID_TITLE and INVALID_TIME_RANGE share a prefix; MATCH_NOT_FOUND
+      // and COMMUNITY_NOT_FOUND share a suffix.
+      expect(map(raised('INVALID_TITLE')).reason,
+          isNot(FailureReason.invalidTimeRange));
+      expect(map(raised('INVALID_TIME_RANGE')).reason,
+          isNot(FailureReason.invalidTitle));
+      expect(map(raised('MATCH_NOT_FOUND')).reason,
+          isNot(FailureReason.communityNotFound));
+      expect(map(raised('COMMUNITY_NOT_FOUND')).reason,
+          isNot(FailureReason.matchNotFound));
+      expect(map(raised('COMMUNITY_INACTIVE')).reason,
+          isNot(FailureReason.communityNotFound));
+    });
+
     test('membership refusals keep their reason', () {
       expect(map(raised('CANNOT_CHANGE_OWN_ROLE')).reason,
           FailureReason.cannotChangeOwnRole);
@@ -73,6 +142,58 @@ void main() {
       expect(map(raised('COMMUNITY_NOT_FOUND')),
           isA<NotFoundFailure>().having(
               (f) => f.reason, 'reason', FailureReason.communityNotFound));
+    });
+
+    test('result refusals are validation failures with their reason', () {
+      expect(map(raised('INVALID_SCORE')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.invalidScore));
+      expect(map(raised('INVALID_GOALS')).reason, FailureReason.invalidGoals);
+      expect(map(raised('GOALS_DO_NOT_MATCH_SCORE')).reason,
+          FailureReason.goalsDoNotMatchScore);
+      expect(map(raised('MVP_NOT_PARTICIPANT')).reason,
+          FailureReason.mvpNotParticipant);
+      expect(map(raised('SCORER_NOT_PARTICIPANT')).reason,
+          FailureReason.scorerNotParticipant);
+      expect(map(raised('LINEUP_REQUIRED')).reason,
+          FailureReason.lineupRequired);
+    });
+
+    test('correcting a played match has its own refusals', () {
+      // Both are states the operation ran into rather than input the caller got
+      // wrong, so both are conflicts — the same shape as MATCH_COMPLETED.
+      expect(
+          map(raised('RESULT_PARTICIPANT_REMOVED')),
+          isA<ConflictFailure>().having((f) => f.reason, 'reason',
+              FailureReason.resultParticipantRemoved));
+      expect(
+          map(raised('MATCH_NOT_COMPLETED')),
+          isA<ConflictFailure>().having(
+              (f) => f.reason, 'reason', FailureReason.matchNotCompleted));
+
+      expect(map(raised('INVALID_TEAM')),
+          isA<ValidationFailure>()
+              .having((f) => f.reason, 'reason', FailureReason.invalidTeam));
+      expect(map(raised('INVALID_POSITION')).reason,
+          FailureReason.invalidPosition);
+    });
+
+    test('MATCH_NOT_COMPLETED is not read as MATCH_COMPLETED', () {
+      // The scan matches by substring and the two tokens are one word apart, so
+      // this is the pair most likely to be confused.
+      expect(map(raised('MATCH_NOT_COMPLETED')).reason,
+          FailureReason.matchNotCompleted);
+      expect(map(raised('MATCH_COMPLETED')).reason,
+          FailureReason.matchCompleted);
+    });
+
+    test('no result token is mistaken for another', () {
+      // The scan matches by substring, so the tokens have to stay distinct —
+      // `MVP_NOT_PARTICIPANT` and `SCORER_NOT_PARTICIPANT` in particular.
+      expect(map(raised('MVP_NOT_PARTICIPANT')).reason,
+          isNot(FailureReason.scorerNotParticipant));
+      expect(map(raised('INVALID_SCORE')).reason,
+          isNot(FailureReason.goalsDoNotMatchScore));
     });
 
     test('a permission refusal is the type alone, with no reason', () {
@@ -158,8 +279,19 @@ void main() {
   });
 
   group('transport and the unclassified', () {
-    test('a socket failure is a network failure', () {
-      expect(map(const SocketException('no route to host')),
+    test('a dropped connection is a network failure', () {
+      // What `BrowserClient` throws for a network or CORS failure on the web,
+      // and what `IOClient` throws for a DNS or refused-connection failure on
+      // Android.
+      expect(map(ClientException('no route to host')), isA<NetworkFailure>());
+    });
+
+    test('a native socket failure is still a network failure', () {
+      // Android does not deliver the bare exception: `IOClient` rethrows it as
+      // a subclass. Asserted separately because a mapper written against the
+      // exact class rather than the subtype would pass the test above and then
+      // report every real dropped connection on a phone as UnknownFailure.
+      expect(map(_SocketClientException('connection refused')),
           isA<NetworkFailure>());
     });
 
@@ -188,7 +320,7 @@ void main() {
 
     test('converts whatever the call throws', () async {
       expect(
-        guarded<void>(() async => throw const SocketException('down')),
+        guarded<void>(() async => throw ClientException('down')),
         throwsA(isA<NetworkFailure>()),
       );
     });

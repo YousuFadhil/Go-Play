@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' show ClientException;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/diagnostics.dart';
 import '../../core/failures.dart';
 
 /// Runs [call] and converts anything it throws into a [Failure].
@@ -11,10 +12,23 @@ import '../../core/failures.dart';
 /// Every adapter method goes through this. An adapter therefore never names a
 /// provider exception, never reads an error code, and cannot leak one: the
 /// classification rules live in [SupabaseFailureMapper] and nowhere else.
-Future<T> guarded<T>(Future<T> Function() call) async {
+///
+/// [operation] labels the call for instrumentation — the RPC or table it goes
+/// to. It is never read to decide anything and never reaches the user: it
+/// exists so that a traced flow says *which* call failed, which a failure type
+/// on its own cannot. Under `Diagnostics.verboseErrors` it is recorded with the
+/// original exception; otherwise it is discarded with it.
+Future<T> guarded<T>(Future<T> Function() call, {String? operation}) async {
+  if (operation != null) Diagnostics.trace('adapter', 'begin $operation');
   try {
-    return await call();
+    final result = await call();
+    if (operation != null) Diagnostics.trace('adapter', 'ok $operation');
+    return result;
   } catch (error, stackTrace) {
+    // Recorded before it is converted: this is the last point at which the
+    // provider's own message exists.
+    Diagnostics.recordAdapterFailure(operation, error);
+    Diagnostics.trace('adapter', 'failed $operation: $error');
     throw SupabaseFailureMapper.from(error, stackTrace);
   }
 }
@@ -38,7 +52,27 @@ class SupabaseFailureMapper {
     if (error is PostgrestException) return _fromPostgrest(error);
     if (error is AuthException) return _fromAuth(error);
     // The transport never completed the round trip.
-    if (error is IOException || error is TimeoutException) {
+    //
+    // [ClientException] is the one type that says this on every platform the
+    // app builds for, which is why `dart:io` is not named here — importing it
+    // would be a compile error on the web target, and this file is in the
+    // compile graph of every adapter through [guarded].
+    //
+    // It covers both sides because `package:http` normalises to it:
+    //
+    //   * on Android, `IOClient` catches the `SocketException` its underlying
+    //     `HttpClient` throws and rethrows it as a `ClientException` subclass
+    //     that still implements `SocketException` — so a dropped connection is
+    //     caught here exactly as it was when this read `IOException`;
+    //   * on the web, `BrowserClient` converts every failure it sees, CORS and
+    //     network alike, into a plain `ClientException`.
+    //
+    // Everything the Supabase SDK sends goes through `package:http`, so there
+    // is no route by which a bare `SocketException` reaches this mapper.
+    // PostgREST and Storage rethrow it untouched; GoTrue is the exception, and
+    // it wraps its own transport failures into the [AuthRetryableFetchException]
+    // handled in [_fromAuth].
+    if (error is ClientException || error is TimeoutException) {
       return const NetworkFailure();
     }
     return const UnknownFailure();
@@ -70,6 +104,13 @@ class SupabaseFailureMapper {
       FailureReason.invalidStartingPlayers,
     ),
     'INVALID_TIME_RANGE': ValidationFailure(FailureReason.invalidTimeRange),
+    'INVALID_TITLE': ValidationFailure(FailureReason.invalidTitle),
+    'INVALID_LOCATION': ValidationFailure(FailureReason.invalidLocation),
+    // The schedule the caller asked for, refused. `create_match` raises this so
+    // a match cannot be created into the state `update_match` then treats as
+    // locked forever.
+    'START_IN_PAST': ValidationFailure(FailureReason.startInPast),
+    'MATCH_NOT_FOUND': NotFoundFailure(FailureReason.matchNotFound),
 
     // Membership
     'CANNOT_CHANGE_OWN_ROLE': ValidationFailure(
@@ -81,14 +122,49 @@ class SupabaseFailureMapper {
     'ALREADY_OWNER': ConflictFailure(FailureReason.alreadyOwner),
     'MEMBER_NOT_FOUND': NotFoundFailure(FailureReason.memberNotFound),
 
-    // Joining a community
+    // Recording a match result
+    'INVALID_SCORE': ValidationFailure(FailureReason.invalidScore),
+    'INVALID_GOALS': ValidationFailure(FailureReason.invalidGoals),
+    'GOALS_DO_NOT_MATCH_SCORE': ValidationFailure(
+      FailureReason.goalsDoNotMatchScore,
+    ),
+    'MVP_NOT_PARTICIPANT': ValidationFailure(
+      FailureReason.mvpNotParticipant,
+    ),
+    'SCORER_NOT_PARTICIPANT': ValidationFailure(
+      FailureReason.scorerNotParticipant,
+    ),
+    'LINEUP_REQUIRED': ValidationFailure(FailureReason.lineupRequired),
+
+    // Correcting a played match. The first two are states the operation ran
+    // into rather than input the caller got wrong, so they are conflicts — the
+    // same shape as MATCH_COMPLETED. The last two are input.
+    'MATCH_NOT_COMPLETED': ConflictFailure(FailureReason.matchNotCompleted),
+    'RESULT_PARTICIPANT_REMOVED': ConflictFailure(
+      FailureReason.resultParticipantRemoved,
+    ),
+    'INVALID_TEAM': ValidationFailure(FailureReason.invalidTeam),
+    'INVALID_POSITION': ValidationFailure(FailureReason.invalidPosition),
+
+    // The community named in a request
     'JOIN_CODE_REQUIRED': ValidationFailure(FailureReason.joinCodeRequired),
     'ALREADY_MEMBER': ConflictFailure(FailureReason.alreadyMember),
     'COMMUNITY_NOT_FOUND': NotFoundFailure(FailureReason.communityNotFound),
+    // Not bad input: the community named is the one meant, and its state is
+    // what refuses. That is the same shape as MATCH_COMPLETED and MATCH_LOCKED,
+    // and it is classified the same way.
+    'COMMUNITY_INACTIVE': ConflictFailure(FailureReason.communityInactive),
 
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),
+
+    // Raised by every guarded RPC when the call arrives without a session.
+    // A reason would only repeat what the type already says, exactly as with
+    // NOT_AUTHORIZED above. Note this is a *refusal the database raised*, not
+    // the SDK reporting a rejected token — PGRST301 covers that case below and
+    // reaches the same failure type by a different route.
+    'NOT_AUTHENTICATED': AuthenticationFailure(),
   };
 
   static Failure _fromPostgrest(PostgrestException error) {
@@ -135,7 +211,14 @@ class SupabaseFailureMapper {
 
   /// Diagnostics stay here. This is the last point at which the original error
   /// exists, and the only layer allowed to know what it said.
+  ///
+  /// Debug builds only. A release build reaches logcat through
+  /// `Diagnostics.trace`, which is off unless it is switched on deliberately —
+  /// an unconditional print here would put the provider's own message and a
+  /// stack trace on every user's device for every failure, whether or not
+  /// anybody asked to be shown them.
   static void _log(Object error, StackTrace? stackTrace) {
+    if (!kDebugMode) return;
     debugPrint('[GoPlay] adapter failure: $error');
     if (stackTrace != null) debugPrint('$stackTrace');
   }

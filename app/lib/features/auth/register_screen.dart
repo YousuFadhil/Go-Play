@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+// `intl` exports a `TextDirection` of its own; the fields below mean Flutter's.
+import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../profile/profile_models.dart';
 import 'auth_models.dart';
 import 'auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.authService});
+
+  /// Supplied only by tests, as the repositories take an optional port. Left
+  /// null the screen builds the production service, so nothing here knows what
+  /// a data provider is.
+  final AuthService? authService;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -19,8 +27,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authService = AuthService();
+  late final AuthService _authService = widget.authService ?? AuthService();
   PlayerPosition? _position;
+  PlayerPosition? _secondaryPosition;
+  DateTime? _dateOfBirth;
   bool _isLoading = false;
 
   @override
@@ -42,6 +52,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     };
   }
 
+  /// Opens the date picker and records what came back.
+  ///
+  /// [lastDate] is today: a date of birth that has not happened yet is refused
+  /// by never being offered. Nothing else is bounded — no approved document
+  /// sets a minimum or maximum age, and the picker is not the place to invent
+  /// one.
+  Future<void> _pickDateOfBirth(FormFieldState<DateTime> field) async {
+    final today = dateOnly(DateTime.now());
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dateOfBirth ?? DateTime(today.year - 25, today.month,
+          today.day),
+      firstDate: DateTime(1900),
+      lastDate: today,
+    );
+    if (picked == null) return;
+    setState(() => _dateOfBirth = dateOnly(picked));
+    field.didChange(_dateOfBirth);
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -54,6 +84,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
         fullName: _fullNameController.text,
         position: _position!,
+        dateOfBirth: _dateOfBirth!,
+        secondaryPosition: _secondaryPosition,
       );
       // On success the session is active; AuthGate navigates to Home.
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
@@ -81,6 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final locale = Localizations.localeOf(context).toString();
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.registerTitle)),
@@ -169,6 +202,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
+                  // A date, picked rather than typed. §4.1 makes it a required
+                  // Core Player Input, so it is a field of the form and the
+                  // form refuses to submit without it.
+                  FormField<DateTime>(
+                    initialValue: _dateOfBirth,
+                    validator: (value) =>
+                        value == null ? l10n.dateOfBirthRequired : null,
+                    builder: (field) => InkWell(
+                      onTap: () => _pickDateOfBirth(field),
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: l10n.dateOfBirthLabel,
+                          errorText: field.errorText,
+                          suffixIcon: const Icon(Icons.calendar_today),
+                        ),
+                        child: Text(field.value == null
+                            ? l10n.selectDateLabel
+                            : DateFormat.yMMMd(locale).format(field.value!)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   DropdownButtonFormField<PlayerPosition>(
                     initialValue: _position,
                     decoration: InputDecoration(
@@ -181,9 +236,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Text(_positionLabel(position)),
                         ),
                     ],
-                    onChanged: (value) => setState(() => _position = value),
+                    onChanged: (value) => setState(() {
+                      _position = value;
+                      // The second position was a second choice. Once the
+                      // primary becomes it, it is no longer one, so it goes
+                      // rather than sitting there duplicating the primary.
+                      if (_secondaryPosition == value) {
+                        _secondaryPosition = null;
+                      }
+                    }),
                     validator: (value) =>
                         value == null ? l10n.positionRequired : null,
+                  ),
+                  const SizedBox(height: 16),
+                  // Optional (`BTGE-SC-6`), and never the primary: the primary
+                  // is left out of the list, and "None" is an offered choice
+                  // rather than an empty field.
+                  DropdownButtonFormField<PlayerPosition?>(
+                    initialValue: _secondaryPosition,
+                    decoration: InputDecoration(
+                      labelText: l10n.secondaryPositionLabel,
+                    ),
+                    items: [
+                      DropdownMenuItem<PlayerPosition?>(
+                        value: null,
+                        child: Text(l10n.noSecondaryPosition),
+                      ),
+                      for (final position in PlayerPosition.values)
+                        if (position != _position)
+                          DropdownMenuItem<PlayerPosition?>(
+                            value: position,
+                            child: Text(_positionLabel(position)),
+                          ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _secondaryPosition = value),
+                    validator: (value) => value != null && value == _position
+                        ? l10n.secondaryPositionSameAsPrimary
+                        : null,
                   ),
                   const SizedBox(height: 24),
                   FilledButton(

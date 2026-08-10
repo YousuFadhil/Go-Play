@@ -1,13 +1,19 @@
+import 'package:btge/btge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/matches/match_models.dart';
+import 'package:go_play/features/profile/profile_models.dart';
+import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/infrastructure/supabase/mappers/admin_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/auth_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/community_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/match_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/notification_mapper.dart';
+import 'package:go_play/infrastructure/supabase/mappers/profile_mapper.dart';
+import 'package:go_play/infrastructure/supabase/mappers/result_mapper.dart';
+import 'package:go_play/infrastructure/supabase/mappers/team_mapper.dart';
 
 /// Mapping between provider rows and Domain Models (OP-3). These tests are the
 /// only place a column name and a model field are asserted against each other,
@@ -324,5 +330,498 @@ void main() {
       expect(playerPositionToDb(PlayerPosition.mid), 'MID');
       expect(playerPositionToDb(PlayerPosition.fwd), 'FWD');
     });
+
+    test('reads every code back to the position it was written from', () {
+      expect(playerPositionFromDb('GK'), PlayerPosition.gk);
+      for (final position in PlayerPosition.values) {
+        expect(playerPositionFromDb(playerPositionToDb(position)), position);
+      }
+    });
+
+    test('a code outside the vocabulary is the schema disagreeing', () {
+      expect(() => playerPositionFromDb('SWEEPER'),
+          throwsA(isA<InfrastructureFailure>()));
+    });
+  });
+
+  group('dateOnlyToDb', () {
+    test('writes the date column form, zero-padded', () {
+      expect(dateOnlyToDb(DateTime(1995, 4, 17)), '1995-04-17');
+      expect(dateOnlyToDb(DateTime(2001, 12, 5)), '2001-12-05');
+    });
+
+    test('a time of day is not part of what is written', () {
+      // The column is a `date`. Sent as an instant, a birthday east of
+      // Greenwich arrives as the previous day.
+      expect(dateOnlyToDb(DateTime(1995, 4, 17, 23, 30)), '1995-04-17');
+    });
+  });
+
+  group('the player profile', () {
+    test('reads the three inputs the player owns', () {
+      final profile = playerProfileFromRow({
+        'full_name': 'Salim Al Harthy',
+        'phone': '+96890123456',
+        'date_of_birth': '1995-04-17',
+        'primary_position': 'GK',
+        'secondary_position': 'DEF',
+      });
+
+      expect(profile.dateOfBirth, DateTime(1995, 4, 17));
+      expect(profile.primaryPosition, PlayerPosition.gk);
+      expect(profile.secondaryPosition, PlayerPosition.def);
+      expect(profile.isComplete, isTrue);
+    });
+
+    test('the account fields come off the same row', () {
+      final profile = playerProfileFromRow({
+        'full_name': 'Salim Al Harthy',
+        'phone': '+96890123456',
+        'primary_position': 'MID',
+      });
+
+      expect(profile.fullName, 'Salim Al Harthy');
+      expect(profile.phone, '+96890123456');
+    });
+
+    test('the avatar url is the adapter\'s to supply, not the row\'s', () {
+      // The bucket and the host are provider knowledge; the row carries only a
+      // path, so the URL arrives beside it rather than inside it.
+      final withPicture = playerProfileFromRow(
+        {
+          'full_name': 'Salim',
+          'phone': '+96890123456',
+          'primary_position': 'MID',
+        },
+        avatarUrl: 'https://example.test/u1/avatar.jpg',
+      );
+      final without = playerProfileFromRow({
+        'full_name': 'Salim',
+        'phone': '+96890123456',
+        'primary_position': 'MID',
+      });
+
+      expect(withPicture.avatarUrl, 'https://example.test/u1/avatar.jpg');
+      expect(without.avatarUrl, isNull);
+    });
+
+    test('an unfinished profile keeps its gaps', () {
+      final profile = playerProfileFromRow({
+        'full_name': 'Salim Al Harthy',
+        'phone': '+96890123456',
+        'date_of_birth': null,
+        'primary_position': 'MID',
+        'secondary_position': null,
+      });
+
+      expect(profile.dateOfBirth, isNull);
+      expect(profile.secondaryPosition, isNull);
+      expect(profile.isComplete, isFalse);
+    });
+
+    test('age is derived from the date of birth as of a given day', () {
+      final profile = _ageFixture;
+
+      // The day before the birthday and the day of it.
+      expect(profile.ageOn(DateTime(2026, 4, 16)), 30);
+      expect(profile.ageOn(DateTime(2026, 4, 17)), 31);
+    });
+
+    test('a profile with no date of birth has no age', () {
+      const profile = PlayerProfile(
+        fullName: 'Salim',
+        phone: '+96890123456',
+        primaryPosition: PlayerPosition.mid,
+      );
+
+      expect(profile.ageOn(DateTime(2026, 4, 17)), isNull,
+          reason: '§4.3 refuses a substituted input, and zero would be one');
+    });
+
+    test('the account write carries the two columns and no others', () {
+      final row = accountUpdateToRow(
+        fullName: 'Salim Al Harthy',
+        phone: '+96890123456',
+      );
+
+      expect(row, {'full_name': 'Salim Al Harthy', 'phone': '+96890123456'});
+      // The playing inputs are written by their own call, so a name change can
+      // never rewrite the date of birth the engine depends on.
+      expect(row.containsKey('date_of_birth'), isFalse);
+      expect(row.containsKey('overall_rating'), isFalse);
+    });
+
+    test('removing a picture writes the absence itself', () {
+      expect(avatarUpdateToRow('u1/avatar.jpg'),
+          {'avatar_path': 'u1/avatar.jpg'});
+      expect(avatarUpdateToRow(null), {'avatar_path': null});
+    });
+
+    test('a write carries the three columns and no others', () {
+      final row = profileUpdateToRow(
+        dateOfBirth: DateTime(1995, 4, 17),
+        primaryPosition: PlayerPosition.gk,
+        secondaryPosition: PlayerPosition.def,
+      );
+
+      expect(row, {
+        'date_of_birth': '1995-04-17',
+        'primary_position': 'GK',
+        'secondary_position': 'DEF',
+      });
+      // OP-1 makes the rating system-managed and the column default sets it.
+      // A payload that cannot carry it is what keeps a screen from sending one.
+      expect(row.containsKey('overall_rating'), isFalse);
+    });
+
+    test('no secondary position is written as the absence itself', () {
+      final row = profileUpdateToRow(
+        dateOfBirth: DateTime(1995, 4, 17),
+        primaryPosition: PlayerPosition.gk,
+        secondaryPosition: null,
+      );
+
+      expect(row['secondary_position'], isNull,
+          reason: 'migration 0018 chose null over a NONE value, so clearing '
+              'writes null rather than inventing one');
+    });
+  });
+
+  group('the team-generation vocabularies', () {
+    test('positions read and write the same four codes', () {
+      expect(positionFromDb('GK'), Position.gk);
+      expect(positionFromDb('DEF'), Position.def);
+      expect(positionFromDb('MID'), Position.mid);
+      expect(positionFromDb('FWD'), Position.fwd);
+      for (final position in Position.values) {
+        expect(positionFromDb(positionToDb(position)), position);
+      }
+    });
+
+    test('teams read and write both labels', () {
+      expect(teamFromDb('A'), TeamId.a);
+      expect(teamFromDb('B'), TeamId.b);
+      for (final team in TeamId.values) {
+        expect(teamFromDb(teamToDb(team)), team);
+      }
+    });
+
+    test('the assignment basis reads and writes all three steps', () {
+      expect(assignmentBasisFromDb('PRIMARY'), AssignmentBasis.primary);
+      expect(assignmentBasisFromDb('SECONDARY'), AssignmentBasis.secondary);
+      expect(assignmentBasisFromDb('TRANSITION'), AssignmentBasis.transition);
+      for (final basis in AssignmentBasis.values) {
+        expect(assignmentBasisFromDb(assignmentBasisToDb(basis)), basis);
+      }
+    });
+
+    test('a value outside a constrained vocabulary is an infrastructure fault',
+        () {
+      // Migration 0018 constrains all three columns, so reaching here means
+      // the database and this build disagree about the schema.
+      expect(() => positionFromDb('SWEEPER'), throwsA(isA<InfrastructureFailure>()));
+      expect(() => teamFromDb('C'), throwsA(isA<InfrastructureFailure>()));
+      expect(() => assignmentBasisFromDb('GUESS'),
+          throwsA(isA<InfrastructureFailure>()));
+    });
+
+    test('a rating arrives as a number or as its text form', () {
+      expect(ratingFromDb(5), 5.0);
+      expect(ratingFromDb(7.5), 7.5);
+      expect(ratingFromDb('7.5'), 7.5);
+    });
+
+    test('a rating that is neither is an infrastructure fault', () {
+      // The column is NOT NULL, so nothing here may stand in for it (§4.3).
+      expect(() => ratingFromDb(null), throwsA(isA<InfrastructureFailure>()));
+      expect(() => ratingFromDb('good'), throwsA(isA<InfrastructureFailure>()));
+    });
+  });
+
+  group('playerCoreInputsFromRow', () {
+    test('reads the whole profile the engine needs', () {
+      final player = playerCoreInputsFromRow(const {
+        'user': {
+          'id': 'u1',
+          'full_name': 'Sara Al Balushi',
+          'overall_rating': 7.5,
+          'date_of_birth': '1995-04-17',
+          'primary_position': 'MID',
+          'secondary_position': 'DEF',
+        },
+      });
+
+      expect(player.userId, 'u1');
+      expect(player.fullName, 'Sara Al Balushi');
+      expect(player.overallRating, 7.5);
+      expect(player.dateOfBirth, DateTime(1995, 4, 17));
+      expect(player.primaryPosition, Position.mid);
+      expect(player.secondaryPosition, Position.def);
+      expect(player.hasEveryRequiredInput, isTrue);
+    });
+
+    test('a profile that has neither optional field invents neither', () {
+      final player = playerCoreInputsFromRow(const {
+        'user': {
+          'id': 'u2',
+          'full_name': 'Ahmed',
+          'overall_rating': 5.0,
+          'date_of_birth': null,
+          'primary_position': 'GK',
+          'secondary_position': null,
+        },
+      });
+
+      expect(player.dateOfBirth, isNull);
+      expect(player.secondaryPosition, isNull);
+      expect(player.hasEveryRequiredInput, isFalse,
+          reason: 'a missing date of birth travels up, it is not filled in');
+    });
+  });
+
+  group('the stored lineup', () {
+    test('an assignment row reads into the model', () {
+      final assignment = teamAssignmentFromRow(const {
+        'user_id': 'u1',
+        'team': 'B',
+        'assigned_position': 'DEF',
+        'assignment_basis': 'TRANSITION',
+      });
+
+      expect(assignment.userId, 'u1');
+      expect(assignment.team, TeamId.b);
+      expect(assignment.assignedPosition, Position.def);
+      expect(assignment.basis, AssignmentBasis.transition);
+      expect(assignment.outOfPosition, isTrue);
+    });
+
+    test('an assignment writes back the row it was read from', () {
+      const row = {
+        'user_id': 'u1',
+        'team': 'A',
+        'assigned_position': 'GK',
+        'assignment_basis': 'PRIMARY',
+      };
+
+      // No match_id: `replace_match_lineup` takes the match as its own
+      // argument, so a row never names one.
+      expect(teamAssignmentToRow(teamAssignmentFromRow(row)), row);
+    });
+
+    test('out of position is derived, never written', () {
+      final row = teamAssignmentToRow(teamAssignmentFromRow(const {
+        'user_id': 'u1',
+        'team': 'A',
+        'assigned_position': 'MID',
+        'assignment_basis': 'TRANSITION',
+      }));
+
+      expect(row.containsKey('out_of_position'), isFalse,
+          reason: 'a stored copy could disagree with the basis (§5.1)');
+    });
+  });
+
+  group('pastMatchFromRow', () {
+    test('groups the stored lineup into its two sides', () {
+      final past = pastMatchFromRow(const {
+        'start_at': '2026-07-01T17:00:00Z',
+        'assignments': [
+          {'user_id': 'u1', 'team': 'A'},
+          {'user_id': 'u2', 'team': 'B'},
+          {'user_id': 'u3', 'team': 'A'},
+        ],
+      });
+
+      expect(past.teams, hasLength(2));
+      expect(past.teams[0], {'u1', 'u3'});
+      expect(past.teams[1], {'u2'});
+      expect(past.playedAt,
+          DateTime.parse('2026-07-01T17:00:00Z').toLocal());
+    });
+
+    test('the pairs it yields are the teammates and no one else', () {
+      final past = pastMatchFromRow(const {
+        'start_at': '2026-07-01T17:00:00Z',
+        'assignments': [
+          {'user_id': 'u1', 'team': 'A'},
+          {'user_id': 'u2', 'team': 'A'},
+          {'user_id': 'u3', 'team': 'B'},
+        ],
+      });
+
+      expect(past.teammatePairs(), {'u1|u2'},
+          reason: 'opponents are not teammates');
+    });
+
+    test('a one-sided lineup still reads', () {
+      final past = pastMatchFromRow(const {
+        'start_at': '2026-07-01T17:00:00Z',
+        'assignments': [
+          {'user_id': 'u1', 'team': 'A'},
+        ],
+      });
+
+      expect(past.teams, hasLength(1));
+      expect(past.teammatePairs(), isEmpty);
+    });
+  });
+
+  group('ratingChangeReasonFromDb', () {
+    test('reads the whole vocabulary of migration 0022', () {
+      expect(ratingChangeReasonFromDb('WIN'), RatingChangeReason.win);
+      expect(ratingChangeReasonFromDb('LOSS'), RatingChangeReason.loss);
+      expect(ratingChangeReasonFromDb('GOAL'), RatingChangeReason.goal);
+      expect(ratingChangeReasonFromDb('MVP'), RatingChangeReason.mvp);
+      expect(ratingChangeReasonFromDb('REVERSAL'),
+          RatingChangeReason.reversal);
+    });
+
+    test('anything else is the schema disagreeing with this build', () {
+      expect(() => ratingChangeReasonFromDb('BONUS'),
+          throwsA(isA<InfrastructureFailure>()));
+    });
+  });
+
+  group('the recorded result', () {
+    test('a result row reads into the model, goals and all', () {
+      final result = matchResultFromRow(const {
+        'match_id': 'm1',
+        'team_a_score': 3,
+        'team_b_score': 1,
+        'mvp_user_id': 'u2',
+        'goals': [
+          {'user_id': 'u2', 'goals': 2},
+          {'user_id': 'u3', 'goals': 1},
+          {'user_id': 'u4', 'goals': 1},
+        ],
+      });
+
+      expect(result.matchId, 'm1');
+      expect(result.teamAScore, 3);
+      expect(result.teamBScore, 1);
+      expect(result.mvpUserId, 'u2');
+      expect(result.recordedGoals, 4);
+      expect(result.goalsBy('u2'), 2);
+    });
+
+    test('a goalless match reads as no scorers, not as missing', () {
+      final result = matchResultFromRow(const {
+        'match_id': 'm1',
+        'team_a_score': 0,
+        'team_b_score': 0,
+        'mvp_user_id': 'u2',
+        'goals': <Map<String, dynamic>>[],
+      });
+
+      expect(result.goals, isEmpty);
+      expect(result.recordedGoals, 0);
+      expect(result.isDraw, isTrue);
+    });
+
+    test('a tally writes back the row it was read from', () {
+      const row = {'user_id': 'u1', 'goals': 2};
+
+      // No match_id: `record_match_result` takes the match as its own
+      // argument, so a tally never names one.
+      expect(goalTallyToRow(goalTallyFromRow(row)), row);
+    });
+  });
+
+  group('ratingChangeFromRow', () {
+    test('an entry reads into the model', () {
+      final change = ratingChangeFromRow(const {
+        'id': 'h1',
+        'user_id': 'u1',
+        'match_id': 'm1',
+        'change_reason': 'WIN',
+        'delta': 0.10,
+        'rating_before': 5.00,
+        'rating_after': 5.10,
+        'reverses_id': null,
+        'created_at': '2026-07-01T19:00:00Z',
+      });
+
+      expect(change.id, 'h1');
+      expect(change.reason, RatingChangeReason.win);
+      expect(change.delta, 0.10);
+      expect(change.ratingBefore, 5.00);
+      expect(change.ratingAfter, 5.10);
+      expect(change.reversesId, isNull);
+      expect(change.isReversal, isFalse);
+    });
+
+    test('a numeric that arrives as text still reads', () {
+      final change = ratingChangeFromRow(const {
+        'id': 'h2',
+        'user_id': 'u1',
+        'match_id': 'm1',
+        'change_reason': 'REVERSAL',
+        'delta': '-0.10',
+        'rating_before': '5.10',
+        'rating_after': '5.00',
+        'reverses_id': 'h1',
+        'created_at': '2026-07-01T19:00:00Z',
+      });
+
+      expect(change.delta, -0.10);
+      expect(change.isReversal, isTrue);
+      expect(change.reversesId, 'h1');
+    });
+  });
+
+  group('playerStatisticsFromRow', () {
+    // The row is a `v_user_profile` row: the counters are flat columns beside
+    // the profile, not a nested object, because the view LEFT-joins them.
+    test('a profile with counters reads both', () {
+      final statistics = playerStatisticsFromRow(const {
+        'user_id': 'u1',
+        'overall_rating': 5.35,
+        'matches_played': 4,
+        'wins': 2,
+        'losses': 1,
+        'draws': 1,
+        'goals': 5,
+        'mvp_count': 1,
+      });
+
+      expect(statistics.userId, 'u1');
+      expect(statistics.matchesPlayed, 4);
+      expect(statistics.wins, 2);
+      expect(statistics.losses, 1);
+      expect(statistics.draws, 1);
+      expect(statistics.goals, 5);
+      expect(statistics.mvpCount, 1);
+      expect(statistics.currentRating, 5.35);
+    });
+
+    test('a player with no counters starts at zero, keeping their rating', () {
+      // The absence of a counters row is the starting point, not a missing
+      // record: nobody has finished a match yet. Through the view that absence
+      // arrives as every counter column being null at once.
+      final statistics = playerStatisticsFromRow(const {
+        'user_id': 'u1',
+        'overall_rating': 5.0,
+        'matches_played': null,
+        'wins': null,
+        'losses': null,
+        'draws': null,
+        'goals': null,
+        'mvp_count': null,
+      });
+
+      expect(statistics.userId, 'u1');
+      expect(statistics.matchesPlayed, 0);
+      expect(statistics.mvpCount, 0);
+      expect(statistics.currentRating, 5.0);
+    });
   });
 }
+
+/// A profile whose only interesting field is the date of birth: age is derived
+/// from it and from nothing else (`KB-C7`).
+final _ageFixture = PlayerProfile(
+  fullName: 'Salim Al Harthy',
+  phone: '+96890123456',
+  primaryPosition: PlayerPosition.mid,
+  dateOfBirth: DateTime(1995, 4, 17),
+);

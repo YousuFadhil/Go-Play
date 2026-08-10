@@ -83,4 +83,60 @@ void main() {
       expect(result.diagnostics.searchWasExhaustive, isTrue);
     });
   });
+
+  group('choosing among equally optimal solutions', () {
+    // Four indistinguishable players: every split ties on all five priorities,
+    // so the survivor set is larger than one and `variant` has somewhere to go.
+    List<Player> tied() => many('m', Position.mid, 4, rating: 50, age: 25);
+
+    final engine = BtgeEngine(banded(emergencyGk: false));
+
+    test('a variant returns a different split, not the same one again', () {
+      final first = engine.generate(players: tied(), settings: settings);
+      expect(first.diagnostics.equallyOptimalSolutions, greaterThan(1));
+      expect(first.diagnostics.variantIndex, 0);
+
+      final second =
+          engine.generate(players: tied(), settings: settings, variant: 1);
+      expect(second.diagnostics.variantIndex, 1);
+      expect(second.signature(), isNot(first.signature()));
+
+      // Still a whole, valid lineup — a different answer, not a worse one.
+      expect(second.assignments, hasLength(4));
+      expect(second.metrics.toString(), first.metrics.toString());
+    });
+
+    test('a variant is deterministic and wraps rather than falling off the end',
+        () {
+      final a = engine.generate(players: tied(), settings: settings, variant: 1);
+      final b = engine.generate(players: tied(), settings: settings, variant: 1);
+      expect(b.signature(), a.signature());
+
+      final count = a.diagnostics.equallyOptimalSolutions;
+      final wrapped =
+          engine.generate(players: tied(), settings: settings, variant: count);
+      expect(wrapped.signature(),
+          engine.generate(players: tied(), settings: settings).signature());
+    });
+
+    test('a single optimal solution ignores the variant entirely', () {
+      // Distinct ratings, so priority 2 settles it outright: one split is
+      // strictly better than every other, and asking for a variant must not
+      // invent a second answer.
+      final pool = [
+        p('d1', Position.def, rating: 10),
+        p('d2', Position.def, rating: 20),
+        p('m1', Position.mid, rating: 30),
+        p('m2', Position.mid, rating: 44),
+      ];
+      final plain = const BtgeEngine(strict)
+          .generate(players: pool, settings: settings);
+      final varied = const BtgeEngine(strict)
+          .generate(players: pool, settings: settings, variant: 3);
+
+      expect(plain.diagnostics.equallyOptimalSolutions, 1);
+      expect(varied.diagnostics.variantIndex, 0);
+      expect(varied.signature(), plain.signature());
+    });
+  });
 }

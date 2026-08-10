@@ -95,6 +95,8 @@ class Diagnostics {
     required this.goalkeeperMode,
     required this.emergencyGoalkeeperCount,
     required this.solutionCountAtOptimum,
+    required this.equallyOptimalSolutions,
+    required this.variantIndex,
     required this.candidatesEvaluated,
     required this.searchWasExhaustive,
     required this.elapsedMs,
@@ -111,6 +113,18 @@ class Diagnostics {
   /// tie. Diagnostic for whether the `OP-3` bands are usefully sized.
   final int solutionCountAtOptimum;
 
+  /// How many partitions survived **every** priority, diversity included, and
+  /// are therefore equally optimal by the whole of §7.
+  ///
+  /// This is the size of the set [BtgeEngine.generate]'s `variant` selects from:
+  /// one means the search has a single answer and asking again cannot produce
+  /// another, more means a regeneration has somewhere else to go.
+  final int equallyOptimalSolutions;
+
+  /// Which member of that set was returned, after the requested variant was
+  /// wrapped into range. Always 0 when the caller asked for no variant.
+  final int variantIndex;
+
   /// Partitions scored.
   final int candidatesEvaluated;
 
@@ -126,6 +140,7 @@ class Diagnostics {
   String toString() => 'Diagnostics(gk: ${goalkeeperMode.name}, '
       'emergencyGk: $emergencyGoalkeeperCount, '
       'tiedAtOptimum: $solutionCountAtOptimum, '
+      'equallyOptimal: $equallyOptimalSolutions, variant: $variantIndex, '
       'evaluated: $candidatesEvaluated, exhaustive: $searchWasExhaustive, '
       '${elapsedMs}ms)';
 }

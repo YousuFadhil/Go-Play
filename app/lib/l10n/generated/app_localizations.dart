@@ -278,6 +278,60 @@ abstract class AppLocalizations {
   /// **'Forward'**
   String get positionFwd;
 
+  /// No description provided for @secondaryPositionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Secondary position (optional)'**
+  String get secondaryPositionLabel;
+
+  /// No description provided for @noSecondaryPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get noSecondaryPosition;
+
+  /// No description provided for @secondaryPositionSameAsPrimary.
+  ///
+  /// In en, this message translates to:
+  /// **'Secondary position must differ from the primary position'**
+  String get secondaryPositionSameAsPrimary;
+
+  /// No description provided for @dateOfBirthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of birth'**
+  String get dateOfBirthLabel;
+
+  /// No description provided for @dateOfBirthRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of birth is required'**
+  String get dateOfBirthRequired;
+
+  /// No description provided for @selectDateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select date'**
+  String get selectDateLabel;
+
+  /// No description provided for @profileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileTitle;
+
+  /// No description provided for @profileSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile updated.'**
+  String get profileSaved;
+
+  /// No description provided for @profileSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save your profile. Please try again.'**
+  String get profileSaveFailed;
+
   /// No description provided for @homeTitle.
   ///
   /// In en, this message translates to:
@@ -491,7 +545,7 @@ abstract class AppLocalizations {
   /// No description provided for @startingPlayersInvalid.
   ///
   /// In en, this message translates to:
-  /// **'Enter a number between 2 and 30'**
+  /// **'Enter a number between 4 and 30'**
   String get startingPlayersInvalid;
 
   /// No description provided for @capacityAutoNote.
@@ -505,6 +559,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to create the match. Please try again.'**
   String get matchCreateFailed;
+
+  /// No description provided for @errInvalidTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a match name of at least 2 characters.'**
+  String get errInvalidTitle;
+
+  /// No description provided for @errInvalidLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a location of at least 2 characters.'**
+  String get errInvalidLocation;
+
+  /// No description provided for @errCommunityInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'This community is no longer active, so no new match can be created in it.'**
+  String get errCommunityInactive;
 
   /// No description provided for @communityMatchesEmpty.
   ///
@@ -692,6 +764,126 @@ abstract class AppLocalizations {
   /// **'The match was deleted.'**
   String get notifMatchDeleted;
 
+  /// No description provided for @notifMatchCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'A new match has been created.'**
+  String get notifMatchCreated;
+
+  /// No description provided for @notifRegistrationOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration is now open.'**
+  String get notifRegistrationOpened;
+
+  /// No description provided for @notifMatchFull.
+  ///
+  /// In en, this message translates to:
+  /// **'The match is now full.'**
+  String get notifMatchFull;
+
+  /// No description provided for @notifTeamsRegenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'The teams were regenerated.'**
+  String get notifTeamsRegenerated;
+
+  /// No description provided for @notifMatchStartingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Your match starts in less than an hour.'**
+  String get notifMatchStartingSoon;
+
+  /// No description provided for @notifMatchTimeChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The match time has changed.'**
+  String get notifMatchTimeChanged;
+
+  /// No description provided for @notifCommunityInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been invited to a community.'**
+  String get notifCommunityInvitation;
+
+  /// No description provided for @notifCommunityJoinAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your request to join was accepted.'**
+  String get notifCommunityJoinAccepted;
+
+  /// No description provided for @notifCommunityPictureUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'The community picture was updated.'**
+  String get notifCommunityPictureUpdated;
+
+  /// No description provided for @notifCommunityDescriptionUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'The community description was updated.'**
+  String get notifCommunityDescriptionUpdated;
+
+  /// No description provided for @notifCommunitySettingsUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'The community settings were updated.'**
+  String get notifCommunitySettingsUpdated;
+
+  /// No description provided for @pushSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications'**
+  String get pushSettingsTitle;
+
+  /// No description provided for @pushSettingsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Every notification is kept in the app. These switches only decide what your phone alerts you about.'**
+  String get pushSettingsIntro;
+
+  /// No description provided for @pushMatchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Match notifications'**
+  String get pushMatchLabel;
+
+  /// No description provided for @pushMatchSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration, player changes and reminders.'**
+  String get pushMatchSubtitle;
+
+  /// No description provided for @pushCommunityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Community notifications'**
+  String get pushCommunityLabel;
+
+  /// No description provided for @pushCommunitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitations and membership.'**
+  String get pushCommunitySubtitle;
+
+  /// No description provided for @pushMuteAllLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute all push notifications'**
+  String get pushMuteAllLabel;
+
+  /// No description provided for @pushMuteAllSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is sent to your phone. Your notification history is unchanged.'**
+  String get pushMuteAllSubtitle;
+
+  /// No description provided for @pushSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That setting could not be saved. Try again.'**
+  String get pushSaveFailed;
+
   /// No description provided for @matchManagementTitle.
   ///
   /// In en, this message translates to:
@@ -761,7 +953,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteMatchHint.
   ///
   /// In en, this message translates to:
-  /// **'Registered players are notified. Completed matches cannot be deleted.'**
+  /// **'Registered players are notified. Deleting a completed match also takes back every statistic and rating its result produced.'**
   String get deleteMatchHint;
 
   /// No description provided for @deleteMatchConfirmTitle.
@@ -1345,6 +1537,816 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The match and its registrations are removed, and registered players are notified. This cannot be undone.'**
   String get adminDeleteMatchConfirmBody;
+
+  /// No description provided for @teamsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Teams'**
+  String get teamsTitle;
+
+  /// No description provided for @teamsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Teams have not been generated for this match yet.'**
+  String get teamsEmpty;
+
+  /// No description provided for @generateTeamsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate teams'**
+  String get generateTeamsButton;
+
+  /// No description provided for @regenerateTeamsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate teams'**
+  String get regenerateTeamsButton;
+
+  /// No description provided for @regenerateTeamsConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate the teams again?'**
+  String get regenerateTeamsConfirmTitle;
+
+  /// No description provided for @regenerateTeamsConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The current teams are replaced by a new split of the confirmed players.'**
+  String get regenerateTeamsConfirmBody;
+
+  /// No description provided for @teamsGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Teams generated.'**
+  String get teamsGenerated;
+
+  /// No description provided for @teamAName.
+  ///
+  /// In en, this message translates to:
+  /// **'Team A'**
+  String get teamAName;
+
+  /// No description provided for @teamBName.
+  ///
+  /// In en, this message translates to:
+  /// **'Team B'**
+  String get teamBName;
+
+  /// No description provided for @teamsOutOfPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of position'**
+  String get teamsOutOfPosition;
+
+  /// No description provided for @teamsPlayerRangeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating teams needs between {min} and {max} confirmed players. This match has {count}.'**
+  String teamsPlayerRangeNote(int min, int max, int count);
+
+  /// No description provided for @errMissingPlayerInputs.
+  ///
+  /// In en, this message translates to:
+  /// **'Some confirmed players have an incomplete profile. Each of them needs a date of birth before teams can be generated.'**
+  String get errMissingPlayerInputs;
+
+  /// No description provided for @errTeamsNotGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Teams could not be generated from this roster.'**
+  String get errTeamsNotGenerated;
+
+  /// No description provided for @editPlayerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {player}'**
+  String editPlayerTitle(String player);
+
+  /// No description provided for @movePlayerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to the other team'**
+  String get movePlayerAction;
+
+  /// No description provided for @swapPlayerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap with a player'**
+  String get swapPlayerAction;
+
+  /// No description provided for @changePositionAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change position'**
+  String get changePositionAction;
+
+  /// No description provided for @swapPlayerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap with'**
+  String get swapPlayerTitle;
+
+  /// No description provided for @swapNobodyAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The other team has nobody to swap with.'**
+  String get swapNobodyAvailable;
+
+  /// No description provided for @changePositionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned position'**
+  String get changePositionTitle;
+
+  /// No description provided for @lineupUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup updated.'**
+  String get lineupUpdated;
+
+  /// No description provided for @errLineupRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'That change was refused. A team cannot have two goalkeepers.'**
+  String get errLineupRefused;
+
+  /// No description provided for @errLineupNotChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'That change no longer applies to this lineup. It has been reloaded.'**
+  String get errLineupNotChanged;
+
+  /// No description provided for @matchResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match result'**
+  String get matchResultTitle;
+
+  /// No description provided for @saveResultButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save result'**
+  String get saveResultButton;
+
+  /// No description provided for @resultSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Match result saved successfully'**
+  String get resultSaved;
+
+  /// No description provided for @resultOrganizersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the community owner and admins can record a match result.'**
+  String get resultOrganizersOnly;
+
+  /// No description provided for @mvpLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Best player'**
+  String get mvpLabel;
+
+  /// No description provided for @addGoalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a goal'**
+  String get addGoalLabel;
+
+  /// No description provided for @removeGoalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove a goal'**
+  String get removeGoalLabel;
+
+  /// No description provided for @goalsScoredLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No goals} =1{1 goal} other{{count} goals}}'**
+  String goalsScoredLabel(int count);
+
+  /// No description provided for @goalsRecordedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'{recorded} of {total} goals assigned to a scorer.'**
+  String goalsRecordedNote(int recorded, int total);
+
+  /// No description provided for @editResultConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the recorded result?'**
+  String get editResultConfirmTitle;
+
+  /// No description provided for @editResultConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The ratings and statistics the previous result produced are reversed, and the new result is applied instead.'**
+  String get editResultConfirmBody;
+
+  /// No description provided for @errGoalsDoNotMatchScore.
+  ///
+  /// In en, this message translates to:
+  /// **'The goals assigned to scorers must add up to the final score.'**
+  String get errGoalsDoNotMatchScore;
+
+  /// No description provided for @errMvpNotParticipant.
+  ///
+  /// In en, this message translates to:
+  /// **'The best player must be one of the players in this match.'**
+  String get errMvpNotParticipant;
+
+  /// No description provided for @errScorerNotParticipant.
+  ///
+  /// In en, this message translates to:
+  /// **'A goal can only be credited to a player in this match.'**
+  String get errScorerNotParticipant;
+
+  /// No description provided for @errResultNeedsLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Teams have not been generated for this match yet. The result needs to know which side each player was on.'**
+  String get errResultNeedsLineup;
+
+  /// No description provided for @errInvalidResultNumbers.
+  ///
+  /// In en, this message translates to:
+  /// **'The result could not be saved. Check the scores and the goals.'**
+  String get errInvalidResultNumbers;
+
+  /// No description provided for @dashboardTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashboard'**
+  String get dashboardTab;
+
+  /// No description provided for @communityStatisticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Community statistics'**
+  String get communityStatisticsTitle;
+
+  /// No description provided for @statTotalMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Total matches'**
+  String get statTotalMatches;
+
+  /// No description provided for @statTotalPlayers.
+  ///
+  /// In en, this message translates to:
+  /// **'Total players'**
+  String get statTotalPlayers;
+
+  /// No description provided for @statTotalGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Total goals'**
+  String get statTotalGoals;
+
+  /// No description provided for @statLeadersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaders'**
+  String get statLeadersTitle;
+
+  /// No description provided for @statTopScorer.
+  ///
+  /// In en, this message translates to:
+  /// **'Top scorer'**
+  String get statTopScorer;
+
+  /// No description provided for @statMostActivePlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Most active player'**
+  String get statMostActivePlayer;
+
+  /// No description provided for @statMostMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'Most valuable player'**
+  String get statMostMvp;
+
+  /// No description provided for @statNoneYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get statNoneYet;
+
+  /// No description provided for @statFormerPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Former player'**
+  String get statFormerPlayer;
+
+  /// No description provided for @statMatchesPlayedValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No matches} =1{1 match} other{{count} matches}}'**
+  String statMatchesPlayedValue(int count);
+
+  /// No description provided for @statMvpValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Never} =1{1 time} other{{count} times}}'**
+  String statMvpValue(int count);
+
+  /// No description provided for @statScopeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Player statistics count matches whose result has been recorded. Total matches counts every match the community has created.'**
+  String get statScopeNote;
+
+  /// No description provided for @statEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No results have been recorded in this community yet. Statistics appear once a match result is saved.'**
+  String get statEmptyBody;
+
+  /// No description provided for @playerStatisticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My statistics'**
+  String get playerStatisticsTitle;
+
+  /// No description provided for @statCurrentRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Current rating'**
+  String get statCurrentRating;
+
+  /// No description provided for @statMatchesPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches played'**
+  String get statMatchesPlayed;
+
+  /// No description provided for @statWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Wins'**
+  String get statWins;
+
+  /// No description provided for @statDraws.
+  ///
+  /// In en, this message translates to:
+  /// **'Draws'**
+  String get statDraws;
+
+  /// No description provided for @statLosses.
+  ///
+  /// In en, this message translates to:
+  /// **'Losses'**
+  String get statLosses;
+
+  /// No description provided for @statGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get statGoals;
+
+  /// No description provided for @statMvpCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Best player awards'**
+  String get statMvpCount;
+
+  /// No description provided for @statCareerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your record across every community you play in. These figures are set by the app when a match result is recorded, and count matches whose result has been saved.'**
+  String get statCareerNote;
+
+  /// No description provided for @statNoMatchesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'You have not played a recorded match yet. Your figures start at zero and the rating is the starting rating every player is given.'**
+  String get statNoMatchesYet;
+
+  /// No description provided for @leaderboardsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaderboards'**
+  String get leaderboardsTab;
+
+  /// No description provided for @leaderboardHighestRated.
+  ///
+  /// In en, this message translates to:
+  /// **'Highest rated'**
+  String get leaderboardHighestRated;
+
+  /// No description provided for @leaderboardTopScorer.
+  ///
+  /// In en, this message translates to:
+  /// **'Top scorer'**
+  String get leaderboardTopScorer;
+
+  /// No description provided for @leaderboardMostMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'Most valuable player'**
+  String get leaderboardMostMvp;
+
+  /// No description provided for @leaderboardMostActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Most active'**
+  String get leaderboardMostActive;
+
+  /// No description provided for @leaderboardMostWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Most wins'**
+  String get leaderboardMostWins;
+
+  /// No description provided for @leaderboardsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No leaderboards yet. Once a match result is recorded, this is where the community sees who is leading.'**
+  String get leaderboardsEmpty;
+
+  /// No description provided for @leaderboardRatingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Highest rated ranks by the player\'s overall rating across every community.'**
+  String get leaderboardRatingNote;
+
+  /// No description provided for @cancelButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelButton;
+
+  /// No description provided for @changeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get changeAction;
+
+  /// No description provided for @editProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get editProfileTitle;
+
+  /// No description provided for @editProfileAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get editProfileAction;
+
+  /// No description provided for @profilePersonalSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal information'**
+  String get profilePersonalSection;
+
+  /// No description provided for @profileAccountSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get profileAccountSection;
+
+  /// No description provided for @profilePlayingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing profile'**
+  String get profilePlayingSection;
+
+  /// No description provided for @passwordHiddenNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden for your security'**
+  String get passwordHiddenNote;
+
+  /// No description provided for @changeEmailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get changeEmailTitle;
+
+  /// No description provided for @changePasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get changePasswordTitle;
+
+  /// No description provided for @confirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get confirmPasswordLabel;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The two passwords do not match'**
+  String get passwordsDoNotMatch;
+
+  /// No description provided for @passwordChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Password changed.'**
+  String get passwordChanged;
+
+  /// No description provided for @emailChangeRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your new address for the confirmation link.'**
+  String get emailChangeRequested;
+
+  /// No description provided for @avatarChangeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change photo'**
+  String get avatarChangeAction;
+
+  /// No description provided for @avatarSourceCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get avatarSourceCamera;
+
+  /// No description provided for @avatarSourceGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from gallery'**
+  String get avatarSourceGallery;
+
+  /// No description provided for @ageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Age'**
+  String get ageLabel;
+
+  /// No description provided for @avatarRemoveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove photo'**
+  String get avatarRemoveAction;
+
+  /// No description provided for @avatarUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo updated.'**
+  String get avatarUpdated;
+
+  /// No description provided for @avatarRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo removed.'**
+  String get avatarRemoved;
+
+  /// No description provided for @avatarUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update the photo. Please try again.'**
+  String get avatarUploadFailed;
+
+  /// No description provided for @ageYears.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 year old} other{{count} years old}}'**
+  String ageYears(int count);
+
+  /// No description provided for @logoutConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Log out?'**
+  String get logoutConfirmTitle;
+
+  /// No description provided for @logoutConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will need to sign in again to use Go Play.'**
+  String get logoutConfirmBody;
+
+  /// No description provided for @completedMatchesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed matches'**
+  String get completedMatchesTitle;
+
+  /// No description provided for @addPlayedPlayerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a player who played'**
+  String get addPlayedPlayerAction;
+
+  /// No description provided for @addPlayedPlayerNobodyAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Every community member is already in this lineup.'**
+  String get addPlayedPlayerNobodyAvailable;
+
+  /// No description provided for @removePlayedPlayerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from the match'**
+  String get removePlayedPlayerAction;
+
+  /// No description provided for @removePlayedPlayerConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this player?'**
+  String get removePlayedPlayerConfirmTitle;
+
+  /// No description provided for @removePlayedPlayerConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be taken out of the lineup, and every statistic and rating this match gave them will be taken back.'**
+  String removePlayedPlayerConfirmBody(String name);
+
+  /// No description provided for @editPlayedMatchNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes to a completed match recalculate statistics, ratings and leaderboards.'**
+  String get editPlayedMatchNote;
+
+  /// No description provided for @chooseTeamTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Which team?'**
+  String get chooseTeamTitle;
+
+  /// No description provided for @choosePositionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Which position?'**
+  String get choosePositionTitle;
+
+  /// No description provided for @errResultParticipantRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'This player is the best player or a scorer in the recorded result. Edit the result first.'**
+  String get errResultParticipantRemoved;
+
+  /// No description provided for @errMatchNotCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Only a completed match\'s players can be corrected this way.'**
+  String get errMatchNotCompleted;
+
+  /// No description provided for @communityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Community'**
+  String get communityTitle;
+
+  /// No description provided for @discoverHeroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Football, with your people.'**
+  String get discoverHeroTitle;
+
+  /// No description provided for @discoverHeroBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a community near you, see what is being played this week, and take your place on the pitch.'**
+  String get discoverHeroBody;
+
+  /// No description provided for @discoverAlreadyHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Log in'**
+  String get discoverAlreadyHaveAccount;
+
+  /// No description provided for @discoverSeatsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 place left} other{{count} places left}}'**
+  String discoverSeatsLeft(int count);
+
+  /// No description provided for @discoverMemberCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No members} =1{1 member} other{{count} members}}'**
+  String discoverMemberCount(int count);
+
+  /// No description provided for @discoverUpcomingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 upcoming match} other{{count} upcoming matches}}'**
+  String discoverUpcomingCount(int count);
+
+  /// No description provided for @discoverNoUpcomingMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is scheduled just yet. Check back soon.'**
+  String get discoverNoUpcomingMatches;
+
+  /// No description provided for @discoverNoCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'No communities yet. Be the first to start one.'**
+  String get discoverNoCommunities;
+
+  /// No description provided for @discoverCtaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to play?'**
+  String get discoverCtaTitle;
+
+  /// No description provided for @discoverCtaBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an account to join a community, register for matches, and start your own.'**
+  String get discoverCtaBody;
+
+  /// No description provided for @authRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account needed'**
+  String get authRequiredTitle;
+
+  /// No description provided for @authRequiredJoinCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an account to join this community.'**
+  String get authRequiredJoinCommunity;
+
+  /// No description provided for @authRequiredRegisterMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an account to register for this match.'**
+  String get authRequiredRegisterMatch;
+
+  /// No description provided for @authRequiredCreateCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an account to start your own community.'**
+  String get authRequiredCreateCommunity;
+
+  /// No description provided for @mvpOptionalNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a star to name the best player. This is optional — the result saves without one.'**
+  String get mvpOptionalNote;
+
+  /// No description provided for @navDiscover.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover'**
+  String get navDiscover;
+
+  /// No description provided for @viewCommunityAction.
+  ///
+  /// In en, this message translates to:
+  /// **'View community'**
+  String get viewCommunityAction;
+
+  /// No description provided for @viewMatchAction.
+  ///
+  /// In en, this message translates to:
+  /// **'View match'**
+  String get viewMatchAction;
+
+  /// No description provided for @discoverWelcomeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back, {name}'**
+  String discoverWelcomeBack(String name);
+
+  /// No description provided for @discoverHeroBodySignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'See what your communities are playing this week, and find new ones to join.'**
+  String get discoverHeroBodySignedIn;
+
+  /// No description provided for @discoverCommunityCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No communities} =1{1 community} other{{count} communities}}'**
+  String discoverCommunityCount(int count);
+
+  /// No description provided for @discoverCtaTitleSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Start something of your own'**
+  String get discoverCtaTitleSignedIn;
+
+  /// No description provided for @discoverCtaBodySignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a community and bring your regular game together in one place.'**
+  String get discoverCtaBodySignedIn;
+
+  /// No description provided for @discoverMatchesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Games with places still open'**
+  String get discoverMatchesSubtitle;
+
+  /// No description provided for @discoverCommunitiesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clubs you can join'**
+  String get discoverCommunitiesSubtitle;
+
+  /// No description provided for @homeUpcomingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Across your communities'**
+  String get homeUpcomingSubtitle;
 }
 
 class _AppLocalizationsDelegate

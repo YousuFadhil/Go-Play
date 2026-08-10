@@ -18,37 +18,48 @@ void main() {
   late TestUser owner;
   late TestUser admin;
   late TestUser player;
+  late TestUser player2;
+  late TestUser player3;
   late String communityId;
 
   setUpAll(() async {
     owner = await signInTestUser('owner');
     admin = await signInTestUser('admin');
     player = await signInTestUser('player');
+    player2 = await signInTestUser('player2');
+    player3 = await signInTestUser('player3');
   });
 
   setUp(() async {
     communityId = await createCommunity(owner, 'ITest Concurrency');
     await addMember(owner, communityId, admin, role: 'admin');
     await addMember(owner, communityId, player);
+    // Both scenarios in this file need five genuine members: the approved
+    // minimum of four seats (OP-2) means a reserve only exists at the fifth
+    // registration.
+    await addMember(owner, communityId, player2);
+    await addMember(owner, communityId, player3);
   });
 
   tearDown(() async => disposeCommunity(owner, communityId));
 
   test('two people racing for the last seat produce one confirmed and one '
       'reserve', () async {
-    // One starting place; the owner is not registered, so admin and player
-    // are both going for it.
+    // Four starting places; owner, admin and player take three of them, so
+    // player2 and player3 are both going for the last one.
     final matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 7), startingPlayers: 2);
+        startsIn: const Duration(days: 7), startingPlayers: 4);
 
-    // Fill the first seat so exactly one remains.
-    final first = await owner.client
-        .rpc('register_for_match', params: {'p_match_id': matchId});
-    expect(first, 'confirmed');
+    // Fill the first three seats so exactly one remains.
+    for (final user in [owner, admin, player]) {
+      final seat = await user.client
+          .rpc('register_for_match', params: {'p_match_id': matchId});
+      expect(seat, 'confirmed');
+    }
 
     final results = await Future.wait([
-      admin.client.rpc('register_for_match', params: {'p_match_id': matchId}),
-      player.client.rpc('register_for_match', params: {'p_match_id': matchId}),
+      player2.client.rpc('register_for_match', params: {'p_match_id': matchId}),
+      player3.client.rpc('register_for_match', params: {'p_match_id': matchId}),
     ]);
 
     final statuses = results.map((r) => r as String).toList()..sort();
@@ -59,35 +70,34 @@ void main() {
         .from('match_registrations')
         .select('user_id, status, registration_order')
         .eq('match_id', matchId);
-    expect(rows, hasLength(3), reason: 'no registration was lost');
+    expect(rows, hasLength(5), reason: 'no registration was lost');
     expect(
       rows.where((r) => r['status'] == 'confirmed'),
-      hasLength(2),
-      reason: 'the two starting places are filled, no more',
+      hasLength(4),
+      reason: 'the four starting places are filled, no more',
     );
 
     final orders = rows.map((r) => r['registration_order'] as int).toList();
-    expect(orders.toSet(), hasLength(3),
+    expect(orders.toSet(), hasLength(5),
         reason: 'registration_order is unique per match');
   });
 
   test('racing withdrawals promote at most one reserve into the seat',
       () async {
-    // Two seats: owner and admin start, player waits in reserve.
+    // Four seats: owner, admin, player and player2 start, player3 waits in
+    // reserve.
     final matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 8), startingPlayers: 2);
+        startsIn: const Duration(days: 8), startingPlayers: 4);
 
-    await owner.client
-        .rpc('register_for_match', params: {'p_match_id': matchId});
-    await admin.client
-        .rpc('register_for_match', params: {'p_match_id': matchId});
-    await player.client
-        .rpc('register_for_match', params: {'p_match_id': matchId});
+    for (final user in [owner, admin, player, player2, player3]) {
+      await user.client
+          .rpc('register_for_match', params: {'p_match_id': matchId});
+    }
 
-    // The only confirmed player leaves while a reserve also leaves.
+    // A confirmed player leaves while the only reserve also leaves.
     await Future.wait([
       owner.client.rpc('withdraw_from_match', params: {'p_match_id': matchId}),
-      player.client.rpc('withdraw_from_match', params: {'p_match_id': matchId}),
+      player3.client.rpc('withdraw_from_match', params: {'p_match_id': matchId}),
     ]);
 
     final rows = await admin.client
@@ -95,9 +105,11 @@ void main() {
         .select('user_id, status')
         .eq('match_id', matchId);
 
-    expect(rows, hasLength(1), reason: 'both withdrawals took effect');
-    expect(rows.first['user_id'], admin.id);
-    expect(rows.first['status'], 'confirmed',
-        reason: 'the remaining reserve was promoted into the freed seat');
+    expect(rows, hasLength(3), reason: 'both withdrawals took effect');
+    expect({for (final r in rows) r['user_id']},
+        {admin.id, player.id, player2.id});
+    expect(rows.every((r) => r['status'] == 'confirmed'), isTrue,
+        reason: 'the freed seat left everyone remaining inside the four, and '
+            'the reserve that withdrew was not promoted into it');
   });
 }

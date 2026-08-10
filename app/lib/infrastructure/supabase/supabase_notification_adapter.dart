@@ -43,4 +43,54 @@ class SupabaseNotificationAdapter implements NotificationAdapter {
             .eq('user_id', userId)
             .eq('is_read', false);
       });
+
+  @override
+  Future<PushPreferences> fetchPushPreferences() => guarded(() async {
+        // No row is the ordinary state of an account that never opened the
+        // settings screen, so it is the defaults rather than an error.
+        final row = await _client
+            .from('notification_push_preferences')
+            .select('match_push, community_push, mute_all')
+            .maybeSingle();
+        return pushPreferencesFromRow(row);
+      });
+
+  @override
+  Future<void> savePushPreferences(PushPreferences preferences) =>
+      guarded(() async {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return;
+        // The row is created on first save. `user_id` is the primary key, so
+        // an upsert is the whole of "set my preferences" whether or not the
+        // account has any yet.
+        await _client.from('notification_push_preferences').upsert({
+          'user_id': userId,
+          'match_push': preferences.matchPush,
+          'community_push': preferences.communityPush,
+          'mute_all': preferences.muteAll,
+        });
+      });
+
+  @override
+  Future<void> registerDevice({
+    required String token,
+    required String platform,
+  }) =>
+      guarded(() async {
+        // An RPC rather than an upsert: the same device signing in as somebody
+        // else has to take the token away from the previous holder, and that
+        // row is invisible to this session under the table's own read rule.
+        await _client.rpc(
+          'register_push_token',
+          params: {'p_token': token, 'p_platform': platform},
+        );
+      });
+
+  @override
+  Future<void> removeDevice(String token) => guarded(() async {
+        await _client
+            .from('notification_push_tokens')
+            .delete()
+            .eq('token', token);
+      });
 }

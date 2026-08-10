@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/app_header.dart';
 import 'package:intl/intl.dart';
 
 import 'app_settings.dart';
@@ -128,7 +130,7 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
     final locale = Localizations.localeOf(context).toString();
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.editMatchTitle)),
+      appBar: AppHeader(title: Text(l10n.editMatchTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -191,8 +193,10 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
                       InputDecoration(labelText: l10n.startingPlayersLabel),
                   onChanged: (_) => setState(() {}),
                   validator: (value) {
+                    // 4 is the approved OP-2 minimum match size (2 v 2), the
+                    // same bound the database and update_match enforce.
                     final parsed = int.tryParse(value ?? '');
-                    if (parsed == null || parsed < 2 || parsed > 30) {
+                    if (parsed == null || parsed < 4 || parsed > 30) {
                       return l10n.startingPlayersInvalid;
                     }
                     return null;

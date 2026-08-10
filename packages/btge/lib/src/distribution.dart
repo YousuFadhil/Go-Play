@@ -94,12 +94,20 @@ List<TargetPair> deriveTargets({
 
 /// Goalkeeper slots per team, per §10.
 ///
-/// With [BtgeConfiguration.assignEmergencyGoalkeeper] set, each team is given a
-/// goalkeeper slot and `BTGE-GK-2` allows an emergency goalkeeper to fill it
-/// where no natural one is available. With it unset, only teams that can be
-/// served by a natural goalkeeper get a slot.
+/// A pool holding **no** natural goalkeeper gets no goalkeeper slot at all, and
+/// that decision outranks [BtgeConfiguration.assignEmergencyGoalkeeper].
+/// `BTGE-GK-2`'s emergency keeper stands in for a goalkeeper the pool has but
+/// cannot spare — with nobody naming the position at all, filling a goal would
+/// be the engine inventing the role rather than covering an absence. `BTGE-GK-3`
+/// is unaffected: generation still succeeds, it simply produces an outfield-only
+/// shape, and `BTGE-GK-4` already forbids reading a promise of a filled goal
+/// into §10.
 ///
-/// This encodes no guarantee beyond §10 — `BTGE-GK-4` forbids reading one in.
+/// With natural goalkeepers present and
+/// [BtgeConfiguration.assignEmergencyGoalkeeper] set, each team is given a
+/// goalkeeper slot and an emergency keeper may fill the side the single natural
+/// one does not take. With it unset, only teams that can be served by a natural
+/// goalkeeper get a slot.
 List<(int, int)> _goalkeeperSplits({
   required int naturalGoalkeepers,
   required int sizeA,
@@ -109,17 +117,15 @@ List<(int, int)> _goalkeeperSplits({
   final canA = sizeA >= 1;
   final canB = sizeB >= 1;
 
+  if (naturalGoalkeepers == 0) return [(0, 0)];
   if (config.assignEmergencyGoalkeeper) {
     return [(canA ? 1 : 0, canB ? 1 : 0)];
   }
   if (naturalGoalkeepers >= 2) return [(canA ? 1 : 0, canB ? 1 : 0)];
-  if (naturalGoalkeepers == 1) {
-    // `BTGE-GK-9` / `BTGE-GK-10`: the single natural goalkeeper serves one side.
-    // Which side is decided by the remaining priorities (`BTGE-GK-11`), so both
-    // arrangements are offered to the search.
-    return [if (canA) (1, 0), if (canB) (0, 1)];
-  }
-  return [(0, 0)];
+  // `BTGE-GK-9` / `BTGE-GK-10`: the single natural goalkeeper serves one side.
+  // Which side is decided by the remaining priorities (`BTGE-GK-11`), so both
+  // arrangements are offered to the search.
+  return [if (canA) (1, 0), if (canB) (0, 1)];
 }
 
 /// The pool's outfield profile, scaled to the number of outfield slots.
