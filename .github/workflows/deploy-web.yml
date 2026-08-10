@@ -1,32 +1,20 @@
-name: Deploy web app
+name: Deploy web app to Cloudflare Pages
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: github-pages
+  group: cloudflare-pages
   cancel-in-progress: true
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out the release
         uses: actions/checkout@v4
-
-      - name: Configure Pages
-        id: pages
-        uses: actions/configure-pages@v5
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -39,13 +27,20 @@ jobs:
 
       - name: Build the web release
         working-directory: app
-        run: flutter build web --release --base-href "${{ steps.pages.outputs.base_path }}/"
+        run: flutter build web --release
 
-      - name: Upload the web release
-        uses: actions/upload-pages-artifact@v3
+      - name: Create the Pages project if needed
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: app/build/web
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create go-play --production-branch main
 
-      - name: Publish
+      - name: Publish to Cloudflare Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy app/build/web --project-name=go-play
