@@ -88,13 +88,36 @@ jobs:
             echo "::error::a service-role key reached the web bundle"
             exit 1
           fi
+          # Proof that the bundle about to be published was compiled from this
+          # commit's source and not recovered from a cache. `v_completed_matches`
+          # entered the source in `0b3fb0f`; a bundle without it is older than
+          # that commit, which is exactly the staleness that made the Community
+          # Statistics count read zero while the database held two.
+          grep -q 'v_completed_matches' app/build/web/main.dart.js \
+            || { echo "::error::bundle predates 0b3fb0f — stale build, refusing to deploy"; exit 1; }
 
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # `--branch=main` publishes to production rather than a preview.
+          # `--branch=main` is what makes this a PRODUCTION deployment, and it
+          # is required rather than optional.
+          #
+          # Cloudflare decides production vs preview by whether the deployed
+          # branch matches the project's configured production branch; a
+          # deployment on any other branch is a preview. This project's
+          # production branch is `main` — `820ca12` created it with
+          # `pages project create go-play --production-branch main` — so
+          # `--branch=main` lands on production.
+          #
+          # Omitting the flag is the unsafe option here, not the safe one.
+          # Wrangler then infers the branch from git metadata, and
+          # `actions/checkout` leaves the repository on a detached HEAD, so the
+          # inferred name is not reliably `main`. Anything else silently
+          # publishes a preview, and production keeps serving the old bundle —
+          # the same invisible-staleness failure this pipeline exists to stop.
+          #
           # The project must already exist: this workflow deliberately does not
           # create one, so a wrong name fails the run instead of silently
           # publishing to a second, empty project.
