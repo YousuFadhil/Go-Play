@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
+import '../../core/design.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import 'create_community_screen.dart';
 import 'community_details_screen.dart';
 import 'community_models.dart';
@@ -118,20 +120,26 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingState();
           }
           if (snapshot.hasError) {
-            return _ErrorRetry(onRetry: _refresh);
+            return ErrorState(onRetry: _refresh);
           }
 
           final mine = snapshot.data?.mine ?? const [];
           final discover = snapshot.data?.discover ?? const [];
 
           if (mine.isEmpty && discover.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(l10n.communitiesEmpty, textAlign: TextAlign.center),
+            return EmptyState(
+              icon: Icons.groups_outlined,
+              message: l10n.communitiesEmpty,
+              action: FilledButton.icon(
+                onPressed: _openCreateCommunity,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(l10n.createCommunityButton),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(200, kButtonHeight),
+                ),
               ),
             );
           }
@@ -140,9 +148,13 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             onRefresh: () async => _refresh(),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: Gap.xxl * 2),
               children: [
                 if (mine.isNotEmpty) ...[
-                  _SectionHeader(l10n.myCommunitiesSection),
+                  SectionHeading(
+                    title: l10n.myCommunitiesSection,
+                    count: mine.length,
+                  ),
                   for (final community in mine)
                     ListTile(
                       leading: const CircleAvatar(child: Icon(Icons.groups)),
@@ -167,7 +179,10 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                     ),
                 ],
                 if (discover.isNotEmpty) ...[
-                  _SectionHeader(l10n.publicCommunitiesSection),
+                  SectionHeading(
+                    title: l10n.publicCommunitiesSection,
+                    count: discover.length,
+                  ),
                   for (final community in discover)
                     ListTile(
                       leading: const CircleAvatar(child: Icon(Icons.public)),
@@ -202,41 +217,6 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-    );
-  }
-}
-
-class _ErrorRetry extends StatelessWidget {
-  const _ErrorRetry({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(l10n.loadFailed),
-          const SizedBox(height: 12),
-          OutlinedButton(onPressed: onRetry, child: Text(l10n.retryButton)),
-        ],
       ),
     );
   }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import 'statistics_models.dart';
 import 'statistics_repository.dart';
 
-/// The community's leaderboards: five measures, the top three on each.
+/// The community's leaderboards: five measures, led by one player each.
 ///
 /// It owns its own load rather than joining the details screen's, for the same
 /// reason the dashboard does — a recorded result changes these standings and
@@ -52,28 +54,14 @@ class _CommunityLeaderboardsTabState extends State<CommunityLeaderboardsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
     return FutureBuilder<List<Leaderboard>>(
       future: _boardsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return const LoadingState();
         }
         if (snapshot.hasError || !snapshot.hasData) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l10n.loadFailed),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: _refresh,
-                  child: Text(l10n.retryButton),
-                ),
-              ],
-            ),
-          );
+          return ErrorState(onRetry: _refresh);
         }
 
         return RefreshIndicator(
@@ -101,19 +89,9 @@ class _BoardsBody extends StatelessWidget {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 64, 24, 24),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.leaderboard_outlined,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-                const SizedBox(height: 16),
-                Text(l10n.leaderboardsEmpty, textAlign: TextAlign.center),
-              ],
-            ),
+          EmptyState(
+            icon: Icons.leaderboard_outlined,
+            message: l10n.leaderboardsEmpty,
           ),
         ],
       );
@@ -126,33 +104,42 @@ class _BoardsBody extends StatelessWidget {
       // Always scrollable, so pulling down refreshes even when the content is
       // shorter than the screen.
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.xxl),
       children: [
         for (final board in boards) LeaderboardCard(board: board),
         // Said once, and only when a rating is actually on screen: the figure
         // is the player's rating everywhere, not their rating here.
-        if (showsRating)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Text(
-              l10n.leaderboardRatingNote,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-            ),
-          ),
+        if (showsRating) FootNote(l10n.leaderboardRatingNote),
       ],
     );
   }
 }
 
-/// One board: its measure, and the players who lead it.
-class LeaderboardCard extends StatelessWidget {
+/// One board: its measure, who leads it, and — on request — who is behind them.
+///
+/// **Collapsed is the default, and the collapsed board is the leader alone.**
+/// Five boards of three rows is fifteen names on a phone screen, which is a
+/// table; what a community actually opens this tab to see is who is top of each
+/// measure. The rest is one tap away and stays out of the way until it is
+/// asked for.
+///
+/// A board with nobody behind the leader shows no control at all. "Show more"
+/// that reveals nothing is worse than no button.
+class LeaderboardCard extends StatefulWidget {
   const LeaderboardCard({super.key, required this.board});
 
   final Leaderboard board;
 
-  String _title(AppLocalizations l10n) => switch (board.kind) {
+  @override
+  State<LeaderboardCard> createState() => _LeaderboardCardState();
+}
+
+class _LeaderboardCardState extends State<LeaderboardCard> {
+  bool _expanded = false;
+
+  Leaderboard get _board => widget.board;
+
+  String _title(AppLocalizations l10n) => switch (_board.kind) {
         LeaderboardKind.highestRated => l10n.leaderboardHighestRated,
         LeaderboardKind.topScorer => l10n.leaderboardTopScorer,
         LeaderboardKind.mostMvp => l10n.leaderboardMostMvp,
@@ -160,7 +147,7 @@ class LeaderboardCard extends StatelessWidget {
         LeaderboardKind.mostWins => l10n.leaderboardMostWins,
       };
 
-  IconData get _icon => switch (board.kind) {
+  IconData get _icon => switch (_board.kind) {
         LeaderboardKind.highestRated => Icons.military_tech,
         LeaderboardKind.topScorer => Icons.sports_soccer,
         LeaderboardKind.mostMvp => Icons.star,
@@ -170,40 +157,96 @@ class LeaderboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Icon(_icon, color: theme.colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _title(context.l10n),
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+    final entries = _board.entries;
+    final rest = entries.skip(1).toList();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        kPageMargin,
+        Gap.xs + 2,
+        kPageMargin,
+        Gap.xs + 2,
+      ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.sm),
+              child: Row(
+                children: [
+                  Icon(_icon, size: 20, color: scheme.primary),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: Text(
+                      _title(l10n),
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // The leader, always, and given the room a leader deserves.
+            _LeaderRow(entry: entries.first, isRating: _board.kind.isRating),
+            // The rest, at their own size, behind the control below.
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              alignment: Alignment.topCenter,
+              child: _expanded
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Divider(height: Gap.lg, indent: Gap.lg,
+                            endIndent: Gap.lg),
+                        for (final entry in rest)
+                          _RunnerUpRow(
+                            entry: entry,
+                            isRating: _board.kind.isRating,
+                          ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            if (rest.isNotEmpty)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(Gap.sm, 0, Gap.sm, Gap.sm),
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    icon: Icon(
+                      _expanded ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _expanded ? l10n.showLessLabel : l10n.showMoreLabel,
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          for (final entry in board.entries)
-            _LeaderboardRow(entry: entry, isRating: board.kind.isRating),
-          const SizedBox(height: 8),
-        ],
+              )
+            else
+              const SizedBox(height: Gap.sm),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _LeaderboardRow extends StatelessWidget {
-  const _LeaderboardRow({required this.entry, required this.isRating});
+/// The player at the top of a board.
+///
+/// Deliberately not the same row as the ones below it. The whole point of the
+/// collapsed board is that one name is the answer, and a leader drawn like a
+/// list item makes the reader look for the list.
+class _LeaderRow extends StatelessWidget {
+  const _LeaderRow({required this.entry, required this.isRating});
 
   final LeaderboardEntry entry;
   final bool isRating;
@@ -211,23 +254,75 @@ class _LeaderboardRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-    return ListTile(
-      dense: true,
-      leading: _RankBadge(rank: entry.rank),
-      title: Text(entry.fullName),
-      trailing: Text(
-        // A rating keeps its one decimal (`OP-1`); a count is a whole number
-        // and showing it as "5.0" would read as a different kind of figure.
-        isRating
-            ? (entry.value as double).toStringAsFixed(1)
-            : '${entry.value.toInt()}',
-        style: theme.textTheme.titleMedium
-            ?.copyWith(fontWeight: FontWeight.bold),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.md),
+      child: Row(
+        children: [
+          _RankBadge(rank: entry.rank),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Text(
+              entry.fullName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Text(
+            formatBoardValue(entry.value, isRating: isRating),
+            style: theme.textTheme.titleLarge?.copyWith(color: scheme.primary),
+          ),
+        ],
       ),
     );
   }
 }
+
+/// A player behind the leader. Same information, quieter.
+class _RunnerUpRow extends StatelessWidget {
+  const _RunnerUpRow({required this.entry, required this.isRating});
+
+  final LeaderboardEntry entry;
+  final bool isRating;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.xs, Gap.lg, Gap.xs),
+      child: Row(
+        children: [
+          _RankBadge(rank: entry.rank),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Text(
+              entry.fullName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Text(
+            formatBoardValue(entry.value, isRating: isRating),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A rating keeps its one decimal (`OP-1`); a count is a whole number and
+/// showing it as "5.0" would read as a different kind of figure.
+String formatBoardValue(num value, {required bool isRating}) =>
+    isRating ? (value as double).toStringAsFixed(1) : '${value.toInt()}';
 
 /// The place a player holds. Equal values share a badge, which is the whole
 /// point of showing the number rather than the row's position.
@@ -242,16 +337,17 @@ class _RankBadge extends StatelessWidget {
     final isTop = rank == 1;
 
     return CircleAvatar(
-      radius: 16,
+      radius: 14,
       backgroundColor: isTop
           ? theme.colorScheme.primary
           : theme.colorScheme.surfaceContainerHighest,
       child: Text(
         '$rank',
-        style: theme.textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.bold,
-          color:
-              isTop ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+        style: theme.textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: isTop
+              ? theme.colorScheme.onPrimary
+              : theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

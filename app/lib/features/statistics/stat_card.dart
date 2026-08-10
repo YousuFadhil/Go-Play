@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design.dart';
+
 /// One figure: a number, and what it counts.
 ///
 /// Shared by the Community Dashboard and the Player Statistics screen, which
@@ -7,6 +9,10 @@ import 'package:flutter/material.dart';
 /// `int` because every figure either screen puts in one is a count; the Global
 /// Rating is not, and has its own presentation on the player screen rather than
 /// widening this.
+///
+/// The number leads and the icon is a mark beside it rather than a picture over
+/// it. Three of these sit in a row on a phone, and an icon given its own line
+/// costs the row a third of its height to say what the label already says.
 class StatCard extends StatelessWidget {
   const StatCard({
     super.key,
@@ -22,28 +28,37 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-    return Card(
-      margin: const EdgeInsets.all(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: theme.colorScheme.primary),
-            const SizedBox(height: 8),
-            Text(
-              '$value',
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
+    return Semantics(
+      label: '$label: $value',
+      excludeSemantics: true,
+      child: Card(
+        margin: const EdgeInsets.all(Gap.xs),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: Gap.lg,
+            horizontal: Gap.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: scheme.primary),
+              const SizedBox(height: Gap.sm),
+              Text(
+                '$value',
+                maxLines: 1,
+                style: theme.textTheme.headlineSmall,
+              ),
+              const SizedBox(height: Gap.xs),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ),
     );

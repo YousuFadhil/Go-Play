@@ -983,7 +983,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statScopeNote =>
-      'تُحتسب إحصائيات اللاعبين من المباريات المسجَّلة نتائجها، بينما يشمل إجمالي المباريات كل مباراة أنشأها المجتمع.';
+      'كل الأرقام هنا تحتسب المباريات المكتملة فقط — المباراة المفتوحة أو المكتملة العدد لا تضيف شيئاً. وتحتسب أرقام اللاعبين المباريات المسجَّلة نتائجها.';
 
   @override
   String get statEmptyBody =>
@@ -1302,4 +1302,61 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get homeUpcomingSubtitle => 'من جميع مجتمعاتك';
+
+  @override
+  String get settingsTitle => 'الإعدادات';
+
+  @override
+  String get settingsLanguageSection => 'اللغة';
+
+  @override
+  String get settingsNotificationsSection => 'الإشعارات';
+
+  @override
+  String get languageLabel => 'لغة التطبيق';
+
+  @override
+  String get languageSystemDefault => 'لغة الجهاز';
+
+  @override
+  String get languageSystemDefaultHelp =>
+      'يتبع Go Play اللغة المضبوطة على جهازك.';
+
+  @override
+  String get languageArabic => 'العربية';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get showMoreLabel => 'عرض المزيد';
+
+  @override
+  String get showLessLabel => 'عرض أقل';
+
+  @override
+  String get communityActionsTitle => 'إجراءات المجتمع';
+
+  @override
+  String get moreActionsLabel => 'إجراءات أخرى';
+
+  @override
+  String get joinCodeOrganizersOnly =>
+      'رمز الانضمام يظهر للمالك والمشرفين فقط.';
+
+  @override
+  String get membersEmpty => 'لم ينضم أحد إلى هذا المجتمع بعد.';
+
+  @override
+  String get matchRosterEmpty => 'لم ينضم أحد إلى هذه المباراة بعد.';
+
+  @override
+  String get matchManagementSubtitle =>
+      'عدّل المباراة، أو أدر القائمة، أو احذفها.';
+
+  @override
+  String get statCompletedMatches => 'المباريات المكتملة';
+
+  @override
+  String get leaderboardTopPlayer => 'المتصدّر';
 }

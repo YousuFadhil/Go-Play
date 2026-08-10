@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import 'match_models.dart';
 import 'match_service.dart';
 
@@ -113,29 +114,17 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingState();
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(l10n.loadFailed),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                      onPressed: _reload, child: Text(l10n.retryButton)),
-                ],
-              ),
-            );
+            return ErrorState(onRetry: _reload);
           }
 
           final players = snapshot.data ?? const [];
           if (players.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(l10n.rosterEmpty, textAlign: TextAlign.center),
-              ),
+            return EmptyState(
+              icon: Icons.person_outline,
+              message: l10n.rosterEmpty,
             );
           }
 

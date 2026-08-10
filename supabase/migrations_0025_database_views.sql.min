@@ -1,0 +1,262 @@
+create or replace view public.v_user_profile
+with (security_invoker = on) as
+select
+  u.id                as user_id,
+  u.full_name,
+  u.phone,
+  u.primary_position,
+  u.secondary_position,
+  u.date_of_birth,
+  u.overall_rating,
+  u.is_active,
+  u.created_at,
+  u.updated_at,
+  ps.matches_played,
+  ps.wins,
+  ps.losses,
+  ps.draws,
+  ps.goals,
+  ps.mvp_count,
+  ps.updated_at      as statistics_updated_at
+from public.users u
+left join public.player_statistics ps on ps.user_id = u.id;
+comment on view public.v_user_profile is
+  'Read model: a player profile -- users joined to the global career counters '
+  'in player_statistics. Counters are null until the first recorded result.';
+create or replace view public.v_community_summary
+with (security_invoker = on) as
+select
+  c.id            as community_id,
+  c.name,
+  c.description,
+  c.owner_id,
+  c.join_policy,
+  c.is_active,
+  c.created_at,
+  c.updated_at,
+  (
+    select count(*)
+    from public.community_members cm
+    where cm.community_id = c.id
+  )               as member_count,
+  (
+    select count(*)
+    from public.matches m
+    where m.community_id = c.id
+  )               as total_matches,
+  (
+    select count(*)
+    from public.matches m
+    where m.community_id = c.id
+      and m.status = 'completed'
+  )               as completed_matches,
+  (
+    select count(*)
+    from public.matches m
+    where m.community_id = c.id
+      and m.start_at > now()
+      and m.status <> 'completed'
+  )               as upcoming_matches,
+  (
+    select max(m.start_at)
+    from public.matches m
+    where m.community_id = c.id
+  )               as last_match_at
+from public.communities c;
+comment on view public.v_community_summary is
+  'Read model: one row per community with member and match counts. Not the '
+  'Community Dashboard -- its statistics figures need the unbuilt Level 2 '
+  'tables. join_code is excluded: a credential is not a summary figure.';
+create or replace view public.v_community_members
+with (security_invoker = on) as
+select
+  cm.id             as membership_id,
+  cm.community_id,
+  cm.user_id,
+  cm.role,
+  cm.created_at     as joined_at,
+  u.full_name,
+  u.primary_position,
+  u.secondary_position,
+  u.overall_rating,
+  u.is_active       as user_is_active
+from public.community_members cm
+join public.users u on u.id = cm.user_id;
+comment on view public.v_community_members is
+  'Read model: community roster -- membership joined to the member profile. '
+  'Inner join, so profiles hidden by the users policy do not appear.';
+create or replace view public.v_match_details
+with (security_invoker = on) as
+select
+  m.id                  as match_id,
+  m.community_id,
+  c.name                as community_name,
+  m.title,
+  m.description,
+  m.location,
+  m.start_at,
+  m.end_at,
+  m.status,
+  m.starting_players,
+  m.max_registration,
+  m.created_by,
+  cu.full_name          as created_by_name,
+  m.created_at,
+  m.updated_at,
+  coalesce(reg.confirmed_count, 0)  as confirmed_count,
+  coalesce(reg.reserve_count, 0)    as reserve_count,
+  coalesce(reg.total_count, 0)      as registration_count,
+  greatest(m.starting_players - coalesce(reg.confirmed_count, 0), 0)
+                                    as open_slots,
+  (mr.match_id is not null)         as has_result,
+  mr.team_a_score,
+  mr.team_b_score,
+  mr.mvp_user_id,
+  mvp.full_name         as mvp_name,
+  mr.recorded_by,
+  mr.created_at         as result_recorded_at
+from public.matches m
+join public.communities c on c.id = m.community_id
+join public.users cu on cu.id = m.created_by
+left join lateral (
+  select
+    count(*) filter (where r.status = 'confirmed') as confirmed_count,
+    count(*) filter (where r.status = 'reserve')   as reserve_count,
+    count(*)                                       as total_count
+  from public.match_registrations r
+  where r.match_id = m.id
+) reg on true
+left join public.match_results mr on mr.match_id = m.id
+left join public.users mvp on mvp.id = mr.mvp_user_id;
+comment on view public.v_match_details is
+  'Read model: a match with its community, organizer, registration counts and '
+  'recorded result. has_result distinguishes "not yet played" from a missing '
+  'row; open_slots is display arithmetic, never the seat allocation.';
+create or replace view public.v_match_registrations
+with (security_invoker = on) as
+select
+  r.id                  as registration_id,
+  r.match_id,
+  m.community_id,
+  r.user_id,
+  r.status,
+  r.registration_order,
+  r.created_at          as registered_at,
+  u.full_name,
+  u.primary_position,
+  u.secondary_position,
+  u.overall_rating,
+  m.title               as match_title,
+  m.start_at            as match_start_at,
+  m.status              as match_status
+from public.match_registrations r
+join public.matches m on m.id = r.match_id
+join public.users u on u.id = r.user_id;
+comment on view public.v_match_registrations is
+  'Read model: match registrations (confirmed and reserve) with the '
+  'registrant profile and match context. registration_order is the queue '
+  'position written by the RPC and is never recomputed here.';
+create or replace view public.v_upcoming_matches
+with (security_invoker = on) as
+select
+  m.id                  as match_id,
+  m.community_id,
+  c.name                as community_name,
+  m.title,
+  m.location,
+  m.start_at,
+  m.end_at,
+  m.status,
+  m.starting_players,
+  m.max_registration,
+  m.created_by,
+  coalesce(reg.confirmed_count, 0)  as confirmed_count,
+  coalesce(reg.reserve_count, 0)    as reserve_count,
+  greatest(m.starting_players - coalesce(reg.confirmed_count, 0), 0)
+                                    as open_slots
+from public.matches m
+join public.communities c on c.id = m.community_id
+left join lateral (
+  select
+    count(*) filter (where r.status = 'confirmed') as confirmed_count,
+    count(*) filter (where r.status = 'reserve')   as reserve_count
+  from public.match_registrations r
+  where r.match_id = m.id
+) reg on true
+where m.start_at > now()
+  and m.status <> 'completed';
+comment on view public.v_upcoming_matches is
+  'Read model: matches starting after now() that are not completed, with '
+  'registration counts. Unordered by design -- the caller sorts.';
+create or replace view public.v_match_teams
+with (security_invoker = on) as
+select
+  a.id                  as assignment_id,
+  a.match_id,
+  m.community_id,
+  a.user_id,
+  a.team,
+  a.assigned_position,
+  a.assignment_basis,
+  (a.assignment_basis = 'TRANSITION')   as is_out_of_position,
+  u.full_name,
+  u.primary_position,
+  u.secondary_position,
+  u.overall_rating,
+  g.goals,
+  (mr.mvp_user_id = a.user_id)          as is_mvp,
+  m.start_at            as match_start_at,
+  m.status              as match_status,
+  a.created_at,
+  a.updated_at
+from public.match_team_assignments a
+join public.matches m on m.id = a.match_id
+join public.users u on u.id = a.user_id
+left join public.match_goals g
+  on g.match_id = a.match_id and g.user_id = a.user_id
+left join public.match_results mr on mr.match_id = a.match_id;
+comment on view public.v_match_teams is
+  'Read model: the played lineup -- team, assigned position and basis, with '
+  'goals and the MVP flag. is_out_of_position is derived from '
+  'assignment_basis per BTGE 5.1; goals is null when the player did not score.';
+create or replace view public.v_player_statistics
+with (security_invoker = on) as
+select
+  ps.user_id,
+  u.full_name,
+  u.primary_position,
+  u.secondary_position,
+  u.is_active           as user_is_active,
+  u.overall_rating,
+  ps.matches_played,
+  ps.wins,
+  ps.losses,
+  ps.draws,
+  ps.goals,
+  ps.mvp_count,
+  ps.created_at,
+  ps.updated_at
+from public.player_statistics ps
+join public.users u on u.id = ps.user_id;
+comment on view public.v_player_statistics is
+  'Read model: global career counters with the current Global Rating joined '
+  'from users. No derived rates -- each would be a Product definition.';
+do $$
+declare
+  v_view text;
+begin
+  foreach v_view in array array[
+    'v_user_profile',
+    'v_community_summary',
+    'v_community_members',
+    'v_match_details',
+    'v_match_registrations',
+    'v_upcoming_matches',
+    'v_match_teams',
+    'v_player_statistics'
+  ]
+  loop
+    execute format('revoke all on public.%I from anon, public', v_view);
+    execute format('grant select on public.%I to authenticated', v_view);
+  end loop;
+end $$;

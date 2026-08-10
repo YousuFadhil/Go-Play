@@ -4,6 +4,7 @@ import '../../core/app_header.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
+import '../../core/states.dart';
 import '../admin/admin_repository.dart';
 import '../admin/admin_screen.dart';
 import '../auth/auth_service.dart';
@@ -146,29 +147,7 @@ class _HomeTabState extends State<HomeTab> {
             );
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.xl),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.cloud_off_outlined,
-                      size: 32,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                    const SizedBox(height: Gap.md),
-                    Text(l10n.loadFailed, textAlign: TextAlign.center),
-                    const SizedBox(height: Gap.lg),
-                    OutlinedButton.icon(
-                      onPressed: _refresh,
-                      icon: const Icon(Icons.refresh, size: 18),
-                      label: Text(l10n.retryButton),
-                    ),
-                  ],
-                ),
-              ),
-            );
+            return ErrorState(onRetry: _refresh);
           }
 
           final data = snapshot.data!;

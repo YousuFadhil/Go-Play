@@ -11,7 +11,8 @@ import 'infrastructure/supabase/supabase_bootstrap.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load the saved language (Arabic by default) before the first frame.
+  // Load the saved language before the first frame. Without one the app
+  // follows the device, so this is a no-op for a reader who has never chosen.
   await LocaleController.instance.load();
 
   if (kDebugMode) {

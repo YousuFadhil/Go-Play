@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import 'stat_card.dart';
 import 'statistics_models.dart';
 import 'statistics_repository.dart';
@@ -53,28 +55,14 @@ class _CommunityDashboardTabState extends State<CommunityDashboardTab> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
     return FutureBuilder<CommunityDashboard>(
       future: _dashboardFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return const LoadingState();
         }
         if (snapshot.hasError || !snapshot.hasData) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l10n.loadFailed),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: _refresh,
-                  child: Text(l10n.retryButton),
-                ),
-              ],
-            ),
-          );
+          return ErrorState(onRetry: _refresh);
         }
 
         return RefreshIndicator(
@@ -102,11 +90,19 @@ class _DashboardBody extends StatelessWidget {
       // Always scrollable, so pulling down refreshes even when the content is
       // shorter than the screen.
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: Gap.xxl),
       children: [
-        _SectionHeader(title: l10n.communityStatisticsTitle),
+        SectionHeading(
+          title: l10n.communityStatisticsTitle,
+          padding: const EdgeInsets.fromLTRB(
+            kPageMargin,
+            Gap.lg,
+            kPageMargin,
+            Gap.sm,
+          ),
+        ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: kPageMargin - 4),
           // The three cards are as tall as the tallest of them, so a label
           // that wraps to two lines does not leave its neighbours short.
           // `IntrinsicHeight` is what gives the stretch a height to work
@@ -119,9 +115,9 @@ class _DashboardBody extends StatelessWidget {
               children: [
                 Expanded(
                   child: StatCard(
-                    icon: Icons.sports_soccer,
-                    label: l10n.statTotalMatches,
-                    value: dashboard.totalMatches,
+                    icon: Icons.event_available,
+                    label: l10n.statCompletedMatches,
+                    value: dashboard.completedMatches,
                   ),
                 ),
                 Expanded(
@@ -133,7 +129,7 @@ class _DashboardBody extends StatelessWidget {
                 ),
                 Expanded(
                   child: StatCard(
-                    icon: Icons.scoreboard,
+                    icon: Icons.sports_soccer,
                     label: l10n.statTotalGoals,
                     value: dashboard.totalGoals,
                   ),
@@ -142,64 +138,41 @@ class _DashboardBody extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        _SectionHeader(title: l10n.statLeadersTitle),
-        LeaderTile(
-          icon: Icons.sports_soccer,
-          label: l10n.statTopScorer,
-          leader: dashboard.topScorer,
-          describeValue: l10n.goalsScoredLabel,
-        ),
-        LeaderTile(
-          icon: Icons.directions_run,
-          label: l10n.statMostActivePlayer,
-          leader: dashboard.mostActivePlayer,
-          describeValue: l10n.statMatchesPlayedValue,
-        ),
-        LeaderTile(
-          icon: Icons.star,
-          label: l10n.statMostMvp,
-          leader: dashboard.mostMvp,
-          describeValue: l10n.statMvpValue,
-        ),
+        SectionHeading(title: l10n.statLeadersTitle),
         if (noLeaders)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              l10n.statEmptyBody,
-              style: Theme.of(context).textTheme.bodySmall,
+            padding: const EdgeInsets.symmetric(horizontal: kPageMargin),
+            child: EmptyState(
+              icon: Icons.emoji_events_outlined,
+              message: l10n.statEmptyBody,
             ),
+          )
+        else
+          SectionCard(
+            padding: EdgeInsets.zero,
+            children: [
+              LeaderTile(
+                icon: Icons.sports_soccer,
+                label: l10n.statTopScorer,
+                leader: dashboard.topScorer,
+                describeValue: l10n.goalsScoredLabel,
+              ),
+              LeaderTile(
+                icon: Icons.directions_run,
+                label: l10n.statMostActivePlayer,
+                leader: dashboard.mostActivePlayer,
+                describeValue: l10n.statMatchesPlayedValue,
+              ),
+              LeaderTile(
+                icon: Icons.star,
+                label: l10n.statMostMvp,
+                leader: dashboard.mostMvp,
+                describeValue: l10n.statMvpValue,
+              ),
+            ],
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-          child: Text(
-            l10n.statScopeNote,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-          ),
-        ),
+        FootNote(l10n.statScopeNote),
       ],
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Text(
-        title,
-        style: Theme.of(context)
-            .textTheme
-            .titleMedium
-            ?.copyWith(fontWeight: FontWeight.bold),
-      ),
     );
   }
 }
@@ -226,11 +199,23 @@ class LeaderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final leader = this.leader;
 
     return ListTile(
-      leading: CircleAvatar(child: Icon(icon)),
-      title: Text(label),
+      leading: CircleAvatar(
+        // A measure nobody leads is drawn quietly. Giving "Not yet" the same
+        // coloured disc as a real leader makes an absence look like a result.
+        backgroundColor: leader == null
+            ? scheme.surfaceContainerHighest
+            : scheme.primaryContainer,
+        foregroundColor: leader == null
+            ? scheme.onSurfaceVariant
+            : scheme.onPrimaryContainer,
+        child: Icon(icon, size: 20),
+      ),
+      title: Text(label, style: theme.textTheme.bodyMedium),
       subtitle: Text(
         leader == null
             ? l10n.statNoneYet
@@ -238,8 +223,17 @@ class LeaderTile extends StatelessWidget {
             // soft-deleted and its figures stayed. The measure is still true,
             // so the tile keeps it and says who it belonged to as best it can.
             : leader.fullName ?? l10n.statFormerPlayer,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: leader == null ? scheme.onSurfaceVariant : scheme.onSurface,
+        ),
       ),
-      trailing: leader == null ? null : Text(describeValue(leader.value)),
+      trailing: leader == null
+          ? null
+          : Text(
+              describeValue(leader.value),
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
     );
   }
 }

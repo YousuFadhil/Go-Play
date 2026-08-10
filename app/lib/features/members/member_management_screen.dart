@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
+import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import '../communities/community_models.dart';
 import '../auth/auth_service.dart';
 import 'member_repository.dart';
@@ -123,56 +125,98 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     final myId = _authService.currentUserId;
 
     return Scaffold(
-      appBar: AppHeader(title: Text(l10n.manageMembersTitle)),
+      appBar: AppHeader(
+        title: Text(l10n.manageMembersTitle),
+      ),
       body: FutureBuilder<_Data>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingState();
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(l10n.loadFailed),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                      onPressed: _refresh, child: Text(l10n.retryButton)),
-                ],
-              ),
-            );
+            return ErrorState(onRetry: _refresh);
           }
 
+          final theme = Theme.of(context);
           final (members, myRole) = snapshot.data!;
           final isOwner = myRole == CommunityRole.owner;
           final isOrganizer = myRole?.atLeast(CommunityRole.admin) ?? false;
 
+          if (members.isEmpty) {
+            return EmptyState(
+              icon: Icons.group_outlined,
+              message: l10n.membersEmpty,
+            );
+          }
+
           return ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.only(bottom: Gap.xxl),
             children: [
+              // A player sees the roster and no controls. Saying so once, at
+              // the top, is what stops the screen reading as broken.
               if (!isOrganizer)
                 Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    l10n.permissionOrganizersOnly,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                  padding: const EdgeInsets.fromLTRB(
+                    kPageMargin,
+                    Gap.lg,
+                    kPageMargin,
+                    0,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Text(
+                          l10n.permissionOrganizersOnly,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              const Divider(),
-              for (final member in members)
-                ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.person)),
-                  title: Text(member.fullName),
-                  subtitle: Text(_roleLabel(l10n, member.role)),
-                  trailing: _memberActions(
-                    l10n: l10n,
-                    member: member,
-                    isOwner: isOwner,
-                    isOrganizer: isOrganizer,
-                    myId: myId,
-                  ),
+              SectionHeading(
+                title: l10n.membersTitle,
+                count: members.length,
+                padding: const EdgeInsets.fromLTRB(
+                  kPageMargin,
+                  Gap.lg,
+                  kPageMargin,
+                  Gap.sm,
                 ),
+              ),
+              SectionCard(
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final member in members)
+                    ListTile(
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor:
+                            theme.colorScheme.surfaceContainerHighest,
+                        foregroundColor: theme.colorScheme.onSurfaceVariant,
+                        child: const Icon(Icons.person, size: 20),
+                      ),
+                      title: Text(member.fullName),
+                      subtitle: Text(_roleLabel(l10n, member.role)),
+                      trailing: _memberActions(
+                        l10n: l10n,
+                        member: member,
+                        isOwner: isOwner,
+                        isOrganizer: isOrganizer,
+                        myId: myId,
+                      ),
+                    ),
+                ],
+              ),
             ],
           );
         },
@@ -188,7 +232,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     required String? myId,
   }) {
     if (member.role == CommunityRole.owner) {
-      return Chip(label: Text(l10n.roleOwner));
+      return _RoleChip(label: l10n.roleOwner);
     }
     // An admin may only act on players; the role structure is the owner's.
     final canAct =
@@ -197,6 +241,9 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
 
     return PopupMenuButton<String>(
       enabled: !_busy,
+      tooltip: l10n.moreActionsLabel,
+      icon: const Icon(Icons.more_vert),
+      position: PopupMenuPosition.under,
       onSelected: (value) async {
         switch (value) {
           case 'promote':
@@ -240,15 +287,92 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
         // Role changes and ownership are owner-only (PD-02, PD-03).
         if (isOwner && member.role == CommunityRole.player)
           PopupMenuItem(
-              value: 'promote', child: Text(l10n.promoteToAdminButton)),
+            value: 'promote',
+            child: _MenuRow(
+              icon: Icons.shield_outlined,
+              label: l10n.promoteToAdminButton,
+            ),
+          ),
         if (isOwner && member.role == CommunityRole.admin)
           PopupMenuItem(
-              value: 'demote', child: Text(l10n.demoteToPlayerButton)),
+            value: 'demote',
+            child: _MenuRow(
+              icon: Icons.person_outline,
+              label: l10n.demoteToPlayerButton,
+            ),
+          ),
         if (isOwner)
           PopupMenuItem(
-              value: 'transfer', child: Text(l10n.transferOwnershipButton)),
-        PopupMenuItem(value: 'remove', child: Text(l10n.removeMemberButton)),
+            value: 'transfer',
+            child: _MenuRow(
+              icon: Icons.swap_horiz,
+              label: l10n.transferOwnershipButton,
+            ),
+          ),
+        PopupMenuItem(
+          value: 'remove',
+          child: _MenuRow(
+            icon: Icons.person_remove_outlined,
+            label: l10n.removeMemberButton,
+            destructive: true,
+          ),
+        ),
       ],
+    );
+  }
+}
+
+/// A menu entry with its icon, so a list of actions reads as actions rather
+/// than as a list of sentences.
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colour = destructive ? scheme.error : null;
+
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: colour),
+        const SizedBox(width: Gap.md),
+        Expanded(child: Text(label, style: TextStyle(color: colour))),
+      ],
+    );
+  }
+}
+
+/// The role a member holds, where it is not the ordinary one.
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onSecondaryContainer,
+        ),
+      ),
     );
   }
 }

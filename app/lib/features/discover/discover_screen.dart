@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/app_header.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
-import '../../core/language_toggle.dart';
 import '../../core/skeleton.dart';
 import '../auth/auth_prompt.dart';
 import '../auth/auth_service.dart';
@@ -273,12 +272,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 }
 
-/// The strip above the banner: who is looking, and in which language.
+/// The strip above the banner: who is looking.
 ///
 /// The identity menu is here because Discover has no [AppHeader] to put it in —
 /// the banner is this screen's header — and a signed-in player must be able to
-/// reach their profile and sign out from the screen the app opens on, not only
-/// from the two behind it.
+/// reach their profile, their settings and sign out from the screen the app
+/// opens on, not only from the two behind it.
+///
+/// The language control that used to sit at the other end of this strip is
+/// gone. The app follows the device now, and the one place to say otherwise is
+/// the Settings screen — reachable from the same menu on the left of this row.
 class DiscoverTopBar extends StatelessWidget {
   const DiscoverTopBar({super.key, required this.signedIn});
 
@@ -286,15 +289,13 @@ class DiscoverTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, kPageMargin, Gap.sm),
-      child: Row(
-        children: [
-          if (signedIn) const CurrentUserMenu(),
-          const Spacer(),
-          const LanguageToggle(),
-        ],
-      ),
+    // Nothing to show a visitor: without a session there is no identity menu,
+    // and an empty bar would only push the banner down the page.
+    if (!signedIn) return const SizedBox(height: Gap.sm);
+
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(Gap.sm, Gap.sm, kPageMargin, Gap.sm),
+      child: Row(children: [CurrentUserMenu()]),
     );
   }
 }

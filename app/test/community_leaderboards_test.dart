@@ -288,12 +288,88 @@ void main() {
       expect(find.byType(LeaderboardCard), findsNWidgets(5));
     });
 
+    testWidgets('a board opens on its leader and nobody else', (tester) async {
+      // The approved default. Five boards three deep is fifteen names on a
+      // phone; what the tab is for is who leads each measure.
+      await pumpBoards(
+        tester,
+        FakeLeaderboardAdapter(members: roster, records: records),
+      );
+
+      expect(find.text('Ali'), findsWidgets, reason: 'the leaders are shown');
+      expect(find.text('Omar'), findsNothing,
+          reason: 'second place is behind Show more');
+      expect(find.text('Show more'), findsWidgets);
+      expect(find.text('Show less'), findsNothing);
+    });
+
+    testWidgets('Show more reveals the rest, and Show less puts it back',
+        (tester) async {
+      await pumpBoards(
+        tester,
+        FakeLeaderboardAdapter(members: roster, records: records),
+      );
+
+      final ratingBoard = find.widgetWithText(LeaderboardCard, 'Highest rated');
+      await tester.tap(find.descendant(
+        of: ratingBoard,
+        matching: find.text('Show more'),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Omar'), findsOneWidget);
+      expect(
+        find.descendant(of: ratingBoard, matching: find.text('Show less')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.descendant(
+        of: ratingBoard,
+        matching: find.text('Show less'),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Omar'), findsNothing);
+    });
+
+    testWidgets('a board expands one at a time, not all of them',
+        (tester) async {
+      // Each card owns its own state. Expanding Highest Rated must not open
+      // Top Scorer as well -- that would be the table the collapse avoids.
+      await pumpBoards(
+        tester,
+        FakeLeaderboardAdapter(members: roster, records: records),
+      );
+
+      await tester.tap(find.descendant(
+        of: find.widgetWithText(LeaderboardCard, 'Highest rated'),
+        matching: find.text('Show more'),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.widgetWithText(LeaderboardCard, 'Top scorer'),
+          matching: find.text('Show more'),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('a rating keeps its decimal and a count does not',
         (tester) async {
       await pumpBoards(
         tester,
         FakeLeaderboardAdapter(members: roster, records: records),
       );
+
+      // The rating board expanded, so the tied pair is on the screen; the
+      // counts are read from the leaders, which are shown either way.
+      await tester.tap(find.descendant(
+        of: find.widgetWithText(LeaderboardCard, 'Highest rated'),
+        matching: find.text('Show more'),
+      ));
+      await tester.pumpAndSettle();
 
       expect(find.text('6.0'), findsOneWidget, reason: "Ali's rating");
       expect(find.text('5.5'), findsNWidgets(2), reason: 'the tied pair');
@@ -302,10 +378,11 @@ void main() {
           reason: 'a count shown with a decimal reads as a rating');
     });
 
-    testWidgets('a board draws only the players it actually ranks',
+    testWidgets('a board with only a leader offers nothing to expand',
         (tester) async {
       // Ali is the only one who has scored. The Top Scorer card holds one row,
-      // not three padded out with members on nothing.
+      // not three padded out with members on nothing -- and a "Show more" that
+      // revealed nothing would be worse than no control.
       await pumpBoards(
         tester,
         FakeLeaderboardAdapter(
@@ -314,11 +391,13 @@ void main() {
         ),
       );
 
+      final scorers = find.widgetWithText(LeaderboardCard, 'Top scorer');
       expect(
-        find.descendant(
-          of: find.widgetWithText(LeaderboardCard, 'Top scorer'),
-          matching: find.byType(ListTile),
-        ),
+        find.descendant(of: scorers, matching: find.text('Show more')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: scorers, matching: find.text('Ali')),
         findsOneWidget,
       );
     });
@@ -328,6 +407,12 @@ void main() {
         tester,
         FakeLeaderboardAdapter(members: roster, records: records),
       );
+
+      await tester.tap(find.descendant(
+        of: find.widgetWithText(LeaderboardCard, 'Highest rated'),
+        matching: find.text('Show more'),
+      ));
+      await tester.pumpAndSettle();
 
       // Ranks 1, 2, 2 on the rating board -- so a "3" never appears on it,
       // while every board shows a "1".
@@ -459,6 +544,6 @@ class FakeLeaderboardAdapter implements StatisticsAdapter {
   /// A board shows no community-wide totals. Reaching this from the
   /// leaderboards would be a defect, so it fails loudly rather than answering.
   @override
-  Future<int> fetchTotalMatches(String communityId) =>
+  Future<int> fetchCompletedMatches(String communityId) =>
       throw UnimplementedError('the leaderboards read no match totals');
 }

@@ -1,0 +1,3163 @@
+create table public.users (
+  id uuid primary key references auth.users (id) on delete cascade,
+  phone text not null,
+  full_name text not null,
+  primary_position text not null
+    check (primary_position in ('GK', 'DEF', 'MID', 'FWD')),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index users_phone_idx on public.users (phone);
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+create trigger users_set_updated_at
+  before update on public.users
+  for each row
+  execute function public.set_updated_at();
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.users (id, phone, full_name, primary_position)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'phone', ''),
+    coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+    coalesce(new.raw_user_meta_data ->> 'primary_position', 'MID')
+  );
+  return new;
+end;
+$$;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row
+  execute function public.handle_new_user();
+alter table public.users enable row level security;
+create policy "authenticated_select_active_users"
+  on public.users
+  for select
+  to authenticated
+  using (is_active);
+create policy "users_update_own_profile"
+  on public.users
+  for update
+  to authenticated
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
+create table public.groups (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references public.users (id),
+  name text not null check (char_length(trim(name)) between 2 and 50),
+  description text check (char_length(description) <= 200),
+  is_private boolean not null default false,
+  join_code text not null unique
+    default upper(substr(md5(random()::text), 1, 6)),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index groups_owner_id_idx on public.groups (owner_id);
+create trigger groups_set_updated_at
+  before update on public.groups
+  for each row
+  execute function public.set_updated_at();
+create table public.group_members (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references public.groups (id) on delete cascade,
+  user_id uuid not null references public.users (id) on delete cascade,
+  role text not null default 'member' check (role in ('owner', 'member')),
+  created_at timestamptz not null default now(),
+  unique (group_id, user_id)
+);
+create index group_members_user_id_idx on public.group_members (user_id);
+create index group_members_group_id_idx on public.group_members (group_id);
+create or replace function public.is_group_member(p_group_id uuid, p_user_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from group_members
+    where group_id = p_group_id
+      and user_id = p_user_id
+  );
+$$;
+create or replace function public.create_group(
+  p_name text,
+  p_description text,
+  p_is_private boolean
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  insert into groups (owner_id, name, description, is_private)
+  values (auth.uid(), trim(p_name), p_description, p_is_private)
+  returning id into v_group_id;
+  insert into group_members (group_id, user_id, role)
+  values (v_group_id, auth.uid(), 'owner');
+  return v_group_id;
+end;
+$$;
+create or replace function public.join_group_by_code(p_code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select id into v_group_id
+  from groups
+  where join_code = upper(trim(p_code))
+    and is_active;
+  if v_group_id is null then
+    raise exception 'GROUP_NOT_FOUND';
+  end if;
+  if is_group_member(v_group_id, auth.uid()) then
+    raise exception 'ALREADY_MEMBER';
+  end if;
+  insert into group_members (group_id, user_id, role)
+  values (v_group_id, auth.uid(), 'member');
+  return v_group_id;
+end;
+$$;
+revoke execute on function public.create_group from anon, public;
+revoke execute on function public.join_group_by_code from anon, public;
+grant execute on function public.create_group to authenticated;
+grant execute on function public.join_group_by_code to authenticated;
+alter table public.groups enable row level security;
+alter table public.group_members enable row level security;
+create policy "groups_select_visible"
+  on public.groups
+  for select
+  to authenticated
+  using (
+    is_active
+    and (
+      not is_private
+      or owner_id = auth.uid()
+      or public.is_group_member(id, auth.uid())
+    )
+  );
+create policy "groups_update_owner"
+  on public.groups
+  for update
+  to authenticated
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());
+create policy "group_members_select_same_group"
+  on public.group_members
+  for select
+  to authenticated
+  using (public.is_group_member(group_id, auth.uid()));
+create policy "group_members_delete_self"
+  on public.group_members
+  for delete
+  to authenticated
+  using (user_id = auth.uid() and role = 'member');
+create table public.matches (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references public.groups (id) on delete cascade,
+  created_by uuid not null references public.users (id),
+  location text not null check (char_length(trim(location)) between 2 and 100),
+  start_at timestamptz not null,
+  end_at timestamptz not null,
+  max_players int not null check (max_players between 2 and 30),
+  status text not null default 'open'
+    check (status in ('open', 'cancelled', 'completed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (end_at > start_at)
+);
+create index matches_group_id_start_at_idx
+  on public.matches (group_id, start_at);
+create index matches_status_idx on public.matches (status);
+create trigger matches_set_updated_at
+  before update on public.matches
+  for each row
+  execute function public.set_updated_at();
+alter table public.matches enable row level security;
+create policy "matches_select_group_members"
+  on public.matches
+  for select
+  to authenticated
+  using (public.is_group_member(group_id, auth.uid()));
+create policy "matches_insert_group_members"
+  on public.matches
+  for insert
+  to authenticated
+  with check (
+    created_by = auth.uid()
+    and public.is_group_member(group_id, auth.uid())
+  );
+create policy "matches_update_creator"
+  on public.matches
+  for update
+  to authenticated
+  using (created_by = auth.uid())
+  with check (created_by = auth.uid());
+create table public.match_registrations (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references public.matches (id) on delete cascade,
+  user_id uuid not null references public.users (id) on delete cascade,
+  status text not null check (status in ('confirmed', 'reserve')),
+  registration_order int not null,
+  created_at timestamptz not null default now(),
+  unique (match_id, user_id),
+  unique (match_id, registration_order)
+);
+create index match_registrations_queue_idx
+  on public.match_registrations (match_id, status, registration_order);
+create index match_registrations_user_id_idx
+  on public.match_registrations (user_id);
+create or replace function public.is_match_group_member(
+  p_match_id uuid,
+  p_user_id uuid
+)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from matches m
+    join group_members gm on gm.group_id = m.group_id
+    where m.id = p_match_id
+      and gm.user_id = p_user_id
+  );
+$$;
+create or replace function public.register_for_match(p_match_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_confirmed_count int;
+  v_status text;
+  v_order int;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  perform 1 from users where id = auth.uid() for update;
+  if v_match.status <> 'open' or v_match.start_at <= now() then
+    raise exception 'MATCH_CLOSED';
+  end if;
+  if not is_group_member(v_match.group_id, auth.uid()) then
+    raise exception 'NOT_GROUP_MEMBER';
+  end if;
+  if exists (
+    select 1 from match_registrations
+    where match_id = p_match_id and user_id = auth.uid()
+  ) then
+    raise exception 'ALREADY_REGISTERED';
+  end if;
+  if exists (
+    select 1
+    from match_registrations r
+    join matches m on m.id = r.match_id
+    where r.user_id = auth.uid()
+      and m.status = 'open'
+      and m.start_at < v_match.end_at
+      and m.end_at > v_match.start_at
+  ) then
+    raise exception 'OVERLAPPING_MATCH';
+  end if;
+  select count(*) into v_confirmed_count
+  from match_registrations
+  where match_id = p_match_id and status = 'confirmed';
+  v_status := case
+    when v_confirmed_count < v_match.max_players then 'confirmed'
+    else 'reserve'
+  end;
+  select coalesce(max(registration_order), 0) + 1 into v_order
+  from match_registrations
+  where match_id = p_match_id;
+  insert into match_registrations (match_id, user_id, status, registration_order)
+  values (p_match_id, auth.uid(), v_status, v_order);
+  return v_status;
+end;
+$$;
+create or replace function public.withdraw_from_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_registration match_registrations%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if v_match.status <> 'open' or v_match.start_at <= now() then
+    raise exception 'MATCH_CLOSED';
+  end if;
+  select * into v_registration
+  from match_registrations
+  where match_id = p_match_id and user_id = auth.uid();
+  if not found then
+    raise exception 'NOT_REGISTERED';
+  end if;
+  delete from match_registrations where id = v_registration.id;
+  if v_registration.status = 'confirmed' then
+    update match_registrations
+    set status = 'confirmed'
+    where id = (
+      select id
+      from match_registrations
+      where match_id = p_match_id and status = 'reserve'
+      order by registration_order
+      limit 1
+    );
+  end if;
+end;
+$$;
+revoke execute on function public.register_for_match from anon, public;
+revoke execute on function public.withdraw_from_match from anon, public;
+grant execute on function public.register_for_match to authenticated;
+grant execute on function public.withdraw_from_match to authenticated;
+alter table public.match_registrations enable row level security;
+create policy "match_registrations_select_group_members"
+  on public.match_registrations
+  for select
+  to authenticated
+  using (public.is_match_group_member(match_id, auth.uid()));
+alter function public.set_updated_at() set search_path = public;
+revoke execute on function public.handle_new_user()
+  from anon, authenticated, public;
+revoke execute on function public.is_group_member(uuid, uuid)
+  from anon, public;
+revoke execute on function public.is_match_group_member(uuid, uuid)
+  from anon, public;
+grant execute on function public.is_group_member(uuid, uuid)
+  to authenticated;
+grant execute on function public.is_match_group_member(uuid, uuid)
+  to authenticated;
+drop function if exists public.cancel_match(uuid);
+drop function if exists public.postpone_match(uuid);
+drop function if exists public.recompute_match_fill(uuid);
+drop function if exists public.update_match(uuid, text, text, timestamptz, timestamptz, int, text);
+drop function if exists public.update_match(uuid, text, text, timestamptz, timestamptz, int, int, text);
+create table if not exists public.app_settings (
+  id boolean primary key default true check (id),
+  reserve_players int not null default 6
+    check (reserve_players between 0 and 30)
+);
+insert into public.app_settings (id) values (true)
+on conflict (id) do nothing;
+alter table public.app_settings enable row level security;
+drop policy if exists "app_settings_select_all" on public.app_settings;
+create policy "app_settings_select_all"
+  on public.app_settings for select to authenticated using (true);
+alter table public.matches
+  add column if not exists title text;
+alter table public.matches
+  add column if not exists description text;
+alter table public.matches drop constraint if exists matches_title_check;
+alter table public.matches drop constraint if exists matches_description_check;
+alter table public.matches add constraint matches_title_check
+  check (title is null or char_length(trim(title)) between 2 and 60);
+alter table public.matches add constraint matches_description_check
+  check (description is null or char_length(description) <= 300);
+alter table public.matches add column if not exists starting_players int;
+alter table public.matches add column if not exists max_registration int;
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'matches'
+      and column_name = 'max_players'
+  ) then
+    update public.matches
+    set starting_players = coalesce(starting_players, max_players),
+        max_registration = coalesce(max_registration, max_players);
+  end if;
+end $$;
+update public.matches
+set starting_players = coalesce(starting_players, 10),
+    max_registration = coalesce(max_registration, 10)
+where starting_players is null or max_registration is null;
+alter table public.matches alter column starting_players set not null;
+alter table public.matches alter column max_registration set not null;
+alter table public.matches drop constraint if exists matches_starting_players_check;
+alter table public.matches drop constraint if exists matches_max_registration_check;
+alter table public.matches drop constraint if exists matches_capacity_check;
+alter table public.matches add constraint matches_starting_players_check
+  check (starting_players between 2 and 30);
+alter table public.matches add constraint matches_max_registration_check
+  check (max_registration between 2 and 60);
+alter table public.matches add constraint matches_capacity_check
+  check (max_registration >= starting_players);
+alter table public.matches drop column if exists max_players;
+create or replace function public.set_match_capacity()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_reserve int;
+begin
+  if tg_op = 'INSERT'
+     or new.starting_players is distinct from old.starting_players then
+    select reserve_players into v_reserve from app_settings limit 1;
+    new.max_registration := new.starting_players + coalesce(v_reserve, 6);
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists matches_set_capacity on public.matches;
+create trigger matches_set_capacity
+  before insert or update on public.matches
+  for each row execute function public.set_match_capacity();
+update public.matches m
+set max_registration = m.starting_players
+    + (select reserve_players from public.app_settings limit 1);
+alter table public.matches drop constraint if exists matches_status_check;
+update public.matches set status = 'completed' where status = 'cancelled';
+update public.matches set status = 'open' where status in ('draft', 'postponed');
+update public.matches set status = 'completed'
+  where end_at <= now() and status <> 'completed';
+alter table public.matches add constraint matches_status_check
+  check (status in ('open', 'full', 'completed'));
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete cascade,
+  match_id uuid references public.matches (id) on delete set null,
+  type text not null,
+  message text not null,
+  is_read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists notifications_user_idx
+  on public.notifications (user_id, created_at desc);
+alter table public.notifications
+  drop constraint if exists notifications_match_id_fkey;
+alter table public.notifications
+  add constraint notifications_match_id_fkey
+  foreign key (match_id) references public.matches (id) on delete set null;
+alter table public.notifications enable row level security;
+drop policy if exists "notifications_select_own" on public.notifications;
+drop policy if exists "notifications_update_own" on public.notifications;
+drop policy if exists "notifications_delete_own" on public.notifications;
+create policy "notifications_select_own"
+  on public.notifications for select to authenticated
+  using (user_id = auth.uid());
+create policy "notifications_update_own"
+  on public.notifications for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "notifications_delete_own"
+  on public.notifications for delete to authenticated
+  using (user_id = auth.uid());
+create or replace function public.create_notification(
+  p_user_id uuid, p_match_id uuid, p_type text, p_message text
+)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into notifications (user_id, match_id, type, message)
+  values (p_user_id, p_match_id, p_type, p_message);
+$$;
+create or replace function public.recompute_match_status(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+begin
+  select * into v_match from matches where id = p_match_id;
+  if not found then return; end if;
+  if v_match.end_at <= now() then
+    update matches set status = 'completed'
+    where id = p_match_id and status <> 'completed';
+    return;
+  end if;
+  select count(*) into v_total
+  from match_registrations where match_id = p_match_id;
+  update matches
+  set status = case when v_total >= v_match.max_registration
+                    then 'full' else 'open' end
+  where id = p_match_id;
+end;
+$$;
+create or replace function public.rebalance_roster(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_starting int;
+  r record;
+begin
+  select starting_players into v_starting from matches where id = p_match_id;
+  for r in
+    select mr.id, mr.user_id, mr.status,
+           case when row_number() over (order by mr.registration_order)
+                     <= v_starting
+                then 'confirmed' else 'reserve' end as desired
+    from match_registrations mr
+    where mr.match_id = p_match_id
+  loop
+    if r.status <> r.desired then
+      update match_registrations set status = r.desired where id = r.id;
+      if r.desired = 'reserve' then
+        perform create_notification(r.user_id, p_match_id, 'moved_to_reserve',
+            'تم نقلك إلى قائمة الاحتياط بسبب تعديل عدد اللاعبين.');
+      else
+        perform create_notification(r.user_id, p_match_id, 'promoted',
+            'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+      end if;
+    end if;
+  end loop;
+end;
+$$;
+create or replace function public.register_for_match(p_match_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+  v_confirmed int;
+  v_status text;
+  v_order int;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  perform 1 from users where id = auth.uid() for update;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_CLOSED';
+  end if;
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
+  if not is_group_member(v_match.group_id, auth.uid()) then
+    raise exception 'NOT_GROUP_MEMBER';
+  end if;
+  if exists (
+    select 1 from match_registrations
+    where match_id = p_match_id and user_id = auth.uid()
+  ) then
+    raise exception 'ALREADY_REGISTERED';
+  end if;
+  select count(*) into v_total
+  from match_registrations where match_id = p_match_id;
+  if v_total >= v_match.max_registration then
+    raise exception 'REGISTRATION_CLOSED';
+  end if;
+  if exists (
+    select 1
+    from match_registrations r
+    join matches m on m.id = r.match_id
+    where r.user_id = auth.uid()
+      and m.status in ('open', 'full')
+      and m.end_at > now()
+      and m.start_at < v_match.end_at
+      and m.end_at > v_match.start_at
+  ) then
+    raise exception 'OVERLAPPING_MATCH';
+  end if;
+  select count(*) into v_confirmed
+  from match_registrations
+  where match_id = p_match_id and status = 'confirmed';
+  v_status := case
+    when v_confirmed < v_match.starting_players then 'confirmed'
+    else 'reserve'
+  end;
+  select coalesce(max(registration_order), 0) + 1 into v_order
+  from match_registrations where match_id = p_match_id;
+  insert into match_registrations (match_id, user_id, status, registration_order)
+  values (p_match_id, auth.uid(), v_status, v_order);
+  perform recompute_match_status(p_match_id);
+  return v_status;
+end;
+$$;
+create or replace function public.withdraw_from_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_registration match_registrations%rowtype;
+  v_promoted uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_CLOSED';
+  end if;
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
+  select * into v_registration
+  from match_registrations
+  where match_id = p_match_id and user_id = auth.uid();
+  if not found then
+    raise exception 'NOT_REGISTERED';
+  end if;
+  delete from match_registrations where id = v_registration.id;
+  if v_registration.status = 'confirmed' then
+    update match_registrations set status = 'confirmed'
+    where id = (
+      select id from match_registrations
+      where match_id = p_match_id and status = 'reserve'
+      order by registration_order
+      limit 1
+    )
+    returning user_id into v_promoted;
+    if v_promoted is not null then
+      perform create_notification(v_promoted, p_match_id, 'promoted',
+          'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+    end if;
+  end if;
+  perform recompute_match_status(p_match_id);
+end;
+$$;
+create or replace function public.update_match(
+  p_match_id uuid,
+  p_title text,
+  p_location text,
+  p_start_at timestamptz,
+  p_end_at timestamptz,
+  p_starting_players int,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if v_match.created_by <> auth.uid() then
+    raise exception 'NOT_ORGANIZER';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
+  if p_end_at <= p_start_at then
+    raise exception 'INVALID_TIME_RANGE';
+  end if;
+  if p_starting_players < 2 or p_starting_players > 30 then
+    raise exception 'INVALID_STARTING_PLAYERS';
+  end if;
+  select count(*) into v_total
+  from match_registrations where match_id = p_match_id;
+  if p_starting_players
+     + (select reserve_players from app_settings limit 1) < v_total then
+    raise exception 'MAX_BELOW_REGISTERED';
+  end if;
+  update matches set
+    title = case when p_title is null or trim(p_title) = ''
+                 then null else trim(p_title) end,
+    location = trim(p_location),
+    start_at = p_start_at,
+    end_at = p_end_at,
+    starting_players = p_starting_players,
+    description = case when p_description is null or trim(p_description) = ''
+                       then null else trim(p_description) end
+  where id = p_match_id;
+  perform rebalance_roster(p_match_id);
+  perform recompute_match_status(p_match_id);
+  perform create_notification(mr.user_id, p_match_id, 'match_updated',
+      'تم تعديل تفاصيل المباراة.')
+  from match_registrations mr
+  where mr.match_id = p_match_id;
+end;
+$$;
+create or replace function public.remove_player(p_match_id uuid, p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_registration match_registrations%rowtype;
+  v_promoted uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if v_match.created_by <> auth.uid() then
+    raise exception 'NOT_ORGANIZER';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
+  select * into v_registration
+  from match_registrations
+  where match_id = p_match_id and user_id = p_user_id;
+  if not found then
+    raise exception 'NOT_REGISTERED';
+  end if;
+  delete from match_registrations where id = v_registration.id;
+  if v_registration.status = 'confirmed' then
+    update match_registrations set status = 'confirmed'
+    where id = (
+      select id from match_registrations
+      where match_id = p_match_id and status = 'reserve'
+      order by registration_order
+      limit 1
+    )
+    returning user_id into v_promoted;
+    if v_promoted is not null then
+      perform create_notification(v_promoted, p_match_id, 'promoted',
+          'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+    end if;
+  end if;
+  perform recompute_match_status(p_match_id);
+  perform create_notification(p_user_id, p_match_id, 'removed',
+      'قام المنظم بإزالتك من المباراة.');
+end;
+$$;
+create or replace function public.delete_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if v_match.created_by <> auth.uid() then
+    raise exception 'NOT_ORGANIZER';
+  end if;
+  perform create_notification(mr.user_id, p_match_id, 'match_deleted',
+      'تم حذف المباراة.')
+  from match_registrations mr
+  where mr.match_id = p_match_id;
+  delete from match_registrations where match_id = p_match_id;
+  delete from matches where id = p_match_id;
+end;
+$$;
+revoke execute on function public.create_notification(uuid, uuid, text, text)
+  from anon, authenticated, public;
+revoke execute on function public.recompute_match_status(uuid)
+  from anon, authenticated, public;
+revoke execute on function public.rebalance_roster(uuid)
+  from anon, authenticated, public;
+revoke execute on function public.set_match_capacity()
+  from anon, authenticated, public;
+revoke execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, text)
+  from anon, public;
+revoke execute on function public.remove_player(uuid, uuid) from anon, public;
+revoke execute on function public.delete_match(uuid) from anon, public;
+grant execute on function public.update_match(uuid, text, text, timestamptz, timestamptz, int, text)
+  to authenticated;
+grant execute on function public.remove_player(uuid, uuid) to authenticated;
+grant execute on function public.delete_match(uuid) to authenticated;
+alter table public.groups rename to communities;
+alter table public.group_members rename to community_members;
+alter table public.community_members rename column group_id to community_id;
+alter table public.matches rename column group_id to community_id;
+alter index public.groups_owner_id_idx rename to communities_owner_id_idx;
+alter index public.group_members_user_id_idx rename to community_members_user_id_idx;
+alter index public.group_members_group_id_idx
+  rename to community_members_community_id_idx;
+alter index public.matches_group_id_start_at_idx
+  rename to matches_community_id_start_at_idx;
+alter trigger groups_set_updated_at on public.communities
+  rename to communities_set_updated_at;
+alter table public.communities rename constraint groups_pkey to communities_pkey;
+alter table public.communities
+  rename constraint groups_join_code_key to communities_join_code_key;
+alter table public.communities
+  rename constraint groups_owner_id_fkey to communities_owner_id_fkey;
+alter table public.communities
+  rename constraint groups_name_check to communities_name_check;
+alter table public.communities
+  rename constraint groups_description_check to communities_description_check;
+alter table public.community_members
+  rename constraint group_members_pkey to community_members_pkey;
+alter table public.community_members
+  rename constraint group_members_group_id_user_id_key
+  to community_members_community_id_user_id_key;
+alter table public.community_members
+  rename constraint group_members_group_id_fkey
+  to community_members_community_id_fkey;
+alter table public.community_members
+  rename constraint group_members_user_id_fkey to community_members_user_id_fkey;
+alter table public.matches
+  rename constraint matches_group_id_fkey to matches_community_id_fkey;
+drop policy if exists "group_members_delete_self" on public.community_members;
+alter table public.community_members
+  drop constraint if exists group_members_role_check;
+update public.community_members set role = 'player' where role = 'member';
+alter table public.community_members
+  add constraint community_members_role_check
+  check (role in ('owner', 'admin', 'player'));
+alter table public.community_members alter column role set default 'player';
+create or replace function public.is_community_member(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from community_members
+    where community_id = p_community_id
+      and user_id = p_user_id
+  );
+$$;
+create or replace function public.is_match_community_member(
+  p_match_id uuid,
+  p_user_id uuid
+)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from matches m
+    join community_members cm on cm.community_id = m.community_id
+    where m.id = p_match_id
+      and cm.user_id = p_user_id
+  );
+$$;
+revoke execute on function public.is_community_member(uuid, uuid)
+  from anon, public;
+revoke execute on function public.is_match_community_member(uuid, uuid)
+  from anon, public;
+grant execute on function public.is_community_member(uuid, uuid)
+  to authenticated;
+grant execute on function public.is_match_community_member(uuid, uuid)
+  to authenticated;
+drop policy if exists "groups_select_visible" on public.communities;
+create policy "communities_select_visible"
+  on public.communities
+  for select
+  to authenticated
+  using (
+    is_active
+    and (
+      not is_private
+      or owner_id = auth.uid()
+      or public.is_community_member(id, auth.uid())
+    )
+  );
+drop policy if exists "groups_update_owner" on public.communities;
+create policy "communities_update_owner"
+  on public.communities
+  for update
+  to authenticated
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());
+drop policy if exists "group_members_select_same_group" on public.community_members;
+create policy "community_members_select_same_community"
+  on public.community_members
+  for select
+  to authenticated
+  using (public.is_community_member(community_id, auth.uid()));
+create policy "community_members_delete_self"
+  on public.community_members
+  for delete
+  to authenticated
+  using (user_id = auth.uid() and role = 'player');
+drop policy if exists "matches_select_group_members" on public.matches;
+create policy "matches_select_community_members"
+  on public.matches
+  for select
+  to authenticated
+  using (public.is_community_member(community_id, auth.uid()));
+drop policy if exists "matches_insert_group_members" on public.matches;
+create policy "matches_insert_community_members"
+  on public.matches
+  for insert
+  to authenticated
+  with check (
+    created_by = auth.uid()
+    and public.is_community_member(community_id, auth.uid())
+  );
+drop policy if exists "match_registrations_select_group_members"
+  on public.match_registrations;
+create policy "match_registrations_select_community_members"
+  on public.match_registrations
+  for select
+  to authenticated
+  using (public.is_match_community_member(match_id, auth.uid()));
+create or replace function public.create_community(
+  p_name text,
+  p_description text,
+  p_is_private boolean
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_community_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  insert into communities (owner_id, name, description, is_private)
+  values (auth.uid(), trim(p_name), p_description, p_is_private)
+  returning id into v_community_id;
+  insert into community_members (community_id, user_id, role)
+  values (v_community_id, auth.uid(), 'owner');
+  return v_community_id;
+end;
+$$;
+create or replace function public.join_community_by_code(p_code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_community_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select id into v_community_id
+  from communities
+  where join_code = upper(trim(p_code))
+    and is_active;
+  if v_community_id is null then
+    raise exception 'COMMUNITY_NOT_FOUND';
+  end if;
+  if is_community_member(v_community_id, auth.uid()) then
+    raise exception 'ALREADY_MEMBER';
+  end if;
+  insert into community_members (community_id, user_id, role)
+  values (v_community_id, auth.uid(), 'player');
+  return v_community_id;
+end;
+$$;
+revoke execute on function public.create_community(text, text, boolean)
+  from anon, public;
+revoke execute on function public.join_community_by_code(text)
+  from anon, public;
+grant execute on function public.create_community(text, text, boolean)
+  to authenticated;
+grant execute on function public.join_community_by_code(text)
+  to authenticated;
+create or replace function public.register_for_match(p_match_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+  v_confirmed int;
+  v_status text;
+  v_order int;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  perform 1 from users where id = auth.uid() for update;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_CLOSED';
+  end if;
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
+  if not is_community_member(v_match.community_id, auth.uid()) then
+    raise exception 'NOT_COMMUNITY_MEMBER';
+  end if;
+  if exists (
+    select 1 from match_registrations
+    where match_id = p_match_id and user_id = auth.uid()
+  ) then
+    raise exception 'ALREADY_REGISTERED';
+  end if;
+  select count(*) into v_total
+  from match_registrations where match_id = p_match_id;
+  if v_total >= v_match.max_registration then
+    raise exception 'REGISTRATION_CLOSED';
+  end if;
+  if exists (
+    select 1
+    from match_registrations r
+    join matches m on m.id = r.match_id
+    where r.user_id = auth.uid()
+      and m.status in ('open', 'full')
+      and m.end_at > now()
+      and m.start_at < v_match.end_at
+      and m.end_at > v_match.start_at
+  ) then
+    raise exception 'OVERLAPPING_MATCH';
+  end if;
+  select count(*) into v_confirmed
+  from match_registrations
+  where match_id = p_match_id and status = 'confirmed';
+  v_status := case
+    when v_confirmed < v_match.starting_players then 'confirmed'
+    else 'reserve'
+  end;
+  select coalesce(max(registration_order), 0) + 1 into v_order
+  from match_registrations where match_id = p_match_id;
+  insert into match_registrations (match_id, user_id, status, registration_order)
+  values (p_match_id, auth.uid(), v_status, v_order);
+  perform recompute_match_status(p_match_id);
+  return v_status;
+end;
+$$;
+drop function if exists public.create_group(text, text, boolean);
+drop function if exists public.join_group_by_code(text);
+drop function if exists public.is_group_member(uuid, uuid);
+drop function if exists public.is_match_group_member(uuid, uuid);
+create or replace function public.has_community_role(
+  p_community_id uuid,
+  p_user_id uuid,
+  p_min_role text
+)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from community_members cm
+    where cm.community_id = p_community_id
+      and cm.user_id = p_user_id
+      and case cm.role when 'owner' then 3 when 'admin' then 2 else 1 end
+          >= case p_min_role when 'owner' then 3 when 'admin' then 2 else 1 end
+  );
+$$;
+create or replace function public.is_community_member(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select public.has_community_role(p_community_id, p_user_id, 'player');
+$$;
+revoke execute on function public.has_community_role(uuid, uuid, text)
+  from anon, public;
+grant execute on function public.has_community_role(uuid, uuid, text)
+  to authenticated;
+drop policy if exists "communities_select_visible" on public.communities;
+create policy "communities_select_visible"
+  on public.communities
+  for select
+  to authenticated
+  using (
+    is_active
+    and (
+      not is_private
+      or public.is_community_member(id, auth.uid())
+    )
+  );
+drop policy if exists "communities_update_owner" on public.communities;
+create policy "communities_update_owner"
+  on public.communities
+  for update
+  to authenticated
+  using (public.has_community_role(id, auth.uid(), 'owner'))
+  with check (public.has_community_role(id, auth.uid(), 'owner'));
+drop policy if exists "matches_insert_community_members" on public.matches;
+create policy "matches_insert_community_admins"
+  on public.matches
+  for insert
+  to authenticated
+  with check (
+    created_by = auth.uid()
+    and public.has_community_role(community_id, auth.uid(), 'admin')
+  );
+drop policy if exists "matches_update_creator" on public.matches;
+create policy "matches_update_community_admins"
+  on public.matches
+  for update
+  to authenticated
+  using (public.has_community_role(community_id, auth.uid(), 'admin'))
+  with check (public.has_community_role(community_id, auth.uid(), 'admin'));
+drop policy if exists "community_members_delete_self" on public.community_members;
+create policy "community_members_delete_self"
+  on public.community_members
+  for delete
+  to authenticated
+  using (user_id = auth.uid() and role <> 'owner');
+create table if not exists public.invitations (
+  id uuid primary key default gen_random_uuid(),
+  community_id uuid not null
+    references public.communities (id) on delete cascade,
+  invited_by uuid not null references public.users (id),
+  invitee_id uuid not null references public.users (id) on delete cascade,
+  role text not null check (role in ('admin', 'player')),
+  status text not null default 'pending'
+    check (status in ('pending', 'accepted', 'revoked', 'expired')),
+  expires_at timestamptz not null default now() + interval '14 days',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists invitations_one_pending_idx
+  on public.invitations (community_id, invitee_id)
+  where status = 'pending';
+create index if not exists invitations_invitee_idx
+  on public.invitations (invitee_id, status);
+drop trigger if exists invitations_set_updated_at on public.invitations;
+create trigger invitations_set_updated_at
+  before update on public.invitations
+  for each row execute function public.set_updated_at();
+alter table public.invitations enable row level security;
+drop policy if exists "invitations_select_visible" on public.invitations;
+create policy "invitations_select_visible"
+  on public.invitations
+  for select
+  to authenticated
+  using (
+    invitee_id = auth.uid()
+    or public.has_community_role(community_id, auth.uid(), 'admin')
+  );
+create or replace function public.create_invitation(
+  p_community_id uuid,
+  p_invitee_id uuid,
+  p_role text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if p_role not in ('admin', 'player') then
+    raise exception 'INVALID_ROLE';
+  end if;
+  if not has_community_role(p_community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_role = 'admin'
+     and not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if is_community_member(p_community_id, p_invitee_id) then
+    raise exception 'ALREADY_MEMBER';
+  end if;
+  begin
+    insert into invitations (community_id, invited_by, invitee_id, role)
+    values (p_community_id, auth.uid(), p_invitee_id, p_role)
+    returning id into v_id;
+  exception when unique_violation then
+    raise exception 'INVITATION_EXISTS';
+  end;
+  return v_id;
+end;
+$$;
+create or replace function public.revoke_invitation(p_invitation_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_inv invitations%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_inv from invitations where id = p_invitation_id for update;
+  if not found then
+    raise exception 'INVITATION_NOT_FOUND';
+  end if;
+  if not has_community_role(v_inv.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if v_inv.status <> 'pending' then
+    raise exception 'INVITATION_NOT_PENDING';
+  end if;
+  update invitations set status = 'revoked' where id = p_invitation_id;
+end;
+$$;
+create or replace function public.accept_invitation(p_invitation_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_inv invitations%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_inv from invitations where id = p_invitation_id for update;
+  if not found then
+    raise exception 'INVITATION_NOT_FOUND';
+  end if;
+  if v_inv.invitee_id <> auth.uid() then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if v_inv.status <> 'pending' then
+    raise exception 'INVITATION_NOT_PENDING';
+  end if;
+  if v_inv.expires_at <= now() then
+    raise exception 'INVITATION_EXPIRED';
+  end if;
+  if is_community_member(v_inv.community_id, auth.uid()) then
+    raise exception 'ALREADY_MEMBER';
+  end if;
+  insert into community_members (community_id, user_id, role)
+  values (v_inv.community_id, auth.uid(), v_inv.role);
+  update invitations set status = 'accepted' where id = p_invitation_id;
+  return v_inv.community_id;
+end;
+$$;
+create or replace function public.set_member_role(
+  p_community_id uuid,
+  p_user_id uuid,
+  p_role text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if p_role not in ('admin', 'player') then
+    raise exception 'INVALID_ROLE';
+  end if;
+  if not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_user_id = auth.uid() then
+    raise exception 'CANNOT_CHANGE_OWN_ROLE';
+  end if;
+  update community_members
+  set role = p_role
+  where community_id = p_community_id
+    and user_id = p_user_id
+    and role <> 'owner';
+  if not found then
+    raise exception 'MEMBER_NOT_FOUND';
+  end if;
+end;
+$$;
+create or replace function public.update_match(
+  p_match_id uuid,
+  p_title text,
+  p_location text,
+  p_start_at timestamptz,
+  p_end_at timestamptz,
+  p_starting_players int,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
+  if p_end_at <= p_start_at then
+    raise exception 'INVALID_TIME_RANGE';
+  end if;
+  if p_starting_players < 2 or p_starting_players > 30 then
+    raise exception 'INVALID_STARTING_PLAYERS';
+  end if;
+  select count(*) into v_total
+  from match_registrations where match_id = p_match_id;
+  if p_starting_players
+     + (select reserve_players from app_settings limit 1) < v_total then
+    raise exception 'MAX_BELOW_REGISTERED';
+  end if;
+  update matches set
+    title = case when p_title is null or trim(p_title) = ''
+                 then null else trim(p_title) end,
+    location = trim(p_location),
+    start_at = p_start_at,
+    end_at = p_end_at,
+    starting_players = p_starting_players,
+    description = case when p_description is null or trim(p_description) = ''
+                       then null else trim(p_description) end
+  where id = p_match_id;
+  perform rebalance_roster(p_match_id);
+  perform recompute_match_status(p_match_id);
+  perform create_notification(mr.user_id, p_match_id, 'match_updated',
+      'تم تعديل تفاصيل المباراة.')
+  from match_registrations mr
+  where mr.match_id = p_match_id;
+end;
+$$;
+create or replace function public.remove_player(p_match_id uuid, p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_registration match_registrations%rowtype;
+  v_promoted uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
+  if v_match.start_at <= now() then
+    raise exception 'MATCH_LOCKED';
+  end if;
+  select * into v_registration
+  from match_registrations
+  where match_id = p_match_id and user_id = p_user_id;
+  if not found then
+    raise exception 'NOT_REGISTERED';
+  end if;
+  delete from match_registrations where id = v_registration.id;
+  if v_registration.status = 'confirmed' then
+    update match_registrations set status = 'confirmed'
+    where id = (
+      select id from match_registrations
+      where match_id = p_match_id and status = 'reserve'
+      order by registration_order
+      limit 1
+    )
+    returning user_id into v_promoted;
+    if v_promoted is not null then
+      perform create_notification(v_promoted, p_match_id, 'promoted',
+          'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+    end if;
+  end if;
+  perform recompute_match_status(p_match_id);
+  perform create_notification(p_user_id, p_match_id, 'removed',
+      'قام المنظم بإزالتك من المباراة.');
+end;
+$$;
+create or replace function public.delete_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then
+    raise exception 'MATCH_NOT_FOUND';
+  end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform create_notification(mr.user_id, p_match_id, 'match_deleted',
+      'تم حذف المباراة.')
+  from match_registrations mr
+  where mr.match_id = p_match_id;
+  delete from match_registrations where match_id = p_match_id;
+  delete from matches where id = p_match_id;
+end;
+$$;
+revoke execute on function public.create_invitation(uuid, uuid, text)
+  from anon, public;
+revoke execute on function public.revoke_invitation(uuid) from anon, public;
+revoke execute on function public.accept_invitation(uuid) from anon, public;
+revoke execute on function public.set_member_role(uuid, uuid, text)
+  from anon, public;
+grant execute on function public.create_invitation(uuid, uuid, text)
+  to authenticated;
+grant execute on function public.revoke_invitation(uuid) to authenticated;
+grant execute on function public.accept_invitation(uuid) to authenticated;
+grant execute on function public.set_member_role(uuid, uuid, text)
+  to authenticated;
+create or replace function public.transfer_ownership(
+  p_community_id uuid,
+  p_new_owner_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_new_owner_id = auth.uid() then
+    raise exception 'ALREADY_OWNER';
+  end if;
+  perform 1 from communities where id = p_community_id for update;
+  if not exists (
+    select 1 from community_members
+    where community_id = p_community_id and user_id = p_new_owner_id
+  ) then
+    raise exception 'MEMBER_NOT_FOUND';
+  end if;
+  update community_members set role = 'admin'
+  where community_id = p_community_id and user_id = auth.uid();
+  update community_members set role = 'owner'
+  where community_id = p_community_id and user_id = p_new_owner_id;
+  update communities set owner_id = p_new_owner_id where id = p_community_id;
+end;
+$$;
+create or replace function public.remove_member(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_target_role text;
+  r record;
+  v_promoted uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if not has_community_role(p_community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_user_id = auth.uid() then
+    raise exception 'CANNOT_REMOVE_SELF';
+  end if;
+  select role into v_target_role
+  from community_members
+  where community_id = p_community_id and user_id = p_user_id;
+  if not found then
+    raise exception 'MEMBER_NOT_FOUND';
+  end if;
+  if v_target_role = 'owner' then
+    raise exception 'CANNOT_REMOVE_OWNER';
+  end if;
+  if v_target_role = 'admin'
+     and not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  for r in
+    select mr.id, mr.status, mr.match_id
+    from match_registrations mr
+    join matches m on m.id = mr.match_id
+    where m.community_id = p_community_id
+      and mr.user_id = p_user_id
+  loop
+    perform 1 from matches where id = r.match_id for update;
+    delete from match_registrations where id = r.id;
+    if r.status = 'confirmed' then
+      update match_registrations set status = 'confirmed'
+      where id = (
+        select id from match_registrations
+        where match_id = r.match_id and status = 'reserve'
+        order by registration_order
+        limit 1
+      )
+      returning user_id into v_promoted;
+      if v_promoted is not null then
+        perform create_notification(v_promoted, r.match_id, 'promoted',
+            'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+      end if;
+    end if;
+    perform recompute_match_status(r.match_id);
+  end loop;
+  delete from community_members
+  where community_id = p_community_id and user_id = p_user_id;
+end;
+$$;
+create or replace function public.delete_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform 1 from communities where id = p_community_id for update;
+  delete from notifications
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from match_registrations
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from matches where community_id = p_community_id;
+  delete from invitations where community_id = p_community_id;
+  delete from community_members where community_id = p_community_id;
+  delete from communities where id = p_community_id;
+end;
+$$;
+revoke execute on function public.transfer_ownership(uuid, uuid) from anon, public;
+revoke execute on function public.remove_member(uuid, uuid) from anon, public;
+revoke execute on function public.delete_community(uuid) from anon, public;
+grant execute on function public.transfer_ownership(uuid, uuid) to authenticated;
+grant execute on function public.remove_member(uuid, uuid) to authenticated;
+grant execute on function public.delete_community(uuid) to authenticated;
+create table if not exists public.community_invite_links (
+  id uuid primary key default gen_random_uuid(),
+  token text not null unique
+    default replace(gen_random_uuid()::text, '-', ''),
+  community_id uuid not null
+    references public.communities (id) on delete cascade,
+  kind text not null check (kind in ('community', 'match')),
+  match_id uuid references public.matches (id) on delete set null,
+  created_by uuid not null references public.users (id),
+  role text not null default 'player' check (role = 'player'),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint invite_links_match_kind_agree check (
+    (kind = 'community' and match_id is null) or kind = 'match'
+  )
+);
+create unique index if not exists invite_links_one_active_community_idx
+  on public.community_invite_links (community_id)
+  where is_active and kind = 'community';
+create unique index if not exists invite_links_one_active_match_idx
+  on public.community_invite_links (match_id)
+  where is_active and match_id is not null;
+create index if not exists invite_links_community_idx
+  on public.community_invite_links (community_id);
+drop trigger if exists invite_links_set_updated_at
+  on public.community_invite_links;
+create trigger invite_links_set_updated_at
+  before update on public.community_invite_links
+  for each row execute function public.set_updated_at();
+alter table public.community_invite_links enable row level security;
+drop policy if exists "invite_links_select_admins"
+  on public.community_invite_links;
+create policy "invite_links_select_admins"
+  on public.community_invite_links
+  for select
+  to authenticated
+  using (public.has_community_role(community_id, auth.uid(), 'admin'));
+create or replace function public.invite_link_state(
+  p_link public.community_invite_links
+)
+returns text
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select case
+    when p_link.id is null then 'not_found'
+    when not p_link.is_active then 'revoked'
+    when p_link.kind = 'community' then 'valid'
+    when p_link.match_id is null then 'match_deleted'
+    when (select m.start_at from matches m where m.id = p_link.match_id)
+         <= now() then 'expired'
+    else 'valid'
+  end;
+$$;
+create or replace function public.create_invite_link(
+  p_community_id uuid,
+  p_match_id uuid default null
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_kind text := case when p_match_id is null then 'community' else 'match' end;
+  v_match matches%rowtype;
+  v_token text;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if not has_community_role(p_community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_match_id is not null then
+    select * into v_match from matches m where m.id = p_match_id;
+    if not found then
+      raise exception 'MATCH_NOT_FOUND';
+    end if;
+    if v_match.community_id <> p_community_id then
+      raise exception 'MATCH_NOT_IN_COMMUNITY';
+    end if;
+    if v_match.start_at <= now() then
+      raise exception 'MATCH_LOCKED';
+    end if;
+  end if;
+  select l.token into v_token
+  from community_invite_links l
+  where l.is_active
+    and l.kind = v_kind
+    and l.community_id = p_community_id
+    and l.match_id is not distinct from p_match_id;
+  if found then
+    return v_token;
+  end if;
+  begin
+    insert into community_invite_links (community_id, kind, match_id, created_by)
+    values (p_community_id, v_kind, p_match_id, auth.uid())
+    returning token into v_token;
+  exception when unique_violation then
+    select l.token into v_token
+    from community_invite_links l
+    where l.is_active
+      and l.kind = v_kind
+      and l.community_id = p_community_id
+      and l.match_id is not distinct from p_match_id;
+  end;
+  return v_token;
+end;
+$$;
+create or replace function public.revoke_invite_link(p_link_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_link community_invite_links%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_link
+  from community_invite_links l where l.id = p_link_id for update;
+  if not found then
+    raise exception 'INVITE_NOT_FOUND';
+  end if;
+  if not has_community_role(v_link.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  update community_invite_links l set is_active = false where l.id = p_link_id;
+end;
+$$;
+create or replace function public.preview_invite_link(p_token text)
+returns table (
+  state text,
+  community_id uuid,
+  community_name text,
+  match_id uuid,
+  match_title text,
+  match_location text,
+  match_start_at timestamptz,
+  match_end_at timestamptz,
+  starting_players int,
+  seats_remaining int,
+  would_be_reserve boolean,
+  is_member boolean,
+  is_registered boolean
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+declare
+  v_link community_invite_links%rowtype;
+  v_state text;
+  v_community communities%rowtype;
+  v_match matches%rowtype;
+  v_total int := 0;
+  v_confirmed int := 0;
+begin
+  select * into v_link
+  from community_invite_links l where l.token = trim(p_token);
+  v_state := invite_link_state(v_link);
+  if v_state in ('not_found', 'revoked') then
+    return query select v_state, null::uuid, null::text, null::uuid,
+      null::text, null::text, null::timestamptz, null::timestamptz,
+      null::int, null::int, null::boolean, false, false;
+    return;
+  end if;
+  select * into v_community from communities c where c.id = v_link.community_id;
+  if v_link.match_id is not null then
+    select * into v_match from matches m where m.id = v_link.match_id;
+    select count(*) into v_total
+    from match_registrations r where r.match_id = v_link.match_id;
+    select count(*) into v_confirmed
+    from match_registrations r
+    where r.match_id = v_link.match_id and r.status = 'confirmed';
+  end if;
+  return query select
+    v_state,
+    v_link.community_id,
+    v_community.name,
+    v_link.match_id,
+    v_match.title,
+    v_match.location,
+    v_match.start_at,
+    v_match.end_at,
+    v_match.starting_players,
+    case when v_link.match_id is null then null::int
+         else greatest(v_match.max_registration - v_total, 0) end,
+    case when v_link.match_id is null then null::boolean
+         else v_confirmed >= v_match.starting_players end,
+    auth.uid() is not null
+      and is_community_member(v_link.community_id, auth.uid()),
+    v_link.match_id is not null
+      and auth.uid() is not null
+      and exists (
+        select 1 from match_registrations r
+        where r.match_id = v_link.match_id and r.user_id = auth.uid()
+      );
+end;
+$$;
+create or replace function public.redeem_invite_link(p_token text)
+returns table (
+  community_id uuid,
+  match_id uuid,
+  registration_status text,
+  failure_code text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_link community_invite_links%rowtype;
+  v_state text;
+  v_status text;
+  v_failure text;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select * into v_link
+  from community_invite_links l where l.token = trim(p_token);
+  v_state := invite_link_state(v_link);
+  if v_state <> 'valid' then
+    raise exception 'INVITE_%', upper(v_state);
+  end if;
+  if not is_community_member(v_link.community_id, auth.uid()) then
+    begin
+      insert into community_members (community_id, user_id, role)
+      values (v_link.community_id, auth.uid(), v_link.role);
+    exception when unique_violation then
+      null;
+    end;
+  end if;
+  if v_link.match_id is not null then
+    begin
+      v_status := register_for_match(v_link.match_id);
+    exception when others then
+      v_failure := sqlerrm;
+      v_status := null;
+    end;
+    if v_failure = 'ALREADY_REGISTERED' then
+      select r.status into v_status
+      from match_registrations r
+      where r.match_id = v_link.match_id and r.user_id = auth.uid();
+      v_failure := null;
+    end if;
+  end if;
+  return query select v_link.community_id, v_link.match_id, v_status, v_failure;
+end;
+$$;
+revoke execute on function public.invite_link_state(public.community_invite_links)
+  from anon, authenticated, public;
+revoke execute on function public.create_invite_link(uuid, uuid)
+  from anon, public;
+revoke execute on function public.revoke_invite_link(uuid) from anon, public;
+revoke execute on function public.redeem_invite_link(text) from anon, public;
+revoke execute on function public.preview_invite_link(text) from public;
+grant execute on function public.create_invite_link(uuid, uuid) to authenticated;
+grant execute on function public.revoke_invite_link(uuid) to authenticated;
+grant execute on function public.redeem_invite_link(text) to authenticated;
+grant execute on function public.preview_invite_link(text)
+  to anon, authenticated;
+update public.matches
+set title = left(trim(location), 60)
+where title is null or trim(title) = '';
+update public.matches
+set title = 'Match'
+where char_length(trim(title)) < 2;
+alter table public.matches
+  alter column title set not null;
+alter table public.matches
+  drop constraint if exists matches_title_check;
+alter table public.matches
+  add constraint matches_title_check
+  check (char_length(trim(title)) between 2 and 60);
+drop function if exists public.create_invitation(uuid, uuid, text);
+drop function if exists public.revoke_invitation(uuid);
+drop function if exists public.accept_invitation(uuid);
+drop table if exists public.invitations cascade;
+drop function if exists public.create_invite_link(uuid, uuid);
+drop function if exists public.revoke_invite_link(uuid);
+drop function if exists public.preview_invite_link(text);
+drop function if exists public.redeem_invite_link(text);
+drop function if exists public.invite_link_state(public.community_invite_links);
+drop table if exists public.community_invite_links cascade;
+create or replace function public.generate_join_code()
+returns text
+language plpgsql
+volatile
+set search_path = public
+as $$
+declare
+  v_alphabet constant text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  v_code text;
+begin
+  loop
+    select string_agg(
+             substr(v_alphabet, 1 + floor(random() * length(v_alphabet))::int, 1),
+             '')
+      into v_code
+      from generate_series(1, 12);
+    exit when not exists (select 1 from communities where join_code = v_code);
+  end loop;
+  return v_code;
+end;
+$$;
+alter table public.communities
+  alter column join_code set default public.generate_join_code();
+update public.communities set join_code = public.generate_join_code();
+alter table public.communities
+  drop constraint if exists communities_join_code_length_check;
+alter table public.communities
+  add constraint communities_join_code_length_check
+  check (char_length(join_code) between 6 and 32);
+create or replace function public.preview_community_invite(p_code text)
+returns table (
+  state text,
+  community_id uuid,
+  community_name text,
+  is_member boolean
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+declare
+  v_community communities%rowtype;
+begin
+  select * into v_community
+  from communities c
+  where c.join_code = upper(trim(p_code)) and c.is_active;
+  if not found then
+    return query select 'not_found'::text, null::uuid, null::text, false;
+    return;
+  end if;
+  return query select
+    'valid'::text,
+    v_community.id,
+    v_community.name,
+    auth.uid() is not null and is_community_member(v_community.id, auth.uid());
+end;
+$$;
+revoke execute on function public.generate_join_code() from anon, authenticated, public;
+revoke execute on function public.preview_community_invite(text) from public;
+grant execute on function public.preview_community_invite(text)
+  to anon, authenticated;
+create or replace function public.update_match(
+  p_match_id uuid,
+  p_title text,
+  p_location text,
+  p_start_at timestamptz,
+  p_end_at timestamptz,
+  p_starting_players int,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
+  if v_match.start_at <= now() then raise exception 'MATCH_LOCKED'; end if;
+  if p_title is null or char_length(trim(p_title)) < 2 then
+    raise exception 'INVALID_TITLE';
+  end if;
+  if p_end_at <= p_start_at then raise exception 'INVALID_TIME_RANGE'; end if;
+  if p_starting_players < 2 or p_starting_players > 30 then
+    raise exception 'INVALID_STARTING_PLAYERS';
+  end if;
+  select count(*) into v_total from match_registrations where match_id = p_match_id;
+  if p_starting_players + (select reserve_players from app_settings limit 1) < v_total then
+    raise exception 'MAX_BELOW_REGISTERED';
+  end if;
+  update matches set
+    title = trim(p_title),
+    location = trim(p_location),
+    start_at = p_start_at,
+    end_at = p_end_at,
+    starting_players = p_starting_players,
+    description = case when p_description is null or trim(p_description) = '' then null else trim(p_description) end
+  where id = p_match_id;
+  perform rebalance_roster(p_match_id);
+  perform recompute_match_status(p_match_id);
+  perform create_notification(mr.user_id, p_match_id, 'match_updated',
+      'تم تعديل تفاصيل المباراة.')
+  from match_registrations mr where mr.match_id = p_match_id;
+end;
+$$;
+create or replace function public.delete_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  if not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform 1 from communities where id = p_community_id for update;
+  delete from notifications
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from match_registrations
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from matches where community_id = p_community_id;
+  delete from community_members where community_id = p_community_id;
+  delete from communities where id = p_community_id;
+end;
+$$;
+create or replace function public.regenerate_join_code(p_community_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_code text;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if not has_community_role(p_community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform 1 from communities where id = p_community_id for update;
+  if not found then
+    raise exception 'COMMUNITY_NOT_FOUND';
+  end if;
+  update communities
+  set join_code = generate_join_code()
+  where id = p_community_id
+  returning join_code into v_code;
+  return v_code;
+end;
+$$;
+revoke execute on function public.regenerate_join_code(uuid) from anon, public;
+grant execute on function public.regenerate_join_code(uuid) to authenticated;
+alter table public.communities
+  add column if not exists join_policy text not null default 'OPEN';
+update public.communities
+set join_policy = case when is_private then 'CODE_REQUIRED' else 'OPEN' end;
+alter table public.communities
+  drop constraint if exists communities_join_policy_check;
+alter table public.communities
+  add constraint communities_join_policy_check
+  check (join_policy in ('OPEN', 'CODE_REQUIRED'));
+drop policy if exists "communities_select_visible" on public.communities;
+create policy "communities_select_visible"
+  on public.communities
+  for select
+  to authenticated
+  using (is_active);
+alter table public.communities drop column if exists is_private;
+create or replace function public.join_community(p_community_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_policy text;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  select join_policy into v_policy
+  from communities
+  where id = p_community_id and is_active;
+  if not found then
+    raise exception 'COMMUNITY_NOT_FOUND';
+  end if;
+  if v_policy <> 'OPEN' then
+    raise exception 'JOIN_CODE_REQUIRED';
+  end if;
+  if is_community_member(p_community_id, auth.uid()) then
+    raise exception 'ALREADY_MEMBER';
+  end if;
+  insert into community_members (community_id, user_id, role)
+  values (p_community_id, auth.uid(), 'player');
+  return p_community_id;
+end;
+$$;
+revoke execute on function public.join_community(uuid) from anon, public;
+grant execute on function public.join_community(uuid) to authenticated;
+drop function if exists public.create_community(text, text, boolean);
+create or replace function public.create_community(
+  p_name text,
+  p_description text,
+  p_join_policy text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if p_join_policy not in ('OPEN', 'CODE_REQUIRED') then
+    raise exception 'INVALID_JOIN_POLICY';
+  end if;
+  insert into communities (owner_id, name, description, join_policy)
+  values (auth.uid(), p_name, p_description, p_join_policy)
+  returning id into v_id;
+  insert into community_members (community_id, user_id, role)
+  values (v_id, auth.uid(), 'owner');
+  return v_id;
+end;
+$$;
+revoke execute on function public.create_community(text, text, text)
+  from anon, public;
+grant execute on function public.create_community(text, text, text)
+  to authenticated;
+create table if not exists public.system_admins (
+  user_id uuid primary key references public.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.system_admins enable row level security;
+create or replace function public.is_system_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from system_admins where user_id = auth.uid()
+  );
+$$;
+revoke execute on function public.is_system_admin() from anon, public;
+grant execute on function public.is_system_admin() to authenticated;
+create or replace function public.purge_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform create_notification(mr.user_id, p_match_id, 'match_deleted',
+      'تم حذف المباراة.')
+  from match_registrations mr where mr.match_id = p_match_id;
+  delete from match_registrations where match_id = p_match_id;
+  delete from matches where id = p_match_id;
+end;
+$$;
+create or replace function public.purge_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform 1 from communities where id = p_community_id for update;
+  delete from notifications
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from match_registrations
+  where match_id in (select id from matches where community_id = p_community_id);
+  delete from matches where community_id = p_community_id;
+  delete from community_members where community_id = p_community_id;
+  delete from communities where id = p_community_id;
+end;
+$$;
+create or replace function public.purge_membership(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+  v_promoted uuid;
+begin
+  for r in
+    select mr.id, mr.status, mr.match_id
+    from match_registrations mr
+    join matches m on m.id = mr.match_id
+    where m.community_id = p_community_id and mr.user_id = p_user_id
+  loop
+    perform 1 from matches where id = r.match_id for update;
+    delete from match_registrations where id = r.id;
+    if r.status = 'confirmed' then
+      update match_registrations set status = 'confirmed'
+      where id = (select id from match_registrations
+                  where match_id = r.match_id and status = 'reserve'
+                  order by registration_order limit 1)
+      returning user_id into v_promoted;
+      if v_promoted is not null then
+        perform create_notification(v_promoted, r.match_id, 'promoted',
+            'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.');
+      end if;
+    end if;
+    perform recompute_match_status(r.match_id);
+  end loop;
+  delete from community_members
+  where community_id = p_community_id and user_id = p_user_id;
+end;
+$$;
+revoke execute on function public.purge_match(uuid) from anon, authenticated, public;
+revoke execute on function public.purge_community(uuid) from anon, authenticated, public;
+revoke execute on function public.purge_membership(uuid, uuid)
+  from anon, authenticated, public;
+create or replace function public.delete_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  if not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform purge_community(p_community_id);
+end;
+$$;
+create or replace function public.delete_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_match matches%rowtype;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform purge_match(p_match_id);
+end;
+$$;
+create or replace function public.remove_member(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_target_role text;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  if not has_community_role(p_community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_user_id = auth.uid() then raise exception 'CANNOT_REMOVE_SELF'; end if;
+  select role into v_target_role from community_members
+  where community_id = p_community_id and user_id = p_user_id;
+  if not found then raise exception 'MEMBER_NOT_FOUND'; end if;
+  if v_target_role = 'owner' then raise exception 'CANNOT_REMOVE_OWNER'; end if;
+  if v_target_role = 'admin'
+     and not has_community_role(p_community_id, auth.uid(), 'owner') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  perform purge_membership(p_community_id, p_user_id);
+end;
+$$;
+create or replace function public.admin_list_users(p_search text default null)
+returns table (
+  id uuid,
+  full_name text,
+  phone text,
+  email text,
+  created_at timestamptz,
+  is_system_admin boolean
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  return query
+    select u.id, u.full_name, u.phone, au.email::text, u.created_at,
+           exists (select 1 from system_admins sa where sa.user_id = u.id)
+    from users u
+    join auth.users au on au.id = u.id
+    where p_search is null or trim(p_search) = ''
+       or u.full_name ilike '%' || trim(p_search) || '%'
+       or au.email::text ilike '%' || trim(p_search) || '%'
+    order by u.created_at desc
+    limit 100;
+end;
+$$;
+create or replace function public.admin_list_communities(p_search text default null)
+returns table (
+  id uuid,
+  name text,
+  join_policy text,
+  created_at timestamptz,
+  owner_name text,
+  member_count bigint,
+  match_count bigint
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  return query
+    select c.id, c.name, c.join_policy, c.created_at, o.full_name,
+           (select count(*) from community_members cm where cm.community_id = c.id),
+           (select count(*) from matches m where m.community_id = c.id)
+    from communities c
+    left join users o on o.id = c.owner_id
+    where p_search is null or trim(p_search) = ''
+       or c.name ilike '%' || trim(p_search) || '%'
+    order by c.created_at desc
+    limit 100;
+end;
+$$;
+create or replace function public.admin_list_matches(p_search text default null)
+returns table (
+  id uuid,
+  title text,
+  location text,
+  start_at timestamptz,
+  status text,
+  community_name text,
+  registration_count bigint
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  return query
+    select m.id, m.title, m.location, m.start_at, m.status, c.name,
+           (select count(*) from match_registrations r where r.match_id = m.id)
+    from matches m
+    join communities c on c.id = m.community_id
+    where p_search is null or trim(p_search) = ''
+       or m.title ilike '%' || trim(p_search) || '%'
+       or m.location ilike '%' || trim(p_search) || '%'
+       or c.name ilike '%' || trim(p_search) || '%'
+    order by m.start_at desc
+    limit 100;
+end;
+$$;
+create or replace function public.admin_delete_match(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  perform 1 from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  perform purge_match(p_match_id);
+end;
+$$;
+create or replace function public.admin_delete_community(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  perform 1 from communities where id = p_community_id;
+  if not found then raise exception 'COMMUNITY_NOT_FOUND'; end if;
+  perform purge_community(p_community_id);
+end;
+$$;
+create or replace function public.admin_delete_user(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare r record;
+begin
+  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  if p_user_id = auth.uid() then
+    raise exception 'CANNOT_DELETE_SELF';
+  end if;
+  if exists (select 1 from system_admins where user_id = p_user_id) then
+    raise exception 'CANNOT_DELETE_SYSTEM_ADMIN';
+  end if;
+  perform 1 from users where id = p_user_id;
+  if not found then raise exception 'USER_NOT_FOUND'; end if;
+  for r in select id from communities where owner_id = p_user_id loop
+    perform purge_community(r.id);
+  end loop;
+  for r in select cm.community_id from community_members cm
+           where cm.user_id = p_user_id loop
+    perform purge_membership(r.community_id, p_user_id);
+  end loop;
+  for r in select id from matches where created_by = p_user_id loop
+    perform purge_match(r.id);
+  end loop;
+  delete from notifications where user_id = p_user_id;
+  delete from match_registrations where user_id = p_user_id;
+  delete from community_members where user_id = p_user_id;
+  delete from users where id = p_user_id;
+  delete from auth.users where id = p_user_id;
+end;
+$$;
+revoke execute on function public.admin_list_users(text) from anon, public;
+revoke execute on function public.admin_list_communities(text) from anon, public;
+revoke execute on function public.admin_list_matches(text) from anon, public;
+revoke execute on function public.admin_delete_user(uuid) from anon, public;
+revoke execute on function public.admin_delete_community(uuid) from anon, public;
+revoke execute on function public.admin_delete_match(uuid) from anon, public;
+grant execute on function public.admin_list_users(text) to authenticated;
+grant execute on function public.admin_list_communities(text) to authenticated;
+grant execute on function public.admin_list_matches(text) to authenticated;
+grant execute on function public.admin_delete_user(uuid) to authenticated;
+grant execute on function public.admin_delete_community(uuid) to authenticated;
+grant execute on function public.admin_delete_match(uuid) to authenticated;
+alter table public.users
+  add column if not exists overall_rating numeric(3,1) not null default 5.0,
+  add column if not exists date_of_birth date,
+  add column if not exists secondary_position text;
+alter table public.users
+  drop constraint if exists users_overall_rating_range;
+alter table public.users
+  add constraint users_overall_rating_range
+    check (overall_rating >= 0.0 and overall_rating <= 10.0);
+alter table public.users
+  drop constraint if exists users_secondary_position_valid;
+alter table public.users
+  add constraint users_secondary_position_valid
+    check (
+      secondary_position is null
+      or secondary_position in ('GK', 'DEF', 'MID', 'FWD')
+    );
+create table if not exists public.match_team_assignments (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references public.matches (id) on delete cascade,
+  user_id uuid not null references public.users (id) on delete cascade,
+  team text not null check (team in ('A', 'B')),
+  assigned_position text not null
+    check (assigned_position in ('GK', 'DEF', 'MID', 'FWD')),
+  assignment_basis text not null
+    check (assignment_basis in ('PRIMARY', 'SECONDARY', 'TRANSITION')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (match_id, user_id)
+);
+create unique index if not exists match_team_assignments_one_gk_idx
+  on public.match_team_assignments (match_id, team)
+  where assigned_position = 'GK';
+create index if not exists match_team_assignments_user_id_idx
+  on public.match_team_assignments (user_id);
+drop trigger if exists match_team_assignments_set_updated_at
+  on public.match_team_assignments;
+create trigger match_team_assignments_set_updated_at
+  before update on public.match_team_assignments
+  for each row
+  execute function public.set_updated_at();
+create or replace function public.is_match_community_admin(
+  p_match_id uuid,
+  p_user_id uuid
+)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from matches m
+    where m.id = p_match_id
+      and public.has_community_role(m.community_id, p_user_id, 'admin')
+  );
+$$;
+revoke execute on function public.is_match_community_admin(uuid, uuid)
+  from anon, public;
+grant execute on function public.is_match_community_admin(uuid, uuid)
+  to authenticated;
+alter table public.match_team_assignments enable row level security;
+drop policy if exists "match_team_assignments_select_members"
+  on public.match_team_assignments;
+create policy "match_team_assignments_select_members"
+  on public.match_team_assignments
+  for select
+  to authenticated
+  using (public.is_match_community_member(match_id, auth.uid()));
+drop policy if exists "match_team_assignments_insert_admins"
+  on public.match_team_assignments;
+create policy "match_team_assignments_insert_admins"
+  on public.match_team_assignments
+  for insert
+  to authenticated
+  with check (public.is_match_community_admin(match_id, auth.uid()));
+drop policy if exists "match_team_assignments_update_admins"
+  on public.match_team_assignments;
+create policy "match_team_assignments_update_admins"
+  on public.match_team_assignments
+  for update
+  to authenticated
+  using (public.is_match_community_admin(match_id, auth.uid()))
+  with check (public.is_match_community_admin(match_id, auth.uid()));
+drop policy if exists "match_team_assignments_delete_admins"
+  on public.match_team_assignments;
+create policy "match_team_assignments_delete_admins"
+  on public.match_team_assignments
+  for delete
+  to authenticated
+  using (public.is_match_community_admin(match_id, auth.uid()));
+alter table public.matches
+  drop constraint if exists matches_starting_players_check;
+alter table public.matches
+  add constraint matches_starting_players_check
+    check (starting_players between 4 and 30);
+create or replace function public.update_match(
+  p_match_id uuid,
+  p_title text,
+  p_location text,
+  p_start_at timestamptz,
+  p_end_at timestamptz,
+  p_starting_players int,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match matches%rowtype;
+  v_total int;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select * into v_match from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  if not has_community_role(v_match.community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if v_match.status = 'completed' or v_match.end_at <= now() then
+    raise exception 'MATCH_COMPLETED';
+  end if;
+  if v_match.start_at <= now() then raise exception 'MATCH_LOCKED'; end if;
+  if p_title is null or char_length(trim(p_title)) < 2 then
+    raise exception 'INVALID_TITLE';
+  end if;
+  if p_end_at <= p_start_at then raise exception 'INVALID_TIME_RANGE'; end if;
+  if p_starting_players < 4 or p_starting_players > 30 then
+    raise exception 'INVALID_STARTING_PLAYERS';
+  end if;
+  select count(*) into v_total from match_registrations where match_id = p_match_id;
+  if p_starting_players + (select reserve_players from app_settings limit 1) < v_total then
+    raise exception 'MAX_BELOW_REGISTERED';
+  end if;
+  update matches set
+    title = trim(p_title),
+    location = trim(p_location),
+    start_at = p_start_at,
+    end_at = p_end_at,
+    starting_players = p_starting_players,
+    description = case when p_description is null or trim(p_description) = '' then null else trim(p_description) end
+  where id = p_match_id;
+  perform rebalance_roster(p_match_id);
+  perform recompute_match_status(p_match_id);
+  perform create_notification(mr.user_id, p_match_id, 'match_updated',
+      'تم تعديل تفاصيل المباراة.')
+  from match_registrations mr where mr.match_id = p_match_id;
+end;
+$$;
+create or replace function public.replace_match_lineup(
+  p_match_id uuid,
+  p_assignments jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  if not public.is_match_community_admin(p_match_id, auth.uid()) then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  delete from match_team_assignments where match_id = p_match_id;
+  if p_assignments is null
+     or jsonb_typeof(p_assignments) <> 'array'
+     or jsonb_array_length(p_assignments) = 0 then
+    return;
+  end if;
+  insert into match_team_assignments
+    (match_id, user_id, team, assigned_position, assignment_basis)
+  select
+    p_match_id,
+    (assignment->>'user_id')::uuid,
+    assignment->>'team',
+    assignment->>'assigned_position',
+    assignment->>'assignment_basis'
+  from jsonb_array_elements(p_assignments) as assignment;
+end;
+$$;
+revoke execute on function public.replace_match_lineup(uuid, jsonb)
+  from anon, public;
+grant execute on function public.replace_match_lineup(uuid, jsonb)
+  to authenticated;
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.users (
+    id,
+    phone,
+    full_name,
+    primary_position,
+    date_of_birth,
+    secondary_position
+  )
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'phone', ''),
+    coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+    coalesce(new.raw_user_meta_data ->> 'primary_position', 'MID'),
+    nullif(new.raw_user_meta_data ->> 'date_of_birth', '')::date,
+    nullif(new.raw_user_meta_data ->> 'secondary_position', '')
+  );
+  return new;
+end;
+$$;
+revoke execute on function public.handle_new_user()
+  from anon, authenticated, public;
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'users'
+      and column_name = 'overall_rating'
+      and numeric_scale <> 2
+  ) then
+    alter table public.users
+      alter column overall_rating type numeric(4,2);
+    alter table public.users
+      alter column overall_rating set default 5.00;
+  end if;
+end $$;
+revoke update on public.users from authenticated;
+grant update (phone, full_name, primary_position, secondary_position,
+  date_of_birth) on public.users to authenticated;
+create table if not exists public.match_results (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null unique
+    references public.matches (id) on delete cascade,
+  team_a_score int not null check (team_a_score >= 0),
+  team_b_score int not null check (team_b_score >= 0),
+  mvp_user_id uuid not null references public.users (id) on delete cascade,
+  recorded_by uuid references public.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+drop trigger if exists match_results_set_updated_at on public.match_results;
+create trigger match_results_set_updated_at
+  before update on public.match_results
+  for each row
+  execute function public.set_updated_at();
+create table if not exists public.match_goals (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null
+    references public.match_results (match_id) on delete cascade,
+  user_id uuid not null references public.users (id) on delete cascade,
+  goals int not null check (goals > 0),
+  created_at timestamptz not null default now(),
+  unique (match_id, user_id)
+);
+create index if not exists match_goals_user_id_idx
+  on public.match_goals (user_id);
+create table if not exists public.rating_history (
+  id uuid primary key default gen_random_uuid(),
+  entry_no bigint generated always as identity,
+  user_id uuid not null references public.users (id) on delete cascade,
+  match_id uuid not null references public.matches (id) on delete cascade,
+  change_reason text not null
+    check (change_reason in ('WIN', 'LOSS', 'GOAL', 'MVP', 'REVERSAL')),
+  delta numeric(4,2) not null,
+  rating_before numeric(4,2) not null,
+  rating_after numeric(4,2) not null,
+  reverses_id uuid references public.rating_history (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create index if not exists rating_history_user_id_idx
+  on public.rating_history (user_id);
+create index if not exists rating_history_match_id_idx
+  on public.rating_history (match_id);
+create unique index if not exists rating_history_reverses_id_idx
+  on public.rating_history (reverses_id)
+  where reverses_id is not null;
+create or replace function public.reject_rating_history_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  raise exception 'RATING_HISTORY_IMMUTABLE';
+end;
+$$;
+drop trigger if exists rating_history_immutable on public.rating_history;
+create trigger rating_history_immutable
+  before update on public.rating_history
+  for each row
+  execute function public.reject_rating_history_update();
+create table if not exists public.player_statistics (
+  user_id uuid primary key references public.users (id) on delete cascade,
+  matches_played int not null default 0 check (matches_played >= 0),
+  wins int not null default 0 check (wins >= 0),
+  losses int not null default 0 check (losses >= 0),
+  draws int not null default 0 check (draws >= 0),
+  goals int not null default 0 check (goals >= 0),
+  mvp_count int not null default 0 check (mvp_count >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+drop trigger if exists player_statistics_set_updated_at
+  on public.player_statistics;
+create trigger player_statistics_set_updated_at
+  before update on public.player_statistics
+  for each row
+  execute function public.set_updated_at();
+create or replace function public.apply_rating_delta(
+  p_user_id uuid,
+  p_match_id uuid,
+  p_reason text,
+  p_delta numeric,
+  p_reverses_id uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_before numeric(4,2);
+  v_after numeric(4,2);
+begin
+  select overall_rating into v_before
+  from users where id = p_user_id
+  for update;
+  if not found then return; end if;
+  v_after := least(10.00, greatest(0.00, v_before + p_delta));
+  update users set overall_rating = v_after where id = p_user_id;
+  insert into rating_history (
+    user_id, match_id, change_reason, delta,
+    rating_before, rating_after, reverses_id
+  )
+  values (
+    p_user_id, p_match_id, p_reason, v_after - v_before,
+    v_before, v_after, p_reverses_id
+  );
+end;
+$$;
+create or replace function public.reverse_match_rating_effects(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+begin
+  for r in
+    select h.id, h.user_id, h.delta
+    from rating_history h
+    where h.match_id = p_match_id
+      and h.reverses_id is null
+      and not exists (
+        select 1 from rating_history x where x.reverses_id = h.id
+      )
+    order by h.entry_no desc
+  loop
+    perform apply_rating_delta(r.user_id, p_match_id, 'REVERSAL', -r.delta, r.id);
+  end loop;
+end;
+$$;
+create or replace function public.apply_match_statistics(
+  p_match_id uuid,
+  p_sign int
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result match_results%rowtype;
+begin
+  select * into v_result from match_results where match_id = p_match_id;
+  if not found then return; end if;
+  insert into player_statistics as ps (
+    user_id, matches_played, wins, losses, draws, goals, mvp_count
+  )
+  select
+    a.user_id,
+    p_sign,
+    p_sign * (case
+      when (a.team = 'A' and v_result.team_a_score > v_result.team_b_score)
+        or (a.team = 'B' and v_result.team_b_score > v_result.team_a_score)
+      then 1 else 0 end),
+    p_sign * (case
+      when (a.team = 'A' and v_result.team_a_score < v_result.team_b_score)
+        or (a.team = 'B' and v_result.team_b_score < v_result.team_a_score)
+      then 1 else 0 end),
+    p_sign * (case
+      when v_result.team_a_score = v_result.team_b_score
+      then 1 else 0 end),
+    p_sign * coalesce(g.goals, 0),
+    p_sign * (case when a.user_id = v_result.mvp_user_id then 1 else 0 end)
+  from match_team_assignments a
+  left join match_goals g
+    on g.match_id = a.match_id and g.user_id = a.user_id
+  where a.match_id = p_match_id
+  on conflict (user_id) do update set
+    matches_played = ps.matches_played + excluded.matches_played,
+    wins = ps.wins + excluded.wins,
+    losses = ps.losses + excluded.losses,
+    draws = ps.draws + excluded.draws,
+    goals = ps.goals + excluded.goals,
+    mvp_count = ps.mvp_count + excluded.mvp_count;
+end;
+$$;
+create or replace function public.apply_match_rating_effects(p_match_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result match_results%rowtype;
+  r record;
+begin
+  select * into v_result from match_results where match_id = p_match_id;
+  if not found then return; end if;
+  if v_result.team_a_score <> v_result.team_b_score then
+    for r in
+      select a.user_id,
+        case
+          when (a.team = 'A' and v_result.team_a_score > v_result.team_b_score)
+            or (a.team = 'B' and v_result.team_b_score > v_result.team_a_score)
+          then 'WIN' else 'LOSS' end as outcome
+      from match_team_assignments a
+      where a.match_id = p_match_id
+      order by a.team, a.user_id
+    loop
+      perform apply_rating_delta(
+        r.user_id, p_match_id, r.outcome,
+        case when r.outcome = 'WIN' then 0.10 else -0.10 end
+      );
+    end loop;
+  end if;
+  for r in
+    select g.user_id, g.goals
+    from match_goals g
+    where g.match_id = p_match_id
+    order by g.user_id
+  loop
+    perform apply_rating_delta(
+      r.user_id, p_match_id, 'GOAL', 0.05 * r.goals
+    );
+  end loop;
+  perform apply_rating_delta(
+    v_result.mvp_user_id, p_match_id, 'MVP', 0.20
+  );
+end;
+$$;
+revoke execute on function public.apply_rating_delta(uuid, uuid, text, numeric,
+  uuid) from anon, authenticated, public;
+revoke execute on function public.reverse_match_rating_effects(uuid)
+  from anon, authenticated, public;
+revoke execute on function public.apply_match_statistics(uuid, int)
+  from anon, authenticated, public;
+revoke execute on function public.apply_match_rating_effects(uuid)
+  from anon, authenticated, public;
+create or replace function public.record_match_result(
+  p_match_id uuid,
+  p_team_a_score int,
+  p_team_b_score int,
+  p_mvp_user_id uuid,
+  p_goals jsonb default '[]'::jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_participants int;
+  v_total_goals int;
+begin
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+  perform 1 from matches where id = p_match_id for update;
+  if not found then raise exception 'MATCH_NOT_FOUND'; end if;
+  if not public.is_match_community_admin(p_match_id, auth.uid()) then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_team_a_score < 0 or p_team_b_score < 0 then
+    raise exception 'INVALID_SCORE';
+  end if;
+  select count(*) into v_participants
+  from match_team_assignments where match_id = p_match_id;
+  if v_participants = 0 then
+    raise exception 'LINEUP_REQUIRED';
+  end if;
+  if p_goals is null or jsonb_typeof(p_goals) <> 'array' then
+    raise exception 'INVALID_GOALS';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(p_goals) as e
+    where coalesce((e->>'goals')::int, 0) <= 0
+  ) then
+    raise exception 'INVALID_GOALS';
+  end if;
+  if (
+    select count(distinct e->>'user_id') from jsonb_array_elements(p_goals) as e
+  ) <> jsonb_array_length(p_goals) then
+    raise exception 'INVALID_GOALS';
+  end if;
+  select coalesce(sum((e->>'goals')::int), 0) into v_total_goals
+  from jsonb_array_elements(p_goals) as e;
+  if v_total_goals <> p_team_a_score + p_team_b_score then
+    raise exception 'GOALS_DO_NOT_MATCH_SCORE';
+  end if;
+  if not exists (
+    select 1 from match_team_assignments
+    where match_id = p_match_id and user_id = p_mvp_user_id
+  ) then
+    raise exception 'MVP_NOT_PARTICIPANT';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(p_goals) as e
+    where not exists (
+      select 1 from match_team_assignments a
+      where a.match_id = p_match_id
+        and a.user_id = (e->>'user_id')::uuid
+    )
+  ) then
+    raise exception 'SCORER_NOT_PARTICIPANT';
+  end if;
+  perform reverse_match_rating_effects(p_match_id);
+  perform apply_match_statistics(p_match_id, -1);
+  delete from match_goals where match_id = p_match_id;
+  insert into match_results (
+    match_id, team_a_score, team_b_score, mvp_user_id, recorded_by
+  )
+  values (
+    p_match_id, p_team_a_score, p_team_b_score, p_mvp_user_id, auth.uid()
+  )
+  on conflict (match_id) do update set
+    team_a_score = excluded.team_a_score,
+    team_b_score = excluded.team_b_score,
+    mvp_user_id = excluded.mvp_user_id,
+    recorded_by = excluded.recorded_by;
+  insert into match_goals (match_id, user_id, goals)
+  select p_match_id, (e->>'user_id')::uuid, (e->>'goals')::int
+  from jsonb_array_elements(p_goals) as e;
+  perform apply_match_rating_effects(p_match_id);
+  perform apply_match_statistics(p_match_id, 1);
+end;
+$$;
+revoke execute on function public.record_match_result(uuid, int, int, uuid,
+  jsonb) from anon, public;
+grant execute on function public.record_match_result(uuid, int, int, uuid,
+  jsonb) to authenticated;
+create or replace function public.reverse_match_effects_before_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform apply_match_statistics(old.id, -1);
+  perform reverse_match_rating_effects(old.id);
+  return old;
+end;
+$$;
+drop trigger if exists matches_reverse_result_effects on public.matches;
+create trigger matches_reverse_result_effects
+  before delete on public.matches
+  for each row
+  execute function public.reverse_match_effects_before_delete();
+alter table public.match_results enable row level security;
+alter table public.match_goals enable row level security;
+alter table public.rating_history enable row level security;
+alter table public.player_statistics enable row level security;
+drop policy if exists "match_results_select_members" on public.match_results;
+create policy "match_results_select_members"
+  on public.match_results
+  for select
+  to authenticated
+  using (public.is_match_community_member(match_id, auth.uid()));
+drop policy if exists "match_goals_select_members" on public.match_goals;
+create policy "match_goals_select_members"
+  on public.match_goals
+  for select
+  to authenticated
+  using (public.is_match_community_member(match_id, auth.uid()));
+drop policy if exists "rating_history_select_members" on public.rating_history;
+create policy "rating_history_select_members"
+  on public.rating_history
+  for select
+  to authenticated
+  using (public.is_match_community_member(match_id, auth.uid()));
+drop policy if exists "player_statistics_select_authenticated"
+  on public.player_statistics;
+create policy "player_statistics_select_authenticated"
+  on public.player_statistics
+  for select
+  to authenticated
+  using (true);
+create or replace function public.match_result_contribution(p_match_id uuid)
+returns table (
+  user_id uuid,
+  played int,
+  won int,
+  lost int,
+  drawn int,
+  scored int,
+  mvp int
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select
+    a.user_id,
+    1,
+    case
+      when (a.team = 'A' and r.team_a_score > r.team_b_score)
+        or (a.team = 'B' and r.team_b_score > r.team_a_score)
+      then 1 else 0 end,
+    case
+      when (a.team = 'A' and r.team_a_score < r.team_b_score)
+        or (a.team = 'B' and r.team_b_score < r.team_a_score)
+      then 1 else 0 end,
+    case when r.team_a_score = r.team_b_score then 1 else 0 end,
+    coalesce(g.goals, 0),
+    case when a.user_id = r.mvp_user_id then 1 else 0 end
+  from match_results r
+  join match_team_assignments a on a.match_id = r.match_id
+  left join match_goals g
+    on g.match_id = a.match_id and g.user_id = a.user_id
+  where r.match_id = p_match_id;
+$$;
+create or replace function public.apply_match_statistics(
+  p_match_id uuid,
+  p_sign int
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_sign < 0 then
+    update player_statistics ps set
+      matches_played = ps.matches_played - c.played,
+      wins = ps.wins - c.won,
+      losses = ps.losses - c.lost,
+      draws = ps.draws - c.drawn,
+      goals = ps.goals - c.scored,
+      mvp_count = ps.mvp_count - c.mvp
+    from match_result_contribution(p_match_id) c
+    where ps.user_id = c.user_id;
+    return;
+  end if;
+  insert into player_statistics as ps (
+    user_id, matches_played, wins, losses, draws, goals, mvp_count
+  )
+  select c.user_id, c.played, c.won, c.lost, c.drawn, c.scored, c.mvp
+  from match_result_contribution(p_match_id) c
+  on conflict (user_id) do update set
+    matches_played = ps.matches_played + excluded.matches_played,
+    wins = ps.wins + excluded.wins,
+    losses = ps.losses + excluded.losses,
+    draws = ps.draws + excluded.draws,
+    goals = ps.goals + excluded.goals,
+    mvp_count = ps.mvp_count + excluded.mvp_count;
+end;
+$$;
+revoke execute on function public.match_result_contribution(uuid)
+  from anon, authenticated, public;
+revoke execute on function public.apply_match_statistics(uuid, int)
+  from anon, authenticated, public;
+create or replace function public.reject_rating_history_update()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  raise exception 'RATING_HISTORY_IMMUTABLE';
+end;
+$$;
+revoke execute on function public.reject_rating_history_update()
+  from anon, authenticated, public;
+revoke execute on function public.reverse_match_effects_before_delete()
+  from anon, authenticated, public;

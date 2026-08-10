@@ -26,13 +26,13 @@ class StatisticsRepository {
   Future<CommunityDashboard> fetchDashboard(String communityId) async {
     final results = await Future.wait([
       _adapter.fetchCommunityPlayerStatistics(communityId),
-      _adapter.fetchTotalMatches(communityId),
+      _adapter.fetchCompletedMatches(communityId),
     ]);
     final players = results[0] as List<CommunityPlayerStatistics>;
-    final totalMatches = results[1] as int;
+    final completedMatches = results[1] as int;
 
     return CommunityDashboard(
-      totalMatches: totalMatches,
+      completedMatches: completedMatches,
       totalPlayers: players.length,
       totalGoals: players.fold(0, (sum, player) => sum + player.goals),
       topScorer: _leaderBy(players, (player) => player.goals),

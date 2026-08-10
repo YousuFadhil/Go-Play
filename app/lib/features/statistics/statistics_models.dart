@@ -130,20 +130,27 @@ class StatisticLeader {
 /// The six figures come from two places, and the split is not incidental —
 /// it is the one recorded in the Community Statistics specification (§19.2):
 ///
-/// * [totalMatches] is a fact about **matches**, and is read from the Match
+/// * [completedMatches] is a fact about **matches**, and is read from the Match
 ///   domain. It cannot come from the statistics counters, because summing
 ///   `matches_played` counts player-appearances: ten players in one match sum
 ///   to ten.
 /// * everything else is a fact about **players**, and comes from
 ///   `community_statistics`.
 ///
-/// The two therefore answer slightly different questions, which is why
-/// [totalMatches] can exceed what the player figures appear to account for:
-/// a match with no recorded result is a match the community played host to and
-/// a match no counter knows about.
+/// **Nothing here counts a match that is not officially completed.**
+/// Statistics describe a community's settled history, and a match still open or
+/// full is not history yet — it can be edited, filled, emptied or deleted. Nor
+/// is one whose end time has passed without the status being moved: it is
+/// awaiting its result, and counting it would make the dashboard move for
+/// reasons that are not results.
+///
+/// The two sources still answer slightly different questions, which is why
+/// [completedMatches] can exceed what the player figures appear to account for:
+/// a played match with no recorded result is a match the community played host
+/// to and a match no counter knows about.
 class CommunityDashboard {
   const CommunityDashboard({
-    required this.totalMatches,
+    required this.completedMatches,
     required this.totalPlayers,
     required this.totalGoals,
     required this.topScorer,
@@ -151,9 +158,10 @@ class CommunityDashboard {
     required this.mostMvp,
   });
 
-  /// Every match this community has, whatever its status — scheduled, played,
-  /// or played without anyone recording the result.
-  final int totalMatches;
+  /// Matches whose official status is completed. Open and full matches are
+  /// excluded, and so is a match that has merely run past its end time without
+  /// being marked completed.
+  final int completedMatches;
 
   /// Everyone who holds a record in this community. A record is created when a
   /// player first joins and is preserved when they leave, so this counts the

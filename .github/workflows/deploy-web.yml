@@ -1,0 +1,51 @@
+name: Deploy web app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the release
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Fetch dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build the web release
+        working-directory: app
+        run: flutter build web --release --base-href "${{ steps.pages.outputs.base_path }}/"
+
+      - name: Upload the web release
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/build/web
+
+      - name: Publish
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -5,6 +5,7 @@ import '../features/notifications/push_service.dart';
 import '../features/profile/current_user.dart';
 import '../features/profile/profile_models.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/settings/settings_screen.dart';
 import 'l10n.dart';
 
 /// The application header.
@@ -57,10 +58,10 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
 /// The signed-in player, and what they can do about being signed in.
 ///
-/// Their picture and first name, and a menu holding the two actions that belong
-/// to the person rather than to the screen: open the profile, and log out. The
-/// profile screen carries the same two, which is the second place the Product
-/// Owner asked for logout to be.
+/// Their picture and first name, and a menu holding the actions that belong to
+/// the person rather than to the screen: open the profile, open the settings,
+/// and log out. The profile screen carries the same three, which is the second
+/// place the Product Owner asked for logout to be.
 class CurrentUserMenu extends StatefulWidget {
   const CurrentUserMenu({super.key});
 
@@ -83,6 +84,12 @@ class _CurrentUserMenuState extends State<CurrentUserMenu> {
     );
   }
 
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -97,6 +104,7 @@ class _CurrentUserMenuState extends State<CurrentUserMenu> {
           position: PopupMenuPosition.under,
           onSelected: (action) => switch (action) {
             _UserAction.profile => _openProfile(),
+            _UserAction.settings => _openSettings(),
             _UserAction.logout => logOut(context),
           },
           itemBuilder: (context) => [
@@ -112,6 +120,15 @@ class _CurrentUserMenuState extends State<CurrentUserMenu> {
                 subtitle: (profile?.fullName ?? '').trim().isEmpty
                     ? null
                     : Text(profile!.fullName),
+              ),
+            ),
+            PopupMenuItem(
+              value: _UserAction.settings,
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.settings_outlined),
+                title: Text(l10n.settingsTitle),
               ),
             ),
             PopupMenuItem(
@@ -207,4 +224,4 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
-enum _UserAction { profile, logout }
+enum _UserAction { profile, settings, logout }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
-import '../../core/language_toggle.dart';
 import 'auth_service.dart';
 import 'register_screen.dart';
 
@@ -93,10 +92,6 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: LanguageToggle(),
-                ),
                 const SizedBox(height: Gap.xxl),
                 // The same mark the banner carries, so arriving here from
                 // Discover does not feel like leaving the product. It also
