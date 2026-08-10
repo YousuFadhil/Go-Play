@@ -45,14 +45,16 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Locale>(
+    return ValueListenableBuilder<Locale?>(
       valueListenable: LocaleController.instance.locale,
       builder: (context, locale, _) {
         return MaterialApp(
           onGenerateTitle: (context) => context.l10n.appName,
           theme: buildAppTheme(),
           debugShowCheckedModeBanner: false,
-          // Arabic by default; overridable from the Login screen and persisted.
+          // Null means the device's own language, which is the default and what
+          // most readers will ever see. A choice made in Settings replaces it
+          // and is persisted; nothing else in the product sets a language.
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,

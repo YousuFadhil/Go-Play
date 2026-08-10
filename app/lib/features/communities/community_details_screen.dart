@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-
-import '../../core/app_header.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/app_header.dart';
+import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import '../matches/create_match_screen.dart';
 import '../matches/match_card.dart';
 import '../matches/match_models.dart';
@@ -32,6 +33,13 @@ typedef _Data = (
   List<Match>,
   CommunityRole?,
 );
+
+/// One thing an organizer can do to a community, chosen from the actions sheet.
+///
+/// An enum rather than callbacks passed into the sheet: the sheet is a menu and
+/// nothing more, so it closes with an answer and the screen — which owns the
+/// busy flag, the reload and the messenger — is what acts on it.
+enum _CommunityAction { invitation, joinPolicy, members, delete }
 
 class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
   final _communityRepository = CommunityRepository();
@@ -82,8 +90,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     if (created == true) _refresh();
   }
 
-  /// How people join is the community's only setting, so it lives in the menu
-  /// rather than behind a screen of its own.
+  /// How people join is the community's only setting, so it lives in the
+  /// actions sheet rather than behind a screen of its own.
   Future<void> _setJoinPolicy(JoinPolicy policy) async {
     final l10n = context.l10n;
     setState(() => _busy = true);
@@ -127,8 +135,113 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     _refresh();
   }
 
+  /// The community's actions, in a sheet.
+  ///
+  /// They used to be three icons crowded into the app bar beside a scrolling
+  /// tab strip — a share menu, a group glyph and, for an owner, a bare bin. A
+  /// bar is a poor place for an action that needs a name, and it was a very
+  /// poor place for the destructive one: a mistap on `delete_outline` is
+  /// exactly as easy as a mistap on anything else. Here each action carries its
+  /// label, deletion sits last behind a divider in the error colour, and what a
+  /// player never has permission for is simply not in the sheet.
+  Future<void> _openActions({
+    required Community community,
+    required bool isOwner,
+    required bool isOrganizer,
+  }) async {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final codeRequired = community.joinPolicy == JoinPolicy.codeRequired;
+
+    final action = await showModalBottomSheet<_CommunityAction>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                kPageMargin,
+                Gap.sm,
+                kPageMargin,
+                Gap.md,
+              ),
+              child: Text(
+                community.name,
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
+            ),
+            // Sharing an invitation means showing the join code, so it is
+            // offered to the owner and admins and to nobody else.
+            if (isOrganizer)
+              ListTile(
+                leading: const Icon(Icons.ios_share),
+                title: Text(l10n.shareInvitation),
+                subtitle: Text(l10n.communityInvitationTitle),
+                onTap: () => Navigator.of(sheetContext)
+                    .pop(_CommunityAction.invitation),
+              ),
+            if (isOwner)
+              ListTile(
+                leading: Icon(codeRequired ? Icons.password : Icons.public),
+                title: Text(l10n.joinPolicyLabel),
+                subtitle: Text(codeRequired
+                    ? l10n.joinPolicyCodeRequired
+                    : l10n.joinPolicyOpen),
+                trailing: Switch(
+                  value: codeRequired,
+                  // The switch does not write from inside the sheet. It reports
+                  // the tap the same way the row does, so there is one path out
+                  // of here and one place the write happens.
+                  onChanged: (_) => Navigator.of(sheetContext)
+                      .pop(_CommunityAction.joinPolicy),
+                ),
+                onTap: () => Navigator.of(sheetContext)
+                    .pop(_CommunityAction.joinPolicy),
+              ),
+            ListTile(
+              leading: const Icon(Icons.group_outlined),
+              title: Text(l10n.manageMembersTitle),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_CommunityAction.members),
+            ),
+            if (isOwner) ...[
+              const Divider(),
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: scheme.error),
+                title: Text(
+                  l10n.deleteCommunityButton,
+                  style: TextStyle(color: scheme.error),
+                ),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_CommunityAction.delete),
+              ),
+            ],
+            const SizedBox(height: Gap.sm),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _CommunityAction.invitation:
+        await _openInvitation(community);
+      case _CommunityAction.joinPolicy:
+        await _setJoinPolicy(
+          codeRequired ? JoinPolicy.open : JoinPolicy.codeRequired,
+        );
+      case _CommunityAction.members:
+        await _openMembers(community.name);
+      case _CommunityAction.delete:
+        await _deleteCommunity();
+    }
+  }
+
   Future<bool> _confirm(String title, String body, String action) async {
     final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -140,6 +253,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
             child: Text(l10n.confirmNo),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: scheme.error),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(action),
           ),
@@ -199,32 +313,21 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
             appBar: AppHeader(),
-            body: Center(child: CircularProgressIndicator()),
+            body: LoadingState(),
           );
         }
         if (snapshot.hasError || !snapshot.hasData) {
           return Scaffold(
             appBar: const AppHeader(),
-            body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(l10n.loadFailed),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _refresh,
-                    child: Text(l10n.retryButton),
-                  ),
-                ],
-              ),
-            ),
+            body: ErrorState(onRetry: _refresh),
           );
         }
 
         final (community, members, matches, myRole) = snapshot.data!;
         final isOwner = myRole == CommunityRole.owner;
-        // Creating a match is an organizer action now (PD-06).
-        final canCreateMatch = myRole?.atLeast(CommunityRole.admin) ?? false;
+        // Creating a match is an organizer action now (PD-06), and so is
+        // everything to do with the join code (see `_MembersTab`).
+        final isOrganizer = myRole?.atLeast(CommunityRole.admin) ?? false;
 
         return DefaultTabController(
           length: 4,
@@ -232,59 +335,17 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
             appBar: AppHeader(
               title: Text(community.name),
               actions: [
-                if (canCreateMatch)
-                  MenuAnchor(
-                    menuChildren: [
-                      MenuItemButton(
-                        leadingIcon: const Icon(Icons.ios_share),
-                        onPressed: () => _openInvitation(community),
-                        child: Text(l10n.communityInvitationTitle),
-                      ),
-                      if (isOwner)
-                        MenuItemButton(
-                          leadingIcon: Icon(
-                              community.joinPolicy == JoinPolicy.codeRequired
-                                  ? Icons.password
-                                  : Icons.public),
-                          trailingIcon: Switch(
-                            value: community.joinPolicy ==
-                                JoinPolicy.codeRequired,
-                            onChanged: _busy
-                                ? null
-                                : (value) => _setJoinPolicy(value
-                                    ? JoinPolicy.codeRequired
-                                    : JoinPolicy.open),
-                          ),
-                          onPressed: _busy
-                              ? null
-                              : () => _setJoinPolicy(
-                                    community.joinPolicy ==
-                                            JoinPolicy.codeRequired
-                                        ? JoinPolicy.open
-                                        : JoinPolicy.codeRequired,
-                                  ),
-                          child: Text(l10n.joinPolicyLabel),
-                        ),
-                    ],
-                    builder: (context, controller, _) => IconButton(
-                      tooltip: l10n.shareInvitation,
-                      icon: const Icon(Icons.ios_share),
-                      onPressed: () => controller.isOpen
-                          ? controller.close()
-                          : controller.open(),
-                    ),
-                  ),
                 IconButton(
-                  tooltip: l10n.manageMembersTitle,
-                  icon: const Icon(Icons.group),
-                  onPressed: () => _openMembers(community.name),
+                  tooltip: l10n.moreActionsLabel,
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: _busy
+                      ? null
+                      : () => _openActions(
+                            community: community,
+                            isOwner: isOwner,
+                            isOrganizer: isOrganizer,
+                          ),
                 ),
-                if (isOwner)
-                  IconButton(
-                    tooltip: l10n.deleteCommunityButton,
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: _busy ? null : _deleteCommunity,
-                  ),
               ],
               bottom: TabBar(
                 // Four tabs no longer fit side by side on a phone, so the bar
@@ -294,17 +355,18 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                 tabAlignment: TabAlignment.start,
                 tabs: [
                   Tab(text: l10n.matchesTitle),
-                  Tab(text: '${l10n.membersTitle} (${members.length})'),
+                  Tab(text: l10n.membersTitle),
                   Tab(text: l10n.dashboardTab),
                   Tab(text: l10n.leaderboardsTab),
                 ],
               ),
             ),
-            floatingActionButton: canCreateMatch
-                ? FloatingActionButton(
+            floatingActionButton: isOrganizer
+                ? FloatingActionButton.extended(
                     tooltip: l10n.createMatchTitle,
                     onPressed: _openCreateMatch,
-                    child: const Icon(Icons.add),
+                    icon: const Icon(Icons.add),
+                    label: Text(l10n.createMatchButton),
                   )
                 : null,
             body: TabBarView(
@@ -315,11 +377,12 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                   // Players could create matches before; say why the button is
                   // gone rather than leaving them to guess.
                   permissionNote:
-                      canCreateMatch ? null : l10n.matchCreateOrganizersOnly,
+                      isOrganizer ? null : l10n.matchCreateOrganizersOnly,
                 ),
                 _MembersTab(
                   community: community,
                   members: members,
+                  isOrganizer: isOrganizer,
                   positionLabel: _positionLabel,
                   onCopyJoinCode: _copyJoinCode,
                 ),
@@ -334,6 +397,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
   }
 }
 
+/// The community's matches: what is still to be played, then what has been.
 class _MatchesTab extends StatelessWidget {
   const _MatchesTab({
     required this.matches,
@@ -350,24 +414,10 @@ class _MatchesTab extends StatelessWidget {
     final l10n = context.l10n;
 
     if (matches.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(l10n.communityMatchesEmpty, textAlign: TextAlign.center),
-              if (permissionNote != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  permissionNote!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ],
-          ),
-        ),
+      return EmptyState(
+        icon: Icons.sports_soccer,
+        message: l10n.communityMatchesEmpty,
+        note: permissionNote,
       );
     }
 
@@ -386,51 +436,52 @@ class _MatchesTab extends StatelessWidget {
     ];
 
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: Gap.xxl * 2),
       children: [
         if (upcoming.isNotEmpty) ...[
-          _sectionHeader(context, l10n.upcomingMatchesTitle, upcoming.length),
+          SectionHeading(
+            title: l10n.upcomingMatchesTitle,
+            count: upcoming.length,
+            padding: const EdgeInsets.fromLTRB(
+              kPageMargin,
+              Gap.lg,
+              kPageMargin,
+              Gap.xs,
+            ),
+          ),
           for (final match in upcoming)
             MatchCard(match: match, onChanged: onChanged),
         ],
         if (completed.isNotEmpty) ...[
-          _sectionHeader(context, l10n.completedMatchesTitle, completed.length),
+          SectionHeading(
+            title: l10n.completedMatchesTitle,
+            count: completed.length,
+          ),
           for (final match in completed)
             MatchCard(match: match, onChanged: onChanged),
         ],
-        if (permissionNote != null)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              permissionNote!,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
+        if (permissionNote != null) FootNote(permissionNote!),
       ],
     );
   }
-
-  Widget _sectionHeader(BuildContext context, String title, int count) =>
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Text(
-          '$title ($count)',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      );
 }
 
+/// Who is in the community — and, for an organizer, how to let more people in.
 class _MembersTab extends StatelessWidget {
   const _MembersTab({
     required this.community,
     required this.members,
+    required this.isOrganizer,
     required this.positionLabel,
     required this.onCopyJoinCode,
   });
 
   final Community community;
   final List<CommunityMember> members;
+
+  /// Owner or admin. The join code is a credential, and this is the only thing
+  /// that decides whether it is on the screen at all.
+  final bool isOrganizer;
   final String Function(BuildContext, String) positionLabel;
   final Future<void> Function(String) onCopyJoinCode;
 
@@ -445,43 +496,159 @@ class _MembersTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
 
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: Gap.xxl * 2),
       children: [
-        if (community.description != null)
+        if (community.description != null &&
+            community.description!.trim().isNotEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(community.description!),
-          ),
-        ListTile(
-          leading: const Icon(Icons.key),
-          title: Text(l10n.joinCodeLabel),
-          subtitle: Text(
-            community.joinCode,
-            textDirection: TextDirection.ltr,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
+            padding: const EdgeInsets.fromLTRB(
+              kPageMargin,
+              Gap.lg,
+              kPageMargin,
+              0,
+            ),
+            child: Text(
+              community.description!,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
-          trailing: IconButton(
-            icon: const Icon(Icons.copy),
-            onPressed: () => onCopyJoinCode(community.joinCode),
+
+        // **Organizers only.** The join code is the credential that lets
+        // somebody into this community, and a player holding one can hand the
+        // community to anybody. It is not merely hidden from the roster here —
+        // the invitation screen that shares it is reachable only from the
+        // actions sheet, which offers it under the same condition.
+        if (isOrganizer)
+          _JoinCodeCard(
+            code: community.joinCode,
+            onCopy: () => onCopyJoinCode(community.joinCode),
           ),
-        ),
-        const Divider(),
-        for (final member in members)
-          ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person)),
-            title: Text(member.fullName),
-            subtitle: Text(positionLabel(context, member.position)),
-            trailing: member.role == CommunityRole.player
-                ? null
-                : Chip(label: Text(_roleLabel(l10n, member.role))),
+
+        SectionHeading(title: l10n.membersTitle, count: members.length),
+        if (members.isEmpty)
+          EmptyState(icon: Icons.group_outlined, message: l10n.membersEmpty)
+        else
+          SectionCard(
+            padding: EdgeInsets.zero,
+            children: [
+              for (final member in members)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    foregroundColor: theme.colorScheme.onSurfaceVariant,
+                    child: const Icon(Icons.person, size: 20),
+                  ),
+                  title: Text(member.fullName),
+                  subtitle: Text(positionLabel(context, member.position)),
+                  trailing: member.role == CommunityRole.player
+                      ? null
+                      : _RoleChip(label: _roleLabel(l10n, member.role)),
+                ),
+            ],
           ),
       ],
+    );
+  }
+}
+
+/// The join code, set out as the credential it is.
+///
+/// Left-to-right and monospaced whatever the reader's language: it is not
+/// language, it is read aloud and typed, and it never reverses.
+class _JoinCodeCard extends StatelessWidget {
+  const _JoinCodeCard({required this.code, required this.onCopy});
+
+  final String code;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        kPageMargin,
+        Gap.lg,
+        kPageMargin,
+        Gap.xs,
+      ),
+      child: Card(
+        color: scheme.primaryContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.md),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.lg),
+          child: Row(
+            children: [
+              Icon(Icons.key_outlined, color: scheme.onPrimaryContainer),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.joinCodeLabel,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: scheme.onPrimaryContainer
+                            .withValues(alpha: 0.85),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      code,
+                      textDirection: TextDirection.ltr,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: scheme.onPrimaryContainer,
+                        fontFamily: 'monospace',
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: l10n.copyJoinCodeButton,
+                icon: const Icon(Icons.copy_outlined),
+                color: scheme.onPrimaryContainer,
+                onPressed: onCopy,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onSecondaryContainer,
+        ),
+      ),
     );
   }
 }

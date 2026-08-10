@@ -1,0 +1,73 @@
+create or replace function public.create_match(
+  p_community_id uuid,
+  p_title text,
+  p_location text,
+  p_start_at timestamptz,
+  p_end_at timestamptz,
+  p_starting_players int,
+  p_description text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_community communities%rowtype;
+  v_match_id uuid;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select * into v_community from communities where id = p_community_id;
+  if not found then raise exception 'COMMUNITY_NOT_FOUND'; end if;
+  if not v_community.is_active then raise exception 'COMMUNITY_INACTIVE'; end if;
+  if not has_community_role(p_community_id, auth.uid(), 'admin') then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_title is null or char_length(trim(p_title)) < 2 then
+    raise exception 'INVALID_TITLE';
+  end if;
+  if p_location is null or char_length(trim(p_location)) < 2 then
+    raise exception 'INVALID_LOCATION';
+  end if;
+  if p_start_at is null or p_end_at is null then
+    raise exception 'INVALID_TIME_RANGE';
+  end if;
+  if p_end_at <= p_start_at then raise exception 'INVALID_TIME_RANGE'; end if;
+  if p_start_at <= now() then raise exception 'START_IN_PAST'; end if;
+  if p_starting_players is null
+     or p_starting_players < 4 or p_starting_players > 30 then
+    raise exception 'INVALID_STARTING_PLAYERS';
+  end if;
+  insert into matches (
+    community_id, created_by, title, location,
+    start_at, end_at, starting_players, description
+  )
+  values (
+    p_community_id,
+    auth.uid(),
+    trim(p_title),
+    trim(p_location),
+    p_start_at,
+    p_end_at,
+    p_starting_players,
+    case
+      when p_description is null or trim(p_description) = '' then null
+      else trim(p_description)
+    end
+  )
+  returning id into v_match_id;
+  return v_match_id;
+end;
+$$;
+comment on function public.create_match(
+  uuid, text, text, timestamptz, timestamptz, int, text
+) is
+  'Creates a match in a community the caller owns or administers and returns '
+  'its id. Guards and error names mirror update_match; max_registration is '
+  'left to the matches_set_capacity trigger.';
+revoke execute on function public.create_match(
+  uuid, text, text, timestamptz, timestamptz, int, text
+) from anon, public;
+grant execute on function public.create_match(
+  uuid, text, text, timestamptz, timestamptz, int, text
+) to authenticated;

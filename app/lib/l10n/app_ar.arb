@@ -344,7 +344,7 @@
       }
     }
   },
-  "statScopeNote": "تُحتسب إحصائيات اللاعبين من المباريات المسجَّلة نتائجها، بينما يشمل إجمالي المباريات كل مباراة أنشأها المجتمع.",
+  "statScopeNote": "كل الأرقام هنا تحتسب المباريات المكتملة فقط — المباراة المفتوحة أو المكتملة العدد لا تضيف شيئاً. وتحتسب أرقام اللاعبين المباريات المسجَّلة نتائجها.",
   "statEmptyBody": "لم تُسجَّل أي نتيجة في هذا المجتمع بعد. تظهر الإحصائيات بمجرّد حفظ نتيجة مباراة.",
   "playerStatisticsTitle": "إحصائياتي",
   "statCurrentRating": "التقييم الحالي",
@@ -445,5 +445,24 @@
 
   "discoverMatchesSubtitle": "مباريات ما زالت فيها مقاعد",
   "discoverCommunitiesSubtitle": "مجتمعات يمكنك الانضمام إليها",
-  "homeUpcomingSubtitle": "من جميع مجتمعاتك"
+  "homeUpcomingSubtitle": "من جميع مجتمعاتك",
+
+  "settingsTitle": "الإعدادات",
+  "settingsLanguageSection": "اللغة",
+  "settingsNotificationsSection": "الإشعارات",
+  "languageLabel": "لغة التطبيق",
+  "languageSystemDefault": "لغة الجهاز",
+  "languageSystemDefaultHelp": "يتبع Go Play اللغة المضبوطة على جهازك.",
+  "languageArabic": "العربية",
+  "languageEnglish": "English",
+  "showMoreLabel": "عرض المزيد",
+  "showLessLabel": "عرض أقل",
+  "communityActionsTitle": "إجراءات المجتمع",
+  "moreActionsLabel": "إجراءات أخرى",
+  "joinCodeOrganizersOnly": "رمز الانضمام يظهر للمالك والمشرفين فقط.",
+  "membersEmpty": "لم ينضم أحد إلى هذا المجتمع بعد.",
+  "matchRosterEmpty": "لم ينضم أحد إلى هذه المباراة بعد.",
+  "matchManagementSubtitle": "عدّل المباراة، أو أدر القائمة، أو احذفها.",
+  "statCompletedMatches": "المباريات المكتملة",
+  "leaderboardTopPlayer": "المتصدّر"
 }

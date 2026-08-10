@@ -5,11 +5,13 @@ import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
+import '../../core/states.dart';
 import '../auth/auth_models.dart';
 import '../auth/auth_service.dart';
 import '../communities/community_repository.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
+import '../settings/settings_screen.dart';
 import '../statistics/stat_card.dart';
 import 'edit_profile_screen.dart';
 import 'profile_models.dart';
@@ -120,29 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             return const _ProfileSkeleton();
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.xl),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.cloud_off_outlined,
-                      size: 32,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                    const SizedBox(height: Gap.md),
-                    Text(l10n.loadFailed, textAlign: TextAlign.center),
-                    const SizedBox(height: Gap.lg),
-                    OutlinedButton.icon(
-                      onPressed: _refresh,
-                      icon: const Icon(Icons.refresh, size: 18),
-                      label: Text(l10n.retryButton),
-                    ),
-                  ],
-                ),
-              ),
-            );
+            return ErrorState(onRetry: _refresh);
           }
 
           final view = snapshot.data!;
@@ -159,56 +139,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   communities: view.communities,
                 ),
                 if (view.statistics.matchesPlayed == 0)
-                  Padding(
+                  FootNote(
+                    l10n.statNoMatchesYet,
+                    textAlign: TextAlign.center,
                     padding: const EdgeInsets.fromLTRB(
                       kPageMargin,
                       Gap.lg,
                       kPageMargin,
                       0,
                     ),
-                    child: Text(
-                      l10n.statNoMatchesYet,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    ),
                   ),
-                Padding(
+                FootNote(
+                  l10n.statCareerNote,
+                  textAlign: TextAlign.center,
                   padding: const EdgeInsets.fromLTRB(
                     kPageMargin,
                     Gap.xl,
                     kPageMargin,
-                    0,
-                  ),
-                  child: Text(
-                    l10n.statCareerNote,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                    Gap.sm,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    kPageMargin,
-                    Gap.xl,
-                    kPageMargin,
-                    0,
-                  ),
-                  // The second place logout lives, the header menu being the
-                  // first. It stays on the record rather than moving to the
-                  // form: signing out is something a person does, not something
-                  // they edit.
-                  child: OutlinedButton.icon(
-                    onPressed: () => logOut(context),
-                    icon: const Icon(Icons.logout, size: 18),
-                    label: Text(l10n.logoutLabel),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(kButtonHeight),
+                // The account's own actions, apart from the record above them.
+                // The second place logout lives, the header menu being the
+                // first. It stays on the record rather than moving to the
+                // form: signing out is something a person does, not something
+                // they edit.
+                SectionCard(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.settings_outlined),
+                      title: Text(l10n.settingsTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      ),
                     ),
-                  ),
+                    ListTile(
+                      leading: Icon(
+                        Icons.logout,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      title: Text(
+                        l10n.logoutLabel,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      onTap: () => logOut(context),
+                    ),
+                  ],
                 ),
               ],
             ),

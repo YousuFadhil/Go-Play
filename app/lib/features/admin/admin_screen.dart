@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import 'admin_repository.dart';
 
 /// One line of an admin list, already worded. The three sections show
@@ -190,14 +191,17 @@ class _AdminListState extends State<_AdminList> {
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
+                return const LoadingState();
               }
               if (snapshot.hasError || !snapshot.hasData) {
-                return Center(child: Text(l10n.loadFailed));
+                return ErrorState(onRetry: _search);
               }
               final rows = snapshot.data!;
               if (rows.isEmpty) {
-                return Center(child: Text(l10n.adminEmpty));
+                return EmptyState(
+                  icon: Icons.search_off,
+                  message: l10n.adminEmpty,
+                );
               }
               return ListView.separated(
                 itemCount: rows.length,

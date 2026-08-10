@@ -405,7 +405,7 @@
       }
     }
   },
-  "statScopeNote": "Player statistics count matches whose result has been recorded. Total matches counts every match the community has created.",
+  "statScopeNote": "Every figure here counts completed matches only — a match still open or full contributes nothing. Player figures count matches whose result has been recorded.",
   "statEmptyBody": "No results have been recorded in this community yet. Statistics appear once a match result is saved.",
   "playerStatisticsTitle": "My statistics",
   "statCurrentRating": "Current rating",
@@ -541,5 +541,24 @@
 
   "discoverMatchesSubtitle": "Games with places still open",
   "discoverCommunitiesSubtitle": "Clubs you can join",
-  "homeUpcomingSubtitle": "Across your communities"
+  "homeUpcomingSubtitle": "Across your communities",
+
+  "settingsTitle": "Settings",
+  "settingsLanguageSection": "Language",
+  "settingsNotificationsSection": "Notifications",
+  "languageLabel": "App language",
+  "languageSystemDefault": "Device language",
+  "languageSystemDefaultHelp": "Go Play follows the language your phone is set to.",
+  "languageArabic": "العربية",
+  "languageEnglish": "English",
+  "showMoreLabel": "Show more",
+  "showLessLabel": "Show less",
+  "communityActionsTitle": "Community actions",
+  "moreActionsLabel": "More actions",
+  "joinCodeOrganizersOnly": "The join code is shown to the owner and admins only.",
+  "membersEmpty": "Nobody has joined this community yet.",
+  "matchRosterEmpty": "Nobody has joined this match yet.",
+  "matchManagementSubtitle": "Edit the match, manage the roster, or delete it.",
+  "statCompletedMatches": "Completed matches",
+  "leaderboardTopPlayer": "Leader"
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_header.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import '../auth/auth_service.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
@@ -83,22 +84,10 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
         future: _statisticsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingState();
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(l10n.loadFailed),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _refresh,
-                    child: Text(l10n.retryButton),
-                  ),
-                ],
-              ),
-            );
+            return ErrorState(onRetry: _refresh);
           }
 
           return RefreshIndicator(

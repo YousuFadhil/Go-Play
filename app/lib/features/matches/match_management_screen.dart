@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
+import '../../core/design.dart';
 import '../../core/diagnostics.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../../core/states.dart';
 import 'edit_match_screen.dart';
 import 'manage_roster_screen.dart';
 import 'match_card.dart';
@@ -184,22 +186,14 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+              return const LoadingState();
             }
             if (snapshot.hasError || !snapshot.hasData) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(l10n.loadFailed),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                        onPressed: _reload, child: Text(l10n.retryButton)),
-                  ],
-                ),
-              );
+              return ErrorState(onRetry: _reload);
             }
 
+            final theme = Theme.of(context);
+            final scheme = theme.colorScheme;
             final (match, registrations) = snapshot.data!;
             final total = registrations.length;
             // The match locks at kickoff and stays locked until it completes,
@@ -210,56 +204,119 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
             final canDelete = !_busy;
 
             return ListView(
+              padding: const EdgeInsets.only(bottom: Gap.xxl),
               children: [
-                ListTile(
-                  leading: Icon(
-                      match.isLocked ? Icons.lock_outline : Icons.info_outline),
-                  title: Text(match.displayName),
-                  subtitle: Text(
-                      '${matchStatusLabelValue(l10n, match.effectiveStatus)} • '
-                      '$total/${match.maxRegistration}'),
-                ),
-                if (match.isLocked)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(l10n.matchLockedNote,
-                        style: Theme.of(context).textTheme.bodySmall),
+                // What is being managed, stated once at the top. An organizer
+                // reaches this screen from three places and should not have to
+                // remember which match they were looking at.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    kPageMargin,
+                    Gap.lg,
+                    kPageMargin,
+                    Gap.sm,
                   ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.edit),
-                  title: Text(l10n.editMatchTitle),
-                  enabled: canModify,
-                  onTap: canModify ? () => _edit(match) : null,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(Gap.lg),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            match.isLocked
+                                ? Icons.lock_outline
+                                : Icons.sports_soccer,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(width: Gap.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  match.displayName,
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${matchStatusLabelValue(l10n, match.effectiveStatus)}'
+                                  ' • $total/${match.maxRegistration}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                if (match.isLocked) ...[
+                                  const SizedBox(height: Gap.sm),
+                                  Text(
+                                    l10n.matchLockedNote,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.groups),
-                  title: Text(l10n.managePlayersTitle),
-                  enabled: !_busy,
-                  onTap: !_busy
-                      ? () => _openRoster(RegistrationStatus.confirmed,
-                          l10n.managePlayersTitle, canModify)
-                      : null,
+                SectionCard(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.edit_outlined),
+                      title: Text(l10n.editMatchTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      enabled: canModify,
+                      onTap: canModify ? () => _edit(match) : null,
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.groups_outlined),
+                      title: Text(l10n.managePlayersTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      enabled: !_busy,
+                      onTap: !_busy
+                          ? () => _openRoster(RegistrationStatus.confirmed,
+                              l10n.managePlayersTitle, canModify)
+                          : null,
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.hourglass_top),
+                      title: Text(l10n.manageReserveTitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      enabled: !_busy,
+                      onTap: !_busy
+                          ? () => _openRoster(RegistrationStatus.reserve,
+                              l10n.manageReserveTitle, canModify)
+                          : null,
+                    ),
+                  ],
                 ),
-                ListTile(
-                  leading: const Icon(Icons.hourglass_top),
-                  title: Text(l10n.manageReserveTitle),
-                  enabled: !_busy,
-                  onTap: !_busy
-                      ? () => _openRoster(RegistrationStatus.reserve,
-                          l10n.manageReserveTitle, canModify)
-                      : null,
-                ),
-                const Divider(),
-                ListTile(
-                  leading: Icon(Icons.delete_forever,
-                      color: canDelete
-                          ? Theme.of(context).colorScheme.error
-                          : null),
-                  title: Text(l10n.deleteMatchButton),
-                  subtitle: Text(l10n.deleteMatchHint),
-                  enabled: canDelete,
-                  onTap: canDelete ? _deleteMatch : null,
+                // Deletion is set apart in its own card, in the error colour,
+                // with the consequence written under it. It is the one action
+                // here that cannot be undone.
+                SectionCard(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    ListTile(
+                      leading: Icon(
+                        Icons.delete_outline,
+                        color: canDelete ? scheme.error : null,
+                      ),
+                      title: Text(
+                        l10n.deleteMatchButton,
+                        style: canDelete
+                            ? TextStyle(color: scheme.error)
+                            : null,
+                      ),
+                      subtitle: Text(l10n.deleteMatchHint),
+                      isThreeLine: true,
+                      enabled: canDelete,
+                      onTap: canDelete ? _deleteMatch : null,
+                    ),
+                  ],
                 ),
               ],
             );

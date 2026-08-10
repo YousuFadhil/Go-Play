@@ -1853,7 +1853,7 @@ abstract class AppLocalizations {
   /// No description provided for @statScopeNote.
   ///
   /// In en, this message translates to:
-  /// **'Player statistics count matches whose result has been recorded. Total matches counts every match the community has created.'**
+  /// **'Every figure here counts completed matches only — a match still open or full contributes nothing. Player figures count matches whose result has been recorded.'**
   String get statScopeNote;
 
   /// No description provided for @statEmptyBody.
@@ -2347,6 +2347,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Across your communities'**
   String get homeUpcomingSubtitle;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @settingsLanguageSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get settingsLanguageSection;
+
+  /// No description provided for @settingsNotificationsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get settingsNotificationsSection;
+
+  /// No description provided for @languageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'App language'**
+  String get languageLabel;
+
+  /// No description provided for @languageSystemDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Device language'**
+  String get languageSystemDefault;
+
+  /// No description provided for @languageSystemDefaultHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Go Play follows the language your phone is set to.'**
+  String get languageSystemDefaultHelp;
+
+  /// No description provided for @languageArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'العربية'**
+  String get languageArabic;
+
+  /// No description provided for @languageEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get languageEnglish;
+
+  /// No description provided for @showMoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get showMoreLabel;
+
+  /// No description provided for @showLessLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get showLessLabel;
+
+  /// No description provided for @communityActionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Community actions'**
+  String get communityActionsTitle;
+
+  /// No description provided for @moreActionsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get moreActionsLabel;
+
+  /// No description provided for @joinCodeOrganizersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'The join code is shown to the owner and admins only.'**
+  String get joinCodeOrganizersOnly;
+
+  /// No description provided for @membersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has joined this community yet.'**
+  String get membersEmpty;
+
+  /// No description provided for @matchRosterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has joined this match yet.'**
+  String get matchRosterEmpty;
+
+  /// No description provided for @matchManagementSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the match, manage the roster, or delete it.'**
+  String get matchManagementSubtitle;
+
+  /// No description provided for @statCompletedMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed matches'**
+  String get statCompletedMatches;
+
+  /// No description provided for @leaderboardTopPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Leader'**
+  String get leaderboardTopPlayer;
 }
 
 class _AppLocalizationsDelegate

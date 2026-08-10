@@ -999,7 +999,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statScopeNote =>
-      'Player statistics count matches whose result has been recorded. Total matches counts every match the community has created.';
+      'Every figure here counts completed matches only — a match still open or full contributes nothing. Player figures count matches whose result has been recorded.';
 
   @override
   String get statEmptyBody =>
@@ -1314,4 +1314,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeUpcomingSubtitle => 'Across your communities';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get settingsLanguageSection => 'Language';
+
+  @override
+  String get settingsNotificationsSection => 'Notifications';
+
+  @override
+  String get languageLabel => 'App language';
+
+  @override
+  String get languageSystemDefault => 'Device language';
+
+  @override
+  String get languageSystemDefaultHelp =>
+      'Go Play follows the language your phone is set to.';
+
+  @override
+  String get languageArabic => 'العربية';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get showMoreLabel => 'Show more';
+
+  @override
+  String get showLessLabel => 'Show less';
+
+  @override
+  String get communityActionsTitle => 'Community actions';
+
+  @override
+  String get moreActionsLabel => 'More actions';
+
+  @override
+  String get joinCodeOrganizersOnly =>
+      'The join code is shown to the owner and admins only.';
+
+  @override
+  String get membersEmpty => 'Nobody has joined this community yet.';
+
+  @override
+  String get matchRosterEmpty => 'Nobody has joined this match yet.';
+
+  @override
+  String get matchManagementSubtitle =>
+      'Edit the match, manage the roster, or delete it.';
+
+  @override
+  String get statCompletedMatches => 'Completed matches';
+
+  @override
+  String get leaderboardTopPlayer => 'Leader';
 }

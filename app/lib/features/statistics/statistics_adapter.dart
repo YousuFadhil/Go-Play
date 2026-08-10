@@ -18,11 +18,18 @@ abstract interface class StatisticsAdapter {
     String communityId,
   );
 
-  /// How many matches the community has, of any status.
+  /// How many **completed** matches the community has.
   ///
   /// Separate from the counters on purpose: this is a fact about matches, and
   /// the statistics table cannot answer it (see [CommunityDashboard]).
-  Future<int> fetchTotalMatches(String communityId);
+  ///
+  /// **Officially completed, and nothing else.** The measure is the match's
+  /// stored status, not its end time: a match that has finished by the clock
+  /// but has not been marked completed contributes nothing here, and neither
+  /// does one still open or full. A community's statistics are its settled
+  /// history, so a match joins them when the record says it has been played
+  /// rather than when the hour has passed.
+  Future<int> fetchCompletedMatches(String communityId);
 
   /// The community's current members and the rating each holds.
   ///

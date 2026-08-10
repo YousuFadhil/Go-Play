@@ -46,34 +46,49 @@ void main() {
   group('assembling the dashboard', () {
     test('the totals are the community, not one player', () async {
       final repository = StatisticsRepository(
-        FakeStatisticsAdapter(players: squad, totalMatches: 6),
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
       );
 
       final dashboard = await repository.fetchDashboard('c1');
 
-      expect(dashboard.totalMatches, 6);
+      expect(dashboard.completedMatches, 6);
       expect(dashboard.totalPlayers, 3);
       expect(dashboard.totalGoals, 7);
     });
 
-    test('total matches comes from the match domain, never from the counters',
+    test('the match count comes from the match domain, never from the counters',
         () async {
       // Summing matches_played would give 8 -- three players' appearances in
       // the same matches. The two figures are different questions, and the
       // dashboard must not answer one with the other.
       final repository = StatisticsRepository(
-        FakeStatisticsAdapter(players: squad, totalMatches: 6),
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
       );
 
       final dashboard = await repository.fetchDashboard('c1');
 
-      expect(dashboard.totalMatches, 6);
-      expect(dashboard.totalMatches, isNot(8));
+      expect(dashboard.completedMatches, 6);
+      expect(dashboard.completedMatches, isNot(8));
+    });
+
+    test('the match count is the officially completed one, and nothing else',
+        () async {
+      // The community has fifteen matches; six carry the completed status. The
+      // dashboard is its settled history, so nothing else contributes: not a
+      // match still open or full, and not one whose end time has passed while
+      // it waits for its result. The port answers that single question, and
+      // there is no other total for the repository to fall back on -- the count
+      // is taken from the completed-matches read and never derived here.
+      final adapter = FakeStatisticsAdapter(players: squad, completedMatches: 6);
+      final dashboard = await StatisticsRepository(adapter).fetchDashboard('c1');
+
+      expect(adapter.completedMatchReads, 1);
+      expect(dashboard.completedMatches, 6);
     });
 
     test('each leader is the highest of its own measure', () async {
       final repository = StatisticsRepository(
-        FakeStatisticsAdapter(players: squad, totalMatches: 6),
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
       );
 
       final dashboard = await repository.fetchDashboard('c1');
@@ -93,7 +108,7 @@ void main() {
       final repository = StatisticsRepository(
         FakeStatisticsAdapter(
           players: [player('u1', 'Ali'), player('u2', 'Sara')],
-          totalMatches: 2,
+          completedMatches: 2,
         ),
       );
 
@@ -112,10 +127,10 @@ void main() {
         player('u1', 'Ali', goals: 3),
       ];
       final first = await StatisticsRepository(
-        FakeStatisticsAdapter(players: tied, totalMatches: 1),
+        FakeStatisticsAdapter(players: tied, completedMatches: 1),
       ).fetchDashboard('c1');
       final second = await StatisticsRepository(
-        FakeStatisticsAdapter(players: tied.reversed.toList(), totalMatches: 1),
+        FakeStatisticsAdapter(players: tied.reversed.toList(), completedMatches: 1),
       ).fetchDashboard('c1');
 
       expect(first.topScorer?.fullName, 'Ali');
@@ -130,7 +145,7 @@ void main() {
       final repository = StatisticsRepository(
         FakeStatisticsAdapter(
           players: [player('u1', null, played: 2, goals: 9)],
-          totalMatches: 2,
+          completedMatches: 2,
         ),
       );
 
@@ -172,7 +187,7 @@ void main() {
       final gate = Completer<void>();
       await pumpDashboard(
         tester,
-        FakeStatisticsAdapter(players: squad, totalMatches: 6, gate: gate.future),
+        FakeStatisticsAdapter(players: squad, completedMatches: 6, gate: gate.future),
         settle: false,
       );
 
@@ -187,11 +202,11 @@ void main() {
     testWidgets('the six figures are on the screen', (tester) async {
       await pumpDashboard(
         tester,
-        FakeStatisticsAdapter(players: squad, totalMatches: 6),
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
       );
 
       // The three community totals.
-      expect(find.text('Total matches'), findsOneWidget);
+      expect(find.text('Completed matches'), findsOneWidget);
       expect(find.text('6'), findsOneWidget);
       expect(find.text('Total players'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
@@ -216,13 +231,15 @@ void main() {
         tester,
         FakeStatisticsAdapter(
           players: [player('u1', 'Ali'), player('u2', 'Sara')],
-          totalMatches: 2,
+          completedMatches: 2,
         ),
       );
 
-      expect(find.text('Not yet'), findsNWidgets(3));
+      // One empty state where the three leader rows would be, rather than
+      // three rows each saying "Not yet" in its own words.
       expect(find.text('Ali'), findsNothing,
           reason: 'nobody is named the leader of a measure at zero');
+      expect(find.text('Top scorer'), findsNothing);
       expect(
         find.textContaining('No results have been recorded'),
         findsOneWidget,
@@ -235,7 +252,7 @@ void main() {
         tester,
         FakeStatisticsAdapter(
           players: [player('u1', null, played: 2, goals: 9)],
-          totalMatches: 2,
+          completedMatches: 2,
         ),
       );
 
@@ -247,12 +264,13 @@ void main() {
         (tester) async {
       await pumpDashboard(
         tester,
-        FakeStatisticsAdapter(players: squad, totalMatches: 6),
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
       );
 
-      // Total matches counts every match; the player figures count only
-      // matches with a recorded result. The screen says so, because the two
-      // can differ and nothing else explains why.
+      // Every figure counts completed matches only, and the player figures
+      // narrow that further to matches with a recorded result. The screen says
+      // both, because the two can differ and nothing else explains why.
+      expect(find.textContaining('completed matches only'), findsOneWidget);
       expect(
         find.textContaining('result has been recorded'),
         findsOneWidget,
@@ -262,7 +280,7 @@ void main() {
     testWidgets('a load that fails offers a retry', (tester) async {
       final adapter = FakeStatisticsAdapter(
         players: squad,
-        totalMatches: 6,
+        completedMatches: 6,
         failure: const NetworkFailure(),
       );
       await pumpDashboard(tester, adapter);
@@ -279,7 +297,7 @@ void main() {
       // client write path, so there is nothing here to type into or submit.
       await pumpDashboard(
         tester,
-        FakeStatisticsAdapter(players: squad, totalMatches: 6),
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
       );
 
       expect(find.byType(TextField), findsNothing);
@@ -290,12 +308,12 @@ void main() {
     testWidgets('Arabic renders the dashboard in Arabic', (tester) async {
       await pumpDashboard(
         tester,
-        FakeStatisticsAdapter(players: squad, totalMatches: 6),
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
         locale: const Locale('ar'),
       );
 
       expect(find.text('إحصائيات المجتمع'), findsOneWidget);
-      expect(find.text('إجمالي المباريات'), findsOneWidget);
+      expect(find.text('المباريات المكتملة'), findsOneWidget);
       expect(find.text('الهدّاف'), findsOneWidget);
       expect(find.text('المتصدّرون'), findsOneWidget);
       expect(
@@ -310,19 +328,23 @@ void main() {
 class FakeStatisticsAdapter implements StatisticsAdapter {
   FakeStatisticsAdapter({
     required this.players,
-    required this.totalMatches,
+    required this.completedMatches,
     this.failure,
     this.gate,
   });
 
   final List<CommunityPlayerStatistics> players;
-  final int totalMatches;
+  final int completedMatches;
   final Failure? failure;
 
   /// Held open to keep the first load pending while the test looks at it.
   final Future<void>? gate;
 
   int reads = 0;
+
+  /// Counted separately, so a test can assert that the match figure came from
+  /// the completed-matches read and not from anywhere else.
+  int completedMatchReads = 0;
 
   @override
   Future<List<CommunityPlayerStatistics>> fetchCommunityPlayerStatistics(
@@ -335,10 +357,11 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
   }
 
   @override
-  Future<int> fetchTotalMatches(String communityId) async {
+  Future<int> fetchCompletedMatches(String communityId) async {
+    completedMatchReads++;
     if (gate != null) await gate;
     if (failure != null) throw failure!;
-    return totalMatches;
+    return completedMatches;
   }
 
   /// The dashboard ranks nobody, so it never reads the roster. Reaching this
