@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' show ClientException;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/diagnostics.dart';
@@ -52,7 +52,27 @@ class SupabaseFailureMapper {
     if (error is PostgrestException) return _fromPostgrest(error);
     if (error is AuthException) return _fromAuth(error);
     // The transport never completed the round trip.
-    if (error is IOException || error is TimeoutException) {
+    //
+    // [ClientException] is the one type that says this on every platform the
+    // app builds for, which is why `dart:io` is not named here — importing it
+    // would be a compile error on the web target, and this file is in the
+    // compile graph of every adapter through [guarded].
+    //
+    // It covers both sides because `package:http` normalises to it:
+    //
+    //   * on Android, `IOClient` catches the `SocketException` its underlying
+    //     `HttpClient` throws and rethrows it as a `ClientException` subclass
+    //     that still implements `SocketException` — so a dropped connection is
+    //     caught here exactly as it was when this read `IOException`;
+    //   * on the web, `BrowserClient` converts every failure it sees, CORS and
+    //     network alike, into a plain `ClientException`.
+    //
+    // Everything the Supabase SDK sends goes through `package:http`, so there
+    // is no route by which a bare `SocketException` reaches this mapper.
+    // PostgREST and Storage rethrow it untouched; GoTrue is the exception, and
+    // it wraps its own transport failures into the [AuthRetryableFetchException]
+    // handled in [_fromAuth].
+    if (error is ClientException || error is TimeoutException) {
       return const NetworkFailure();
     }
     return const UnknownFailure();

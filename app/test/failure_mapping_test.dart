@@ -1,10 +1,22 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/infrastructure/supabase/supabase_failure_mapper.dart';
+import 'package:http/http.dart' show ClientException;
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Stands in for the private `_ClientSocketException` that `IOClient` throws on
+/// Android when the socket fails.
+///
+/// The real one cannot be constructed from here and naming its `SocketException`
+/// half would put `dart:io` back in this file, which is what stopped the suite
+/// compiling for the web. What matters to the mapper is the shape rather than
+/// the identity: the native type is a [ClientException] *subclass*, so this
+/// asserts the classification follows the subtype and not just the exact class.
+class _SocketClientException extends ClientException {
+  _SocketClientException(super.message);
+}
 
 /// Provider exception -> Failure (OP-5). This is the whole classification
 /// contract: if a rule is not asserted here, it is not enforced anywhere.
@@ -267,8 +279,19 @@ void main() {
   });
 
   group('transport and the unclassified', () {
-    test('a socket failure is a network failure', () {
-      expect(map(const SocketException('no route to host')),
+    test('a dropped connection is a network failure', () {
+      // What `BrowserClient` throws for a network or CORS failure on the web,
+      // and what `IOClient` throws for a DNS or refused-connection failure on
+      // Android.
+      expect(map(ClientException('no route to host')), isA<NetworkFailure>());
+    });
+
+    test('a native socket failure is still a network failure', () {
+      // Android does not deliver the bare exception: `IOClient` rethrows it as
+      // a subclass. Asserted separately because a mapper written against the
+      // exact class rather than the subtype would pass the test above and then
+      // report every real dropped connection on a phone as UnknownFailure.
+      expect(map(_SocketClientException('connection refused')),
           isA<NetworkFailure>());
     });
 
@@ -297,7 +320,7 @@ void main() {
 
     test('converts whatever the call throws', () async {
       expect(
-        guarded<void>(() async => throw const SocketException('down')),
+        guarded<void>(() async => throw ClientException('down')),
         throwsA(isA<NetworkFailure>()),
       );
     });

@@ -495,13 +495,47 @@ void main() {
       await AuthService(adapter).changeEmail('new@example.com');
 
       // Without a redirect the provider falls back to its configured Site URL,
-      // which is a web address this project does not serve — the player
-      // confirms the change and never returns to Go Play. The scheme has to
-      // match the Android manifest's intent filter and the Supabase project's
-      // Redirect URLs allow-list; neither is checkable from here, which is why
-      // the value is stated once and asserted rather than inlined at the call.
+      // and the player confirms the change and never returns to Go Play. The
+      // scheme has to match the Android manifest's intent filter and the
+      // Supabase project's Redirect URLs allow-list; neither is checkable from
+      // here, which is why the value is stated once and asserted rather than
+      // inlined at the call.
       expect(adapter.changedRedirect, AuthService.emailChangeRedirect);
+      // These tests run on the VM, so this is the native answer.
       expect(AuthService.emailChangeRedirect, 'goplay://login-callback');
+      expect(AuthService.nativeEmailChangeRedirect, 'goplay://login-callback');
+    });
+
+    test('the web callback is the origin of the page serving the app', () {
+      // The web build cannot send `goplay://` — a browser has no way to follow
+      // it. What it sends instead is read off the running page, because this
+      // project has no registered web origin to hard-code.
+      expect(
+        AuthService.webEmailChangeRedirect(Uri.parse('https://play.example.com/')),
+        'https://play.example.com/login-callback',
+      );
+
+      // The path of whatever page the reader was on is not part of the origin,
+      // so the callback is the same wherever the change was started from.
+      expect(
+        AuthService.webEmailChangeRedirect(
+          Uri.parse('https://play.example.com/profile/edit?tab=account'),
+        ),
+        'https://play.example.com/login-callback',
+      );
+
+      // A non-default port survives, which is what makes a local build work.
+      expect(
+        AuthService.webEmailChangeRedirect(Uri.parse('http://localhost:8111/')),
+        'http://localhost:8111/login-callback',
+      );
+
+      // The default port does not, or the origin would not match the one the
+      // allow-list was given.
+      expect(
+        AuthService.webEmailChangeRedirect(Uri.parse('https://play.example.com:443/')),
+        'https://play.example.com/login-callback',
+      );
     });
 
     test('an address that is not one is refused here', () async {

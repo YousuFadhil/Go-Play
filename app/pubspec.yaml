@@ -18,6 +18,10 @@ dependencies:
   intl: any
   shared_preferences: ^2.3.0
   supabase_flutter: ^2.8.0
+  # Already in the graph beneath supabase_flutter, declared here only because
+  # the failure mapper names ClientException to classify a dropped connection
+  # without dart:io. No version moves: this is the version already locked.
+  http: ^1.6.0
   image_picker: ^1.2.3
   # Push delivery only. The Notification Center is Supabase either way, and the
   # app runs without a Firebase project configured — see PushService.

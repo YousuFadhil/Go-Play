@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+
 import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_auth_adapter.dart';
 import '../profile/profile_models.dart';
@@ -128,22 +130,51 @@ class AuthService {
 
   /// Where the confirmation link for an email change sends the player.
   ///
-  /// The app's own scheme, so tapping the link in the mail app reopens Go Play
-  /// rather than a browser. Without this the provider uses its configured Site
-  /// URL — a web address this project does not serve — and the player confirms
-  /// the change and is left staring at a page that is not the app.
+  /// The answer differs by platform because what can open the link differs. A
+  /// phone can be handed a custom scheme and will reopen the app with it; a
+  /// browser cannot — `goplay://` is not a thing a browser knows how to follow,
+  /// so on the web the same constant would confirm the change and then strand
+  /// the reader on a link their browser refuses. Without either, the provider
+  /// falls back to its configured Site URL.
   ///
-  /// Two things outside this file have to agree with it, and neither is
+  /// Three things outside this file have to agree with it, and none is
   /// something Dart can enforce:
   ///
   ///   * the Android manifest must carry an intent filter for
   ///     `goplay://login-callback`, or the link opens nothing;
-  ///   * the Supabase project's **Redirect URLs** allow-list must contain it,
-  ///     or Auth ignores the parameter and falls back to the Site URL again.
+  ///   * the Supabase project's **Redirect URLs** allow-list must contain both
+  ///     forms, or Auth ignores the parameter and falls back to the Site URL
+  ///     again. The web form cannot be added until the origin the app is served
+  ///     from is decided — see [webEmailChangeRedirect];
+  ///   * whatever serves the web build must answer `/login-callback`. It does
+  ///     not need its own page: the app is a single page and any path reaches
+  ///     it, so the host's SPA rewrite is what makes this true.
   ///
-  /// Both are recorded in `Docs/engineering/SUPABASE_OPERATIONAL_GUIDELINES.md`
-  /// alongside the rest of the project configuration.
-  static const String emailChangeRedirect = 'goplay://login-callback';
+  /// The first two are recorded in
+  /// `Docs/engineering/SUPABASE_OPERATIONAL_GUIDELINES.md` alongside the rest of
+  /// the project configuration.
+  static String get emailChangeRedirect =>
+      kIsWeb ? webEmailChangeRedirect(Uri.base) : nativeEmailChangeRedirect;
+
+  /// What reopens the app on Android and iOS. Registered in the manifest.
+  static const String nativeEmailChangeRedirect = 'goplay://login-callback';
+
+  /// The web form, for a page served from [base].
+  ///
+  /// Derived at runtime rather than written down, because this project has no
+  /// web origin yet: `goplay.app` appears in the invitation link but is not a
+  /// registered domain, and naming it here would send confirmations to a host
+  /// that does not answer.
+  /// Reading the origin off the running page is also what keeps one build
+  /// correct on localhost, on a staging host and in production at once.
+  ///
+  /// [Uri.origin] is scheme, host and non-default port only — the path is
+  /// dropped on purpose, so this stays right wherever in the app the reader
+  /// happened to be. It does assume the build is served from the root of its
+  /// origin; a deployment under a sub-path would need the base href instead.
+  @visibleForTesting
+  static String webEmailChangeRedirect(Uri base) =>
+      '${base.origin}/login-callback';
 
   /// The shortest password the product accepts.
   ///
