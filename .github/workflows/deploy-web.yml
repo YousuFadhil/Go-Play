@@ -39,6 +39,12 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # The four secrets below are Environment secrets, not repository secrets,
+    # and GitHub makes those available only to a job that uses the environment.
+    # Without this line every `secrets.*` reference resolves to an empty string
+    # and the run fails at "Require the build configuration" — which is what
+    # happened on the first run.
+    environment: github-pages
     steps:
       - name: Check out the commit being deployed
         uses: actions/checkout@v4
