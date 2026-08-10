@@ -23,12 +23,12 @@ abstract interface class StatisticsAdapter {
   /// Separate from the counters on purpose: this is a fact about matches, and
   /// the statistics table cannot answer it (see [CommunityDashboard]).
   ///
-  /// **Officially completed, and nothing else.** The measure is the match's
-  /// stored status, not its end time: a match that has finished by the clock
-  /// but has not been marked completed contributes nothing here, and neither
-  /// does one still open or full. A community's statistics are its settled
-  /// history, so a match joins them when the record says it has been played
-  /// rather than when the hour has passed.
+  /// **Completed as the rest of the product defines it.** A match counts when
+  /// its stored status is `completed` or its end time has passed — the rule
+  /// migration `0029` made authoritative and the match list already shows. The
+  /// stored status alone is not the measure: nothing marks a match completed
+  /// once it simply finishes, so counting on it would report zero for a
+  /// community whose matches have all been played.
   Future<int> fetchCompletedMatches(String communityId);
 
   /// The community's current members and the rating each holds.

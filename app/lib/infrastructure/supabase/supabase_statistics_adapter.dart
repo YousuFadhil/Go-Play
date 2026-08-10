@@ -72,32 +72,28 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
         return [for (final row in rows) communityMemberRatingFromRow(row)];
       });
 
-  /// How many matches this community has officially completed.
+  /// How many matches this community has completed.
   ///
-  /// **The stored status, and nothing else.** `matches.status = 'completed'` is
-  /// the official record of a match having been played and settled; a match
-  /// whose end time has merely passed is not one. The two differ — completion
-  /// is moved by the recalculation the registration RPCs run, so a finished
-  /// match nobody has touched since can still be sitting at `open` — and the
-  /// approved rule is that such a match contributes nothing here until its
-  /// status says so.
+  /// Reads `v_completed_matches` (migration `0037`), which applies the rule
+  /// `0029` made authoritative: a match is completed when its status says so
+  /// **or** its end time has passed.
   ///
-  /// This is deliberately **not** `Match.effectiveStatus`. That derivation is
-  /// how a match is *presented* — a fixture whose time has passed reads as
-  /// played on a card — and it is right for that. Statistics are the community's
-  /// settled history, so they follow the status the database holds rather than
-  /// the clock.
+  /// This class does not restate that rule. An earlier version of this method
+  /// filtered on `status = 'completed'` alone and returned zero for communities
+  /// with finished matches — nothing marks a match completed once it merely
+  /// finishes, because every path that would has already refused to run by
+  /// then. The condition lives in the database, in one place, so this count and
+  /// the match list cannot report different histories.
   ///
   /// It is a filter, not an authorization — the `matches` policies decide whose
-  /// rows come back, and a caller who cannot see a community's matches counts
-  /// none of them.
+  /// rows come back through the view's `security_invoker`, and a caller who
+  /// cannot see a community's matches counts none of them.
   @override
   Future<int> fetchCompletedMatches(String communityId) => guarded(() async {
         final response = await _client
-            .from('matches')
-            .select('id')
+            .from('v_completed_matches')
+            .select('match_id')
             .eq('community_id', communityId)
-            .eq('status', 'completed')
             .count(CountOption.exact);
         return response.count;
       });
