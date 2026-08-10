@@ -1,0 +1,101 @@
+# Production web deployment: push to main -> build -> Cloudflare Pages.
+#
+# This restores the workflow `e4680fd` removed, with the defect that made it
+# unusable corrected.
+#
+# Why the previous version was removed: it ran a bare `flutter build web
+# --release` with no `--dart-define`. This app reads its Supabase configuration
+# from `String.fromEnvironment` (`app/lib/core/config.dart`), so a build without
+# those two values compiles and deploys successfully and then shows the
+# "Supabase configuration missing" screen to every visitor
+# (`app/lib/core/config_error_app.dart`). The pipeline could only ever publish a
+# broken site, which is why production has been built by hand since.
+#
+# The correction is the two `--dart-define` values below, supplied from repository
+# secrets, plus a guard that fails the run if they did not reach the bundle.
+#
+# Only the publishable (anon) key is ever passed. `Docs/engineering/
+# SUPABASE_OPERATIONAL_GUIDELINES.md` is explicit that the service-role key is
+# never in source, never in a build and never in a `--dart-define`; nothing here
+# handles it.
+#
+# Staleness: the runner is ephemeral and `app/build/` is gitignored, so every
+# deployment is compiled from the commit that triggered the run. There is no
+# path by which a previous bundle can be published.
+
+name: Deploy web app to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One production deployment at a time. Two pushes in quick succession would
+# otherwise race, and the loser could publish the older bundle last.
+concurrency:
+  group: cloudflare-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the commit being deployed
+        uses: actions/checkout@v4
+
+      # Fail before the build rather than after the deployment. Without this a
+      # missing secret produces a green run and a broken site — the exact
+      # failure mode this workflow exists to prevent.
+      - name: Require the build configuration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$SUPABASE_URL"      || { echo "::error::secret SUPABASE_URL is not set"; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo "::error::secret SUPABASE_ANON_KEY is not set"; exit 1; }
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          # Pinned to the version the release was developed and validated on.
+          # An unpinned `stable` makes the output depend on the day the run
+          # happens rather than on the commit.
+          flutter-version: 3.44.7
+
+      - name: Fetch dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build the web release
+        working-directory: app
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      # The build above succeeds whether or not the values were compiled in, so
+      # the bundle is checked rather than trusted. `grep -q` prints nothing, so
+      # no secret reaches the log.
+      - name: Verify the configuration reached the bundle
+        run: |
+          grep -q 'supabase\.co' app/build/web/main.dart.js \
+            || { echo "::error::built bundle carries no Supabase URL"; exit 1; }
+          if grep -q 'service_role' app/build/web/main.dart.js; then
+            echo "::error::a service-role key reached the web bundle"
+            exit 1
+          fi
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # `--branch=main` publishes to production rather than a preview.
+          # The project must already exist: this workflow deliberately does not
+          # create one, so a wrong name fails the run instead of silently
+          # publishing to a second, empty project.
+          command: pages deploy app/build/web --project-name=go-play --branch=main
