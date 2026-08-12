@@ -73,15 +73,47 @@ jobs:
         working-directory: app
         run: flutter pub get
 
+      # Before the build, because `flutter build web` copies `web/` as it finds
+      # it. The service worker cannot read a `--dart-define`, so its half of the
+      # configuration is substituted here; the runner is ephemeral, so the file
+      # only ever exists for this one build.
+      #
+      # Not guarded, and it does not fail on missing secrets: it writes an inert
+      # worker instead, matching a bundle whose `FirebaseWebConfig.isConfigured`
+      # is false. A site without push still deploys.
+      - name: Generate the Firebase messaging service worker
+        working-directory: app
+        env:
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          FIREBASE_WEB_APP_ID: ${{ secrets.FIREBASE_WEB_APP_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: dart run tool/generate_firebase_sw.dart
+
       - name: Build the web release
         working-directory: app
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Web push. Deliberately *not* in the guard above: unset means the
+          # site builds without push and behaves exactly as it did before, so
+          # failing the deployment over it would trade a working site for a
+          # missing notification. `FirebaseWebConfig.isConfigured` is the same
+          # decision expressed in Dart.
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          FIREBASE_WEB_APP_ID: ${{ secrets.FIREBASE_WEB_APP_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_WEB_VAPID_KEY: ${{ secrets.FIREBASE_WEB_VAPID_KEY }}
         run: |
           flutter build web --release \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            --dart-define=FIREBASE_WEB_API_KEY="$FIREBASE_WEB_API_KEY" \
+            --dart-define=FIREBASE_WEB_APP_ID="$FIREBASE_WEB_APP_ID" \
+            --dart-define=FIREBASE_MESSAGING_SENDER_ID="$FIREBASE_MESSAGING_SENDER_ID" \
+            --dart-define=FIREBASE_PROJECT_ID="$FIREBASE_PROJECT_ID" \
+            --dart-define=FIREBASE_WEB_VAPID_KEY="$FIREBASE_WEB_VAPID_KEY"
 
       # The build above succeeds whether or not the values were compiled in, so
       # the bundle is checked rather than trusted. `grep -q` prints nothing, so

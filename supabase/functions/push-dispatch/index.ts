@@ -20,6 +20,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY — injected by the platform
 //   PUSH_DISPATCH_SECRET      — must equal push_config.dispatch_secret
 //   FCM_SERVICE_ACCOUNT       — the Firebase service account JSON, verbatim
+//   PUSH_WEB_APP_URL          — optional; where a clicked web notification goes
 
 interface DispatchPayload {
   notification_id: string;
@@ -47,6 +48,9 @@ interface ServiceAccount {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const DISPATCH_SECRET = Deno.env.get("PUSH_DISPATCH_SECRET") ?? "";
+// Optional, and web-only: the origin a clicked browser notification opens.
+// Unset is a supported state — see the `webpush` block in `send`.
+const WEB_APP_URL = Deno.env.get("PUSH_WEB_APP_URL") ?? "";
 
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -214,6 +218,48 @@ async function send(
           apns: {
             headers: { "apns-priority": highPriority ? "10" : "5" },
             payload: { aps: { sound: "default" } },
+          },
+          // The web needs its own block, and unlike the two above it is not
+          // only about urgency.
+          //
+          // A browser does not draw a `notification` block by itself: FCM
+          // delivers the message to a service worker over Web Push and the
+          // worker decides what to show. `web/firebase-messaging-sw.js` reads
+          // `notification` out of the delivered payload, so the title and body
+          // are repeated here — the generic block does not survive into the
+          // webpush payload on its own, and a worker with nothing to render
+          // would drop the push silently.
+          //
+          // `tag` is the notice id, which is what stops a browser coalescing
+          // two different time changes into one notification.
+          webpush: {
+            headers: {
+              Urgency: highPriority ? "high" : "normal",
+              // A day. A push older than that is reporting a change the player
+              // has already seen in the app, and delivering it then is worse
+              // than not delivering it.
+              TTL: "86400",
+            },
+            notification: {
+              title: payload.title,
+              body: payload.body,
+              icon: "/icons/Icon-192.png",
+              badge: "/icons/Icon-192.png",
+              tag: payload.notification_id,
+            },
+            // Where a click lands, and the only thing that decides it: the
+            // Firebase SDK in the service worker handles `notificationclick`
+            // itself and opens this link. **Without it a click closes the
+            // notification and does nothing else**, because the SDK's handler
+            // returns early with no link and calls `stopImmediatePropagation`,
+            // so a fallback listener in the worker could not run either.
+            //
+            // Omitted entirely rather than guessed when unset — `JSON.stringify`
+            // drops an undefined value — since this function knows the Firebase
+            // project but not the site the app is served from. A wrong link
+            // opens a wrong site; a missing one costs the click and nothing
+            // more, and the notice is in the Notification Center either way.
+            fcm_options: WEB_APP_URL ? { link: WEB_APP_URL } : undefined,
           },
         },
       }),
