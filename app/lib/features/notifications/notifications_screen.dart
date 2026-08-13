@@ -6,8 +6,10 @@ import '../../core/app_header.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../matches/match_details_screen.dart';
 import 'notification_display.dart';
 import 'notification_models.dart';
+import 'notification_route.dart';
 import 'notification_service.dart';
 import 'notification_settings_screen.dart';
 
@@ -59,6 +61,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   /// about why.
   String _text(AppLocalizations l10n, AppNotification n) =>
       notificationDisplays[n.type]?.label(l10n) ?? n.message;
+
+  /// Opens what a notice is about, through the same decision a tapped push goes
+  /// through.
+  ///
+  /// Returns null — leaving the tile inert rather than tappable — for a notice
+  /// that names nothing, so the affordance and the behaviour cannot disagree.
+  /// This screen *is* the fallback destination, so there is nowhere for a
+  /// non-actionable notice to go; a match that then fails to load renders Match
+  /// Details' own error state, which is the existing answer to that and is not
+  /// changed here.
+  VoidCallback? _openFor(AppNotification n) {
+    final target = NotificationTarget.of(n);
+    if (!target.opensMatch) return null;
+    return () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MatchDetailsScreen(matchId: target.matchId!),
+          ),
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +136,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 final theme = Theme.of(context);
 
                 return ListTile(
+                  onTap: _openFor(n),
                   leading: CircleAvatar(
                     radius: 20,
                     backgroundColor: background,
