@@ -8,12 +8,60 @@ import '../../core/states.dart';
 import '../communities/community_models.dart';
 import '../auth/auth_service.dart';
 import '../members/member_repository.dart';
+import '../notifications/push_service.dart';
 import '../results/result_entry_screen.dart';
 import '../teams/teams_screen.dart';
 import 'match_card.dart';
 import 'match_management_screen.dart';
 import 'match_models.dart';
 import 'match_service.dart';
+
+/// The Match Details currently on screen, so a notification for that same match
+/// refreshes it instead of stacking a second copy of it.
+///
+/// A registry rather than a Navigator inspection, because what the caller needs
+/// is not "which route is on top" but "is this match already in front of the
+/// reader, and how do I make it current" — and the screen is the only thing that
+/// knows how to reload itself. The same singleton shape as `PushService` and
+/// `PendingInvite`.
+///
+/// Binding is last-one-wins and unbinding is owner-checked, so two stacked
+/// instances cannot have the lower one clear the upper one's registration when
+/// it is disposed.
+class CurrentMatchDetails {
+  CurrentMatchDetails._();
+
+  static final instance = CurrentMatchDetails._();
+
+  Object? _owner;
+  String? _matchId;
+  VoidCallback? _reload;
+
+  /// The match on screen, or null when Match Details is not open.
+  String? get matchId => _matchId;
+
+  void bind(Object owner, String matchId, VoidCallback reload) {
+    _owner = owner;
+    _matchId = matchId;
+    _reload = reload;
+  }
+
+  void unbind(Object owner) {
+    if (!identical(_owner, owner)) return;
+    _owner = null;
+    _matchId = null;
+    _reload = null;
+  }
+
+  /// Reloads the open Match Details when it is already showing [matchId].
+  ///
+  /// Returns whether it did, which is what tells a caller not to navigate.
+  bool reloadIfShowing(String matchId) {
+    if (_matchId != matchId || _reload == null) return false;
+    _reload!();
+    return true;
+  }
+}
 
 class MatchDetailsScreen extends StatefulWidget {
   const MatchDetailsScreen({super.key, required this.matchId});
@@ -35,6 +83,19 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   void initState() {
     super.initState();
     _dataFuture = _loadData();
+    CurrentMatchDetails.instance.bind(this, widget.matchId, _refresh);
+    // A push that lands while this screen is open moves the roster — a
+    // promotion, a removal, a rebalance — and nothing else would tell it. The
+    // same signal Home already listens to, read the same way: re-fetch from the
+    // database rather than trust the push, which is a pointer and not a record.
+    PushService.instance.foregroundPushes.addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    PushService.instance.foregroundPushes.removeListener(_refresh);
+    CurrentMatchDetails.instance.unbind(this);
+    super.dispose();
   }
 
   Future<(Match, List<MatchRegistration>, CommunityRole?)> _loadData() async {
@@ -51,6 +112,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   }
 
   void _refresh() {
+    // Guarded: this is now reached from a listener as well as from the widget
+    // tree, and a push can arrive between dispose and the last frame.
+    if (!mounted) return;
     setState(() {
       _dataFuture = _loadData();
     });

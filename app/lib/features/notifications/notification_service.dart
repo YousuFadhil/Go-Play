@@ -21,6 +21,9 @@ class NotificationService {
 
   Future<void> markAllRead() => _adapter.markAllRead();
 
+  Future<void> markRead(String notificationId) =>
+      _adapter.markRead(notificationId);
+
   Future<PushPreferences> fetchPushPreferences() =>
       _adapter.fetchPushPreferences();
 

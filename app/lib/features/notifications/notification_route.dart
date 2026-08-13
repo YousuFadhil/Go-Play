@@ -34,7 +34,8 @@ enum NotificationDestination {
 /// Center on their own.
 @immutable
 class NotificationTarget {
-  const NotificationTarget._(this.destination, this.matchId);
+  const NotificationTarget._(this.destination, this.matchId,
+      [this.notificationId]);
 
   /// The Notification Center — nothing else is actionable.
   const NotificationTarget.centre()
@@ -45,9 +46,25 @@ class NotificationTarget {
   /// Set when and only when [destination] is [NotificationDestination.match].
   final String? matchId;
 
+  /// Which notice was tapped, when that is known.
+  ///
+  /// Known from the Notification Center, from a tapped push whose data block
+  /// carries `notification_id`, and from a clicked web notification, whose link
+  /// carries it as a query parameter.
+  ///
+  /// **It is a claim, never a permission.** A URL is somewhere anyone can type
+  /// anything, so this is shape-checked here and then handed to
+  /// `markRead`, which scopes the write to the reader's own rows under the same
+  /// RLS policy `markAllRead` writes through. A stranger's id in the address bar
+  /// updates nothing.
+  ///
+  /// Survives [resolved] falling back, because the reader tapped the notice
+  /// whether or not its match could be opened.
+  final String? notificationId;
+
   /// The destination for a notice read out of the Notification Center.
   factory NotificationTarget.of(AppNotification notification) =>
-      NotificationTarget._forMatch(notification.matchId);
+      NotificationTarget._forMatch(notification.matchId, notification.id);
 
   /// The destination for a tapped push.
   ///
@@ -57,13 +74,20 @@ class NotificationTarget {
   /// notice that names no match. Blank is therefore the ordinary way "no match"
   /// is spelled here, and is treated as absence rather than as an id.
   factory NotificationTarget.fromPushData(Map<String, dynamic> data) =>
-      NotificationTarget._forMatch(data['match_id'] as String?);
+      NotificationTarget._forMatch(
+        data['match_id'] as String?,
+        data['notification_id'] as String?,
+      );
 
-  factory NotificationTarget._forMatch(String? matchId) {
+  factory NotificationTarget._forMatch(String? matchId,
+      [String? notificationId]) {
+    final notice = (notificationId?.trim() ?? '').isEmpty
+        ? null
+        : notificationId!.trim();
     final id = matchId?.trim() ?? '';
     return id.isEmpty
-        ? const NotificationTarget.centre()
-        : NotificationTarget._(NotificationDestination.match, id);
+        ? NotificationTarget._(NotificationDestination.centre, null, notice)
+        : NotificationTarget._(NotificationDestination.match, id, notice);
   }
 
   bool get opensMatch => destination == NotificationDestination.match;
@@ -82,17 +106,21 @@ class NotificationTarget {
   ) async {
     final id = matchId;
     if (id == null) return this;
-    return await canOpenMatch(id) ? this : const NotificationTarget.centre();
+    return await canOpenMatch(id)
+        ? this
+        : NotificationTarget._(
+            NotificationDestination.centre, null, notificationId);
   }
 
   @override
   bool operator ==(Object other) =>
       other is NotificationTarget &&
       other.destination == destination &&
-      other.matchId == matchId;
+      other.matchId == matchId &&
+      other.notificationId == notificationId;
 
   @override
-  int get hashCode => Object.hash(destination, matchId);
+  int get hashCode => Object.hash(destination, matchId, notificationId);
 
   @override
   String toString() => matchId == null
@@ -134,6 +162,7 @@ class NotificationLink {
   static const consumedRoute = '/';
 
   static const _matchParam = 'match_id';
+  static const _noticeParam = 'notification_id';
 
   /// A match id is a `uuid` column. Validated because this arrives from the
   /// address bar, where anybody can type: an id that is not id-shaped is not a
@@ -150,14 +179,24 @@ class NotificationLink {
 
   /// The route for a notice, as `push-dispatch` writes it into
   /// `webpush.fcm_options.link` after the origin and the `#`.
-  static String format({String? matchId}) {
-    final id = matchId?.trim() ?? '';
-    if (id.isEmpty) return path;
+  ///
+  /// Parameters are appended in this order and only when present, so a notice
+  /// naming no match still carries its own id and a notice with neither is the
+  /// bare [path] it always was.
+  static String format({String? matchId, String? notificationId}) {
     // `encodeComponent`, not `encodeQueryComponent`: the latter writes a space
     // as `+` where the Edge Function's `encodeURIComponent` writes `%20`. No
     // id ever contains one — [parse] rejects anything that is not uuid-shaped —
     // but the two sides of a shared format should not differ at all.
-    return '$path?$_matchParam=${Uri.encodeComponent(id)}';
+    final parts = [
+      for (final (key, value) in [
+        (_matchParam, matchId),
+        (_noticeParam, notificationId),
+      ])
+        if ((value?.trim() ?? '').isNotEmpty)
+          '$key=${Uri.encodeComponent(value!.trim())}',
+    ];
+    return parts.isEmpty ? path : '$path?${parts.join('&')}';
   }
 
   /// Reads a target out of an incoming route.
@@ -165,17 +204,27 @@ class NotificationLink {
   /// Returns null when [route] is not a notification link at all — which is
   /// every route on Android and iOS, and every invitation — so the caller can
   /// leave anything it does not own alone.
+  ///
+  /// Both ids are shape-checked and **independently discarded** when they fail.
+  /// A link is a thing anyone can retype, so neither id may decide anything on
+  /// its own: a bad match id lands on the Center, a bad notice id is simply not
+  /// there, and neither can stop the other from working.
   static NotificationTarget? parse(String? route) {
     if (route == null || route.isEmpty) return null;
     final uri = Uri.tryParse(route);
     if (uri == null || uri.path != path) return null;
 
-    final id = uri.queryParameters[_matchParam]?.trim() ?? '';
+    final notice = _valid(uri.queryParameters[_noticeParam]);
+    final id = _valid(uri.queryParameters[_matchParam]);
     // A link of ours that names no match, or names one that cannot be an id,
     // still opens the Center. It is a notification link either way: the reader
     // tapped a notice and must land somewhere they can read it.
-    if (id.isEmpty || !_uuid.hasMatch(id)) return const NotificationTarget.centre();
-    return NotificationTarget._forMatch(id);
+    return NotificationTarget._forMatch(id, notice);
+  }
+
+  static String? _valid(String? value) {
+    final id = value?.trim() ?? '';
+    return id.isNotEmpty && _uuid.hasMatch(id) ? id : null;
   }
 }
 

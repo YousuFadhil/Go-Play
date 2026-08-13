@@ -191,23 +191,37 @@ async function forgetToken(token: string): Promise<void> {
 /// what this writes, and its `format()` is the same shape under test. Change one
 /// and the other stops routing.
 ///
-///   <origin>/#/notification                        — opens the Notification Center
-///   <origin>/#/notification?match_id=<uuid>        — opens Match Details
+///   <origin>/#/notification?match_id=<uuid>&notification_id=<uuid>
+///   <origin>/#/notification?notification_id=<uuid>   — opens the Center
+///
+/// `notification_id` is what lets a clicked web notification be marked read,
+/// which Android and iOS already do from the `data` block above. The browser
+/// gives the page no other handle on the notice that was clicked, so it travels
+/// in the link like the navigation target does.
 ///
 /// The target sits in the **fragment** because the app runs on Flutter's default
 /// hash URL strategy: the fragment is the part Flutter reports as the route and
 /// the part it can rewrite once the target has been used, so the link does not
 /// keep reopening the same match on every refresh.
 ///
-/// Nothing secret goes in here, and nothing authorizing. A match id is a
-/// navigation target; the app still loads that match under the reader's own
-/// session and shows them nothing they could not already open.
-function webLink(matchId: string | null): string {
+/// Nothing secret goes in here, and nothing authorizing. Both ids are
+/// navigation-and-lookup keys: the app loads the match under the reader's own
+/// session, and marks the notice read through a statement scoped to their own
+/// rows. An id typed into the address bar by somebody else reaches nothing.
+function webLink(matchId: string | null, notificationId: string): string {
   // Tolerant of however the secret was written: a trailing slash, or a stray
   // fragment or query, would otherwise produce a link with two `#` in it.
   const origin = WEB_APP_URL.replace(/[#?].*$/, "").replace(/\/+$/, "");
-  const route = matchId
-    ? `/notification?match_id=${encodeURIComponent(matchId)}`
+  // Built by hand rather than with URLSearchParams, which encodes a space as
+  // `+` where the app's `Uri.encodeComponent` writes `%20`. No id contains one,
+  // but the two sides of a shared format should not differ at all.
+  const params: string[] = [];
+  if (matchId) params.push(`match_id=${encodeURIComponent(matchId)}`);
+  if (notificationId) {
+    params.push(`notification_id=${encodeURIComponent(notificationId)}`);
+  }
+  const route = params.length
+    ? `/notification?${params.join("&")}`
     : "/notification";
   return `${origin}/#${route}`;
 }
@@ -304,7 +318,7 @@ async function send(
             // opens a wrong site; a missing one costs the click and nothing
             // more, and the notice is in the Notification Center either way.
             fcm_options: WEB_APP_URL
-              ? { link: webLink(payload.match_id) }
+              ? { link: webLink(payload.match_id, payload.notification_id) }
               : undefined,
           },
         },

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/invitations/invite_link.dart';
+import 'package:go_play/features/matches/match_details_screen.dart';
 import 'package:go_play/features/notifications/notification_adapter.dart';
 import 'package:go_play/features/notifications/notification_display.dart';
 import 'package:go_play/features/notifications/notification_models.dart';
@@ -114,6 +115,40 @@ void main() {
     });
 
     group('from a tapped push', () {
+      test('carries the notice id so a tapped push can be marked read', () {
+        final target = NotificationTarget.fromPushData(const {
+          'notification_id': 'notice-1',
+          'type': 'promoted',
+          'match_id': '0661c5a0-1d9d-4bd9-9733-f06ef97e744a',
+        });
+
+        expect(target.notificationId, 'notice-1');
+      });
+
+      test('the notice id survives falling back to the Center', () async {
+        // The reader tapped the notice whether or not its match opened, so it
+        // is read either way.
+        final target = await NotificationTarget.fromPushData(
+          const {'notification_id': 'notice-1', 'match_id': 'gone'},
+        ).resolved((_) async => false);
+
+        expect(target.destination, NotificationDestination.centre);
+        expect(target.notificationId, 'notice-1');
+      });
+
+      test('a web link carries no notice id', () {
+        // Deliberate: the URL is a navigation target and nothing else, so the
+        // web marks read when the Center is opened, as it always did.
+        expect(
+          NotificationLink.parse(
+            NotificationLink.format(
+              matchId: '0661c5a0-1d9d-4bd9-9733-f06ef97e744a',
+            ),
+          )?.notificationId,
+          isNull,
+        );
+      });
+
       test('carries the match through the data block', () {
         // Exactly what `push-dispatch` sends.
         final target = NotificationTarget.fromPushData(const {
@@ -180,11 +215,102 @@ void main() {
       // format `push-dispatch` writes and this app reads.
       const matchId = '0661c5a0-1d9d-4bd9-9733-f06ef97e744a';
 
+      const noticeId = '7b080e28-91d0-4af8-8d67-21aad3302c54';
+
       test('a match notice encodes its id in the route', () {
         expect(
           NotificationLink.format(matchId: matchId),
           '/notification?match_id=$matchId',
         );
+      });
+
+      test('the link carries the notice id as well as the match', () {
+        // What lets a clicked web notification be marked read. Order matters:
+        // `push-dispatch` appends the same two in the same order.
+        expect(
+          NotificationLink.format(matchId: matchId, notificationId: noticeId),
+          '/notification?match_id=$matchId&notification_id=$noticeId',
+        );
+      });
+
+      test('a notice naming no match still carries its own id', () {
+        expect(
+          NotificationLink.format(notificationId: noticeId),
+          '/notification?notification_id=$noticeId',
+        );
+      });
+
+      test('match and notice both survive the round trip', () {
+        final target = NotificationLink.parse(
+          NotificationLink.format(matchId: matchId, notificationId: noticeId),
+        );
+
+        expect(target?.destination, NotificationDestination.match);
+        expect(target?.matchId, matchId);
+        expect(target?.notificationId, noticeId);
+      });
+
+      test('a notice id alone opens the Center and is still marked read', () {
+        final target = NotificationLink.parse(
+          NotificationLink.format(notificationId: noticeId),
+        );
+
+        expect(target?.destination, NotificationDestination.centre);
+        expect(target?.matchId, isNull);
+        expect(target?.notificationId, noticeId);
+      });
+
+      test('links without a notice id keep working exactly as before', () {
+        // The format that is live in production today must not stop parsing.
+        final target =
+            NotificationLink.parse('/notification?match_id=$matchId');
+
+        expect(target?.destination, NotificationDestination.match);
+        expect(target?.matchId, matchId);
+        expect(target?.notificationId, isNull);
+        expect(NotificationLink.parse('/notification')?.destination,
+            NotificationDestination.centre);
+      });
+
+      test('a malformed notice id is dropped, not obeyed, and breaks nothing',
+          () {
+        // The two ids are checked independently: a bad notice id must not cost
+        // the reader the navigation, and cannot become a write target.
+        for (final bad in [
+          'not-a-uuid',
+          '../../admin',
+          '%3Cscript%3E',
+          '1 OR 1=1',
+        ]) {
+          final target = NotificationLink.parse(
+            '/notification?match_id=$matchId&notification_id=$bad',
+          );
+          expect(target?.destination, NotificationDestination.match,
+              reason: bad);
+          expect(target?.matchId, matchId, reason: bad);
+          expect(target?.notificationId, isNull, reason: bad);
+        }
+      });
+
+      test('a bad match id does not cost a good notice id', () {
+        final target = NotificationLink.parse(
+          '/notification?match_id=nonsense&notification_id=$noticeId',
+        );
+
+        expect(target?.destination, NotificationDestination.centre);
+        expect(target?.notificationId, noticeId);
+      });
+
+      test('the notice id survives being parked for a cold start', () {
+        final pending = PendingNotificationTap.instance;
+        addTearDown(pending.clear);
+
+        pending.consumeRoute(
+          NotificationLink.format(matchId: matchId, notificationId: noticeId),
+        );
+
+        expect(pending.target.value?.matchId, matchId);
+        expect(pending.target.value?.notificationId, noticeId);
       });
 
       test('a notice naming no match still gets a route', () {
@@ -278,6 +404,54 @@ void main() {
       });
     });
 
+    group('the match already on screen', () {
+      // What stops a notification for the match the reader is looking at from
+      // pushing a second copy of that same screen on top of it.
+      final registry = CurrentMatchDetails.instance;
+
+      tearDown(() => registry.unbind(registry));
+
+      test('reloads in place instead of opening a second copy', () {
+        final owner = Object();
+        var reloads = 0;
+        registry.bind(owner, 'match-1', () => reloads++);
+        addTearDown(() => registry.unbind(owner));
+
+        expect(registry.reloadIfShowing('match-1'), isTrue);
+        expect(reloads, 1);
+      });
+
+      test('a different match is left to open normally', () {
+        final owner = Object();
+        var reloads = 0;
+        registry.bind(owner, 'match-1', () => reloads++);
+        addTearDown(() => registry.unbind(owner));
+
+        expect(registry.reloadIfShowing('match-2'), isFalse);
+        expect(reloads, 0);
+      });
+
+      test('nothing on screen means nothing to reload', () {
+        expect(registry.reloadIfShowing('match-1'), isFalse);
+        expect(registry.matchId, isNull);
+      });
+
+      test('a stacked screen does not have its registration cleared by the '
+          'one underneath', () {
+        // Two Match Details can legitimately coexist — opened by hand, not by
+        // notification. The lower one disposing must not unbind the upper.
+        final lower = Object();
+        final upper = Object();
+        registry.bind(lower, 'match-1', () {});
+        registry.bind(upper, 'match-2', () {});
+        addTearDown(() => registry.unbind(upper));
+
+        registry.unbind(lower);
+
+        expect(registry.matchId, 'match-2');
+      });
+    });
+
     group('when the match cannot be opened', () {
       test('falls back to the Center', () async {
         final target = await NotificationTarget.fromPushData(
@@ -348,7 +522,12 @@ void main() {
       );
 
       // The English label, not the Arabic the database stored.
-      expect(find.text('The match was deleted.'), findsOneWidget);
+      //
+      // "cancelled", not "deleted": the type keeps its identifier but the
+      // player-facing wording matches the push title, which has always said
+      // cancelled. The product has no cancelled status — a match that will not
+      // be played is deleted — so this is the one word the reader sees for it.
+      expect(find.text('The match was cancelled.'), findsOneWidget);
     });
 
     testWidgets('a new match announcement renders as a produced type',
@@ -367,6 +546,128 @@ void main() {
 
       expect(find.text('A new match has been created.'), findsOneWidget);
       expect(find.text('مباراة الخميس — الملعب.'), findsNothing);
+    });
+
+    testWidgets('every live type names the match it is about', (tester) async {
+      // The defect this cycle exists to fix: three notices of the same kind
+      // were three identical rows. The event is the title; the match is the
+      // line under it, and it is what tells them apart.
+      const live = [
+        'match_created',
+        'match_updated',
+        'promoted',
+        'moved_to_reserve',
+        'removed',
+      ];
+
+      await pumpCentre(
+        tester,
+        FakeNotificationAdapter(notifications: [
+          for (final type in live)
+            notice(
+              type: type,
+              message: 'مباراة الجمعة',
+              matchId: 'match-$type',
+              matchTitle: 'مباراة الجمعة',
+              id: type,
+            ),
+        ]),
+      );
+
+      // One subtitle per notice, and the event label still above each.
+      expect(find.text('مباراة الجمعة'), findsNWidgets(live.length));
+      expect(find.text('A new match has been created.'), findsOneWidget);
+      expect(find.text('Match details were updated.'), findsOneWidget);
+      expect(find.text('The organizer removed you from the match.'),
+          findsOneWidget);
+    });
+
+    testWidgets('a cancelled match carries no match line', (tester) async {
+      // `match_id` is nulled by the delete, so there is nothing to join to and
+      // nothing to name. The tile says what happened and stops there.
+      await pumpCentre(
+        tester,
+        FakeNotificationAdapter(notifications: [
+          notice(type: 'match_deleted', message: 'مباراة الجمعة'),
+        ]),
+      );
+
+      final tile = tester.widget<ListTile>(find.byType(ListTile));
+      expect(tile.onTap, isNull);
+      expect(tile.isThreeLine, isFalse);
+      expect(find.text('The match was cancelled.'), findsOneWidget);
+    });
+
+    testWidgets('tapping a notice marks that one read and opens its match',
+        (tester) async {
+      final adapter = FakeNotificationAdapter(notifications: [
+        notice(
+          type: 'promoted',
+          message: 'مباراة الجمعة',
+          matchId: 'match-1',
+          matchTitle: 'مباراة الجمعة',
+          id: 'notice-1',
+        ),
+      ]);
+      final opened = <String>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: NotificationsScreen(
+            service: NotificationService(adapter),
+            onOpenMatch: opened.add,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(ListTile));
+      await tester.pumpAndSettle();
+
+      // That one, by id — not the sweep the screen does on open.
+      expect(adapter.readIds, ['notice-1']);
+      expect(opened, ['match-1']);
+    });
+
+    testWidgets('a failed mark-read still opens the match', (tester) async {
+      // Best-effort, and this is what that has to mean: an unread badge is a
+      // cosmetic wrong, while swallowing the tap is the defect this whole
+      // feature exists to fix. The same call site serves a tapped push.
+      final adapter = FakeNotificationAdapter(
+        failMarkRead: true,
+        notifications: [
+          notice(
+            type: 'promoted',
+            message: 'مباراة الجمعة',
+            matchId: 'match-1',
+            matchTitle: 'مباراة الجمعة',
+            id: 'notice-1',
+          ),
+        ],
+      );
+      final opened = <String>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: NotificationsScreen(
+            service: NotificationService(adapter),
+            onOpenMatch: opened.add,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(ListTile));
+      await tester.pumpAndSettle();
+
+      expect(adapter.readIds, isEmpty);
+      expect(opened, ['match-1']);
     });
 
     testWidgets('a notice about a match is tappable', (tester) async {
@@ -501,30 +802,37 @@ AppNotification notice({
   required String type,
   required String message,
   String? matchId,
+  String? matchTitle,
+  String? id,
 }) =>
     AppNotification(
-      id: type,
+      id: id ?? type,
       type: type,
       message: message,
       isRead: false,
       createdAt: DateTime(2026, 8, 9, 18, 30),
       matchId: matchId,
+      matchTitle: matchTitle,
     );
 
 class FakeNotificationAdapter implements NotificationAdapter {
   FakeNotificationAdapter({
     this.stored = const PushPreferences(),
     this.failSave = false,
+    this.failMarkRead = false,
     this.notifications = const [],
   });
 
   final PushPreferences stored;
   final bool failSave;
+  final bool failMarkRead;
   final List<AppNotification> notifications;
 
   final List<PushPreferences> saved = [];
   final List<String> registered = [];
   final List<String> removed = [];
+  final List<String> readIds = [];
+  int markAllReadCalls = 0;
 
   @override
   Future<PushPreferences> fetchPushPreferences() async => stored;
@@ -553,5 +861,11 @@ class FakeNotificationAdapter implements NotificationAdapter {
       notifications.where((n) => !n.isRead).length;
 
   @override
-  Future<void> markAllRead() async {}
+  Future<void> markAllRead() async => markAllReadCalls++;
+
+  @override
+  Future<void> markRead(String notificationId) async {
+    if (failMarkRead) throw const NetworkFailure();
+    readIds.add(notificationId);
+  }
 }

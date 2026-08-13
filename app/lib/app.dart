@@ -14,7 +14,9 @@ import 'features/invitations/invite_link.dart';
 import 'features/matches/match_details_screen.dart';
 import 'features/matches/match_service.dart';
 import 'features/notifications/notification_route.dart';
+import 'features/notifications/notification_service.dart';
 import 'features/notifications/notifications_screen.dart';
+import 'features/notifications/push_service.dart';
 
 class GoPlayApp extends StatefulWidget {
   const GoPlayApp({super.key});
@@ -39,6 +41,10 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Attached before anything can be offered, so a tap that arrives during
+    // this method is not published to an empty room.
+    PendingNotificationTap.instance.target.addListener(_openTappedNotification);
+
     // A cold start from a tapped invitation arrives here, before any frame.
     PendingInvite.instance.offer(PlatformDispatcher.instance.defaultRouteName);
     // And a cold start from a tapped **web** push, which arrives the same way
@@ -47,7 +53,13 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
     // notification route carries no join code and is rejected by
     // `InviteLink.parse` before this runs.
     _consumeNotificationLink(PlatformDispatcher.instance.defaultRouteName);
-    PendingNotificationTap.instance.target.addListener(_openTappedNotification);
+
+    // The cold-start case needs one more nudge. Everything above runs before
+    // the first frame, so there is no Navigator yet and the listener above can
+    // only decline — which it does *without* consuming the tap. This is where
+    // it is picked up, once there is something to navigate with.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _openTappedNotification());
   }
 
   /// Takes a notification target out of an incoming route and clears it from
@@ -82,25 +94,64 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
   /// leave it set while the match is being checked, and a second tap arriving in
   /// that window would be dropped as a duplicate of one already consumed.
   Future<void> _openTappedNotification() async {
+    // Nothing to navigate with yet. A cold start reaches here before the first
+    // frame, and **returning without consuming is the whole point**: the tap
+    // stays pending and the post-frame callback in `initState` collects it.
+    // Clearing first would have destroyed exactly the taps this feature is for.
+    if (_navigatorKey.currentState == null) return;
+
     final requested = PendingNotificationTap.instance.target.value;
     if (requested == null) return;
     PendingNotificationTap.instance.clear();
 
+    // The reader acted on this notice, so it is read — before navigating, and
+    // regardless of where they land. Best-effort: a notice that stays unread is
+    // a stale badge, never a lost notice, and is not worth failing a tap over.
+    final noticeId = requested.notificationId;
+    if (noticeId != null) {
+      try {
+        await NotificationService().markRead(noticeId);
+      } catch (_) {
+        // See above.
+      }
+    }
+
     final target = await requested.resolved(_matchOpens);
 
-    // Read after the await: the app may have been torn down while the match was
-    // being checked.
+    // Already looking at it. Refresh in place rather than stacking a second
+    // copy of the same screen — otherwise Back returns to a stale duplicate of
+    // where the reader already was.
+    if (target.opensMatch &&
+        CurrentMatchDetails.instance.reloadIfShowing(target.matchId!)) {
+      _notificationsChanged();
+      return;
+    }
+
+    // Read after the awaits: the app may have been torn down meanwhile.
     final navigator = _navigatorKey.currentState;
     if (navigator == null) return;
 
-    navigator.push(
+    await navigator.push(
       MaterialPageRoute(
         builder: (_) => target.opensMatch
             ? MatchDetailsScreen(matchId: target.matchId!)
             : const NotificationsScreen(),
       ),
     );
+
+    // Back from the destination. Whatever was underneath was rendered before
+    // the notice was read and before the roster moved, so it is told to re-read.
+    _notificationsChanged();
   }
+
+  /// Tells the screens that watch the Notification Center to re-read it.
+  ///
+  /// This is the signal `HomeTab` and `MatchDetailsScreen` already listen to.
+  /// Reused rather than duplicated: its meaning is "the notification state has
+  /// moved, re-read the record", and marking a notice read moves it exactly as
+  /// a push arriving does.
+  void _notificationsChanged() =>
+      PushService.instance.foregroundPushes.value++;
 
   /// Whether Match Details would have something to show.
   ///
