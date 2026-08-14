@@ -155,6 +155,15 @@ class SupabaseFailureMapper {
     // and it is classified the same way.
     'COMMUNITY_INACTIVE': ConflictFailure(FailureReason.communityInactive),
 
+    // Opening another player's profile. Both are outcomes `player_profile`
+    // raises (migration `0043`). The first is an authorization refusal that
+    // words itself, because "you do not have permission" would name a rule the
+    // reader cannot see; the second is an id that names nobody.
+    'PROFILE_NOT_VISIBLE': AuthorizationFailure(
+      FailureReason.profileNotVisible,
+    ),
+    'USER_NOT_FOUND': NotFoundFailure(FailureReason.profileNotFound),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),

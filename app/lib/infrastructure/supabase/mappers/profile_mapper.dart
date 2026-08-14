@@ -1,6 +1,7 @@
 import '../../../features/auth/auth_models.dart';
 import '../../../features/profile/profile_models.dart';
 import 'auth_mapper.dart';
+import 'result_mapper.dart';
 
 // Conversion between the `users` row and the player's own profile model.
 //
@@ -32,6 +33,62 @@ PlayerProfile playerProfileFromRow(
     secondaryPosition:
         secondary == null ? null : playerPositionFromDb(secondary),
     avatarUrl: avatarUrl,
+    privacy: profilePrivacyFromRow(row),
+  );
+}
+
+/// The two privacy columns migration `0043` added, read off the same row.
+///
+/// An older row — or a projection that did not ask for them — reads as the
+/// column defaults rather than as an error: `EVERYONE` with the age shown is
+/// what the database stores for an account that has never been configured.
+ProfilePrivacy profilePrivacyFromRow(Map<String, dynamic> row) =>
+    ProfilePrivacy(
+      visibility: profileVisibilityFromDb(row['profile_visibility'] as String?),
+      ageVisible: row['age_visible'] as bool? ?? true,
+    );
+
+/// An unrecognised value reads as [ProfileVisibility.everyone]: that is the
+/// column default and what every row carried before the setting existed.
+ProfileVisibility profileVisibilityFromDb(String? value) =>
+    value == 'COMMUNITY_MEMBERS'
+        ? ProfileVisibility.communityMembersOnly
+        : ProfileVisibility.everyone;
+
+String profileVisibilityToDb(ProfileVisibility visibility) =>
+    switch (visibility) {
+      ProfileVisibility.everyone => 'EVERYONE',
+      ProfileVisibility.communityMembersOnly => 'COMMUNITY_MEMBERS',
+    };
+
+/// The two columns the privacy settings write, and no others.
+Map<String, dynamic> privacyUpdateToRow(ProfilePrivacy privacy) => {
+      'profile_visibility': profileVisibilityToDb(privacy.visibility),
+      'age_visible': privacy.ageVisible,
+    };
+
+/// Reads one row of `player_profile` (migration `0043`).
+///
+/// The function decides what the row contains, so nothing is filtered here: a
+/// missing `date_of_birth` is a hidden age or an unset one, and this reports the
+/// absence either way. There is no phone, email or authentication identifier to
+/// read — the function does not return any.
+PlayerProfileView playerProfileViewFromRow(
+  Map<String, dynamic> row, {
+  String? avatarUrl,
+}) {
+  final dateOfBirth = row['date_of_birth'] as String?;
+  final secondary = row['secondary_position'] as String?;
+  return PlayerProfileView(
+    userId: row['user_id'] as String,
+    fullName: row['full_name'] as String? ?? '',
+    primaryPosition: playerPositionFromDb(row['primary_position'] as String),
+    secondaryPosition:
+        secondary == null ? null : playerPositionFromDb(secondary),
+    dateOfBirth: dateOfBirth == null ? null : DateTime.parse(dateOfBirth),
+    avatarUrl: avatarUrl,
+    isSelf: row['is_self'] as bool? ?? false,
+    statistics: playerStatisticsFromRow(row),
   );
 }
 

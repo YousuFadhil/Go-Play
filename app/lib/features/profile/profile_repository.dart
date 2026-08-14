@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_profile_adapter.dart';
 import '../auth/auth_models.dart';
 import 'profile_adapter.dart';
@@ -21,6 +22,21 @@ class ProfileRepository {
 
   /// The player's stored profile, missing date of birth and all.
   Future<PlayerProfile> fetchMyProfile() => _adapter.fetchMyProfile();
+
+  /// Another player's profile, as this viewer is allowed to see it.
+  ///
+  /// A straight pass-through, and deliberately: whether the viewer may open the
+  /// profile is the server's decision (`player_profile`, migration `0043`), and
+  /// a second answer here would be a rule the database does not know about. A
+  /// refusal arrives as an [AuthorizationFailure] carrying
+  /// [FailureReason.profileNotVisible].
+  Future<PlayerProfileView> fetchPlayerProfile(String userId) =>
+      _adapter.fetchPlayerProfile(userId);
+
+  /// Stores the player's privacy preferences: who may open their profile, and
+  /// whether other players are given the date their age is derived from.
+  Future<void> saveMyPrivacy(ProfilePrivacy privacy) =>
+      _adapter.updateMyPrivacy(privacy);
 
   /// Stores the player's playing inputs.
   ///

@@ -42,11 +42,16 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const MaterialApp(
-      locale: Locale('en'),
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('en'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: SettingsScreen(),
+      // The privacy card reads the player's own row. It is not what this file
+      // is about, but it is on the screen, so it is given a port rather than
+      // left to reach for the production one.
+      home: SettingsScreen(
+        profileRepository: ProfileRepository(_StaticProfileAdapter(profile)),
+      ),
     ));
     await tester.pumpAndSettle();
   }
@@ -141,4 +146,14 @@ class _StaticProfileAdapter implements ProfileAdapter {
 
   @override
   Future<void> removeMyAvatar() => throw UnimplementedError();
+
+  // Requirement 2 added two members to the port. Neither is reached from this
+  // test, so both refuse rather than answer.
+  @override
+  Future<PlayerProfileView> fetchPlayerProfile(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateMyPrivacy(ProfilePrivacy privacy) =>
+      throw UnimplementedError();
 }

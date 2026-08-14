@@ -483,5 +483,22 @@
   "matchRosterEmpty": "لم ينضم أحد إلى هذه المباراة بعد.",
   "matchManagementSubtitle": "عدّل المباراة، أو أدر القائمة، أو احذفها.",
   "statCompletedMatches": "المباريات المكتملة",
-  "leaderboardTopPlayer": "المتصدّر"
+  "leaderboardTopPlayer": "المتصدّر",
+
+  "matchMembershipRequiredTitle": "انضم إلى المجتمع أولاً",
+  "matchMembershipRequiredBody": "هذه المباراة تخص {community}. انضم إلى المجتمع لعرض المباراة والتسجيل فيها.",
+  "matchMembershipRequiredBodyUnnamed": "هذه المباراة تخص مجتمعاً لم تنضم إليه. انضم إلى المجتمع لعرض المباراة والتسجيل فيها.",
+
+  "playerProfileTitle": "ملف اللاعب",
+  "profileNotVisibleTitle": "الملف غير متاح",
+  "errProfileNotVisible": "هذا اللاعب يشارك ملفه مع أعضاء مجتمعه فقط.",
+  "settingsPrivacySection": "الخصوصية",
+  "profileVisibilityEveryone": "الجميع",
+  "profileVisibilityEveryoneHelp": "يستطيع أي لاعب في Go Play فتح ملفك الشخصي.",
+  "profileVisibilityCommunityMembers": "أعضاء المجتمع فقط",
+  "profileVisibilityCommunityMembersHelp": "لا يفتح ملفك إلا اللاعبون الذين يشاركونك مجتمعاً.",
+  "teamsShownOutOfLine": "مرسوم في خط آخر. مركزه: {position}.",
+
+  "profileAgeVisibleLabel": "إظهار عمري",
+  "profileAgeVisibleHelp": "يُحتسب عمرك من تاريخ ميلادك. عطّل هذا الخيار فلن يراه اللاعبون الآخرون."
 }

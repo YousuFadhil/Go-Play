@@ -24,6 +24,12 @@ class MatchService {
 
   Future<Match> fetchMatch(String matchId) => _adapter.fetchMatch(matchId);
 
+  /// Why a match could not be read: a missing match, or one whose community the
+  /// reader has not joined. Asked only after a read failed — see
+  /// [MatchAccessContext].
+  Future<MatchAccessContext> fetchAccessContext(String matchId) =>
+      _adapter.fetchAccessContext(matchId);
+
   /// Creates a match. Maximum registration is derived by the database from
   /// the starting players plus the global reserve setting.
   Future<void> createMatch({

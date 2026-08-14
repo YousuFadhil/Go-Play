@@ -133,6 +133,19 @@ void main() {
               .having((f) => f.reason, 'reason', FailureReason.memberNotFound));
     });
 
+    test('a profile the viewer may not open is an authorization refusal', () {
+      // It words itself rather than falling back on the generic permission
+      // sentence, because "you do not have permission" would name a rule the
+      // reader has no way of knowing exists. The *type* is still what
+      // behaviour follows.
+      expect(map(raised('PROFILE_NOT_VISIBLE')),
+          isA<AuthorizationFailure>().having(
+              (f) => f.reason, 'reason', FailureReason.profileNotVisible));
+      expect(map(raised('USER_NOT_FOUND')),
+          isA<NotFoundFailure>().having(
+              (f) => f.reason, 'reason', FailureReason.profileNotFound));
+    });
+
     test('joining refusals keep their reason', () {
       expect(map(raised('JOIN_CODE_REQUIRED')).reason,
           FailureReason.joinCodeRequired);

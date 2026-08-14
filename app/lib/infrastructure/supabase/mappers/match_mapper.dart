@@ -1,5 +1,6 @@
 import '../../../core/failures.dart';
 import '../../../features/matches/match_models.dart';
+import 'community_mapper.dart';
 
 // Conversion between Supabase rows and the match Domain Models.
 //
@@ -40,6 +41,21 @@ Match matchFromRow(Map<String, dynamic> row) => Match(
       communityName: (row['community'] as Map<String, dynamic>?)?['name']
           as String?,
     );
+
+/// Reads one row of `match_membership_context` (migration `0042`).
+///
+/// A row that says the match does not exist carries nulls for everything else,
+/// which is what the model reports back: there is no community to name.
+MatchAccessContext matchAccessContextFromRow(Map<String, dynamic> row) {
+  final policy = row['join_policy'] as String?;
+  return MatchAccessContext(
+    matchExists: row['match_exists'] as bool? ?? false,
+    isMember: row['is_member'] as bool? ?? false,
+    communityId: row['community_id'] as String?,
+    communityName: row['community_name'] as String?,
+    joinPolicy: policy == null ? null : joinPolicyFromDb(policy),
+  );
+}
 
 /// Reads a registration row joined with the player profile.
 MatchRegistration matchRegistrationFromRow(Map<String, dynamic> row) {

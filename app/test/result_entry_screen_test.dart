@@ -702,6 +702,12 @@ class FakeMatchAdapter implements MatchAdapter {
 
   @override
   Future<int?> fetchReservePlayers() => throw UnimplementedError();
+
+  // Asked only when a match read failed as not-found or unauthorized, which
+  // this test never provokes.
+  @override
+  Future<MatchAccessContext> fetchAccessContext(String matchId) =>
+      throw UnimplementedError();
 }
 
 class FakeMemberAdapter implements MemberAdapter {

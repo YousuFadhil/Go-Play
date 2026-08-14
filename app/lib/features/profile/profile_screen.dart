@@ -36,11 +36,18 @@ import 'profile_repository.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
+    this.userId,
     this.profileRepository,
     this.resultRepository,
     this.communityRepository,
     this.authService,
   });
+
+  /// Whose profile this is. Null is the signed-in player's own, which is what
+  /// every existing caller means; a member tapped in a community roster passes
+  /// their id and gets the same screen, read-only and without the account's own
+  /// controls on it.
+  final String? userId;
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final ProfileRepository? profileRepository;
@@ -53,11 +60,42 @@ class ProfileScreen extends StatefulWidget {
 }
 
 /// What one build of the screen needs, read in one pass.
-typedef _ProfileView = ({
-  PlayerProfile profile,
-  PlayerStatistics statistics,
-  int communities,
-});
+///
+/// One shape for both readings of the screen. The player's own profile fills in
+/// [communities] and offers the account controls; somebody else's does neither,
+/// and carries only what the server was willing to send.
+class _ProfileView {
+  const _ProfileView({
+    required this.fullName,
+    required this.primaryPosition,
+    required this.statistics,
+    required this.isSelf,
+    this.avatarUrl,
+    this.age,
+    this.communities,
+  });
+
+  final String fullName;
+  final PlayerPosition primaryPosition;
+  final PlayerStatistics statistics;
+
+  /// Whether this is the player looking at themselves. It decides which
+  /// controls are on the screen and nothing about what may be read — the server
+  /// has already decided that.
+  final bool isSelf;
+
+  final String? avatarUrl;
+
+  /// Completed years, derived from the date of birth and never stored
+  /// (`KB-C7`). Null when the player has none recorded, and null when they have
+  /// hidden their age — the date does not leave the database in that case, so
+  /// there is nothing here to hide.
+  final int? age;
+
+  /// How many communities the player belongs to. Their own figure only: how many
+  /// clubs somebody else is in is not part of the profile they publish.
+  final int? communities;
+}
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late final ProfileRepository _profiles =
@@ -76,7 +114,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _future = _load();
   }
 
-  Future<_ProfileView> _load() async {
+  /// Whether this build is the player's own record or somebody else's.
+  bool get _isOwnProfile => widget.userId == null;
+
+  Future<_ProfileView> _load() =>
+      _isOwnProfile ? _loadOwnProfile() : _loadPlayerProfile(widget.userId!);
+
+  Future<_ProfileView> _loadOwnProfile() async {
     final userId = _auth.currentUserId;
     // A record is somebody's, so without a session there is no row to name.
     if (userId == null) throw const AuthenticationFailure();
@@ -87,10 +131,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _communities.fetchMyCommunities(),
     ]);
 
-    return (
-      profile: results[0] as PlayerProfile,
+    final profile = results[0] as PlayerProfile;
+    return _ProfileView(
+      fullName: profile.fullName,
+      primaryPosition: profile.primaryPosition,
+      avatarUrl: profile.avatarUrl,
+      // The owner always sees their own age, whatever they have set for
+      // everybody else. This is their own row, read through their own session.
+      age: profile.age,
       statistics: results[1] as PlayerStatistics,
       communities: (results[2] as List).length,
+      isSelf: true,
+    );
+  }
+
+  /// Another player's profile, in one read.
+  ///
+  /// One call and not three: the server decides whether this viewer may open the
+  /// profile at all (`player_profile`, migration `0043`), and the counters come
+  /// back with it. Asking separately would be asking a question the refusal has
+  /// already answered.
+  Future<_ProfileView> _loadPlayerProfile(String userId) async {
+    final player = await _profiles.fetchPlayerProfile(userId);
+    return _ProfileView(
+      fullName: player.fullName,
+      primaryPosition: player.primaryPosition,
+      avatarUrl: player.avatarUrl,
+      age: player.age,
+      statistics: player.statistics,
+      isSelf: player.isSelf,
     );
   }
 
@@ -114,7 +183,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppHeader(title: Text(l10n.profileTitle)),
+      appBar: AppHeader(
+        title:
+            Text(_isOwnProfile ? l10n.profileTitle : l10n.playerProfileTitle),
+      ),
       body: FutureBuilder<_ProfileView>(
         future: _future,
         builder: (context, snapshot) {
@@ -122,6 +194,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             return const _ProfileSkeleton();
           }
           if (snapshot.hasError || !snapshot.hasData) {
+            // A profile the player keeps to their community is not a failed
+            // read, and reporting it as one would offer a retry that is certain
+            // to fail again. It is the one refusal this screen words for itself.
+            final error = snapshot.error;
+            if (error is Failure &&
+                error.reason == FailureReason.profileNotVisible) {
+              return EmptyState(
+                icon: Icons.lock_outline,
+                title: l10n.profileNotVisibleTitle,
+                message: l10n.errProfileNotVisible,
+              );
+            }
             return ErrorState(onRetry: _refresh);
           }
 
@@ -132,7 +216,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.only(bottom: Gap.xxl),
               children: [
-                _Identity(profile: view.profile, onEdit: _openEdit),
+                _Identity(
+                  view: view,
+                  // Editing is the account's own action, so it is offered on
+                  // the player's own record and nowhere else.
+                  onEdit: _isOwnProfile ? _openEdit : null,
+                ),
                 _RatingPanel(rating: view.statistics.currentRating),
                 _Counters(
                   statistics: view.statistics,
@@ -164,34 +253,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // first. It stays on the record rather than moving to the
                 // form: signing out is something a person does, not something
                 // they edit.
-                SectionCard(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.settings_outlined),
-                      title: Text(l10n.settingsTitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
+                //
+                // Somebody else's record carries none of it: settings and
+                // logout belong to the account, not to the profile.
+                if (_isOwnProfile)
+                  SectionCard(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.settings_outlined),
+                        title: Text(l10n.settingsTitle),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
                         ),
                       ),
-                    ),
-                    ListTile(
-                      leading: Icon(
-                        Icons.logout,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                      title: Text(
-                        l10n.logoutLabel,
-                        style: TextStyle(
+                      ListTile(
+                        leading: Icon(
+                          Icons.logout,
                           color: Theme.of(context).colorScheme.error,
                         ),
+                        title: Text(
+                          l10n.logoutLabel,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                        onTap: () => logOut(context),
                       ),
-                      onTap: () => logOut(context),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
           );
@@ -201,22 +294,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-/// The player: their face, their name, and the way to change either.
+/// The player: their face, their name, their age, and — on their own record —
+/// the way to change any of it.
 ///
-/// The age used to sit here and no longer does. A header is the footballing
-/// identity — who this is, and what they are rated — and a date arithmetic
-/// result was the least interesting thing on it. It is on the edit form now,
-/// beside the date of birth it is derived from.
+/// The age is back on the header, and for a reason that is not decoration: it is
+/// the thing the age-visibility setting is about, and a setting whose effect is
+/// on a form nobody else can open would not be a setting about other people at
+/// all. It is shown when there is one to show, which for another player means
+/// the server sent a date of birth — a hidden age arrives as no date and
+/// therefore as no line, rather than as a line this widget declines to draw.
 class _Identity extends StatelessWidget {
-  const _Identity({required this.profile, required this.onEdit});
+  const _Identity({required this.view, this.onEdit});
 
-  final PlayerProfile profile;
-  final VoidCallback onEdit;
+  final _ProfileView view;
+
+  /// Null on somebody else's record: there is nothing to edit there.
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final age = view.age;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -227,28 +326,42 @@ class _Identity extends StatelessWidget {
       ),
       child: Column(
         children: [
-          UserAvatar(profile: profile, radius: 44),
+          UserAvatar(
+            avatarUrl: view.avatarUrl,
+            fullName: view.fullName,
+            radius: 44,
+          ),
           const SizedBox(height: Gap.md),
           Text(
-            profile.fullName,
+            view.fullName,
             textAlign: TextAlign.center,
             style: theme.textTheme.headlineSmall,
           ),
           const SizedBox(height: Gap.xs),
           Text(
-            _positionLabel(l10n, profile.primaryPosition),
+            _positionLabel(l10n, view.primaryPosition),
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.primary),
           ),
-          const SizedBox(height: Gap.lg),
-          FilledButton.tonalIcon(
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: Text(l10n.editProfileAction),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(kButtonHeight),
+          if (age != null) ...[
+            const SizedBox(height: Gap.xs),
+            Text(
+              l10n.ageYears(age),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-          ),
+          ],
+          if (onEdit != null) ...[
+            const SizedBox(height: Gap.lg),
+            FilledButton.tonalIcon(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: Text(l10n.editProfileAction),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(kButtonHeight),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -327,7 +440,10 @@ class _Counters extends StatelessWidget {
   const _Counters({required this.statistics, required this.communities});
 
   final PlayerStatistics statistics;
-  final int communities;
+
+  /// Null on somebody else's record. How many clubs a player is in is not part
+  /// of the profile they publish, so the card is absent rather than empty.
+  final int? communities;
 
   @override
   Widget build(BuildContext context) {
@@ -373,13 +489,14 @@ class _Counters extends StatelessWidget {
               value: statistics.mvpCount,
             ),
           ]),
-          _Row(children: [
-            StatCard(
-              icon: Icons.groups,
-              label: l10n.communitiesTitle,
-              value: communities,
-            ),
-          ]),
+          if (communities != null)
+            _Row(children: [
+              StatCard(
+                icon: Icons.groups,
+                label: l10n.communitiesTitle,
+                value: communities!,
+              ),
+            ]),
         ],
       ),
     );

@@ -7,6 +7,7 @@ import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../communities/community_models.dart';
 import '../auth/auth_service.dart';
+import '../profile/profile_screen.dart';
 import 'member_repository.dart';
 
 /// Roster of a community with the actions the viewer's role allows.
@@ -17,10 +18,16 @@ class MemberManagementScreen extends StatefulWidget {
     super.key,
     required this.communityId,
     required this.communityName,
+    this.memberRepository,
+    this.authService,
   });
 
   final String communityId;
   final String communityName;
+
+  /// Supplied only by tests, exactly as the repositories take an optional port.
+  final MemberRepository? memberRepository;
+  final AuthService? authService;
 
   @override
   State<MemberManagementScreen> createState() => _MemberManagementScreenState();
@@ -29,8 +36,9 @@ class MemberManagementScreen extends StatefulWidget {
 typedef _Data = (List<CommunityMember>, CommunityRole?);
 
 class _MemberManagementScreenState extends State<MemberManagementScreen> {
-  final _members = MemberRepository();
-  final _authService = AuthService();
+  late final MemberRepository _members =
+      widget.memberRepository ?? MemberRepository();
+  late final AuthService _authService = widget.authService ?? AuthService();
   late Future<_Data> _future;
   bool _busy = false;
 
@@ -109,6 +117,16 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
       ),
     );
     return result == true;
+  }
+
+  /// Opens a member's player profile — the existing screen, told whose record to
+  /// read. Tapping yourself lands on your own, which is the same screen again.
+  void _openProfile(CommunityMember member) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(userId: member.userId),
+      ),
+    );
   }
 
   String _roleLabel(AppLocalizations l10n, CommunityRole role) {
@@ -207,6 +225,12 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                       ),
                       title: Text(member.fullName),
                       subtitle: Text(_roleLabel(l10n, member.role)),
+                      // A name in a roster is a player, and a player has a
+                      // record. Whether this viewer may read it is the server's
+                      // decision — sharing this community is one of the two
+                      // things that opens a profile, so from here it ordinarily
+                      // is — and the profile screen reports a refusal itself.
+                      onTap: () => _openProfile(member),
                       trailing: _memberActions(
                         l10n: l10n,
                         member: member,

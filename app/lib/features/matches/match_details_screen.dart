@@ -6,6 +6,8 @@ import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../communities/community_models.dart';
+import '../communities/community_repository.dart';
+import '../communities/join_community_flow.dart';
 import '../auth/auth_service.dart';
 import '../members/member_repository.dart';
 import '../notifications/push_service.dart';
@@ -63,20 +65,62 @@ class CurrentMatchDetails {
   }
 }
 
+/// What one build of Match Details shows.
+///
+/// Two answers rather than one, because "the match did not load" was covering
+/// two different situations that need different screens. A member gets the
+/// match; somebody who has not joined the community gets told so and offered
+/// the way in. Anything else is still a failure and still reaches [ErrorState]
+/// through the [FutureBuilder] — a refusal is not a broken connection, and this
+/// is where the two stop being reported as the same thing.
+sealed class _MatchView {
+  const _MatchView();
+}
+
+class _MatchLoaded extends _MatchView {
+  const _MatchLoaded(this.match, this.registrations, this.myRole);
+
+  final Match match;
+  final List<MatchRegistration> registrations;
+  final CommunityRole? myRole;
+}
+
+class _MembershipRequired extends _MatchView {
+  const _MembershipRequired(this.access);
+
+  final MatchAccessContext access;
+}
+
 class MatchDetailsScreen extends StatefulWidget {
-  const MatchDetailsScreen({super.key, required this.matchId});
+  const MatchDetailsScreen({
+    super.key,
+    required this.matchId,
+    this.matchService,
+    this.memberRepository,
+    this.communityRepository,
+    this.authService,
+  });
 
   final String matchId;
+
+  /// Supplied only by tests, exactly as the repositories take an optional port.
+  final MatchService? matchService;
+  final MemberRepository? memberRepository;
+  final CommunityRepository? communityRepository;
+  final AuthService? authService;
 
   @override
   State<MatchDetailsScreen> createState() => _MatchDetailsScreenState();
 }
 
 class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
-  final _matchService = MatchService();
-  final _memberRepository = MemberRepository();
-  final _authService = AuthService();
-  late Future<(Match, List<MatchRegistration>, CommunityRole?)> _dataFuture;
+  late final MatchService _matchService = widget.matchService ?? MatchService();
+  late final MemberRepository _memberRepository =
+      widget.memberRepository ?? MemberRepository();
+  late final CommunityRepository _communityRepository =
+      widget.communityRepository ?? CommunityRepository();
+  late final AuthService _authService = widget.authService ?? AuthService();
+  late Future<_MatchView> _dataFuture;
   bool _isActionLoading = false;
 
   @override
@@ -98,17 +142,50 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     super.dispose();
   }
 
-  Future<(Match, List<MatchRegistration>, CommunityRole?)> _loadData() async {
-    final match = await _matchService.fetchMatch(widget.matchId);
+  Future<_MatchView> _loadData() async {
+    final Match match;
+    try {
+      match = await _matchService.fetchMatch(widget.matchId);
+    } on Failure catch (failure) {
+      final access = await _accessContextFor(failure);
+      if (access != null && access.membershipRequired) {
+        return _MembershipRequired(access);
+      }
+      rethrow;
+    }
+
     final results = await Future.wait([
       _matchService.fetchRegistrations(widget.matchId),
       _memberRepository.fetchMyRole(match.communityId),
     ]);
-    return (
+    return _MatchLoaded(
       match,
       results[0] as List<MatchRegistration>,
       results[1] as CommunityRole?,
     );
+  }
+
+  /// Asks *why* the match did not load, but only when the answer could be
+  /// membership.
+  ///
+  /// `matches_select_community_members` (migration `0007`) filters the row out
+  /// for a non-member, so the read fails as "there is no such match"
+  /// ([NotFoundFailure]) or, where the policy refused the statement outright, as
+  /// [AuthorizationFailure]. Those two are worth a second question. A dropped
+  /// connection or a database fault is not: the match may well be readable, and
+  /// asking would only turn one failure into two.
+  ///
+  /// Returns null when the question does not apply or could not be answered, in
+  /// which case the original failure stands and the screen reports it.
+  Future<MatchAccessContext?> _accessContextFor(Failure failure) async {
+    if (failure is! NotFoundFailure && failure is! AuthorizationFailure) {
+      return null;
+    }
+    try {
+      return await _matchService.fetchAccessContext(widget.matchId);
+    } on Failure catch (_) {
+      return null;
+    }
   }
 
   void _refresh() {
@@ -141,6 +218,28 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       FailureReason.notCommunityMember => l10n.errNotCommunityMember,
       _ => fallback,
     };
+  }
+
+  /// Joins the community that holds this match, then opens the match.
+  ///
+  /// The existing flow, unchanged and not re-implemented: an OPEN community
+  /// joins outright, one that requires its code asks for it, and being already a
+  /// member is a normal answer. All this adds is what to do afterwards — reload,
+  /// which is what turns the membership notice into the match.
+  Future<void> _joinCommunity(MatchAccessContext access) async {
+    final communityId = access.communityId;
+    if (communityId == null || _isActionLoading) return;
+
+    setState(() => _isActionLoading = true);
+    final joined = await runJoinCommunity(
+      context,
+      repository: _communityRepository,
+      communityId: communityId,
+      joinPolicy: access.joinPolicy,
+    );
+    if (!mounted) return;
+    setState(() => _isActionLoading = false);
+    if (joined) _refresh();
   }
 
   Future<void> _join() async {
@@ -272,7 +371,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
 
     return Scaffold(
       appBar: AppHeader(title: Text(l10n.matchDetailsTitle)),
-      body: FutureBuilder<(Match, List<MatchRegistration>, CommunityRole?)>(
+      body: FutureBuilder<_MatchView>(
         future: _dataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -282,7 +381,33 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
             return ErrorState(onRetry: _refresh);
           }
 
-          final (match, registrations, myRole) = snapshot.data!;
+          final view = snapshot.data!;
+          // Not a member of the community that holds this match. The match is
+          // still not shown — the database never sent it — but what is on
+          // screen is now the reason and the way past it rather than a failure
+          // the reader can do nothing about.
+          if (view is _MembershipRequired) {
+            return EmptyState(
+              icon: Icons.lock_outline,
+              title: l10n.matchMembershipRequiredTitle,
+              message: view.access.communityName == null
+                  ? l10n.matchMembershipRequiredBodyUnnamed
+                  : l10n.matchMembershipRequiredBody(
+                      view.access.communityName!,
+                    ),
+              action: FilledButton.icon(
+                onPressed:
+                    _isActionLoading ? null : () => _joinCommunity(view.access),
+                icon: const Icon(Icons.group_add_outlined, size: 18),
+                label: Text(l10n.joinCommunityButton),
+              ),
+            );
+          }
+
+          final loaded = view as _MatchLoaded;
+          final match = loaded.match;
+          final registrations = loaded.registrations;
+          final myRole = loaded.myRole;
           final confirmed = [
             for (final r in registrations)
               if (r.status == RegistrationStatus.confirmed) r,
