@@ -1411,4 +1411,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leaderboardTopPlayer => 'Leader';
+
+  @override
+  String get matchMembershipRequiredTitle => 'Join the community first';
+
+  @override
+  String matchMembershipRequiredBody(String community) {
+    return 'This match belongs to $community. Join the community to see the match and register for it.';
+  }
+
+  @override
+  String get matchMembershipRequiredBodyUnnamed =>
+      'This match belongs to a community you have not joined. Join the community to see the match and register for it.';
+
+  @override
+  String get playerProfileTitle => 'Player profile';
+
+  @override
+  String get profileNotVisibleTitle => 'Profile not available';
+
+  @override
+  String get errProfileNotVisible =>
+      'This player shares their profile with their community members only.';
+
+  @override
+  String get settingsPrivacySection => 'Privacy';
+
+  @override
+  String get profileVisibilityEveryone => 'Everyone';
+
+  @override
+  String get profileVisibilityEveryoneHelp =>
+      'Any Go Play player can open your profile.';
+
+  @override
+  String get profileVisibilityCommunityMembers => 'Community members only';
+
+  @override
+  String get profileVisibilityCommunityMembersHelp =>
+      'Only players who share a community with you can open your profile.';
+
+  @override
+  String teamsShownOutOfLine(String position) {
+    return 'Drawn in another line. Position: $position.';
+  }
+
+  @override
+  String get profileAgeVisibleLabel => 'Show my age';
+
+  @override
+  String get profileAgeVisibleHelp =>
+      'Your age is worked out from your date of birth. Turn this off and other players will not see it.';
 }

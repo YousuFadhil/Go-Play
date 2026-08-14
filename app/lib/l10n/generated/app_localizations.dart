@@ -2515,6 +2515,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Leader'**
   String get leaderboardTopPlayer;
+
+  /// No description provided for @matchMembershipRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join the community first'**
+  String get matchMembershipRequiredTitle;
+
+  /// No description provided for @matchMembershipRequiredBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This match belongs to {community}. Join the community to see the match and register for it.'**
+  String matchMembershipRequiredBody(String community);
+
+  /// No description provided for @matchMembershipRequiredBodyUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'This match belongs to a community you have not joined. Join the community to see the match and register for it.'**
+  String get matchMembershipRequiredBodyUnnamed;
+
+  /// No description provided for @playerProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Player profile'**
+  String get playerProfileTitle;
+
+  /// No description provided for @profileNotVisibleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile not available'**
+  String get profileNotVisibleTitle;
+
+  /// No description provided for @errProfileNotVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'This player shares their profile with their community members only.'**
+  String get errProfileNotVisible;
+
+  /// No description provided for @settingsPrivacySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get settingsPrivacySection;
+
+  /// No description provided for @profileVisibilityEveryone.
+  ///
+  /// In en, this message translates to:
+  /// **'Everyone'**
+  String get profileVisibilityEveryone;
+
+  /// No description provided for @profileVisibilityEveryoneHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Any Go Play player can open your profile.'**
+  String get profileVisibilityEveryoneHelp;
+
+  /// No description provided for @profileVisibilityCommunityMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Community members only'**
+  String get profileVisibilityCommunityMembers;
+
+  /// No description provided for @profileVisibilityCommunityMembersHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Only players who share a community with you can open your profile.'**
+  String get profileVisibilityCommunityMembersHelp;
+
+  /// No description provided for @teamsShownOutOfLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawn in another line. Position: {position}.'**
+  String teamsShownOutOfLine(String position);
+
+  /// No description provided for @profileAgeVisibleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show my age'**
+  String get profileAgeVisibleLabel;
+
+  /// No description provided for @profileAgeVisibleHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Your age is worked out from your date of birth. Turn this off and other players will not see it.'**
+  String get profileAgeVisibleHelp;
 }
 
 class _AppLocalizationsDelegate

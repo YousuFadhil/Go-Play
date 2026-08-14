@@ -1,5 +1,6 @@
 import '../../core/failures.dart';
 import '../auth/auth_models.dart';
+import '../results/result_models.dart';
 
 /// A player's own profile: who they are, how to reach them, and the inputs the
 /// Balanced Team Generation Engine reads (§4.1).
@@ -16,6 +17,53 @@ import '../auth/auth_models.dart';
 /// [dateOfBirth] is nullable because the schema allows it to be and the
 /// accounts that predate this feature have none. §4.3 forbids inventing one, so
 /// this reports what is stored and the player supplies the rest.
+/// Who may open a player's profile.
+///
+/// Two answers and no third. [everyone] is the default a new account carries —
+/// migration `0043` sets it on the column, so the default is one fact in one
+/// place rather than a value this layer also asserts.
+enum ProfileVisibility {
+  /// Any signed-in player may read the non-sensitive profile.
+  everyone,
+
+  /// Only players who share an active community with the owner.
+  communityMembersOnly,
+}
+
+/// What a player has decided about who sees what.
+///
+/// Held apart from [PlayerProfile] because it is not part of the record: it is
+/// the two preferences behind it, written from Settings and read nowhere a
+/// profile is drawn. The server is what enforces both (`player_profile`,
+/// migration `0043`); these are the values the settings screen shows back.
+class ProfilePrivacy {
+  const ProfilePrivacy({
+    required this.visibility,
+    required this.ageVisible,
+  });
+
+  /// What a profile that has never been configured means: visible to everyone,
+  /// with an age on it. The same defaults the column carries.
+  const ProfilePrivacy.defaults()
+      : visibility = ProfileVisibility.everyone,
+        ageVisible = true;
+
+  final ProfileVisibility visibility;
+
+  /// Whether other players receive the date of birth the age is derived from.
+  /// The owner always does.
+  final bool ageVisible;
+
+  ProfilePrivacy copyWith({
+    ProfileVisibility? visibility,
+    bool? ageVisible,
+  }) =>
+      ProfilePrivacy(
+        visibility: visibility ?? this.visibility,
+        ageVisible: ageVisible ?? this.ageVisible,
+      );
+}
+
 class PlayerProfile {
   const PlayerProfile({
     required this.fullName,
@@ -24,6 +72,7 @@ class PlayerProfile {
     this.dateOfBirth,
     this.secondaryPosition,
     this.avatarUrl,
+    this.privacy = const ProfilePrivacy.defaults(),
   });
 
   final String fullName;
@@ -49,6 +98,11 @@ class PlayerProfile {
   /// state of a new account, never an error.
   final String? avatarUrl;
 
+  /// What this player has decided about who sees their profile and their age.
+  /// Read here because this is the player's own row; it decides nothing on the
+  /// client, and the server refuses a profile the viewer may not open.
+  final ProfilePrivacy privacy;
+
   /// Whether the engine would accept this player (§4.1). Only the date of birth
   /// can be absent: the rating and the primary position are `NOT NULL`.
   bool get isComplete => dateOfBirth != null;
@@ -58,6 +112,64 @@ class PlayerProfile {
   /// Derived, never stored (`KB-C7`): a stored number is wrong from the next
   /// birthday onwards, and the engine already derives age the same way from the
   /// same date.
+  int? ageOn(DateTime asOf) {
+    final birth = dateOfBirth;
+    if (birth == null) return null;
+    var age = asOf.year - birth.year;
+    final hadBirthday = asOf.month > birth.month ||
+        (asOf.month == birth.month && asOf.day >= birth.day);
+    if (!hadBirthday) age -= 1;
+    return age;
+  }
+
+  /// Completed years today, in the device's local time (`DD-11`).
+  int? get age => ageOn(DateTime.now());
+}
+
+/// Another player's profile, as this viewer is allowed to see it.
+///
+/// A separate model from [PlayerProfile], and deliberately so. What keeps a
+/// phone number, an email address and an authentication identifier off somebody
+/// else's profile is not a screen remembering not to draw them — it is that
+/// there is nowhere here to put one. The server sends the same short list
+/// (`player_profile`, migration `0043`) and this is its shape.
+///
+/// [dateOfBirth] is null for two different reasons that are deliberately not
+/// distinguished: the player never gave one, or they have hidden their age. Both
+/// mean the same thing to a reader — there is no age to show — and telling them
+/// apart would leak the setting itself.
+class PlayerProfileView {
+  const PlayerProfileView({
+    required this.userId,
+    required this.fullName,
+    required this.primaryPosition,
+    required this.statistics,
+    required this.isSelf,
+    this.secondaryPosition,
+    this.dateOfBirth,
+    this.avatarUrl,
+  });
+
+  final String userId;
+  final String fullName;
+  final PlayerPosition primaryPosition;
+  final PlayerPosition? secondaryPosition;
+
+  /// The career record: the same counters the player's own profile shows.
+  final PlayerStatistics statistics;
+
+  /// Whether this is the viewer looking at themselves, which the server decides
+  /// from the session rather than the client from an id it was handed.
+  final bool isSelf;
+
+  /// Null when the player has none stored, and null when they have hidden their
+  /// age — the value never leaves the database in that case (`0043`).
+  final DateTime? dateOfBirth;
+
+  final String? avatarUrl;
+
+  /// Completed years as of [asOf], or null when there is no date to derive one
+  /// from. Derived, never stored (`KB-C7`) — exactly as on [PlayerProfile].
   int? ageOn(DateTime asOf) {
     final birth = dateOfBirth;
     if (birth == null) return null;

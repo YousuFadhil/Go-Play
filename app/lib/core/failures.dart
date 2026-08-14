@@ -152,4 +152,15 @@ enum FailureReason {
 
   // Identity
   emailAlreadyUsed,
+
+  // Opening another player's profile.
+  //
+  // The player set their profile to community members only and the viewer
+  // shares no active community with them. An authorization outcome, worded on
+  // its own because "you do not have permission" would describe a rule the
+  // reader has no way of knowing exists; nothing branches on it.
+  profileNotVisible,
+
+  // The id does not name an active player.
+  profileNotFound,
 }

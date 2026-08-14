@@ -50,6 +50,33 @@ class SupabaseMatchAdapter implements MatchAdapter {
         return matchFromRow(row);
       });
 
+  /// Why a match did not load, through `match_membership_context` (migration
+  /// `0042`).
+  ///
+  /// `matches_select_community_members` filters a match out of every read for a
+  /// non-member, so [fetchMatch] above answers a missing match and an
+  /// unreadable one identically. This is the follow-up question, and it is
+  /// deliberately a separate call rather than something folded into the read:
+  /// the ordinary path is a member opening their own community's match, and it
+  /// stays one request.
+  @override
+  Future<MatchAccessContext> fetchAccessContext(String matchId) => guarded(
+        () async {
+          final rows = await _client.rpc(
+            'match_membership_context',
+            params: {'p_match_id': matchId},
+          ) as List<dynamic>;
+          if (rows.isEmpty) {
+            return const MatchAccessContext(
+              matchExists: false,
+              isMember: false,
+            );
+          }
+          return matchAccessContextFromRow(rows.first as Map<String, dynamic>);
+        },
+        operation: 'rpc match_membership_context',
+      );
+
   /// Creates a match through `create_match` (migration `0026`).
   ///
   /// This was a direct insert, guarded by `matches_insert_community_admins`.

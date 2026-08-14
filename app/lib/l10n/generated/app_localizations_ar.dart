@@ -1398,4 +1398,55 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get leaderboardTopPlayer => 'المتصدّر';
+
+  @override
+  String get matchMembershipRequiredTitle => 'انضم إلى المجتمع أولاً';
+
+  @override
+  String matchMembershipRequiredBody(String community) {
+    return 'هذه المباراة تخص $community. انضم إلى المجتمع لعرض المباراة والتسجيل فيها.';
+  }
+
+  @override
+  String get matchMembershipRequiredBodyUnnamed =>
+      'هذه المباراة تخص مجتمعاً لم تنضم إليه. انضم إلى المجتمع لعرض المباراة والتسجيل فيها.';
+
+  @override
+  String get playerProfileTitle => 'ملف اللاعب';
+
+  @override
+  String get profileNotVisibleTitle => 'الملف غير متاح';
+
+  @override
+  String get errProfileNotVisible =>
+      'هذا اللاعب يشارك ملفه مع أعضاء مجتمعه فقط.';
+
+  @override
+  String get settingsPrivacySection => 'الخصوصية';
+
+  @override
+  String get profileVisibilityEveryone => 'الجميع';
+
+  @override
+  String get profileVisibilityEveryoneHelp =>
+      'يستطيع أي لاعب في Go Play فتح ملفك الشخصي.';
+
+  @override
+  String get profileVisibilityCommunityMembers => 'أعضاء المجتمع فقط';
+
+  @override
+  String get profileVisibilityCommunityMembersHelp =>
+      'لا يفتح ملفك إلا اللاعبون الذين يشاركونك مجتمعاً.';
+
+  @override
+  String teamsShownOutOfLine(String position) {
+    return 'مرسوم في خط آخر. مركزه: $position.';
+  }
+
+  @override
+  String get profileAgeVisibleLabel => 'إظهار عمري';
+
+  @override
+  String get profileAgeVisibleHelp =>
+      'يُحتسب عمرك من تاريخ ميلادك. عطّل هذا الخيار فلن يراه اللاعبون الآخرون.';
 }

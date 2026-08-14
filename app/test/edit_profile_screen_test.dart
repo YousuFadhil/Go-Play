@@ -634,6 +634,16 @@ class FakeProfileAdapter implements ProfileAdapter {
 
   @override
   Future<void> removeMyAvatar() async => avatarRemovals++;
+
+  // Requirement 2 added two members to the port. Neither is reached from this
+  // test, so both refuse rather than answer.
+  @override
+  Future<PlayerProfileView> fetchPlayerProfile(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateMyPrivacy(ProfilePrivacy privacy) =>
+      throw UnimplementedError();
 }
 
 /// The identity port, holding an email and recording the two credential

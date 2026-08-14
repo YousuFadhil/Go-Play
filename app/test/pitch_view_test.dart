@@ -42,6 +42,7 @@ void main() {
     required List<TeamAssignment> assignments,
     required List<PlayerCoreInputs> squad,
     bool? hasNaturalGoalkeeper,
+    Locale locale = const Locale('en'),
   }) async {
     tester.view.physicalSize = const Size(1000, 2000);
     tester.view.devicePixelRatio = 1;
@@ -49,6 +50,7 @@ void main() {
 
     final byId = {for (final p in squad) p.userId: p};
     await tester.pumpWidget(MaterialApp(
+      locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: Scaffold(
@@ -56,8 +58,8 @@ void main() {
           child: PitchView(
             assignments: assignments,
             players: byId,
-            hasNaturalGoalkeeper: hasNaturalGoalkeeper ??
-                squad.any((p) => p.isNaturalGoalkeeper),
+            hasNaturalGoalkeeper:
+                hasNaturalGoalkeeper ?? squad.any((p) => p.isNaturalGoalkeeper),
             nameOf: (id) => byId[id]?.fullName ?? '—',
           ),
         ),
@@ -117,6 +119,318 @@ void main() {
       );
 
       expect(find.byType(PlayerCard), findsNWidgets(3));
+    });
+  });
+
+  group('the attack is never drawn as large as the midfield', () {
+    /// The players drawn on each y, which is how a row is identified on a pitch:
+    /// everyone on one line shares a centre.
+    Map<double, int> rowSizes(WidgetTester tester, List<String> names) {
+      final rows = <double, int>{};
+      for (final name in names) {
+        final y = yOf(tester, name);
+        rows[y] = (rows[y] ?? 0) + 1;
+      }
+      return rows;
+    }
+
+    testWidgets('a squad of five forwards and two midfielders is rearranged',
+        (tester) async {
+      // The engine put five forwards and two midfielders on this side. Drawn
+      // literally that is three up front over two in the middle, which is the
+      // shape the rule forbids. Nobody is dropped to fix it.
+      final squad = [
+        for (var i = 0; i < 4; i++) player('d$i', Position.def),
+        for (var i = 0; i < 2; i++) player('m$i', Position.mid),
+        for (var i = 0; i < 5; i++) player('f$i', Position.fwd),
+      ];
+      final names = [
+        for (final p in squad) p.fullName,
+      ];
+      await pumpPitch(
+        tester,
+        assignments: [
+          for (var i = 0; i < 4; i++) at('d$i', Position.def),
+          for (var i = 0; i < 2; i++) at('m$i', Position.mid),
+          for (var i = 0; i < 5; i++) at('f$i', Position.fwd),
+        ],
+        squad: squad,
+        hasNaturalGoalkeeper: false,
+      );
+
+      // Every player is still on the pitch.
+      expect(find.byType(PlayerCard), findsNWidgets(11));
+
+      final rows = rowSizes(tester, names);
+      final ys = rows.keys.toList()..sort();
+      // Top row is the attack; the rows between it and the back line are the
+      // midfield.
+      final attack = rows[ys.first]!;
+      final defence = rows[ys.last]!;
+      final midfield = names.length - attack - defence;
+
+      expect(attack, lessThan(midfield));
+      expect(defence, 4, reason: 'the back line is untouched by the rule');
+    });
+
+    testWidgets('nothing moves when the drawing already satisfies the rule',
+        (tester) async {
+      final squad = [
+        for (var i = 0; i < 4; i++) player('d$i', Position.def),
+        for (var i = 0; i < 4; i++) player('m$i', Position.mid),
+        for (var i = 0; i < 3; i++) player('f$i', Position.fwd),
+      ];
+      await pumpPitch(
+        tester,
+        assignments: [
+          for (var i = 0; i < 4; i++) at('d$i', Position.def),
+          for (var i = 0; i < 4; i++) at('m$i', Position.mid),
+          for (var i = 0; i < 3; i++) at('f$i', Position.fwd),
+        ],
+        squad: squad,
+        hasNaturalGoalkeeper: false,
+      );
+
+      // The three forwards share the top line, which is where they started.
+      final top = yOf(tester, 'Player f0');
+      expect(yOf(tester, 'Player f1'), top);
+      expect(yOf(tester, 'Player f2'), top);
+      expect(yOf(tester, 'Player m0'), greaterThan(top));
+    });
+
+    testWidgets('a forward drawn in midfield is still marked as it was',
+        (tester) async {
+      // The drawing moved a card between rows. It did not change what the
+      // assignment says, which is what the out-of-position marker reports.
+      final squad = [
+        for (var i = 0; i < 3; i++) player('d$i', Position.def),
+        for (var i = 0; i < 3; i++) player('f$i', Position.mid),
+      ];
+      await pumpPitch(
+        tester,
+        assignments: [
+          for (var i = 0; i < 3; i++) at('d$i', Position.def),
+          for (var i = 0; i < 3; i++)
+            at('f$i', Position.fwd, basis: AssignmentBasis.transition),
+        ],
+        squad: squad,
+        hasNaturalGoalkeeper: false,
+      );
+
+      expect(find.byType(PlayerCard), findsNWidgets(6));
+      expect(find.text('Out of position'), findsNWidgets(3));
+    });
+  });
+
+  group('the marker on a card the drawing moved', () {
+    /// The live shape: three at the back, two in midfield, two up front. The
+    /// rule brings one forward down, so exactly one card is marked.
+    List<TeamAssignment> liveShape() => [
+          for (var i = 0; i < 3; i++) at('d$i', Position.def),
+          for (var i = 0; i < 2; i++) at('m$i', Position.mid),
+          for (var i = 0; i < 2; i++) at('f$i', Position.fwd),
+        ];
+
+    List<PlayerCoreInputs> liveSquad() => [
+          for (var i = 0; i < 3; i++) player('d$i', Position.def),
+          for (var i = 0; i < 2; i++) player('m$i', Position.mid),
+          for (var i = 0; i < 2; i++) player('f$i', Position.fwd),
+        ];
+
+    testWidgets('a forward drawn in midfield says what it actually is',
+        (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: liveShape(),
+        squad: liveSquad(),
+        hasNaturalGoalkeeper: false,
+      );
+
+      // One badge, naming the position the stored lineup holds.
+      expect(find.text('Forward'), findsOneWidget);
+      expect(find.byIcon(Icons.north), findsOneWidget);
+      // Everybody is still on the pitch.
+      expect(find.byType(PlayerCard), findsNWidgets(7));
+    });
+
+    testWidgets('the badge is on the moved card and on no other',
+        (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: liveShape(),
+        squad: liveSquad(),
+        hasNaturalGoalkeeper: false,
+      );
+
+      final marked = tester
+          .widgetList<PlayerCard>(find.byType(PlayerCard))
+          .where((card) => card.movedFrom != null)
+          .toList();
+
+      expect(marked, hasLength(1));
+      expect(marked.single.movedFrom, Position.fwd);
+      expect(marked.single.assignment.assignedPosition, Position.fwd,
+          reason: 'the card is marked, not rewritten');
+      expect(marked.single.assignment.userId, startsWith('f'));
+    });
+
+    testWidgets('a real midfielder carries no badge', (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: liveShape(),
+        squad: liveSquad(),
+        hasNaturalGoalkeeper: false,
+      );
+
+      final midfielders = tester
+          .widgetList<PlayerCard>(find.byType(PlayerCard))
+          .where((card) => card.assignment.userId.startsWith('m'));
+
+      expect(midfielders, hasLength(2));
+      for (final card in midfielders) {
+        expect(card.movedFrom, isNull);
+      }
+      // The midfield row holds three cards and only one of them is badged.
+      expect(find.text('Midfielder'), findsNothing,
+          reason: 'a card in the row its position names says nothing');
+    });
+
+    testWidgets('a pitch that moved nobody draws no badge', (tester) async {
+      final squad = [
+        for (var i = 0; i < 4; i++) player('d$i', Position.def),
+        for (var i = 0; i < 4; i++) player('m$i', Position.mid),
+        for (var i = 0; i < 3; i++) player('f$i', Position.fwd),
+      ];
+      await pumpPitch(
+        tester,
+        assignments: [
+          for (var i = 0; i < 4; i++) at('d$i', Position.def),
+          for (var i = 0; i < 4; i++) at('m$i', Position.mid),
+          for (var i = 0; i < 3; i++) at('f$i', Position.fwd),
+        ],
+        squad: squad,
+        hasNaturalGoalkeeper: false,
+      );
+
+      expect(find.byIcon(Icons.north), findsNothing);
+      expect(find.text('Forward'), findsNothing);
+    });
+
+    testWidgets('the badge is not the out-of-position marker', (tester) async {
+      // The two mean different things and are drawn separately. Here the engine
+      // played every player in their own position, so the §5.1 marker stays
+      // silent while the drawing's own marker speaks.
+      await pumpPitch(
+        tester,
+        assignments: liveShape(),
+        squad: liveSquad(),
+        hasNaturalGoalkeeper: false,
+      );
+
+      expect(find.text('Out of position'), findsNothing);
+      expect(find.byIcon(Icons.north), findsOneWidget);
+    });
+
+    testWidgets('a transition keeps its own marker alongside', (tester) async {
+      // A forward the engine placed out of their own position, then moved down
+      // a line by the drawing: both markers apply and both are shown, because
+      // they answer different questions.
+      final assignments = [
+        for (var i = 0; i < 3; i++) at('d$i', Position.def),
+        for (var i = 0; i < 2; i++) at('m$i', Position.mid),
+        at('f0', Position.fwd, basis: AssignmentBasis.transition),
+        at('f1', Position.fwd, basis: AssignmentBasis.transition),
+      ];
+      await pumpPitch(
+        tester,
+        assignments: assignments,
+        squad: liveSquad(),
+        hasNaturalGoalkeeper: false,
+      );
+
+      expect(find.text('Out of position'), findsNWidgets(2));
+      expect(find.byIcon(Icons.north), findsOneWidget,
+          reason: 'only one of the two forwards was moved by the drawing');
+    });
+
+    testWidgets('the badge reads the same way in Arabic', (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: liveShape(),
+        squad: liveSquad(),
+        hasNaturalGoalkeeper: false,
+        locale: const Locale('ar'),
+      );
+
+      expect(find.text('مهاجم'), findsOneWidget);
+      expect(find.byIcon(Icons.north), findsOneWidget);
+    });
+
+    testWidgets('the whole sentence is there for a screen reader',
+        (tester) async {
+      // The pill itself is an arrow and a word, which is all a card 82 pixels
+      // wide has room for. Anybody not reading it by eye gets the sentence.
+      await pumpPitch(
+        tester,
+        assignments: liveShape(),
+        squad: liveSquad(),
+        hasNaturalGoalkeeper: false,
+      );
+
+      final labels = tester
+          .widgetList<Semantics>(find.byType(Semantics))
+          .map((widget) => widget.properties.label)
+          .whereType<String>()
+          .toList();
+
+      expect(labels, contains('Drawn in another line. Position: Forward.'));
+    });
+
+    testWidgets('a row full of badged cards still fits', (tester) async {
+      // The badge sits inside the card's 82-pixel constraint. A midfield row of
+      // four badged forwards is the widest this gets, and it must not overflow.
+      final squad = [
+        for (var i = 0; i < 4; i++) player('d$i', Position.def),
+        for (var i = 0; i < 7; i++) player('f$i', Position.fwd),
+      ];
+      await pumpPitch(
+        tester,
+        assignments: [
+          for (var i = 0; i < 4; i++) at('d$i', Position.def),
+          for (var i = 0; i < 7; i++) at('f$i', Position.fwd),
+        ],
+        squad: squad,
+        hasNaturalGoalkeeper: false,
+      );
+
+      expect(find.byType(PlayerCard), findsNWidgets(11));
+      expect(find.text('Forward'), findsNWidgets(4),
+          reason: 'the four forwards drawn in midfield each say so');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the displayed rule still holds with the badge on',
+        (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: liveShape(),
+        squad: liveSquad(),
+        hasNaturalGoalkeeper: false,
+      );
+
+      final ys = <double, int>{};
+      for (var i = 0; i < 3; i++) {
+        ys.update(yOf(tester, 'Player d$i'), (n) => n + 1, ifAbsent: () => 1);
+      }
+      for (var i = 0; i < 2; i++) {
+        ys.update(yOf(tester, 'Player m$i'), (n) => n + 1, ifAbsent: () => 1);
+        ys.update(yOf(tester, 'Player f$i'), (n) => n + 1, ifAbsent: () => 1);
+      }
+      final rows = ys.keys.toList()..sort();
+
+      expect(ys[rows.first], 1, reason: 'one attacker on the top row');
+      expect(ys[rows[1]], 3, reason: 'three in midfield');
+      expect(ys[rows.last], 3, reason: 'three at the back, untouched');
     });
   });
 

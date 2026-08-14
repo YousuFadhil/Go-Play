@@ -1,3 +1,4 @@
+import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/design.dart';
@@ -87,6 +88,7 @@ class PitchView extends StatelessWidget {
                     line: row,
                     players: players,
                     nameOf: nameOf,
+                    movedFrom: formation.movedFrom,
                     onTapPlayer: onTapPlayer,
                   ),
               ],
@@ -188,12 +190,18 @@ class _PitchRow extends StatelessWidget {
     required this.line,
     required this.players,
     required this.nameOf,
+    required this.movedFrom,
     required this.onTapPlayer,
   });
 
   final List<TeamAssignment> line;
   final Map<String, PlayerCoreInputs> players;
   final String Function(String userId) nameOf;
+
+  /// Who on this pitch is drawn away from the line their position names, from
+  /// [PitchFormation.movedFrom]. Presentation state; it changes no assignment.
+  final Map<String, Position> movedFrom;
+
   final void Function(TeamAssignment assignment)? onTapPlayer;
 
   @override
@@ -210,9 +218,9 @@ class _PitchRow extends StatelessWidget {
                 assignment: assignment,
                 player: players[assignment.userId],
                 name: nameOf(assignment.userId),
-                onTap: onTapPlayer == null
-                    ? null
-                    : () => onTapPlayer!(assignment),
+                movedFrom: movedFrom[assignment.userId],
+                onTap:
+                    onTapPlayer == null ? null : () => onTapPlayer!(assignment),
               ),
             ),
         ],
@@ -220,6 +228,85 @@ class _PitchRow extends StatelessWidget {
     );
   }
 }
+
+/// The position a card actually holds, on a card the drawing has moved.
+///
+/// A pill rather than a line of text, and a different shape from the
+/// out-of-position marker beside it, because the two say different things and a
+/// reader has to be able to tell at a glance which one they are looking at. The
+/// arrow is what turns a position name into a statement: on its own, "Forward"
+/// sitting under a card in the midfield row could be read as a label for the
+/// row, and the arrow says the player belongs a line above where they are drawn.
+///
+/// Compact by necessity — the card is 82 logical pixels wide — so the pill
+/// carries the position and nothing else, and the whole sentence is on the
+/// [Semantics] node for anybody who is not reading it by eye.
+class _MovedFromBadge extends StatelessWidget {
+  const _MovedFromBadge({required this.position});
+
+  final Position position;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final label = positionLabelOf(l10n, position);
+
+    return Semantics(
+      label: l10n.teamsShownOutOfLine(label),
+      excludeSemantics: true,
+      child: Container(
+        margin: const EdgeInsets.only(top: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(
+          // Opaque enough to hold its own over both mown stripes, and white
+          // rather than a scheme colour so it cannot be mistaken for the
+          // error-toned out-of-position marker under it.
+          color: Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(Radii.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.north,
+              size: 9,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 2),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 9,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The four position names, in the reader's language.
+///
+/// Here rather than borrowed from a screen: the pitch is a widget of its own and
+/// two callers already keep their own copy of this switch, so a third that lives
+/// beside the thing that needs it is the same amount of code and no new
+/// dependency between screens.
+String positionLabelOf(AppLocalizations l10n, Position position) =>
+    switch (position) {
+      Position.gk => l10n.positionGk,
+      Position.def => l10n.positionDef,
+      Position.mid => l10n.positionMid,
+      Position.fwd => l10n.positionFwd,
+    };
 
 /// A player on the pitch: their face, their name and their rating.
 ///
@@ -233,6 +320,7 @@ class PlayerCard extends StatelessWidget {
     required this.assignment,
     required this.player,
     required this.name,
+    this.movedFrom,
     this.onTap,
   });
 
@@ -246,6 +334,16 @@ class PlayerCard extends StatelessWidget {
   /// What to write under the face. Resolved by the caller, because a player who
   /// left the match has no profile left to read it from.
   final String name;
+
+  /// The position [assignment] actually holds, when this card has been drawn in
+  /// a line that does not name it. Null when the card is where its position
+  /// says, which is every card on an ordinary pitch.
+  ///
+  /// Presentation state, handed down from [PitchFormation.movedFrom]. It is not
+  /// read from [assignment] and it does not change it: `assignedPosition` is
+  /// still `FWD` for a forward drawn here, and the badge below is the card
+  /// saying so out loud.
+  final Position? movedFrom;
 
   final VoidCallback? onTap;
 
@@ -300,11 +398,25 @@ class PlayerCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.85),
                   ),
                 ),
+              // What this player's position actually is, when the drawing has
+              // put them somewhere else. The card carries no position text
+              // otherwise — the row it sits in is what says it — so without
+              // this badge a forward moved down to keep the attack smaller than
+              // the midfield would read as a midfielder and nothing on screen
+              // would disagree.
+              if (movedFrom != null) _MovedFromBadge(position: movedFrom!),
               // §5.1's out-of-position marker, kept from the list this replaced:
               // it is the one thing about an assignment a reader cannot infer
               // from where the card sits — and now that the rows above are a
               // drawing rather than the stored positions, it is the only thing
               // on the pitch that still reports one.
+              //
+              // Deliberately separate from the badge above, and deliberately
+              // not merged with it: this says the *engine* played somebody out
+              // of their own position, and that is true or false regardless of
+              // which row the drawing chose. A forward drawn in midfield is
+              // marked above and not here; a midfielder the engine put at the
+              // back is marked here and not above.
               if (assignment.outOfPosition)
                 Text(
                   l10n.teamsOutOfPosition,

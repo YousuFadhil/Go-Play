@@ -16,6 +16,13 @@ abstract interface class MatchAdapter {
 
   Future<Match> fetchMatch(String matchId);
 
+  /// Why [matchId] could not be read, when the reason is membership.
+  ///
+  /// Asked only after a read came back empty. It answers a question about the
+  /// caller and about the community, never about the match — see
+  /// [MatchAccessContext].
+  Future<MatchAccessContext> fetchAccessContext(String matchId);
+
   /// Creates a match. Maximum registration is derived by the database from the
   /// starting players plus the global reserve setting.
   Future<void> createMatch({

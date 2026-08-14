@@ -19,6 +19,21 @@ abstract interface class ProfileAdapter {
   /// The signed-in player's profile.
   Future<PlayerProfile> fetchMyProfile();
 
+  /// Another player's profile, as this viewer is allowed to see it.
+  ///
+  /// Who is allowed is not decided here and not decided above here: the server
+  /// applies the owner's visibility setting and answers with an
+  /// [AuthorizationFailure] when it refuses. What comes back is
+  /// [PlayerProfileView] — no phone number, no email, no authentication
+  /// identifier, and no date of birth when the player has hidden their age.
+  Future<PlayerProfileView> fetchPlayerProfile(String userId);
+
+  /// Replaces the signed-in player's two privacy preferences.
+  ///
+  /// Both are the player's own to set and neither is read to decide anything on
+  /// this side; the server is what enforces them.
+  Future<void> updateMyPrivacy(ProfilePrivacy privacy);
+
   /// Replaces the signed-in player's playing inputs.
   ///
   /// The three fields §4.1 leaves to the player and no others: `overall_rating`

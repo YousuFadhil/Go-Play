@@ -953,6 +953,16 @@ class FakeProfileAdapter implements ProfileAdapter {
 
   @override
   Future<void> removeMyAvatar() async => avatarRemovals++;
+
+  // Requirement 2 added two members to the port. Neither is reached from this
+  // test, so both refuse rather than answer.
+  @override
+  Future<PlayerProfileView> fetchPlayerProfile(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateMyPrivacy(ProfilePrivacy privacy) =>
+      throw UnimplementedError();
 }
 
 class FakeAuthAdapter implements AuthAdapter {
@@ -1095,6 +1105,12 @@ class FakeMatchAdapter implements MatchAdapter {
 
   @override
   Future<int?> fetchReservePlayers() => throw UnimplementedError();
+
+  // Asked only when a match read failed as not-found or unauthorized, which
+  // this test never provokes.
+  @override
+  Future<MatchAccessContext> fetchAccessContext(String matchId) =>
+      throw UnimplementedError();
 }
 
 class FakeTeamAdapter implements TeamAdapter {

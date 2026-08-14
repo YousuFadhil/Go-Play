@@ -35,7 +35,7 @@ class SupabaseProfileAdapter implements ProfileAdapter {
   /// them: it is neither shown nor written, so it is not read either — the view
   /// carries it, and leaving it out of the projection keeps that true.
   static const _columns = 'full_name, phone, date_of_birth, primary_position, '
-      'secondary_position, avatar_path';
+      'secondary_position, avatar_path, profile_visibility, age_visible';
 
   /// Reads the profile from the read model.
   ///
@@ -60,6 +60,53 @@ class SupabaseProfileAdapter implements ProfileAdapter {
             version: true,
           ),
         );
+      });
+
+  /// Another player's profile, through `player_profile` (migration `0043`).
+  ///
+  /// An RPC rather than a table read, because the question is not "which row"
+  /// but "may this viewer see it" — and the function is what decides, from the
+  /// owner's setting and the two players' communities. It refuses with
+  /// `PROFILE_NOT_VISIBLE`, which reaches this layer as an
+  /// [AuthorizationFailure]; an empty answer would have made a refusal
+  /// indistinguishable from a missing player.
+  ///
+  /// The projection is the function's own. Nothing is dropped here because
+  /// nothing sensitive arrives: the function returns no phone, no email and no
+  /// authentication identifier, and withholds the date of birth of a player who
+  /// has hidden their age.
+  @override
+  Future<PlayerProfileView> fetchPlayerProfile(String userId) => guarded(
+        () async {
+          final rows = await _client.rpc(
+            'player_profile',
+            params: {'p_user_id': userId},
+          ) as List<dynamic>;
+          if (rows.isEmpty) throw const NotFoundFailure();
+          final row = rows.first as Map<String, dynamic>;
+          return playerProfileViewFromRow(
+            row,
+            avatarUrl: SupabaseAvatars.publicUrl(
+              _client,
+              row['avatar_path'] as String?,
+            ),
+          );
+        },
+        operation: 'rpc player_profile',
+      );
+
+  /// Writes the two privacy columns, and only those two.
+  ///
+  /// The same shape as every other write on this row: migration `0043` grants
+  /// the two columns and `users_update_own_profile` confines the statement to
+  /// the caller's own row, so the `eq` below says which row is meant rather than
+  /// who may have it.
+  @override
+  Future<void> updateMyPrivacy(ProfilePrivacy privacy) => guarded(() async {
+        await _client
+            .from('users')
+            .update(privacyUpdateToRow(privacy))
+            .eq('id', _currentUserId);
       });
 
   @override

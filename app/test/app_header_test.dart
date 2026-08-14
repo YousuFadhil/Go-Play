@@ -200,6 +200,16 @@ class _StaticProfileAdapter implements ProfileAdapter {
 
   @override
   Future<void> removeMyAvatar() => throw UnimplementedError();
+
+  // Requirement 2 added two members to the port. Neither is reached from this
+  // test, so both refuse rather than answer.
+  @override
+  Future<PlayerProfileView> fetchPlayerProfile(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateMyPrivacy(ProfilePrivacy privacy) =>
+      throw UnimplementedError();
 }
 
 class _FailingProfileAdapter extends _StaticProfileAdapter {

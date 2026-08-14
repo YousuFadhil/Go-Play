@@ -201,15 +201,27 @@ Future<void> logOut(BuildContext context) async {
 /// are what an account without one looks like. A picture that cannot be fetched
 /// falls back to the same thing rather than to a broken image.
 class UserAvatar extends StatelessWidget {
-  const UserAvatar({super.key, required this.profile, this.radius = 20});
+  const UserAvatar({
+    super.key,
+    this.profile,
+    this.avatarUrl,
+    this.fullName,
+    this.radius = 20,
+  });
 
+  /// The signed-in player, where the caller holds one. Another player's profile
+  /// is a different model with no phone number on it, so it is passed as the two
+  /// fields an avatar actually needs instead.
   final PlayerProfile? profile;
+
+  final String? avatarUrl;
+  final String? fullName;
   final double radius;
 
   @override
   Widget build(BuildContext context) {
-    final url = profile?.avatarUrl;
-    final initials = initialsOf(profile?.fullName ?? '');
+    final url = avatarUrl ?? profile?.avatarUrl;
+    final initials = initialsOf(fullName ?? profile?.fullName ?? '');
 
     return CircleAvatar(
       radius: radius,

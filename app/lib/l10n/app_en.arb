@@ -579,5 +579,36 @@
   "matchRosterEmpty": "Nobody has joined this match yet.",
   "matchManagementSubtitle": "Edit the match, manage the roster, or delete it.",
   "statCompletedMatches": "Completed matches",
-  "leaderboardTopPlayer": "Leader"
+  "leaderboardTopPlayer": "Leader",
+
+  "matchMembershipRequiredTitle": "Join the community first",
+  "matchMembershipRequiredBody": "This match belongs to {community}. Join the community to see the match and register for it.",
+  "@matchMembershipRequiredBody": {
+    "placeholders": {
+      "community": {
+        "type": "String"
+      }
+    }
+  },
+  "matchMembershipRequiredBodyUnnamed": "This match belongs to a community you have not joined. Join the community to see the match and register for it.",
+
+  "playerProfileTitle": "Player profile",
+  "profileNotVisibleTitle": "Profile not available",
+  "errProfileNotVisible": "This player shares their profile with their community members only.",
+  "settingsPrivacySection": "Privacy",
+  "profileVisibilityEveryone": "Everyone",
+  "profileVisibilityEveryoneHelp": "Any Go Play player can open your profile.",
+  "profileVisibilityCommunityMembers": "Community members only",
+  "profileVisibilityCommunityMembersHelp": "Only players who share a community with you can open your profile.",
+  "teamsShownOutOfLine": "Drawn in another line. Position: {position}.",
+  "@teamsShownOutOfLine": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+
+  "profileAgeVisibleLabel": "Show my age",
+  "profileAgeVisibleHelp": "Your age is worked out from your date of birth. Turn this off and other players will not see it."
 }
