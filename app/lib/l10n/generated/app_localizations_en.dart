@@ -359,7 +359,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'You were promoted from the reserve list to the starting players.';
 
   @override
-  String get notifMatchDeleted => 'The match was deleted.';
+  String get notifMatchDeleted => 'The match was cancelled.';
 
   @override
   String get notifMatchCreated => 'A new match has been created.';

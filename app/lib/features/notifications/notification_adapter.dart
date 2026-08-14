@@ -13,6 +13,14 @@ abstract interface class NotificationAdapter {
 
   Future<void> markAllRead();
 
+  /// Marks one notice read, for a reader who acted on that one.
+  ///
+  /// Opening the Notification Center still marks everything read; this is the
+  /// narrower case of tapping a single notice, where marking the rest read
+  /// would claim something the reader never did. Harmless on a notice that is
+  /// already read.
+  Future<void> markRead(String notificationId);
+
   /// The player's push switches, or the defaults when they have never set any.
   Future<PushPreferences> fetchPushPreferences();
 

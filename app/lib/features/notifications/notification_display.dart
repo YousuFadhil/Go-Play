@@ -67,11 +67,11 @@ enum NotificationTone {
 
 /// Every type registered in `notification_types`, in the same order.
 ///
-/// Eleven of these have no producer yet. They are here for the same reason they
+/// Ten of these have no producer yet. They are here for the same reason they
 /// are in the database registry: so that the branch adding a producer adds a
 /// producer and nothing else.
 final Map<String, NotificationDisplay> notificationDisplays = {
-  // Match lifecycle — the five that exist today.
+  // Match lifecycle — the six that exist today.
   'promoted': NotificationDisplay(
     icon: Icons.arrow_upward,
     tone: NotificationTone.positive,
@@ -100,12 +100,15 @@ final Map<String, NotificationDisplay> notificationDisplays = {
     label: (l10n) => l10n.notifMatchDeleted,
   ),
 
-  // Registered, not yet produced.
+  // Produced by `create_match` since migration 0039, for every member of the
+  // community except the admin who created it.
   'match_created': NotificationDisplay(
     icon: Icons.add_circle_outline,
     tone: NotificationTone.positive,
     label: (l10n) => l10n.notifMatchCreated,
   ),
+
+  // Registered, not yet produced.
   'registration_opened': NotificationDisplay(
     icon: Icons.how_to_reg,
     tone: NotificationTone.positive,
