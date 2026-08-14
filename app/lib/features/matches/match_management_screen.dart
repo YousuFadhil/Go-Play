@@ -150,12 +150,16 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
     }
   }
 
-  Future<void> _openRoster(
-      RegistrationStatus filter, String title, bool canRemove) async {
+  Future<void> _openRoster(RegistrationStatus filter, String title,
+      bool canRemove, String communityId) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ManageRosterScreen(
           matchId: widget.matchId,
+          // Carried from the match already loaded here rather than re-fetched:
+          // the roster screen needs it only to know which community the
+          // addable members come from.
+          communityId: communityId,
           filter: filter,
           title: title,
           canRemove: canRemove,
@@ -279,7 +283,8 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                       enabled: !_busy,
                       onTap: !_busy
                           ? () => _openRoster(RegistrationStatus.confirmed,
-                              l10n.managePlayersTitle, canModify)
+                              l10n.managePlayersTitle, canModify,
+                              match.communityId)
                           : null,
                     ),
                     ListTile(
@@ -289,7 +294,8 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                       enabled: !_busy,
                       onTap: !_busy
                           ? () => _openRoster(RegistrationStatus.reserve,
-                              l10n.manageReserveTitle, canModify)
+                              l10n.manageReserveTitle, canModify,
+                              match.communityId)
                           : null,
                     ),
                   ],

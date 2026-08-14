@@ -149,6 +149,25 @@
   "removePlayerConfirmTitle": "إزالة اللاعب؟",
   "removePlayerConfirmBody": "إزالة {name} من المباراة؟",
   "rosterEmpty": "لا يوجد لاعبون هنا بعد.",
+  "addPlayerButton": "إضافة لاعب",
+  "addPlayerEmpty": "جميع أعضاء المجتمع مسجّلون في هذه المباراة.",
+  "addPlayerConfirmTitle": "إضافة اللاعب؟",
+  "addPlayerConfirmBody": "إضافة {name} إلى هذه المباراة؟",
+  "@addPlayerConfirmBody": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "playerAddedConfirmed": "تمت إضافة {name} إلى الأساسيين.",
+  "@playerAddedConfirmed": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "playerAddedReserve": "تمت إضافة {name} إلى قائمة الاحتياط.",
+  "@playerAddedReserve": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "addPlayerFailed": "تعذّرت إضافة اللاعب. حاول مرة أخرى.",
+  "errPlayerAlreadyRegistered": "هذا اللاعب مسجّل في المباراة بالفعل.",
+  "errPlayerOverlappingMatch": "هذا اللاعب مسجّل في مباراة أخرى في نفس الوقت.",
+  "errPlayerNotCommunityMember": "هذا اللاعب ليس عضواً في هذا المجتمع.",
   "errMatchCompleted": "المباراة منتهية ولم يعد بالإمكان تعديلها.",
   "errNotAuthorized": "منظّم المباراة فقط يمكنه هذا الإجراء.",
   "errRegistrationClosed": "التسجيل مغلق؛ اكتمل الحد الأقصى للمباراة.",

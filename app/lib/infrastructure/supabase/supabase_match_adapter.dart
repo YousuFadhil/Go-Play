@@ -151,6 +151,23 @@ class SupabaseMatchAdapter implements MatchAdapter {
         return registrationStatusFromDb(result as String);
       });
 
+  /// Owner/admin registration of another member (`0041`).
+  ///
+  /// A separate RPC from `register_for_match` rather than a parameter on it:
+  /// the actor is always `auth.uid()` server-side and only the *target* travels
+  /// from here, so nothing the client sends can decide who is acting. Both
+  /// funnel into the same registration transaction, which is why the result is
+  /// the same `confirmed`/`reserve` string.
+  @override
+  Future<RegistrationStatus> addPlayerToMatch(String matchId, String userId) =>
+      guarded(() async {
+        final result = await _client.rpc(
+          'admin_add_player_to_match',
+          params: {'p_match_id': matchId, 'p_user_id': userId},
+        );
+        return registrationStatusFromDb(result as String);
+      });
+
   @override
   Future<void> withdrawFromMatch(String matchId) => guarded(() async {
         await _client

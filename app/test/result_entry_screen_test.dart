@@ -697,6 +697,10 @@ class FakeMatchAdapter implements MatchAdapter {
       throw UnimplementedError();
 
   @override
+  Future<RegistrationStatus> addPlayerToMatch(String matchId, String userId) =>
+      throw UnimplementedError();
+
+  @override
   Future<int?> fetchReservePlayers() => throw UnimplementedError();
 }
 
