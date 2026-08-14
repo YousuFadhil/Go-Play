@@ -761,7 +761,7 @@ abstract class AppLocalizations {
   /// No description provided for @notifMatchDeleted.
   ///
   /// In en, this message translates to:
-  /// **'The match was deleted.'**
+  /// **'The match was cancelled.'**
   String get notifMatchDeleted;
 
   /// No description provided for @notifMatchCreated.

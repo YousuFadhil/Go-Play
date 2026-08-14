@@ -7,6 +7,7 @@ class AppNotification {
     required this.isRead,
     required this.createdAt,
     this.matchId,
+    this.matchTitle,
   });
 
   final String id;
@@ -15,6 +16,20 @@ class AppNotification {
   final bool isRead;
   final DateTime createdAt;
   final String? matchId;
+
+  /// The title of the match this notice is about, read through
+  /// `notifications.match_id -> matches.id`.
+  ///
+  /// Null for a notice that names no match, **and for one whose match has since
+  /// been deleted** — `match_id` is `on delete set null`, so there is nothing
+  /// left to join to. Both are the same absence to a reader and are rendered
+  /// the same way: no subtitle.
+  ///
+  /// Separate from [message] rather than replacing it. `message` is what the
+  /// database wrote, in one language, and is the push body; this is the join's
+  /// answer and is what the Notification Center shows. They currently agree for
+  /// match-scoped notices, and nothing depends on them continuing to.
+  final String? matchTitle;
 }
 
 /// The three switches a player has over push.

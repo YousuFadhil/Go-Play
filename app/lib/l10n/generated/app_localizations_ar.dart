@@ -351,7 +351,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notifPromoted => 'تمت ترقيتك من قائمة الاحتياط إلى الأساسيين.';
 
   @override
-  String get notifMatchDeleted => 'تم حذف المباراة.';
+  String get notifMatchDeleted => 'تم إلغاء المباراة.';
 
   @override
   String get notifMatchCreated => 'تم إنشاء مباراة جديدة.';

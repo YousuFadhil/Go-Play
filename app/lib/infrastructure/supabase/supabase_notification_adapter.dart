@@ -16,9 +16,18 @@ class SupabaseNotificationAdapter implements NotificationAdapter {
 
   @override
   Future<List<AppNotification>> fetchAll() => guarded(() async {
+        // `matches(title)` embeds the match this notice is about, so the
+        // Notification Center can say *which* match without a second round trip
+        // and without a column of its own.
+        //
+        // A left join by nature: a notice with no `match_id`, and a notice whose
+        // match has been deleted (`on delete set null`), both come back with a
+        // null embed rather than being dropped. The reader's own RLS still
+        // decides what the embed may contain — this asks for nothing they could
+        // not already select from `matches`.
         final rows = await _client
             .from('notifications')
-            .select('id, type, message, is_read, created_at, match_id')
+            .select('id, type, message, is_read, created_at, match_id, matches(title)')
             .order('created_at', ascending: false)
             .limit(100);
         return [for (final row in rows) notificationFromRow(row)];
@@ -42,6 +51,22 @@ class SupabaseNotificationAdapter implements NotificationAdapter {
             .update({'is_read': true})
             .eq('user_id', userId)
             .eq('is_read', false);
+      });
+
+  @override
+  Future<void> markRead(String notificationId) => guarded(() async {
+        final userId = _client.auth.currentUser?.id;
+        if (userId == null) return;
+        // The same authorization model as `markAllRead`: a direct update
+        // scoped to the reader's own rows, under the same policy. `user_id` is
+        // stated as well as `id` so the statement cannot be widened by a
+        // guessed id — RLS would refuse it anyway, and this makes the intent
+        // legible without reading the policy.
+        await _client
+            .from('notifications')
+            .update({'is_read': true})
+            .eq('id', notificationId)
+            .eq('user_id', userId);
       });
 
   @override

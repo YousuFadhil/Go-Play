@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/firebase_web_config.dart';
 import '../auth/auth_service.dart';
+import 'notification_route.dart';
 import 'notification_service.dart';
 
 /// Firebase on the device: permission, the token, and telling the backend which
@@ -40,6 +41,7 @@ class PushService {
   StreamSubscription<bool>? _session;
   StreamSubscription<String>? _tokenRefresh;
   StreamSubscription<RemoteMessage>? _foreground;
+  StreamSubscription<RemoteMessage>? _opened;
 
   bool _firebaseReady = false;
   String? _registeredToken;
@@ -113,6 +115,26 @@ class PushService {
 
       _foreground ??= FirebaseMessaging.onMessage
           .listen((_) => foregroundPushes.value++);
+
+      // A push tapped while the app was in the background. The notice itself is
+      // already in the Notification Center; what the tap asks for is to be taken
+      // to what it is about, which is `NotificationTarget`'s decision and not
+      // this file's.
+      _opened ??= FirebaseMessaging.onMessageOpenedApp.listen(
+        (message) => PendingNotificationTap.instance
+            .offerPushData(message.data),
+      );
+
+      // The same tap, when it is what started the app. Read once per attach:
+      // the platform holds exactly one launching message and answers null
+      // afterwards, so this cannot re-fire an old tap on a later sign-in.
+      //
+      // Not supported on the web, where it answers null by construction — see
+      // the note at the foot of this file.
+      final launching = await FirebaseMessaging.instance.getInitialMessage();
+      if (launching != null) {
+        PendingNotificationTap.instance.offerPushData(launching.data);
+      }
 
       // On the web a token *is* a Web Push subscription, and a subscription is
       // made against the project's public VAPID key. Omitting it does not fail:
@@ -202,3 +224,17 @@ class PushService {
 // visible, and forwards the message to the page when one is. The forwarded
 // message is what `onMessage` below receives in a browser, which is why the
 // unread count moves on the web the same way it moves on a phone.
+//
+// **Tapping a push reaches this file on Android and iOS only, and that is a
+// platform limit rather than an omission.** `firebase_messaging_web` implements
+// `getInitialMessage` as `return null` and never feeds `onMessageOpenedApp`,
+// because a browser gives the page no handle on the notification that reopened
+// it: the click is handled inside the service worker, which can only open the
+// URL in `webpush.fcm_options.link`.
+//
+// So the web reaches the same destination by a different road. `push-dispatch`
+// writes the notice's target into that link, and `NotificationLink` in
+// `notification_route.dart` reads it back out of the route the browser opens —
+// arriving at the same `PendingNotificationTap` this file feeds, and the same
+// `NotificationTarget` decision. Two transports, one routing policy; nothing
+// here is web-aware, and nothing there is push-aware.

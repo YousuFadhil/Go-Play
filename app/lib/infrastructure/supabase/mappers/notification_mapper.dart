@@ -9,7 +9,21 @@ AppNotification notificationFromRow(Map<String, dynamic> row) => AppNotification
       isRead: row['is_read'] as bool,
       createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
       matchId: row['match_id'] as String?,
+      matchTitle: _matchTitle(row),
     );
+
+/// The embedded match's title, when the row was selected with one.
+///
+/// PostgREST returns an embedded to-one relation as a nested object, or null
+/// when there is nothing to embed — a notice with no `match_id`, or one whose
+/// match has been deleted. Reads defensively rather than casting, because the
+/// same mapper serves selects that do not ask for the embed at all.
+String? _matchTitle(Map<String, dynamic> row) {
+  final match = row['matches'];
+  if (match is! Map) return null;
+  final title = match['title'];
+  return title is String && title.trim().isNotEmpty ? title : null;
+}
 
 /// Reads a push-preferences row.
 ///
