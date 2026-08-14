@@ -992,6 +992,66 @@ abstract class AppLocalizations {
   /// **'No players here yet.'**
   String get rosterEmpty;
 
+  /// No description provided for @addPlayerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add player'**
+  String get addPlayerButton;
+
+  /// No description provided for @addPlayerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Every community member is already in this match.'**
+  String get addPlayerEmpty;
+
+  /// No description provided for @addPlayerConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add player?'**
+  String get addPlayerConfirmTitle;
+
+  /// No description provided for @addPlayerConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {name} to this match?'**
+  String addPlayerConfirmBody(String name);
+
+  /// No description provided for @playerAddedConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was added to the starting players.'**
+  String playerAddedConfirmed(String name);
+
+  /// No description provided for @playerAddedReserve.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was added to the reserve list.'**
+  String playerAddedReserve(String name);
+
+  /// No description provided for @addPlayerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That player could not be added. Try again.'**
+  String get addPlayerFailed;
+
+  /// No description provided for @errPlayerAlreadyRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'That player is already in this match.'**
+  String get errPlayerAlreadyRegistered;
+
+  /// No description provided for @errPlayerOverlappingMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'That player is registered in another match at the same time.'**
+  String get errPlayerOverlappingMatch;
+
+  /// No description provided for @errPlayerNotCommunityMember.
+  ///
+  /// In en, this message translates to:
+  /// **'That player is not a member of this community.'**
+  String get errPlayerNotCommunityMember;
+
   /// No description provided for @errMatchCompleted.
   ///
   /// In en, this message translates to:

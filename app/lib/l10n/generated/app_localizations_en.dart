@@ -489,6 +489,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rosterEmpty => 'No players here yet.';
 
   @override
+  String get addPlayerButton => 'Add player';
+
+  @override
+  String get addPlayerEmpty =>
+      'Every community member is already in this match.';
+
+  @override
+  String get addPlayerConfirmTitle => 'Add player?';
+
+  @override
+  String addPlayerConfirmBody(String name) {
+    return 'Add $name to this match?';
+  }
+
+  @override
+  String playerAddedConfirmed(String name) {
+    return '$name was added to the starting players.';
+  }
+
+  @override
+  String playerAddedReserve(String name) {
+    return '$name was added to the reserve list.';
+  }
+
+  @override
+  String get addPlayerFailed => 'That player could not be added. Try again.';
+
+  @override
+  String get errPlayerAlreadyRegistered =>
+      'That player is already in this match.';
+
+  @override
+  String get errPlayerOverlappingMatch =>
+      'That player is registered in another match at the same time.';
+
+  @override
+  String get errPlayerNotCommunityMember =>
+      'That player is not a member of this community.';
+
+  @override
   String get errMatchCompleted =>
       'This match is completed and can no longer be changed.';
 

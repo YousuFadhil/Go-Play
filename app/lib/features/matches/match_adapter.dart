@@ -49,6 +49,15 @@ abstract interface class MatchAdapter {
 
   Future<void> removePlayer(String matchId, String userId);
 
+  /// Registers [userId] in the match on an owner/admin's behalf.
+  ///
+  /// The same registration as a player doing it themselves — same capacity,
+  /// reserve, ordering, overlap and duplicate rules — so it answers with the
+  /// same `confirmed`/`reserve` the player would have got. Who is allowed to
+  /// ask is decided in the database against the caller's own session; nothing
+  /// here is trusted to have checked.
+  Future<RegistrationStatus> addPlayerToMatch(String matchId, String userId);
+
   /// The stored reserve allowance, or null when none is configured.
   Future<int?> fetchReservePlayers();
 }

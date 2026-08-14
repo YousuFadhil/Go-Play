@@ -476,6 +476,45 @@ class AppLocalizationsAr extends AppLocalizations {
   String get rosterEmpty => 'لا يوجد لاعبون هنا بعد.';
 
   @override
+  String get addPlayerButton => 'إضافة لاعب';
+
+  @override
+  String get addPlayerEmpty => 'جميع أعضاء المجتمع مسجّلون في هذه المباراة.';
+
+  @override
+  String get addPlayerConfirmTitle => 'إضافة اللاعب؟';
+
+  @override
+  String addPlayerConfirmBody(String name) {
+    return 'إضافة $name إلى هذه المباراة؟';
+  }
+
+  @override
+  String playerAddedConfirmed(String name) {
+    return 'تمت إضافة $name إلى الأساسيين.';
+  }
+
+  @override
+  String playerAddedReserve(String name) {
+    return 'تمت إضافة $name إلى قائمة الاحتياط.';
+  }
+
+  @override
+  String get addPlayerFailed => 'تعذّرت إضافة اللاعب. حاول مرة أخرى.';
+
+  @override
+  String get errPlayerAlreadyRegistered =>
+      'هذا اللاعب مسجّل في المباراة بالفعل.';
+
+  @override
+  String get errPlayerOverlappingMatch =>
+      'هذا اللاعب مسجّل في مباراة أخرى في نفس الوقت.';
+
+  @override
+  String get errPlayerNotCommunityMember =>
+      'هذا اللاعب ليس عضواً في هذا المجتمع.';
+
+  @override
   String get errMatchCompleted => 'المباراة منتهية ولم يعد بالإمكان تعديلها.';
 
   @override

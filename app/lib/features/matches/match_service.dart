@@ -67,6 +67,9 @@ class MatchService {
   Future<void> removePlayer(String matchId, String userId) =>
       _adapter.removePlayer(matchId, userId);
 
+  Future<RegistrationStatus> addPlayerToMatch(String matchId, String userId) =>
+      _adapter.addPlayerToMatch(matchId, userId);
+
   /// Deletes a match, after notifying registered players.
   ///
   /// Completion is no bar to it: `delete_match` has never checked, and the

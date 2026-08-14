@@ -173,6 +173,25 @@
     }
   },
   "rosterEmpty": "No players here yet.",
+  "addPlayerButton": "Add player",
+  "addPlayerEmpty": "Every community member is already in this match.",
+  "addPlayerConfirmTitle": "Add player?",
+  "addPlayerConfirmBody": "Add {name} to this match?",
+  "@addPlayerConfirmBody": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "playerAddedConfirmed": "{name} was added to the starting players.",
+  "@playerAddedConfirmed": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "playerAddedReserve": "{name} was added to the reserve list.",
+  "@playerAddedReserve": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "addPlayerFailed": "That player could not be added. Try again.",
+  "errPlayerAlreadyRegistered": "That player is already in this match.",
+  "errPlayerOverlappingMatch": "That player is registered in another match at the same time.",
+  "errPlayerNotCommunityMember": "That player is not a member of this community.",
   "errMatchCompleted": "This match is completed and can no longer be changed.",
   "errNotAuthorized": "You do not have permission to do this.",
   "errRegistrationClosed": "Registration is closed; the match reached its maximum.",
