@@ -1232,6 +1232,42 @@ class AppLocalizationsEn extends AppLocalizations {
       'Highest rated ranks by the player\'s overall rating across every community.';
 
   @override
+  String get statPeriodLabel => 'Period';
+
+  @override
+  String get statPeriodWeekly => 'Weekly';
+
+  @override
+  String get statPeriodMonthly => 'Monthly';
+
+  @override
+  String get statPeriodAllTime => 'All time';
+
+  @override
+  String get statPeriodWeeklyNote =>
+      'This week\'s figures. Weeks run Monday to Sunday, Oman time.';
+
+  @override
+  String get statPeriodMonthlyNote =>
+      'This calendar month\'s figures, Oman time.';
+
+  @override
+  String get statPeriodRatingNote =>
+      'The rating is your current rating across every community. It is not a figure for this period.';
+
+  @override
+  String get statPeriodNoMatches =>
+      'You have not played a recorded match in this period.';
+
+  @override
+  String get statPeriodEmptyBody =>
+      'No results have been recorded in this community in this period.';
+
+  @override
+  String get leaderboardsPeriodEmpty =>
+      'No results have been recorded in this period, so there is nothing to rank yet.';
+
+  @override
   String get cancelButton => 'Cancel';
 
   @override

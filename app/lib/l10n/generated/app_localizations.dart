@@ -2246,6 +2246,66 @@ abstract class AppLocalizations {
   /// **'Highest rated ranks by the player\'s overall rating across every community.'**
   String get leaderboardRatingNote;
 
+  /// No description provided for @statPeriodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get statPeriodLabel;
+
+  /// No description provided for @statPeriodWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get statPeriodWeekly;
+
+  /// No description provided for @statPeriodMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get statPeriodMonthly;
+
+  /// No description provided for @statPeriodAllTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get statPeriodAllTime;
+
+  /// No description provided for @statPeriodWeeklyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This week\'s figures. Weeks run Monday to Sunday, Oman time.'**
+  String get statPeriodWeeklyNote;
+
+  /// No description provided for @statPeriodMonthlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This calendar month\'s figures, Oman time.'**
+  String get statPeriodMonthlyNote;
+
+  /// No description provided for @statPeriodRatingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The rating is your current rating across every community. It is not a figure for this period.'**
+  String get statPeriodRatingNote;
+
+  /// No description provided for @statPeriodNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'You have not played a recorded match in this period.'**
+  String get statPeriodNoMatches;
+
+  /// No description provided for @statPeriodEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No results have been recorded in this community in this period.'**
+  String get statPeriodEmptyBody;
+
+  /// No description provided for @leaderboardsPeriodEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No results have been recorded in this period, so there is nothing to rank yet.'**
+  String get leaderboardsPeriodEmpty;
+
   /// No description provided for @cancelButton.
   ///
   /// In en, this message translates to:

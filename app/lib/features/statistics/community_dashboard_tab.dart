@@ -6,14 +6,23 @@ import '../../core/states.dart';
 import '../profile/player_identity.dart';
 import 'stat_card.dart';
 import 'statistics_models.dart';
+import 'statistics_period.dart';
+import 'statistics_period_selector.dart';
 import 'statistics_repository.dart';
 
-/// The Community Dashboard: what this community has done, and who leads it.
+/// The Community Dashboard: what this community has done, and who leads it,
+/// over the period the reader picked.
 ///
 /// It owns its own load rather than joining the details screen's, for one
 /// practical reason — a recorded result changes these figures and nothing else
 /// on that screen, so the dashboard needs to be refreshable on its own. Pulling
 /// down does it.
+///
+/// **The period is this tab's state, not the screen's.** The dashboard and the
+/// leaderboards are two separate loads that already refresh independently, and
+/// a reader looking at a board for the month has said nothing about what the
+/// dashboard should show. Each surface remembers its own choice, and each opens
+/// on All Time — the figures the app has always shown first.
 class CommunityDashboardTab extends StatefulWidget {
   const CommunityDashboardTab({
     super.key,
@@ -31,16 +40,17 @@ class CommunityDashboardTab extends StatefulWidget {
 class _CommunityDashboardTabState extends State<CommunityDashboardTab> {
   late final StatisticsRepository _repository =
       widget._repository ?? StatisticsRepository();
+  StatisticsPeriod _period = StatisticsPeriod.allTime;
   late Future<CommunityDashboard> _dashboardFuture;
 
   @override
   void initState() {
     super.initState();
-    _dashboardFuture = _repository.fetchDashboard(widget.communityId);
+    _dashboardFuture = _repository.fetchDashboard(widget.communityId, _period);
   }
 
   Future<void> _refresh() async {
-    final future = _repository.fetchDashboard(widget.communityId);
+    final future = _repository.fetchDashboard(widget.communityId, _period);
     // A block body, not an arrow: `() => _dashboardFuture = future` evaluates
     // to the assigned Future, and setState asserts when its callback returns
     // one.
@@ -54,31 +64,59 @@ class _CommunityDashboardTabState extends State<CommunityDashboardTab> {
     await future.then<void>((_) {}, onError: (_) {});
   }
 
+  /// A different period is a different set of figures, so it is a fresh read
+  /// rather than a filter over what is already here — the counters for a week
+  /// are different rows, not a subset of the running total.
+  void _selectPeriod(StatisticsPeriod period) {
+    if (period == _period) return;
+    final future = _repository.fetchDashboard(widget.communityId, period);
+    setState(() {
+      _period = period;
+      _dashboardFuture = future;
+    });
+    future.then<void>((_) {}, onError: (_) {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<CommunityDashboard>(
-      future: _dashboardFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const LoadingState();
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return ErrorState(onRetry: _refresh);
-        }
+    // The selector sits outside the FutureBuilder so it stays put — and stays
+    // usable — while a period loads or fails. A control that vanishes into a
+    // spinner is one the reader cannot use to get out of the state they are in.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        StatisticsPeriodSelector(selected: _period, onChanged: _selectPeriod),
+        Expanded(
+          child: FutureBuilder<CommunityDashboard>(
+            future: _dashboardFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const LoadingState();
+              }
+              if (snapshot.hasError || !snapshot.hasData) {
+                return ErrorState(onRetry: _refresh);
+              }
 
-        return RefreshIndicator(
-          onRefresh: _refresh,
-          child: _DashboardBody(dashboard: snapshot.data!),
-        );
-      },
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                child: _DashboardBody(
+                  dashboard: snapshot.data!,
+                  period: _period,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _DashboardBody extends StatelessWidget {
-  const _DashboardBody({required this.dashboard});
+  const _DashboardBody({required this.dashboard, required this.period});
 
   final CommunityDashboard dashboard;
+  final StatisticsPeriod period;
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +183,12 @@ class _DashboardBody extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: kPageMargin),
             child: EmptyState(
               icon: Icons.emoji_events_outlined,
-              message: l10n.statEmptyBody,
+              // "yet" is only true of All Time. A quiet week in a community
+              // that has played for a year is not a community waiting for its
+              // first result, and telling the reader it is would read as a bug.
+              message: period.isBounded
+                  ? l10n.statPeriodEmptyBody
+                  : l10n.statEmptyBody,
             ),
           )
         else
@@ -172,6 +215,13 @@ class _DashboardBody extends StatelessWidget {
               ),
             ],
           ),
+        // The scope note is true of every period — it says what a figure counts,
+        // not what stretch it covers. The period note says the stretch, and only
+        // where there is one: "all time" needs no explaining.
+        if (period == StatisticsPeriod.weekly)
+          FootNote(l10n.statPeriodWeeklyNote)
+        else if (period == StatisticsPeriod.monthly)
+          FootNote(l10n.statPeriodMonthlyNote),
         FootNote(l10n.statScopeNote),
       ],
     );

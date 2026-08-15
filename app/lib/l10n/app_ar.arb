@@ -435,6 +435,17 @@
   "leaderboardsEmpty": "لا توجد لوحات صدارة بعد. بمجرّد تسجيل نتيجة مباراة، سيظهر هنا من يتصدّر المجتمع.",
   "leaderboardRatingNote": "يعتمد ترتيب «الأعلى تقييماً» على التقييم العام للاعب في كل المجتمعات.",
 
+  "statPeriodLabel": "الفترة",
+  "statPeriodWeekly": "أسبوعي",
+  "statPeriodMonthly": "شهري",
+  "statPeriodAllTime": "الكل",
+  "statPeriodWeeklyNote": "أرقام هذا الأسبوع. يبدأ الأسبوع من الاثنين وينتهي بالأحد بتوقيت عُمان.",
+  "statPeriodMonthlyNote": "أرقام هذا الشهر الميلادي بتوقيت عُمان.",
+  "statPeriodRatingNote": "التقييم هو تقييمك الحالي في كل المجتمعات، وليس رقماً خاصاً بهذه الفترة.",
+  "statPeriodNoMatches": "لم تلعب أي مباراة مسجَّلة النتيجة في هذه الفترة.",
+  "statPeriodEmptyBody": "لم تُسجَّل أي نتيجة في هذا المجتمع خلال هذه الفترة.",
+  "leaderboardsPeriodEmpty": "لم تُسجَّل أي نتيجة في هذه الفترة، فلا يوجد ما يُرتَّب بعد.",
+
   "cancelButton": "إلغاء",
   "changeAction": "تغيير",
   "editProfileTitle": "تعديل الملف الشخصي",

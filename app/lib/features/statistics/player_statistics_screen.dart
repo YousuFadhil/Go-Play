@@ -8,14 +8,31 @@ import '../auth/auth_service.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
 import 'stat_card.dart';
+import 'statistics_models.dart';
+import 'statistics_period.dart';
+import 'statistics_period_selector.dart';
+import 'statistics_repository.dart';
 
-/// A player's record: their Global Rating and their six career counters, across
-/// every community they play in.
+/// A player's record: their Global Rating and their six counters, across every
+/// community they play in, over the period the reader picked.
 ///
-/// **It adds no data layer of its own.** `ResultRepository.fetchStatistics`
-/// already reads exactly these seven figures — it was built with the rating
-/// engine and had no screen until now — so this is a reader for something that
-/// already existed rather than a second path to it.
+/// **All Time still reads what it always read, from where it always read it.**
+/// `ResultRepository.fetchStatistics` answers the career from `v_user_profile`,
+/// and that source is untouched — summing the player's `overall` community
+/// records into a second career total would be a rival answer free to disagree
+/// with the first.
+///
+/// **A week and a month are the community records, summed.** Those rows already
+/// existed (`0028`) and simply had no reader; the summing across communities is
+/// [StatisticsRepository]'s, which is where a product total belongs. This screen
+/// asks two repositories because the answer genuinely comes from two places, and
+/// each of them keeps its own single port.
+///
+/// **The rating is not periodic and is not made to look like it.** `OP-1` makes
+/// the Global Rating a value the player holds now; there is no such thing as a
+/// rating for last week, and the screen does not invent one. It shows the same
+/// rating in every period and says so in a note whenever the counters beside it
+/// are a period's.
 ///
 /// **Nothing on it is editable, and that is the design rather than an
 /// omission.** `OP-1` makes the rating system-managed, and every counter is a
@@ -26,6 +43,7 @@ class PlayerStatisticsScreen extends StatefulWidget {
     super.key,
     this.userId,
     this.repository,
+    this.statistics,
     this.authService,
   });
 
@@ -37,32 +55,72 @@ class PlayerStatisticsScreen extends StatefulWidget {
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final ResultRepository? repository;
+
+  /// Likewise. Read only for a bounded period, so a test that only exercises
+  /// All Time never has to supply it.
+  final StatisticsRepository? statistics;
+
   final AuthService? authService;
 
   @override
   State<PlayerStatisticsScreen> createState() => _PlayerStatisticsScreenState();
 }
 
+/// What the screen draws: the six counters for the chosen period, and the one
+/// rating there is.
+///
+/// The two arrive together because the screen shows them together, and they are
+/// separate fields because only one of them is a period's.
+class _PlayerRecord {
+  const _PlayerRecord({required this.counters, required this.rating});
+
+  _PlayerRecord.career(PlayerStatistics career)
+      : counters = PlayerPeriodStatistics(
+          matchesPlayed: career.matchesPlayed,
+          wins: career.wins,
+          losses: career.losses,
+          draws: career.draws,
+          goals: career.goals,
+          mvpCount: career.mvpCount,
+        ),
+        rating = career.currentRating;
+
+  final PlayerPeriodStatistics counters;
+  final double rating;
+}
+
 class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
   late final ResultRepository _results = widget.repository ?? ResultRepository();
+  late final StatisticsRepository _statistics =
+      widget.statistics ?? StatisticsRepository();
   late final AuthService _auth = widget.authService ?? AuthService();
-  late Future<PlayerStatistics> _statisticsFuture;
+  StatisticsPeriod _period = StatisticsPeriod.allTime;
+  late Future<_PlayerRecord> _statisticsFuture;
 
   @override
   void initState() {
     super.initState();
-    _statisticsFuture = _load();
+    _statisticsFuture = _load(_period);
   }
 
-  Future<PlayerStatistics> _load() async {
+  Future<_PlayerRecord> _load(StatisticsPeriod period) async {
     final userId = widget.userId ?? _auth.currentUserId;
     // A record is somebody's, so without a session there is no row to name.
     if (userId == null) throw const AuthenticationFailure();
-    return _results.fetchStatistics(userId);
+
+    // The career read happens whichever period is showing, because it carries
+    // the rating and the rating has no period. For All Time it is also the
+    // counters, exactly as before.
+    final career = await _results.fetchStatistics(userId);
+    if (!period.isBounded) return _PlayerRecord.career(career);
+
+    final counters =
+        await _statistics.fetchPlayerPeriodStatistics(userId, period);
+    return _PlayerRecord(counters: counters, rating: career.currentRating);
   }
 
   Future<void> _refresh() async {
-    final future = _load();
+    final future = _load(_period);
     // A block body, not an arrow: an arrow returns the assigned Future, and
     // setState asserts when its callback returns one.
     setState(() {
@@ -74,40 +132,62 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
     await future.then<void>((_) {}, onError: (_) {});
   }
 
+  void _selectPeriod(StatisticsPeriod period) {
+    if (period == _period) return;
+    final future = _load(period);
+    setState(() {
+      _period = period;
+      _statisticsFuture = future;
+    });
+    future.then<void>((_) {}, onError: (_) {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
     return Scaffold(
       appBar: AppHeader(title: Text(l10n.playerStatisticsTitle)),
-      body: FutureBuilder<PlayerStatistics>(
-        future: _statisticsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingState();
-          }
-          if (snapshot.hasError || !snapshot.hasData) {
-            return ErrorState(onRetry: _refresh);
-          }
+      // The selector sits outside the FutureBuilder so it stays put — and stays
+      // usable — while a period loads or fails.
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          StatisticsPeriodSelector(selected: _period, onChanged: _selectPeriod),
+          Expanded(
+            child: FutureBuilder<_PlayerRecord>(
+              future: _statisticsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const LoadingState();
+                }
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return ErrorState(onRetry: _refresh);
+                }
 
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: _CareerBody(statistics: snapshot.data!),
-          );
-        },
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: _CareerBody(record: snapshot.data!, period: _period),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _CareerBody extends StatelessWidget {
-  const _CareerBody({required this.statistics});
+  const _CareerBody({required this.record, required this.period});
 
-  final PlayerStatistics statistics;
+  final _PlayerRecord record;
+  final StatisticsPeriod period;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final statistics = record.counters;
 
     return ListView(
       // Always scrollable, so pulling down refreshes even when the content is
@@ -115,7 +195,7 @@ class _CareerBody extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        RatingHeadline(rating: statistics.currentRating),
+        RatingHeadline(rating: record.rating),
         // Two cards a row rather than three: these labels are phrases where the
         // dashboard's are words, and three across leaves them wrapping to three
         // lines on a phone.
@@ -159,14 +239,19 @@ class _CareerBody extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Text(
-              l10n.statNoMatchesYet,
+              // "yet" belongs to a career that has not started. A player with
+              // nine seasons behind them who sat out this week has not played
+              // a recorded match *in this period*, which is a different
+              // sentence — and the career note about a starting rating would
+              // be plainly false for them.
+              period.isBounded ? l10n.statPeriodNoMatches : l10n.statNoMatchesYet,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
           child: Text(
-            l10n.statCareerNote,
+            _scopeNote(l10n),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.outline,
                 ),
@@ -175,6 +260,21 @@ class _CareerBody extends StatelessWidget {
       ],
     );
   }
+
+  /// What the figures above cover.
+  ///
+  /// All Time keeps the note it has always had. A bounded period says which
+  /// stretch the counters describe **and** that the rating is not one of them —
+  /// the rating is the largest thing on the screen and the reader has just
+  /// asked for a week, so leaving it unexplained is the one way this screen
+  /// could tell a lie.
+  String _scopeNote(AppLocalizations l10n) => switch (period) {
+        StatisticsPeriod.allTime => l10n.statCareerNote,
+        StatisticsPeriod.weekly =>
+          '${l10n.statPeriodWeeklyNote} ${l10n.statPeriodRatingNote}',
+        StatisticsPeriod.monthly =>
+          '${l10n.statPeriodMonthlyNote} ${l10n.statPeriodRatingNote}',
+      };
 }
 
 /// A row of equal-height cards.
