@@ -1933,6 +1933,134 @@ void main() {
     });
   });
 
+  // Regression for the production failure fixed by migration `0052`.
+  //
+  // `assign_professional_guest_teams` used `r` as a table alias in the DELETE
+  // above its `for r in ...` loop. PL/pgSQL resolves `r.match_id` against the
+  // declared record rather than the alias, so the statement raised
+  // `55000 record "r" is not assigned yet` at runtime — a fault no `create
+  // function` could catch, because the function parses fine and only fails when
+  // that statement is reached.
+  //
+  // It was reachable only once a **community lineup existed**, which is why
+  // adding a guest always worked and "Create Teams" always failed. These tests
+  // walk that exact order.
+  group('creating teams for a match that holds guests (0052 regression)', () {
+    Future<List<Map<String, dynamic>>> lineup(String matchId) async {
+      final rows = await owner.client
+          .from('match_team_assignments')
+          .select('user_id, professional_guest_id, team, assigned_position')
+          .eq('match_id', matchId);
+      return List<Map<String, dynamic>>.from(rows);
+    }
+
+    /// The save at the end of "Create Teams": engine output for the confirmed
+    /// community players, and nothing else in the payload.
+    Future<String> createTeams(String matchId, List<TestUser> squad) =>
+        outcomeOf(() async {
+          await owner.client.rpc('replace_match_lineup', params: {
+            'p_match_id': matchId,
+            'p_assignments': [
+              for (final (index, user) in squad.indexed)
+                {
+                  'user_id': user.id,
+                  'team': index.isEven ? 'A' : 'B',
+                  'assigned_position': 'MID',
+                  'assignment_basis': 'TRANSITION',
+                },
+            ],
+          });
+        });
+
+    Future<String> matchWith(List<TestUser> squad, int guests) async {
+      // Slots for everybody, so the guests are starting rather than reserve —
+      // the state the production match was in.
+      final matchId = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 17),
+          startingPlayers: squad.length + guests);
+      for (final user in squad) {
+        await user.client
+            .rpc('register_for_match', params: {'p_match_id': matchId});
+      }
+      for (var i = 1; i <= guests; i++) {
+        await addGuest(owner, matchId, 'Guest $i');
+      }
+      return matchId;
+    }
+
+    test('1. a match with no guests still generates', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await matchWith(squad, 0);
+
+      expect(await createTeams(matchId, squad), 'ALLOW');
+      expect(await lineup(matchId), hasLength(4));
+    });
+
+    test('2. a match with one Professional Guest generates', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await matchWith(squad, 1);
+
+      expect(await createTeams(matchId, squad), 'ALLOW',
+          reason: 'this raised 55000 before migration 0052');
+
+      final rows = await lineup(matchId);
+      expect(rows.where((r) => r['user_id'] != null), hasLength(4));
+      final guestRows =
+          rows.where((r) => r['professional_guest_id'] != null).toList();
+      expect(guestRows, hasLength(1));
+      expect(guestRows.single['team'], 'A');
+      expect(guestRows.single['assigned_position'], isNull);
+    });
+
+    test('3. a match with several Professional Guests generates', () async {
+      final squad = [owner, admin, player];
+      final matchId = await matchWith(squad, 3);
+
+      expect(await createTeams(matchId, squad), 'ALLOW');
+
+      final rows = await lineup(matchId);
+      expect(rows.where((r) => r['user_id'] != null), hasLength(3),
+          reason: '5. the community half is exactly what was sent');
+      expect(rows.where((r) => r['professional_guest_id'] != null),
+          hasLength(3));
+      for (final row in rows.where((r) => r['professional_guest_id'] != null)) {
+        expect(row['assigned_position'], isNull,
+            reason: '7. a guest carries no position');
+      }
+    });
+
+    test('regenerating over an existing guest lineup also works', () async {
+      // The second pass is the one that reaches the DELETE with guest rows
+      // already present, which is the statement that used to fail.
+      final squad = [owner, admin, player, player2];
+      final matchId = await matchWith(squad, 2);
+
+      expect(await createTeams(matchId, squad), 'ALLOW');
+      expect(await createTeams(matchId, squad.reversed.toList()), 'ALLOW');
+
+      final rows = await lineup(matchId);
+      expect(rows, hasLength(6));
+      expect(rows.where((r) => r['professional_guest_id'] != null),
+          hasLength(2), reason: '6. the guests are still placed, and only once');
+    });
+
+    test('a withdrawal from a match with a lineup and a guest works', () async {
+      // Same function, reached through `recompute_match_status` instead of
+      // through the lineup save — it failed here too before 0052.
+      final squad = [owner, admin, player, player2];
+      final matchId = await matchWith(squad, 1);
+      expect(await createTeams(matchId, squad), 'ALLOW');
+
+      expect(
+        await outcomeOf(() async {
+          await player2.client
+              .rpc('withdraw_from_match', params: {'p_match_id': matchId});
+        }),
+        'ALLOW',
+      );
+    });
+  });
+
   group('a lineup that no longer describes the roster is regenerated', () {
     Future<List<Map<String, dynamic>>> lineup(String matchId) async {
       final rows = await owner.client
