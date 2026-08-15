@@ -108,4 +108,30 @@ class MatchService {
 
   Future<void> withdrawFromMatch(String matchId) =>
       _adapter.withdrawFromMatch(matchId);
+
+  // --- Professional Guests -----------------------------------------------------
+  //
+  // Match-scoped stand-ins with no account, no membership and no profile. Only
+  // an owner or a community admin may manage them, and the database decides
+  // that against the caller's own session — nothing here is trusted to have
+  // checked. Capacity, the community-first ordering and the starting/reserve
+  // placement are all the server's, so every one of these is followed by a
+  // roster refresh rather than by a local guess.
+
+  /// Adds a Professional Guest and returns their new id. The name is trimmed
+  /// the same way every other name this service sends is.
+  Future<String> addProfessionalGuest(String matchId, String name) =>
+      _adapter.addProfessionalGuest(matchId, name.trim());
+
+  /// Frees a Professional Guest's roster seat. What they did in a match that
+  /// was already played is preserved by the database.
+  Future<void> removeProfessionalGuest(String matchId, String guestId) =>
+      _adapter.removeProfessionalGuest(matchId, guestId);
+
+  Future<void> renameProfessionalGuest(
+    String matchId,
+    String guestId,
+    String name,
+  ) =>
+      _adapter.renameProfessionalGuest(matchId, guestId, name.trim());
 }

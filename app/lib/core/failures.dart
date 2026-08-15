@@ -150,6 +150,15 @@ enum FailureReason {
   invalidTeam,
   invalidPosition,
 
+  // Professional Guests.
+  //
+  // A guest is match-scoped and has no account, so neither of these describes a
+  // person: the first is a name outside the approved bounds, the second an id
+  // that does not name a guest of this match. As everywhere else, behaviour
+  // follows the failure type and nothing branches on the reason.
+  invalidGuestName,
+  guestNotFound,
+
   // Identity
   emailAlreadyUsed,
 

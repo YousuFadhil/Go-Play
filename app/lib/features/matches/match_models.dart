@@ -44,21 +44,52 @@ class MatchAccessContext {
       matchExists && !isMember && communityId != null;
 }
 
-/// A player registered in a match (confirmed seat or reserve queue).
+/// A seat in a match: a registered community player, or a Professional Guest.
+///
+/// A Professional Guest is **match-scoped**. They have no account, no
+/// membership and no profile, which is why [userId] and [position] are null for
+/// one and why nothing here reaches for a profile they do not have. The two
+/// identities are exclusive — exactly one of [userId] and [professionalGuestId]
+/// is set, which is the same rule the database states as a CHECK constraint.
+///
+/// Their name is carried in [fullName] unadorned. The approved presentation —
+/// "محترف (الاسم)" — is a localized sentence, selected at render time, so that
+/// the two never disagree and the label is right in either language.
 class MatchRegistration {
   const MatchRegistration({
-    required this.userId,
     required this.fullName,
-    required this.position,
     required this.status,
     required this.registrationOrder,
-  });
+    this.userId,
+    this.professionalGuestId,
+    this.position,
+  }) : assert(
+          (userId == null) != (professionalGuestId == null),
+          'A seat belongs to a registered user or to a Professional Guest, '
+          'never to both and never to neither.',
+        );
 
-  final String userId;
+  /// Null when this seat belongs to a Professional Guest.
+  final String? userId;
+
+  /// Null when this seat belongs to a registered user.
+  final String? professionalGuestId;
+
+  /// The participant's own name, without the Professional Guest wording.
   final String fullName;
-  final String position;
+
+  /// The profile's primary position. Null for a guest, who has no profile —
+  /// not "unknown", but "there is none to read".
+  final String? position;
+
   final RegistrationStatus status;
   final int registrationOrder;
+
+  bool get isProfessionalGuest => professionalGuestId != null;
+
+  /// Whichever identity this seat carries. Safe as a map key across both kinds,
+  /// because a user id and a guest id are both uuids from disjoint tables.
+  String get participantId => userId ?? professionalGuestId!;
 }
 
 /// Match lifecycle: open -> full (registration closed) -> back to open when a

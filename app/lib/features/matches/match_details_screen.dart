@@ -416,8 +416,12 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
             for (final r in registrations)
               if (r.status == RegistrationStatus.reserve) r,
           ];
-          final myRegistration =
-              registrations.where((r) => r.userId == currentUserId).firstOrNull;
+          // `userId` is null on a Professional Guest's seat, and so is
+          // `currentUserId` when nobody is signed in — comparing them without
+          // the guard would match a signed-out reader to a guest.
+          final myRegistration = registrations
+              .where((r) => r.userId != null && r.userId == currentUserId)
+              .firstOrNull;
           // Management is a community role now, not a creator privilege
           // (PD-07). The server enforces it; this only decides what is shown.
           final canManage = myRole?.atLeast(CommunityRole.admin) ?? false;
@@ -509,9 +513,14 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                     children: [
                       for (final registration in confirmed)
                         _PlayerRow(
-                          name: registration.fullName,
-                          position:
-                              _positionLabel(context, registration.position),
+                          name: participantLabel(l10n, registration),
+                          position: participantSubtitle(
+                            l10n,
+                            registration,
+                            (position) => _positionLabel(context, position),
+                          ),
+                          isProfessionalGuest:
+                              registration.isProfessionalGuest,
                         ),
                     ],
                   ),
@@ -527,10 +536,15 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                     children: [
                       for (final (index, registration) in reserves.indexed)
                         _PlayerRow(
-                          name: registration.fullName,
-                          position:
-                              _positionLabel(context, registration.position),
+                          name: participantLabel(l10n, registration),
+                          position: participantSubtitle(
+                            l10n,
+                            registration,
+                            (position) => _positionLabel(context, position),
+                          ),
                           queuePosition: index + 1,
+                          isProfessionalGuest:
+                              registration.isProfessionalGuest,
                         ),
                     ],
                   ),
@@ -848,32 +862,55 @@ class _PlayerRow extends StatelessWidget {
     required this.name,
     required this.position,
     this.queuePosition,
+    this.isProfessionalGuest = false,
   });
 
   final String name;
   final String position;
   final int? queuePosition;
 
+  /// A Professional Guest is a stand-in for this match only, and the roster has
+  /// to say so at a glance rather than only in the name. The avatar carries the
+  /// tertiary colour and a distinct icon, which is the difference a reader sees
+  /// before they read anything.
+  final bool isProfessionalGuest;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final background = isProfessionalGuest
+        ? scheme.tertiaryContainer
+        : scheme.surfaceContainerHighest;
+    final foreground = isProfessionalGuest
+        ? scheme.onTertiaryContainer
+        : scheme.onSurfaceVariant;
 
     return ListTile(
+      key: isProfessionalGuest ? const Key('guestRow') : null,
       leading: CircleAvatar(
         radius: 18,
-        backgroundColor: scheme.surfaceContainerHighest,
-        foregroundColor: scheme.onSurfaceVariant,
+        backgroundColor: background,
+        foregroundColor: foreground,
         child: queuePosition == null
-            ? const Icon(Icons.person, size: 20)
+            ? Icon(
+                isProfessionalGuest
+                    ? Icons.workspace_premium_outlined
+                    : Icons.person,
+                size: 20,
+              )
             : Text(
                 '$queuePosition',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(color: scheme.onSurfaceVariant),
+                style: theme.textTheme.labelLarge?.copyWith(color: foreground),
               ),
       ),
       title: Text(name),
-      subtitle: Text(position),
+      subtitle: Text(
+        position,
+        style: isProfessionalGuest
+            ? theme.textTheme.bodySmall?.copyWith(color: scheme.tertiary)
+            : null,
+      ),
     );
   }
 }

@@ -55,7 +55,8 @@ class PitchView extends StatelessWidget {
     final formation = buildFormation(
       assignments,
       // A stable order, so a row does not reshuffle between builds.
-      order: (a, b) => nameOf(a.userId).compareTo(nameOf(b.userId)),
+      order: (a, b) =>
+          nameOf(a.participantId).compareTo(nameOf(b.participantId)),
     );
 
     final rows = <List<TeamAssignment>>[
@@ -216,9 +217,9 @@ class _PitchRow extends StatelessWidget {
             Flexible(
               child: PlayerCard(
                 assignment: assignment,
-                player: players[assignment.userId],
-                name: nameOf(assignment.userId),
-                movedFrom: movedFrom[assignment.userId],
+                player: players[assignment.participantId],
+                name: nameOf(assignment.participantId),
+                movedFrom: movedFrom[assignment.participantId],
                 onTap:
                     onTapPlayer == null ? null : () => onTapPlayer!(assignment),
               ),

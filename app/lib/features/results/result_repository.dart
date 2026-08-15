@@ -56,7 +56,9 @@ class ResultRepository {
       teamBScore: teamBScore,
       mvpUserId: mvpUserId,
       goals: goals,
-      participantIds: {for (final assignment in lineup) assignment.userId},
+      participantIds: {
+        for (final assignment in lineup) assignment.participantId,
+      },
     );
 
     await _adapter.recordResult(

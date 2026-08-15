@@ -158,17 +158,73 @@ class SupabaseMatchAdapter implements MatchAdapter {
         operation: 'rpc delete_match',
       );
 
+  /// The roster, community players and Professional Guests alike.
+  ///
+  /// Both embeds are on nullable foreign keys, so each is an outer join: a
+  /// guest's seat comes back with `user` null and `guest` populated, and the row
+  /// is not dropped. Ordering stays `registration_order` — the queue position
+  /// the database assigned. The starting/reserve split is the `status` the
+  /// server wrote, never something recomputed from these rows.
   @override
   Future<List<MatchRegistration>> fetchRegistrations(String matchId) =>
       guarded(() async {
         final rows = await _client
             .from('match_registrations')
             .select('status, registration_order, '
-                'user:users(id, full_name, primary_position)')
+                'user:users(id, full_name, primary_position), '
+                'guest:match_professional_guests(id, display_name)')
             .eq('match_id', matchId)
             .order('registration_order', ascending: true);
         return [for (final row in rows) matchRegistrationFromRow(row)];
       });
+
+  /// The three Professional Guest operations (migration `0047`).
+  ///
+  /// Each is a single RPC that locks the match row, authorizes the caller
+  /// against the match's community, and applies the approved capacity and
+  /// ordering rules. Nothing here decides any of that, and nothing here asks
+  /// whether the match is locked or completed — the server allows an owner or
+  /// admin to manage guests in every state.
+  @override
+  Future<String> addProfessionalGuest(String matchId, String name) => guarded(
+        () async {
+          final id = await _client.rpc('add_professional_guest', params: {
+            'p_match_id': matchId,
+            'p_name': name,
+          });
+          return id as String;
+        },
+        operation: 'rpc add_professional_guest',
+      );
+
+  @override
+  Future<void> removeProfessionalGuest(String matchId, String guestId) =>
+      guarded(
+        () async {
+          await _client.rpc('remove_professional_guest', params: {
+            'p_match_id': matchId,
+            'p_guest_id': guestId,
+          });
+        },
+        operation: 'rpc remove_professional_guest',
+      );
+
+  @override
+  Future<void> renameProfessionalGuest(
+    String matchId,
+    String guestId,
+    String name,
+  ) =>
+      guarded(
+        () async {
+          await _client.rpc('rename_professional_guest', params: {
+            'p_match_id': matchId,
+            'p_guest_id': guestId,
+            'p_name': name,
+          });
+        },
+        operation: 'rpc rename_professional_guest',
+      );
 
   @override
   Future<RegistrationStatus> registerForMatch(String matchId) =>

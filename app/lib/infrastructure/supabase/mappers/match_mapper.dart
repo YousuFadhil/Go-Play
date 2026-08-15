@@ -57,14 +57,38 @@ MatchAccessContext matchAccessContextFromRow(Map<String, dynamic> row) {
   );
 }
 
-/// Reads a registration row joined with the player profile.
+/// Reads a registration row joined with whichever participant it names.
+///
+/// Both embeds are nullable, and exactly one of them is present — the database
+/// states that as a CHECK constraint, so a row with neither (or with both) is
+/// the schema disagreeing with this build rather than something to guess at.
+///
+/// A guest carries no profile, so `position` stays null. That is the absence of
+/// a position and not an unknown one, which is why nothing substitutes a
+/// default here.
 MatchRegistration matchRegistrationFromRow(Map<String, dynamic> row) {
-  final user = row['user'] as Map<String, dynamic>;
-  return MatchRegistration(
-    userId: user['id'] as String,
-    fullName: user['full_name'] as String,
-    position: user['primary_position'] as String,
-    status: registrationStatusFromDb(row['status'] as String),
-    registrationOrder: row['registration_order'] as int,
-  );
+  final status = registrationStatusFromDb(row['status'] as String);
+  final order = row['registration_order'] as int;
+  final user = row['user'] as Map<String, dynamic>?;
+  if (user != null) {
+    return MatchRegistration(
+      userId: user['id'] as String,
+      fullName: user['full_name'] as String,
+      position: user['primary_position'] as String?,
+      status: status,
+      registrationOrder: order,
+    );
+  }
+
+  final guest = row['guest'] as Map<String, dynamic>?;
+  if (guest != null) {
+    return MatchRegistration(
+      professionalGuestId: guest['id'] as String,
+      fullName: guest['display_name'] as String,
+      status: status,
+      registrationOrder: order,
+    );
+  }
+
+  throw const InfrastructureFailure();
 }

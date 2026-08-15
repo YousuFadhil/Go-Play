@@ -529,6 +529,62 @@ class AppLocalizationsEn extends AppLocalizations {
       'That player is not a member of this community.';
 
   @override
+  String professionalGuestName(String name) {
+    return 'Professional ($name)';
+  }
+
+  @override
+  String get professionalGuestLabel => 'Professional guest';
+
+  @override
+  String get addGuestButton => 'Add professional guest';
+
+  @override
+  String get addGuestTitle => 'Add a professional guest';
+
+  @override
+  String get renameGuestTitle => 'Rename professional guest';
+
+  @override
+  String get guestNameLabel => 'Name';
+
+  @override
+  String get guestNameInvalid => 'Enter a name between 2 and 60 characters.';
+
+  @override
+  String guestAddedConfirmed(String name) {
+    return '$name was added to the starting players.';
+  }
+
+  @override
+  String guestAddedReserve(String name) {
+    return '$name was added to the reserve list.';
+  }
+
+  @override
+  String get removeGuestButton => 'Remove guest';
+
+  @override
+  String get renameGuestButton => 'Rename';
+
+  @override
+  String get removeGuestConfirmTitle => 'Remove this professional guest?';
+
+  @override
+  String removeGuestConfirmBody(String name) {
+    return '$name loses their place in this match. Anything they did in a match that was already played is kept.';
+  }
+
+  @override
+  String get guestActionFailed => 'That could not be done. Try again.';
+
+  @override
+  String get errInvalidGuestName => 'Enter a name between 2 and 60 characters.';
+
+  @override
+  String get errGuestNotFound => 'That guest is no longer in this match.';
+
+  @override
   String get errMatchCompleted =>
       'This match is completed and can no longer be changed.';
 

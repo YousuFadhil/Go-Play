@@ -340,11 +340,12 @@ class TeamRepository {
     Map<String, TeamAssignment> changes,
   ) {
     final updated = [
-      for (final assignment in lineup) changes[assignment.userId] ?? assignment,
+      for (final assignment in lineup)
+        changes[assignment.participantId] ?? assignment,
     ];
 
-    final before = {for (final a in lineup) a.userId};
-    final after = {for (final a in updated) a.userId};
+    final before = {for (final a in lineup) a.participantId};
+    final after = {for (final a in updated) a.participantId};
     if (updated.length != lineup.length ||
         after.length != before.length ||
         !after.containsAll(before)) {
@@ -360,11 +361,11 @@ class TeamRepository {
   /// confirmed roster — someone who left after the lineup was stored. Nothing
   /// better is known about them, and inventing a basis would be inventing the
   /// out-of-position marker with it.
-  Future<AssignmentBasis> _basisFor(
+  Future<AssignmentBasis?> _basisFor(
     String matchId,
     String userId,
     Position position,
-    AssignmentBasis fallback,
+    AssignmentBasis? fallback,
   ) async {
     final roster = await _adapter.fetchConfirmedPlayerInputs(matchId);
     final profile = roster.where((p) => p.userId == userId).firstOrNull;

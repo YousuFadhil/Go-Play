@@ -90,31 +90,69 @@ class PlayerCoreInputs {
 /// record of reality, not of the engine's proposal.
 class TeamAssignment {
   const TeamAssignment({
-    required this.userId,
     required this.team,
     required this.assignedPosition,
     required this.basis,
+    this.userId,
+    this.professionalGuestId,
   });
 
   /// The engine's output for one player, as a lineup that can be stored.
+  ///
+  /// Always a registered user: the engine never sees a Professional Guest
+  /// (`BTGE` takes only community players), so nothing it returns can be one.
   TeamAssignment.fromAssignment(PlayerAssignment assignment)
       : userId = assignment.playerId,
+        professionalGuestId = null,
         team = assignment.team,
         assignedPosition = assignment.assignedPosition,
         basis = assignment.basis;
 
-  final String userId;
+  /// Null when this lineup row belongs to a Professional Guest.
+  final String? userId;
+
+  /// Null when this lineup row belongs to a registered user. Exactly one of the
+  /// two is set, which is the CHECK constraint the table carries.
+  final String? professionalGuestId;
+
+  bool get isProfessionalGuest => professionalGuestId != null;
+
+  /// Whichever identity this row carries — the key every screen groups by.
+  String get participantId => userId ?? professionalGuestId!;
 
   /// `A` or `B`, carrying no meaning beyond distinguishing the two sides
   /// (`KB-D6`).
   final TeamId team;
 
-  final Position assignedPosition;
-  final AssignmentBasis basis;
+  /// Where they played — or null for a Professional Guest.
+  ///
+  /// A registered player always has one: the engine names a position for
+  /// everybody it places, and the database requires it of any lineup row naming
+  /// a user. A guest has no profile for one to be derived against, and nothing
+  /// invents one for them, so null here is the **absence** of a position rather
+  /// than an unknown one.
+  ///
+  /// `Position` gains no fifth value for this. It is `package:btge`'s enum, and
+  /// a participant the engine never sees must not widen the engine's
+  /// vocabulary — the same reasoning that made [basis] nullable below.
+  final Position? assignedPosition;
+
+  /// Which rule produced [assignedPosition] — or null for a Professional
+  /// Guest.
+  ///
+  /// §5.1 defines the basis against the player's profile: PRIMARY and SECONDARY
+  /// name the field it came from, TRANSITION is the out-of-position marker. A
+  /// guest has no profile, so none of the three is true of them. The database
+  /// stores `GUEST` for exactly that case and it is read as null here, because
+  /// `AssignmentBasis` belongs to `package:btge` and the engine has no such
+  /// concept — inventing one there would be a change to the engine for a
+  /// participant it never sees.
+  final AssignmentBasis? basis;
 
   /// §5.1 defines Out of Position as exactly `basis == transition`. It is
   /// derived rather than stored, so the two can never disagree — which is why
-  /// migration `0018` left the column out.
+  /// migration `0018` left the column out. A guest is never out of position:
+  /// there is no position of theirs to be out of.
   bool get outOfPosition => basis == AssignmentBasis.transition;
 }
 

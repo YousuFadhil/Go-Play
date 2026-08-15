@@ -1104,6 +1104,22 @@ class FakeMatchAdapter implements MatchAdapter {
       throw UnimplementedError();
 
   @override
+  Future<String> addProfessionalGuest(String matchId, String name) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> removeProfessionalGuest(String matchId, String guestId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> renameProfessionalGuest(
+    String matchId,
+    String guestId,
+    String name,
+  ) =>
+      throw UnimplementedError();
+
+  @override
   Future<int?> fetchReservePlayers() => throw UnimplementedError();
 
   // Asked only when a match read failed as not-found or unauthorized, which

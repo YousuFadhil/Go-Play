@@ -215,7 +215,7 @@ void main() {
 
       final formation = buildFormation(
         players,
-        order: (a, b) => a.userId.compareTo(b.userId),
+        order: (a, b) => a.participantId.compareTo(b.participantId),
       );
 
       expect(formation.defence.map((a) => a.userId),

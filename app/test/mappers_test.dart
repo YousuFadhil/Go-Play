@@ -6,6 +6,7 @@ import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/profile/profile_models.dart';
 import 'package:go_play/features/results/result_models.dart';
+import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/infrastructure/supabase/mappers/admin_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/auth_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/community_mapper.dart';
@@ -496,6 +497,94 @@ void main() {
       for (final position in Position.values) {
         expect(positionFromDb(positionToDb(position)), position);
       }
+    });
+
+    // Migration 0051. A Professional Guest has no profile for a position to be
+    // derived against, so their lineup row carries none — and `Position` gains
+    // no fifth value to say so, because it is the engine's enum and the engine
+    // never sees a guest.
+    group('a lineup row for either kind of participant', () {
+      Map<String, dynamic> row({
+        String? userId,
+        String? guestId,
+        String? position,
+        String basis = 'TRANSITION',
+      }) =>
+          {
+            'user_id': userId,
+            'professional_guest_id': guestId,
+            'team': 'A',
+            'assigned_position': position,
+            'assignment_basis': basis,
+          };
+
+      test('1. a registered player keeps their position', () {
+        final assignment =
+            teamAssignmentFromRow(row(userId: 'u1', position: 'DEF'));
+
+        expect(assignment.userId, 'u1');
+        expect(assignment.professionalGuestId, isNull);
+        expect(assignment.assignedPosition, Position.def);
+        expect(assignment.basis, AssignmentBasis.transition);
+        expect(assignment.isProfessionalGuest, isFalse);
+      });
+
+      test('2/3. a guest has no position and the GUEST basis', () {
+        final assignment = teamAssignmentFromRow(
+          row(guestId: 'g1', position: null, basis: 'GUEST'),
+        );
+
+        expect(assignment.professionalGuestId, 'g1');
+        expect(assignment.userId, isNull);
+        expect(assignment.assignedPosition, isNull,
+            reason: 'the absence of a position, never an invented MID');
+        expect(assignment.basis, isNull,
+            reason: 'GUEST reads as null: AssignmentBasis is the engine\'s');
+        expect(assignment.isProfessionalGuest, isTrue);
+        expect(assignment.outOfPosition, isFalse,
+            reason: 'no position of theirs to be out of');
+      });
+
+      test('a guest an administrator gave a position keeps it', () {
+        final assignment = teamAssignmentFromRow(
+          row(guestId: 'g1', position: 'GK', basis: 'GUEST'),
+        );
+
+        expect(assignment.assignedPosition, Position.gk,
+            reason: 'optional for a guest, not forbidden');
+      });
+
+      test('null travels back as null, and a position as itself', () {
+        expect(
+          teamAssignmentToRow(const TeamAssignment(
+            professionalGuestId: 'g1',
+            team: TeamId.b,
+            assignedPosition: null,
+            basis: null,
+          )),
+          {
+            'professional_guest_id': 'g1',
+            'team': 'B',
+            'assigned_position': null,
+            'assignment_basis': 'GUEST',
+          },
+        );
+
+        expect(
+          teamAssignmentToRow(const TeamAssignment(
+            userId: 'u1',
+            team: TeamId.a,
+            assignedPosition: Position.mid,
+            basis: AssignmentBasis.primary,
+          )),
+          {
+            'user_id': 'u1',
+            'team': 'A',
+            'assigned_position': 'MID',
+            'assignment_basis': 'PRIMARY',
+          },
+        );
+      });
     });
 
     test('teams read and write both labels', () {
