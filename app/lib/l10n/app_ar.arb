@@ -435,6 +435,13 @@
   "leaderboardsEmpty": "لا توجد لوحات صدارة بعد. بمجرّد تسجيل نتيجة مباراة، سيظهر هنا من يتصدّر المجتمع.",
   "leaderboardRatingNote": "يعتمد ترتيب «الأعلى تقييماً» على التقييم العام للاعب في كل المجتمعات.",
 
+  "shareCardTitle": "بطاقة المشاركة",
+  "shareCardShareAction": "مشاركة",
+  "shareCardCloseAction": "إغلاق",
+  "shareCardPreparing": "جارٍ تجهيز بطاقتك…",
+  "errShareCardRender": "تعذّر إنشاء البطاقة. حاول مرة أخرى.",
+  "errShareCardShare": "المشاركة غير متاحة حالياً.",
+
   "statPeriodLabel": "الفترة",
   "statPeriodWeekly": "أسبوعي",
   "statPeriodMonthly": "شهري",

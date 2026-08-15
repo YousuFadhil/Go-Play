@@ -509,6 +509,13 @@
   "leaderboardsEmpty": "No leaderboards yet. Once a match result is recorded, this is where the community sees who is leading.",
   "leaderboardRatingNote": "Highest rated ranks by the player's overall rating across every community.",
 
+  "shareCardTitle": "Share card",
+  "shareCardShareAction": "Share",
+  "shareCardCloseAction": "Close",
+  "shareCardPreparing": "Preparing your card…",
+  "errShareCardRender": "The card could not be created. Please try again.",
+  "errShareCardShare": "Sharing is not available right now.",
+
   "statPeriodLabel": "Period",
   "statPeriodWeekly": "Weekly",
   "statPeriodMonthly": "Monthly",

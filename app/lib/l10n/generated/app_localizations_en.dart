@@ -1232,6 +1232,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'Highest rated ranks by the player\'s overall rating across every community.';
 
   @override
+  String get shareCardTitle => 'Share card';
+
+  @override
+  String get shareCardShareAction => 'Share';
+
+  @override
+  String get shareCardCloseAction => 'Close';
+
+  @override
+  String get shareCardPreparing => 'Preparing your card…';
+
+  @override
+  String get errShareCardRender =>
+      'The card could not be created. Please try again.';
+
+  @override
+  String get errShareCardShare => 'Sharing is not available right now.';
+
+  @override
   String get statPeriodLabel => 'Period';
 
   @override

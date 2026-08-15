@@ -2246,6 +2246,42 @@ abstract class AppLocalizations {
   /// **'Highest rated ranks by the player\'s overall rating across every community.'**
   String get leaderboardRatingNote;
 
+  /// No description provided for @shareCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share card'**
+  String get shareCardTitle;
+
+  /// No description provided for @shareCardShareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareCardShareAction;
+
+  /// No description provided for @shareCardCloseAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get shareCardCloseAction;
+
+  /// No description provided for @shareCardPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your card…'**
+  String get shareCardPreparing;
+
+  /// No description provided for @errShareCardRender.
+  ///
+  /// In en, this message translates to:
+  /// **'The card could not be created. Please try again.'**
+  String get errShareCardRender;
+
+  /// No description provided for @errShareCardShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing is not available right now.'**
+  String get errShareCardShare;
+
   /// No description provided for @statPeriodLabel.
   ///
   /// In en, this message translates to:
