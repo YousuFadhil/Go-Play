@@ -509,6 +509,17 @@
   "leaderboardsEmpty": "No leaderboards yet. Once a match result is recorded, this is where the community sees who is leading.",
   "leaderboardRatingNote": "Highest rated ranks by the player's overall rating across every community.",
 
+  "statPeriodLabel": "Period",
+  "statPeriodWeekly": "Weekly",
+  "statPeriodMonthly": "Monthly",
+  "statPeriodAllTime": "All time",
+  "statPeriodWeeklyNote": "This week's figures. Weeks run Monday to Sunday, Oman time.",
+  "statPeriodMonthlyNote": "This calendar month's figures, Oman time.",
+  "statPeriodRatingNote": "The rating is your current rating across every community. It is not a figure for this period.",
+  "statPeriodNoMatches": "You have not played a recorded match in this period.",
+  "statPeriodEmptyBody": "No results have been recorded in this community in this period.",
+  "leaderboardsPeriodEmpty": "No results have been recorded in this period, so there is nothing to rank yet.",
+
   "cancelButton": "Cancel",
   "changeAction": "Change",
   "editProfileTitle": "Edit profile",

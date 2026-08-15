@@ -4,13 +4,14 @@
 /// name attached. Every counter here is a consequence of a recorded result and
 /// nothing else — no screen writes one, and there is no port that could.
 ///
-/// **The period is not a field.** The table keys every record by
-/// `(community, period_type, period_key, player)` and holds three periods per
-/// player: `overall`, the week, and the month. The MVP dashboard reads only
-/// `overall`, so every instance the app holds today describes the same period —
-/// and a field that always carries one value invites code that branches on it
-/// as though it might carry another. When a weekly or monthly view is built, the
-/// period arrives here with a reader that needs it.
+/// **The period is still not a field, and now for a sharper reason.** The table
+/// keys every record by `(community, period_type, period_key, player)` and holds
+/// three periods per player: `overall`, the week, and the month. Every read that
+/// produces these fixes exactly one of them — a [StatisticsPeriod] goes into the
+/// port and one period's rows come back — so a period carried on the row would
+/// restate the question the caller already asked, and a list could never hold
+/// two of them anyway. What changed in this cycle is which period a caller may
+/// ask for, not how many arrive at once.
 class CommunityPlayerStatistics {
   const CommunityPlayerStatistics({
     required this.userId,
@@ -39,6 +40,47 @@ class CommunityPlayerStatistics {
 
   /// Matches whose result was recorded and whose lineup included this player.
   /// Not registrations, not reserves, and not matches still awaiting a result.
+  final int matchesPlayed;
+  final int wins;
+  final int losses;
+  final int draws;
+  final int goals;
+  final int mvpCount;
+}
+
+/// One player's six counters over one bounded period, summed across every
+/// community they play in.
+///
+/// **Six figures, not seven.** There is no rating here, and there must not be:
+/// the Global Rating is a value the player holds now, not a thing that happened
+/// during a week, and `OP-1` gives it no periodic form. The Player Statistics
+/// screen shows the rating it has always shown alongside these and says which
+/// of the two the period applies to.
+///
+/// Built by [StatisticsRepository] from the player's `community_statistics`
+/// records for the period. A period record exists only where the player
+/// actually played (`0028` §2.3), so a player with no records in the period has
+/// [none] — genuinely zero, rather than missing.
+class PlayerPeriodStatistics {
+  const PlayerPeriodStatistics({
+    required this.matchesPlayed,
+    required this.wins,
+    required this.losses,
+    required this.draws,
+    required this.goals,
+    required this.mvpCount,
+  });
+
+  /// A period the player did not play in. Every figure is zero because nothing
+  /// happened, which is an answer and not an absence.
+  const PlayerPeriodStatistics.none()
+      : matchesPlayed = 0,
+        wins = 0,
+        losses = 0,
+        draws = 0,
+        goals = 0,
+        mvpCount = 0;
+
   final int matchesPlayed;
   final int wins;
   final int losses;

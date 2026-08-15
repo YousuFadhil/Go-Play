@@ -1,6 +1,7 @@
 import '../../infrastructure/supabase/supabase_statistics_adapter.dart';
 import 'statistics_adapter.dart';
 import 'statistics_models.dart';
+import 'statistics_period.dart';
 
 /// Data access for a community's statistics, and the reasoning that turns rows
 /// into the figures a dashboard shows.
@@ -8,13 +9,19 @@ import 'statistics_models.dart';
 /// Everything provider-specific is behind [StatisticsAdapter]. What remains
 /// here is the product's own reasoning: which measures lead, what a tie means,
 /// and when a number is worth showing at all.
+///
+/// **A period changes which rows arrive, and nothing else.** Every rule below —
+/// that a zero never leads, that a board ranks current members only, that ties
+/// break deterministically, that a board with nobody on it is not built — is
+/// asked of one period's rows exactly as it was asked of the running total. The
+/// period is a parameter to the reads, not a branch in the reasoning.
 class StatisticsRepository {
   StatisticsRepository([StatisticsAdapter? adapter])
       : _adapter = adapter ?? SupabaseStatisticsAdapter();
 
   final StatisticsAdapter _adapter;
 
-  /// Assembles the Community Dashboard.
+  /// Assembles the Community Dashboard for [period].
   ///
   /// Two reads, issued together because neither depends on the other and the
   /// screen shows them as one thing. The totals are summed here rather than in
@@ -23,10 +30,24 @@ class StatisticsRepository {
   /// Dart avoids adding a read model for arithmetic a client can do. If a
   /// community ever grows to where that stops being true, the fix is a view —
   /// not a wider port.
-  Future<CommunityDashboard> fetchDashboard(String communityId) async {
+  ///
+  /// **Both reads take the period, and they have to.** The match count is a
+  /// fact about matches and the rest are facts about players; asking one of
+  /// them about a week and the other about all history would produce a
+  /// dashboard describing two different stretches of time at once.
+  ///
+  /// For a bounded period `totalPlayers` is who played in it, not who is in the
+  /// community: a periodic record exists only where a player actually played
+  /// (`0028` §2.3). That is the honest reading of "players" beside "goals in
+  /// this week", and it is why a quiet week reports zero players rather than
+  /// the full roster with nothing next to their names.
+  Future<CommunityDashboard> fetchDashboard(
+    String communityId, [
+    StatisticsPeriod period = StatisticsPeriod.allTime,
+  ]) async {
     final results = await Future.wait([
-      _adapter.fetchCommunityPlayerStatistics(communityId),
-      _adapter.fetchCompletedMatches(communityId),
+      _adapter.fetchCommunityPlayerStatistics(communityId, period),
+      _adapter.fetchCompletedMatches(communityId, period),
     ]);
     final players = results[0] as List<CommunityPlayerStatistics>;
     final completedMatches = results[1] as int;
@@ -41,7 +62,8 @@ class StatisticsRepository {
     );
   }
 
-  /// The community's leaderboards: the five measures, top three each.
+  /// The community's leaderboards for [period]: the five measures, top three
+  /// each.
   ///
   /// Two reads against objects that already exist — the roster with its ratings
   /// and the community counters. Nothing was added to the database for this.
@@ -51,10 +73,21 @@ class StatisticsRepository {
   /// people who have left on a board of who is doing well here. Every board
   /// therefore ranks current members — and of those, only the ones the measure
   /// has actually happened to (see [_buildBoard]).
-  Future<List<Leaderboard>> fetchLeaderboards(String communityId) async {
+  ///
+  /// **Only the counters are period-scoped.** The roster read takes no period
+  /// because neither of the things it carries has one: membership is a fact
+  /// about now, and the rating is the Global Rating (`OP-1`), which has no
+  /// weekly form and is not invented one here. So Highest Rated reads the same
+  /// in every period — deliberately, and the footnote on the screen has always
+  /// said what that figure is. The four counted boards change completely, which
+  /// is the point.
+  Future<List<Leaderboard>> fetchLeaderboards(
+    String communityId, [
+    StatisticsPeriod period = StatisticsPeriod.allTime,
+  ]) async {
     final results = await Future.wait([
       _adapter.fetchCommunityMemberRatings(communityId),
-      _adapter.fetchCommunityPlayerStatistics(communityId),
+      _adapter.fetchCommunityPlayerStatistics(communityId, period),
     ]);
     final members = results[0] as List<CommunityMemberRating>;
     final counters = {
@@ -81,6 +114,59 @@ class StatisticsRepository {
       if (board != null) boards.add(board);
     }
     return boards;
+  }
+
+  /// One player's totals for [period], across every community they play in.
+  ///
+  /// **A career already has a source, and this is not a second one.** The Result
+  /// domain answers All Time from `v_user_profile`, which is where the player's
+  /// career and their rating have always come from; summing `overall` records
+  /// here would build a rival total free to disagree with it. So this is for the
+  /// bounded periods only, and asking it for All Time is a programming error
+  /// rather than a request it quietly serves.
+  ///
+  /// The sum is here rather than in the database because a total across
+  /// communities is a product decision (OP-2) — and because the rows are one
+  /// per community the player belongs to, which is a handful.
+  ///
+  /// A player with no records in the period played no match in it, so every
+  /// figure is zero. That is [PlayerPeriodStatistics.none] and it is an answer:
+  /// the database deletes a periodic record that has nothing in it (`0028`
+  /// §2.3), so "no rows" and "all zeros" are the same statement.
+  Future<PlayerPeriodStatistics> fetchPlayerPeriodStatistics(
+    String userId,
+    StatisticsPeriod period,
+  ) async {
+    if (!period.isBounded) {
+      throw ArgumentError.value(
+        period,
+        'period',
+        'All Time is answered by the player career read, not by summing '
+            'community records',
+      );
+    }
+
+    final records = await _adapter.fetchPlayerPeriodStatistics(userId, period);
+    if (records.isEmpty) return const PlayerPeriodStatistics.none();
+
+    var matchesPlayed = 0, wins = 0, losses = 0, draws = 0, goals = 0, mvp = 0;
+    for (final record in records) {
+      matchesPlayed += record.matchesPlayed;
+      wins += record.wins;
+      losses += record.losses;
+      draws += record.draws;
+      goals += record.goals;
+      mvp += record.mvpCount;
+    }
+
+    return PlayerPeriodStatistics(
+      matchesPlayed: matchesPlayed,
+      wins: wins,
+      losses: losses,
+      draws: draws,
+      goals: goals,
+      mvpCount: mvp,
+    );
   }
 
   /// One board, or null when it has nothing to say.

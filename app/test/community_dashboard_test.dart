@@ -7,6 +7,8 @@ import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/statistics/community_dashboard_tab.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
+import 'package:go_play/features/statistics/statistics_period.dart';
+import 'package:go_play/features/statistics/statistics_period_selector.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/statistics/statistics_repository.dart';
@@ -167,6 +169,107 @@ void main() {
       expect(dashboard.totalPlayers, 1);
       expect(dashboard.topScorer?.value, 9);
       expect(dashboard.topScorer?.fullName, isNull);
+    });
+  });
+
+  group('assembling the dashboard for a period', () {
+    /// The same community, seen through one week: two of the three played, and
+    /// the figures are smaller than the running total in every measure.
+    final thisWeek = [
+      player('u1', 'Ali', played: 1, wins: 1, goals: 2, mvp: 1),
+      player('u2', 'Sara', played: 1, losses: 1, goals: 0, mvp: 0),
+    ];
+
+    FakeStatisticsAdapter seasonAndWeek() => FakeStatisticsAdapter(
+          players: squad,
+          completedMatches: 6,
+          periodPlayers: {StatisticsPeriod.weekly: thisWeek},
+          periodMatches: {StatisticsPeriod.weekly: 1},
+        );
+
+    test('the chosen period reaches both reads', () async {
+      // The two reads answer different questions -- players and matches -- and
+      // a dashboard whose halves described different stretches of time would be
+      // wrong in a way no single figure on it could show.
+      final adapter = seasonAndWeek();
+
+      await StatisticsRepository(adapter)
+          .fetchDashboard('c1', StatisticsPeriod.monthly);
+
+      expect(adapter.periodsAsked, [StatisticsPeriod.monthly]);
+      expect(adapter.completedMatchReads, 1);
+    });
+
+    test('All Time is what it always was', () async {
+      // The default, and the figures the app has always shown first.
+      final adapter = seasonAndWeek();
+      final dashboard = await StatisticsRepository(adapter).fetchDashboard('c1');
+
+      expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
+      expect(dashboard.completedMatches, 6);
+      expect(dashboard.totalPlayers, 3);
+      expect(dashboard.totalGoals, 7);
+      expect(dashboard.topScorer?.fullName, 'Ali');
+      expect(dashboard.topScorer?.value, 5);
+    });
+
+    test('a week totals the week, and nothing outside it', () async {
+      final dashboard = await StatisticsRepository(seasonAndWeek())
+          .fetchDashboard('c1', StatisticsPeriod.weekly);
+
+      expect(dashboard.completedMatches, 1);
+      // Who played this week, not who is in the community: a periodic record
+      // exists only where a player actually played.
+      expect(dashboard.totalPlayers, 2);
+      expect(dashboard.totalGoals, 2);
+    });
+
+    test('a leader of the week is the leader of the week', () async {
+      // Sara leads Most active and Most MVP over the season. Neither survives
+      // one week in which Ali played as much and was named best player.
+      final dashboard = await StatisticsRepository(seasonAndWeek())
+          .fetchDashboard('c1', StatisticsPeriod.weekly);
+
+      expect(dashboard.topScorer?.fullName, 'Ali');
+      expect(dashboard.topScorer?.value, 2);
+      expect(dashboard.mostMvp?.fullName, 'Ali');
+      expect(dashboard.mostMvp?.value, 1);
+      // Both played once, and the tie breaks by name as it does anywhere else.
+      expect(dashboard.mostActivePlayer?.value, 1);
+    });
+
+    test('a period nobody played in names nobody', () async {
+      // The database deletes a periodic record with nothing in it, so a quiet
+      // week is no rows at all -- and every rule that refuses to name a leader
+      // at zero refuses here for the same reason.
+      final dashboard = await StatisticsRepository(seasonAndWeek())
+          .fetchDashboard('c1', StatisticsPeriod.monthly);
+
+      expect(dashboard.completedMatches, 0);
+      expect(dashboard.totalPlayers, 0);
+      expect(dashboard.totalGoals, 0);
+      expect(dashboard.topScorer, isNull);
+      expect(dashboard.mostActivePlayer, isNull);
+      expect(dashboard.mostMvp, isNull);
+    });
+
+    test('a period still refuses to name a leader at zero', () async {
+      // Not the same case as the one above: the players are here and their
+      // records are here, and every counter in them is zero.
+      final dashboard = await StatisticsRepository(
+        FakeStatisticsAdapter(
+          players: squad,
+          completedMatches: 6,
+          periodPlayers: {
+            StatisticsPeriod.weekly: [player('u1', 'Ali'), player('u2', 'Sara')],
+          },
+          periodMatches: {StatisticsPeriod.weekly: 1},
+        ),
+      ).fetchDashboard('c1', StatisticsPeriod.weekly);
+
+      expect(dashboard.totalPlayers, 2);
+      expect(dashboard.topScorer, isNull);
+      expect(dashboard.mostMvp, isNull);
     });
   });
 
@@ -441,19 +544,220 @@ void main() {
       );
     });
   });
+
+  group('choosing a period on the dashboard', () {
+    final thisWeek = [
+      player('u1', 'Ali', played: 1, wins: 1, goals: 2, mvp: 1),
+    ];
+
+    FakeStatisticsAdapter seasonAndWeek() => FakeStatisticsAdapter(
+          players: squad,
+          completedMatches: 6,
+          periodPlayers: {StatisticsPeriod.weekly: thisWeek},
+          periodMatches: {StatisticsPeriod.weekly: 1},
+        );
+
+    Future<void> pumpDashboard(
+      WidgetTester tester,
+      FakeStatisticsAdapter adapter, {
+      Locale locale = const Locale('en'),
+      Size size = const Size(1000, 1600),
+    }) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(MaterialApp(
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: CommunityDashboardTab(
+            communityId: 'c1',
+            repository: StatisticsRepository(adapter),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('all three periods are offered, and it opens on All time',
+        (tester) async {
+      final adapter = seasonAndWeek();
+      await pumpDashboard(tester, adapter);
+
+      expect(find.text('Weekly'), findsOneWidget);
+      expect(find.text('Monthly'), findsOneWidget);
+      expect(find.text('All time'), findsOneWidget);
+
+      final selector = tester.widget<StatisticsPeriodSelector>(
+        find.byType(StatisticsPeriodSelector),
+      );
+      expect(selector.selected, StatisticsPeriod.allTime);
+      expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
+    });
+
+    testWidgets('choosing a week reads the week and shows its figures',
+        (tester) async {
+      final adapter = seasonAndWeek();
+      await pumpDashboard(tester, adapter);
+
+      // The season's figures first.
+      expect(find.text('7'), findsOneWidget);
+
+      await tester.tap(find.text('Weekly'));
+      await tester.pumpAndSettle();
+
+      // A fresh read of the week, not a filter over rows already held.
+      expect(adapter.periodsAsked,
+          [StatisticsPeriod.allTime, StatisticsPeriod.weekly]);
+      expect(
+        tester
+            .widget<StatisticsPeriodSelector>(
+                find.byType(StatisticsPeriodSelector))
+            .selected,
+        StatisticsPeriod.weekly,
+      );
+
+      // One completed match, one player, two goals -- and the season's totals
+      // are gone rather than sitting alongside them.
+      expect(find.text('2 goals'), findsOneWidget);
+      expect(find.text('5 goals'), findsNothing);
+      expect(find.textContaining('Weeks run Monday to Sunday'), findsOneWidget);
+    });
+
+    testWidgets('and back again', (tester) async {
+      final adapter = seasonAndWeek();
+      await pumpDashboard(tester, adapter);
+
+      await tester.tap(find.text('Weekly'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('All time'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.periodsAsked, [
+        StatisticsPeriod.allTime,
+        StatisticsPeriod.weekly,
+        StatisticsPeriod.allTime,
+      ]);
+      expect(find.text('5 goals'), findsOneWidget);
+      expect(find.textContaining('Weeks run Monday to Sunday'), findsNothing);
+    });
+
+    testWidgets('tapping the period already showing reads nothing again',
+        (tester) async {
+      final adapter = seasonAndWeek();
+      await pumpDashboard(tester, adapter);
+
+      await tester.tap(find.text('All time'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
+    });
+
+    testWidgets('an empty period says so without saying the community is new',
+        (tester) async {
+      final adapter = seasonAndWeek();
+      await pumpDashboard(tester, adapter);
+
+      await tester.tap(find.text('Monthly'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('in this period'), findsOneWidget);
+      expect(find.textContaining('yet'), findsNothing,
+          reason: 'a quiet month in a community that has played for a season '
+              'is not a community waiting for its first result');
+      // And no leader is invented out of the emptiness.
+      expect(find.text('Ali'), findsNothing);
+      expect(find.text('Sara'), findsNothing);
+    });
+
+    testWidgets('the selector stays put while a period loads', (tester) async {
+      // A control that disappears into a spinner is one the reader cannot use
+      // to get out of the state they are in.
+      final gate = Completer<void>();
+      final adapter = FakeStatisticsAdapter(
+        players: squad,
+        completedMatches: 6,
+        gate: gate.future,
+      );
+      tester.view.physicalSize = const Size(1000, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(MaterialApp(
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: CommunityDashboardTab(
+            communityId: 'c1',
+            repository: StatisticsRepository(adapter),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(StatisticsPeriodSelector), findsOneWidget);
+      expect(find.text('Weekly'), findsOneWidget);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the selector survives a narrow screen in English and Arabic',
+        (tester) async {
+      // 320 logical points is the narrowest phone the product targets, and the
+      // Arabic labels are the longer set.
+      for (final locale in const [Locale('en'), Locale('ar')]) {
+        await pumpDashboard(
+          tester,
+          seasonAndWeek(),
+          locale: locale,
+          size: const Size(320, 640),
+        );
+
+        expect(find.byType(StatisticsPeriodSelector), findsOneWidget);
+        expect(tester.takeException(), isNull,
+            reason: 'a period label must shrink rather than overflow');
+      }
+    });
+
+    testWidgets('Arabic names all three periods in Arabic', (tester) async {
+      await pumpDashboard(tester, seasonAndWeek(), locale: const Locale('ar'));
+
+      expect(find.text('أسبوعي'), findsOneWidget);
+      expect(find.text('شهري'), findsOneWidget);
+      expect(find.text('كل الأوقات'), findsOneWidget);
+
+      await tester.tap(find.text('أسبوعي'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('بتوقيت عُمان'), findsOneWidget);
+    });
+  });
 }
 
 /// The statistics port, answering from memory and counting what it was asked.
+///
+/// [players] and [completedMatches] are the All Time answers, which is what the
+/// screen opens on. [periodPlayers] and [periodMatches] hold the bounded
+/// periods, and default to empty — a period nobody stocked is a period nothing
+/// happened in, which is exactly what the database returns for one.
 class FakeStatisticsAdapter implements StatisticsAdapter {
   FakeStatisticsAdapter({
     required this.players,
     required this.completedMatches,
+    this.periodPlayers = const {},
+    this.periodMatches = const {},
     this.failure,
     this.gate,
   });
 
   final List<CommunityPlayerStatistics> players;
   final int completedMatches;
+  final Map<StatisticsPeriod, List<CommunityPlayerStatistics>> periodPlayers;
+  final Map<StatisticsPeriod, int> periodMatches;
   final Failure? failure;
 
   /// Held open to keep the first load pending while the test looks at it.
@@ -465,22 +769,36 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
   /// the completed-matches read and not from anywhere else.
   int completedMatchReads = 0;
 
+  /// Every period this port was asked about, in order, so a test can assert
+  /// that the screen's choice reached the data layer rather than being applied
+  /// on top of rows read for another period.
+  final List<StatisticsPeriod> periodsAsked = [];
+
   @override
   Future<List<CommunityPlayerStatistics>> fetchCommunityPlayerStatistics(
     String communityId,
+    StatisticsPeriod period,
   ) async {
     reads++;
+    periodsAsked.add(period);
     if (gate != null) await gate;
     if (failure != null) throw failure!;
-    return players;
+    return period == StatisticsPeriod.allTime
+        ? players
+        : periodPlayers[period] ?? const [];
   }
 
   @override
-  Future<int> fetchCompletedMatches(String communityId) async {
+  Future<int> fetchCompletedMatches(
+    String communityId,
+    StatisticsPeriod period,
+  ) async {
     completedMatchReads++;
     if (gate != null) await gate;
     if (failure != null) throw failure!;
-    return completedMatches;
+    return period == StatisticsPeriod.allTime
+        ? completedMatches
+        : periodMatches[period] ?? 0;
   }
 
   /// The dashboard ranks nobody, so it never reads the roster. Reaching this
@@ -490,6 +808,14 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
     String communityId,
   ) =>
       throw UnimplementedError('the Community Dashboard reads no roster');
+
+  /// The dashboard is a community's figures, never one player's own totals.
+  @override
+  Future<List<CommunityPlayerStatistics>> fetchPlayerPeriodStatistics(
+    String userId,
+    StatisticsPeriod period,
+  ) =>
+      throw UnimplementedError('the Community Dashboard reads no player totals');
 }
 
 /// Records a pushed route without letting it build: `ProfileScreen` makes the
