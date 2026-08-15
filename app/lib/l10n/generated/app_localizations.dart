@@ -2756,6 +2756,12 @@ abstract class AppLocalizations {
   /// **'Player profile'**
   String get playerProfileTitle;
 
+  /// No description provided for @openPlayerProfileAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open player profile'**
+  String get openPlayerProfileAction;
+
   /// No description provided for @profileNotVisibleTitle.
   ///
   /// In en, this message translates to:

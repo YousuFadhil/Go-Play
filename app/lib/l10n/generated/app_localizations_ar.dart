@@ -1543,6 +1543,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get playerProfileTitle => 'ملف اللاعب';
 
   @override
+  String get openPlayerProfileAction => 'فتح ملف اللاعب';
+
+  @override
   String get profileNotVisibleTitle => 'الملف غير متاح';
 
   @override

@@ -84,7 +84,13 @@ MatchAccessContext matchAccessContextFromRow(Map<String, dynamic> row) {
 /// A guest carries no profile, so `primary_position` is null. That is the
 /// absence of a position and not an unknown one, which is why nothing
 /// substitutes a default here.
-MatchRegistration matchRegistrationFromRow(Map<String, dynamic> row) {
+/// [avatarUrl] is supplied by the adapter rather than read from [row]: the view
+/// carries the profile columns a roster needs but not the picture's path, so the
+/// face is looked up alongside and joined here. It is never passed for a guest.
+MatchRegistration matchRegistrationFromRow(
+  Map<String, dynamic> row, {
+  String? avatarUrl,
+}) {
   final status = registrationStatusFromDb(row['status'] as String);
   final registrationId = row['registration_id'] as String?;
   final displayName = row['display_name'] as String?;
@@ -122,6 +128,7 @@ MatchRegistration matchRegistrationFromRow(Map<String, dynamic> row) {
       status: common.status,
       registrationOrder: common.registrationOrder,
       adminOrder: common.adminOrder,
+      avatarUrl: avatarUrl,
     );
   }
 

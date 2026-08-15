@@ -6,6 +6,7 @@ import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../communities/community_models.dart';
+import '../profile/player_identity.dart';
 import '../members/member_repository.dart';
 import 'match_card.dart';
 import 'match_models.dart';
@@ -493,12 +494,34 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
                 key: p.isProfessionalGuest
                     ? Key('guestTile_${p.professionalGuestId}')
                     : null,
-                leading: CircleAvatar(
-                  backgroundColor:
-                      p.isProfessionalGuest ? scheme.tertiaryContainer : null,
-                  foregroundColor:
-                      p.isProfessionalGuest ? scheme.onTertiaryContainer : null,
-                  child: Text('${index + 1}'),
+                // The row's own controls are on the right and stay there. The
+                // face is the profile control, because a roster row here is
+                // already the remove button's row and taking that gesture for
+                // navigation would cost an administrator the thing they came
+                // for.
+                leading: PlayerIdentityTap(
+                  key: Key('identity_${p.participantId}'),
+                  userId: p.userId,
+                  enabled: !_busy,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        child: Text(
+                          '${index + 1}',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      PlayerAvatar(
+                        avatarUrl: p.avatarUrl,
+                        fullName: p.fullName,
+                        isProfessionalGuest: p.isProfessionalGuest,
+                      ),
+                    ],
+                  ),
                 ),
                 title: Text(participantLabel(l10n, p)),
                 subtitle: Text(
@@ -614,8 +637,13 @@ class _AddPlayerSheetState extends State<_AddPlayerSheet> {
                     itemBuilder: (context, index) {
                       final m = members[index];
                       return ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.person_outline, size: 20),
+                        // No profile navigation here, deliberately: this row's
+                        // tap is the selection, and a picker that opened a
+                        // profile instead of choosing somebody would be a
+                        // picker that does not pick.
+                        leading: PlayerAvatar(
+                          avatarUrl: m.avatarUrl,
+                          fullName: m.fullName,
                         ),
                         title: Text(m.fullName),
                         subtitle: Text(widget.positionLabel(m.position)),

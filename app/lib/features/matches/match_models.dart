@@ -65,6 +65,7 @@ class MatchRegistration {
     this.professionalGuestId,
     this.position,
     this.adminOrder,
+    this.avatarUrl,
   }) : assert(
           (userId == null) != (professionalGuestId == null),
           'A seat belongs to a registered user or to a Professional Guest, '
@@ -92,6 +93,13 @@ class MatchRegistration {
   /// The profile's primary position. Null for a guest, who has no profile —
   /// not "unknown", but "there is none to read".
   final String? position;
+
+  /// Where this player's picture is, when they have set one.
+  ///
+  /// Always null for a Professional Guest, and that is a rule rather than a
+  /// coincidence: a guest has no account, so there is no picture of theirs to
+  /// show and no other player's that may stand in for it.
+  final String? avatarUrl;
 
   final RegistrationStatus status;
   final int registrationOrder;

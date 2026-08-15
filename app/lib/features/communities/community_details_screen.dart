@@ -8,6 +8,7 @@ import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../matches/create_match_screen.dart';
 import '../matches/match_card.dart';
+import '../profile/player_identity.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../invitations/community_invitation_screen.dart';
@@ -537,13 +538,17 @@ class _MembersTab extends StatelessWidget {
             children: [
               for (final member in members)
                 ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    foregroundColor: theme.colorScheme.onSurfaceVariant,
-                    child: const Icon(Icons.person, size: 20),
+                  leading: PlayerAvatar(
+                    avatarUrl: member.avatarUrl,
+                    fullName: member.fullName,
                   ),
                   title: Text(member.fullName),
                   subtitle: Text(positionLabel(context, member.position)),
+                  // A name in a roster is a player, and a player has a record.
+                  // Nothing else claims this row — the role chip is a label,
+                  // not a control — so the whole tile opens the profile, and
+                  // whether it may be read is the server's answer.
+                  onTap: () => openPlayerProfile(context, member.userId),
                   trailing: member.role == CommunityRole.player
                       ? null
                       : _RoleChip(label: _roleLabel(l10n, member.role)),

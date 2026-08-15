@@ -353,6 +353,7 @@ class PlayerCard extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final avatarUrl = player?.avatarUrl;
+    final isGuest = assignment.isProfessionalGuest;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 82),
@@ -364,16 +365,31 @@ class PlayerCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // A Professional Guest is marked on the pitch as they are on every
+              // roster: the tertiary disc and the badge, never a picture. Before
+              // this they shared the plain white disc with a player who had left
+              // the match, which said the same thing about two different people.
               CircleAvatar(
                 radius: 21,
-                backgroundColor: Colors.white,
-                foregroundColor: theme.colorScheme.primary,
-                foregroundImage:
-                    avatarUrl == null ? null : NetworkImage(avatarUrl),
+                backgroundColor: isGuest
+                    ? theme.colorScheme.tertiaryContainer
+                    : Colors.white,
+                foregroundColor: isGuest
+                    ? theme.colorScheme.onTertiaryContainer
+                    : theme.colorScheme.primary,
+                // A guest holds no account, so there is no picture of theirs to
+                // load and no chance of loading somebody else's.
+                foregroundImage: avatarUrl == null || isGuest
+                    ? null
+                    : NetworkImage(avatarUrl),
                 // Swallowed: a picture that will not load is not worth an error,
                 // and the child shows through instead of a broken image.
-                onForegroundImageError: avatarUrl == null ? null : (_, __) {},
-                child: const Icon(Icons.person, size: 21),
+                onForegroundImageError:
+                    avatarUrl == null || isGuest ? null : (_, __) {},
+                child: Icon(
+                  isGuest ? Icons.workspace_premium_outlined : Icons.person,
+                  size: 21,
+                ),
               ),
               const SizedBox(height: Gap.xs),
               Text(

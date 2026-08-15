@@ -42,6 +42,43 @@ class SupabaseAvatars {
     return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
   }
 
+  /// Where each of [userIds] keeps their picture, as URLs, skipping the ones
+  /// who have none.
+  ///
+  /// **Why this exists as a second read.** A roster is read through
+  /// `v_match_registrations`, whose ordering is the authoritative participant
+  /// order (migration `0053`) and which carries the profile columns a roster
+  /// needs — but not `avatar_path`. Adding it there is a schema change, and a
+  /// face beside a name does not need one: `users.avatar_path` is readable by
+  /// exactly the people who can already read `full_name` off the same row, so
+  /// this asks for it directly and joins on the client.
+  ///
+  /// Unversioned, for the reason the team adapter gives: a roster is a
+  /// screenful of faces, and busting the cache on every read would refetch all
+  /// of them each time it opens.
+  ///
+  /// An empty [userIds] does not reach the network. A roster of Professional
+  /// Guests alone has nobody to look up.
+  static Future<Map<String, String>> urlsForUsers(
+    SupabaseClient client,
+    Iterable<String> userIds,
+  ) async {
+    final ids = userIds.toSet().toList();
+    if (ids.isEmpty) return const {};
+
+    final rows = await client
+        .from('users')
+        .select('id, avatar_path')
+        .inFilter('id', ids);
+
+    return {
+      for (final row in rows)
+        if (publicUrl(client, row['avatar_path'] as String?)
+            case final String url)
+          row['id'] as String: url,
+    };
+  }
+
   static String contentTypeFor(String extension) => switch (extension) {
         'png' => 'image/png',
         'webp' => 'image/webp',

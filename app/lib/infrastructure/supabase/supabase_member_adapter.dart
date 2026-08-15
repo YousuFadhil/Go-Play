@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/communities/community_models.dart';
 import '../../features/members/member_adapter.dart';
 import 'mappers/community_mapper.dart';
+import 'supabase_avatars.dart';
 import 'supabase_bootstrap.dart';
 import 'supabase_failure_mapper.dart';
 
@@ -20,11 +21,20 @@ class SupabaseMemberAdapter implements MemberAdapter {
         final rows = await _client
             .from('community_members')
             .select('role, created_at, user:users(id, full_name, '
-                'primary_position)')
+                'primary_position, avatar_path)')
             .eq('community_id', communityId)
             .order('created_at', ascending: true);
 
-        return [for (final row in rows) communityMemberFromRow(row)];
+        return [
+          for (final row in rows)
+            communityMemberFromRow(
+              row,
+              // Unversioned, as everywhere a list of faces is read: a roster is
+              // a screenful of pictures and busting the cache on every read
+              // would refetch all of them each time it opens.
+              avatarUrl: (path) => SupabaseAvatars.publicUrl(_client, path),
+            ),
+        ];
       });
 
   @override

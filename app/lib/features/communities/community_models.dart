@@ -74,12 +74,17 @@ class CommunityMember {
     required this.fullName,
     required this.position,
     required this.role,
+    this.avatarUrl,
   });
 
   final String userId;
   final String fullName;
   final String position;
   final CommunityRole role;
+
+  /// Where this member's picture is, when they have set one. Null is an
+  /// initials avatar rather than a missing one.
+  final String? avatarUrl;
 
   bool get isOwner => role == CommunityRole.owner;
 }

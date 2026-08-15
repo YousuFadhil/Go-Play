@@ -9,6 +9,7 @@ import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/matches/match_adapter.dart';
 import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/matches/match_service.dart';
+import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
 import 'package:go_play/features/teams/formation.dart';
@@ -136,6 +137,7 @@ void main() {
     CommunityRole? role = CommunityRole.admin,
     Locale locale = const Locale('en'),
     FakeMemberAdapter? members,
+    NavigatorObserver? observer,
   }) async {
     // Two pitches and the controls under them need more than the default
     // 800x600, or the buttons sit below the fold and a tap lands on nothing.
@@ -147,6 +149,7 @@ void main() {
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
+      navigatorObservers: observer == null ? const [] : [observer],
       home: TeamsScreen(
         matchId: 'm1',
         teamRepository: TeamRepository(teams),
@@ -1346,7 +1349,118 @@ void main() {
       expect(find.text('إنشاء الفرق'), findsOneWidget);
     });
   });
+
+  // --- player identity on the pitch ---------------------------------------------
+
+  group('a face on the pitch', () {
+    TeamAssignment guestOnPitch(String guestId, TeamId team) => TeamAssignment(
+          professionalGuestId: guestId,
+          team: team,
+          assignedPosition: null,
+          basis: null,
+        );
+
+    testWidgets('a reader who cannot manage opens the player instead',
+        (tester) async {
+      final observer = _PitchRouteRecorder();
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        role: CommunityRole.player,
+        observer: observer,
+      );
+      await tester.pumpAndSettle();
+      observer.pushed.clear();
+
+      await tester.tap(find.text('Sara Al Balushi'));
+
+      final screen = observer.pushed.single
+          .builder(tester.element(find.byType(TeamsScreen)));
+      expect((screen as ProfileScreen).userId, 'u1');
+      observer.discard();
+    });
+
+    testWidgets('an organizer still gets the management sheet', (tester) async {
+      final observer = _PitchRouteRecorder();
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        role: CommunityRole.admin,
+        observer: observer,
+      );
+      await tester.pumpAndSettle();
+      observer.pushed.clear();
+
+      await tester.tap(find.text('Sara Al Balushi'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Move to the other team'), findsOneWidget,
+          reason: 'the management action wins where there is one');
+      expect(observer.pushed, isEmpty);
+    });
+
+    testWidgets('a Professional Guest is marked as one and opens nothing',
+        (tester) async {
+      final observer = _PitchRouteRecorder();
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(
+          lineup: [...storedLineup(), guestOnPitch('g1', TeamId.a)],
+          roster: fourInputs(),
+        ),
+        matches: FakeMatchAdapter(
+          match: match,
+          registrations: [
+            ...fourSeats(),
+            const MatchRegistration(
+              registrationId: 'reg-g1',
+              professionalGuestId: 'g1',
+              fullName: 'Ahmed',
+              status: RegistrationStatus.confirmed,
+              registrationOrder: 5,
+            ),
+          ],
+        ),
+        role: CommunityRole.player,
+        observer: observer,
+      );
+      await tester.pumpAndSettle();
+      observer.pushed.clear();
+
+      // The badge the roster uses for a guest, on the pitch as well: before
+      // this they shared the plain disc with a player who had left the match.
+      expect(find.byIcon(Icons.workspace_premium_outlined), findsOneWidget);
+
+      // The pitch prints the participant's own name, not the roster label.
+      await tester.tap(find.text('Ahmed'));
+      await tester.pumpAndSettle();
+      expect(observer.pushed, isEmpty,
+          reason: 'a guest has no account and therefore no record to open');
+    });
+  });
 }
+
+/// Records a pushed route without letting it build: `ProfileScreen` makes the
+/// production repositories when nobody injects any, and this suite has no data
+/// provider.
+class _PitchRouteRecorder extends NavigatorObserver {
+  final List<MaterialPageRoute<dynamic>> pushed = [];
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is MaterialPageRoute) pushed.add(route);
+  }
+
+  void discard() {
+    for (final route in pushed) {
+      navigator?.removeRoute(route);
+    }
+    pushed.clear();
+  }
+}
+
 
 // --- Fake ports -------------------------------------------------------------
 //

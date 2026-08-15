@@ -13,6 +13,7 @@ import '../members/member_repository.dart';
 import '../notifications/push_service.dart';
 import '../results/result_entry_screen.dart';
 import '../teams/teams_screen.dart';
+import '../profile/player_identity.dart';
 import 'match_card.dart';
 import 'match_management_screen.dart';
 import 'match_models.dart';
@@ -519,6 +520,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                             registration,
                             (position) => _positionLabel(context, position),
                           ),
+                          userId: registration.userId,
+                          avatarUrl: registration.avatarUrl,
                           isProfessionalGuest:
                               registration.isProfessionalGuest,
                         ),
@@ -542,6 +545,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                             registration,
                             (position) => _positionLabel(context, position),
                           ),
+                          userId: registration.userId,
+                          avatarUrl: registration.avatarUrl,
                           queuePosition: index + 1,
                           isProfessionalGuest:
                               registration.isProfessionalGuest,
@@ -855,18 +860,34 @@ class _RegistrationPanel extends StatelessWidget {
   }
 }
 
-/// One name on a roster. [queuePosition] numbers the reserve queue, which is
-/// the order people are promoted in and therefore worth showing.
+/// One participant on a roster. [queuePosition] numbers the reserve queue,
+/// which is the order people are promoted in and therefore worth showing.
+///
+/// A registered player is their face, their name, and a tap that opens their
+/// Player Profile. Nothing else claims this row — it is a read-only list — so
+/// the whole tile is the control.
+///
+/// A Professional Guest is drawn as one and taps to nothing. They have no
+/// account and therefore no record to open, and offering a tap that leads
+/// nowhere would be worse than offering none.
 class _PlayerRow extends StatelessWidget {
   const _PlayerRow({
     required this.name,
     required this.position,
+    this.userId,
+    this.avatarUrl,
     this.queuePosition,
     this.isProfessionalGuest = false,
   });
 
   final String name;
   final String position;
+
+  /// Whose profile this row opens. Null for a Professional Guest, which is the
+  /// same thing as saying there is no profile.
+  final String? userId;
+
+  final String? avatarUrl;
   final int? queuePosition;
 
   /// A Professional Guest is a stand-in for this match only, and the roster has
@@ -879,30 +900,34 @@ class _PlayerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final background = isProfessionalGuest
-        ? scheme.tertiaryContainer
-        : scheme.surfaceContainerHighest;
-    final foreground = isProfessionalGuest
-        ? scheme.onTertiaryContainer
-        : scheme.onSurfaceVariant;
+    final userId = this.userId;
 
     return ListTile(
       key: isProfessionalGuest ? const Key('guestRow') : null,
-      leading: CircleAvatar(
-        radius: 18,
-        backgroundColor: background,
-        foregroundColor: foreground,
-        child: queuePosition == null
-            ? Icon(
-                isProfessionalGuest
-                    ? Icons.workspace_premium_outlined
-                    : Icons.person,
-                size: 20,
-              )
-            : Text(
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The queue position kept its place rather than its disc: it is what
+          // says who is promoted next, and the face now occupies the circle it
+          // used to sit in.
+          if (queuePosition != null) ...[
+            SizedBox(
+              width: 18,
+              child: Text(
                 '$queuePosition',
-                style: theme.textTheme.labelLarge?.copyWith(color: foreground),
+                textAlign: TextAlign.end,
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: scheme.onSurfaceVariant),
               ),
+            ),
+            const SizedBox(width: Gap.sm),
+          ],
+          PlayerAvatar(
+            avatarUrl: avatarUrl,
+            fullName: name,
+            isProfessionalGuest: isProfessionalGuest,
+          ),
+        ],
       ),
       title: Text(name),
       subtitle: Text(
@@ -911,6 +936,7 @@ class _PlayerRow extends StatelessWidget {
             ? theme.textTheme.bodySmall?.copyWith(color: scheme.tertiary)
             : null,
       ),
+      onTap: userId == null ? null : () => openPlayerProfile(context, userId),
     );
   }
 }

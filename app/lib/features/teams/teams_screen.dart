@@ -9,6 +9,7 @@ import '../communities/community_models.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../members/member_repository.dart';
+import '../profile/player_identity.dart';
 import 'pitch_view.dart';
 import 'team_generation_settings.dart';
 import 'team_models.dart';
@@ -357,11 +358,28 @@ class _TeamsScreenState extends State<TeamsScreen> {
         players: view.players,
         hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
         nameOf: (userId) => _nameOf(view, userId),
-        // An edit is an owner-or-admin action, so only they are given anything
-        // to tap. For everybody else a card is a picture and a name.
-        onTapPlayer: view.canGenerate && !_busy
-            ? (assignment) => _editPlayer(l10n, view, assignment)
-            : null,
+        // Who a card belongs to decides what tapping it does, and the
+        // management action wins where there is one.
+        //
+        //   * owner/admin  -> the manual-override sheet, exactly as before. A
+        //                     card is 82 pixels wide and cannot carry a second
+        //                     hit target, so the organizer keeps the one they
+        //                     came for.
+        //   * anybody else -> the player's profile, which is the rule
+        //                     everywhere a name is shown.
+        //
+        // A Professional Guest is neither: `_editPlayer` already returns for
+        // one, and they have no profile to open.
+        onTapPlayer: _busy
+            ? null
+            : (assignment) {
+                if (view.canGenerate) {
+                  _editPlayer(l10n, view, assignment);
+                  return;
+                }
+                final userId = assignment.userId;
+                if (userId != null) openPlayerProfile(context, userId);
+              },
       ),
     ];
   }
@@ -525,7 +543,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
         children: [
           for (final candidate in candidates)
             ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person)),
+              // A picker's row belongs to its selection: tapping is choosing
+              // this player, not reading about them. The face is here because
+              // recognising somebody is what the list is for.
+              leading: PlayerAvatar(
+                avatarUrl: candidate.avatarUrl,
+                fullName: candidate.fullName,
+              ),
               title: Text(candidate.fullName),
               onTap: () => Navigator.of(dialogContext).pop(candidate),
             ),
@@ -593,7 +617,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
         children: [
           for (final other in others)
             ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person)),
+              leading: PlayerAvatar(
+                avatarUrl: view.players[other.participantId]?.avatarUrl,
+                fullName: _nameOf(view, other.participantId),
+              ),
               title: Text(_nameOf(view, other.participantId)),
               // Non-null by construction: `others` above excludes Professional
               // Guests, and a lineup row naming a registered player always

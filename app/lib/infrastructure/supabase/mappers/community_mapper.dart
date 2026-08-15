@@ -40,13 +40,21 @@ Community communityFromRow(Map<String, dynamic> row) => Community(
     );
 
 /// Reads a membership row joined with the player profile.
-CommunityMember communityMemberFromRow(Map<String, dynamic> row) {
+/// [avatarUrl] turns the stored path into somewhere it can be fetched from.
+/// Passed in rather than resolved here, exactly as the team mapper takes it:
+/// where a picture lives is the data provider's business and a mapper is not
+/// supposed to know.
+CommunityMember communityMemberFromRow(
+  Map<String, dynamic> row, {
+  String? Function(String? path)? avatarUrl,
+}) {
   final user = row['user'] as Map<String, dynamic>;
   return CommunityMember(
     userId: user['id'] as String,
     fullName: user['full_name'] as String,
     position: user['primary_position'] as String,
     role: communityRoleFromDb(row['role'] as String),
+    avatarUrl: avatarUrl?.call(user['avatar_path'] as String?),
   );
 }
 

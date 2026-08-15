@@ -657,6 +657,7 @@
   "matchMembershipRequiredBodyUnnamed": "This match belongs to a community you have not joined. Join the community to see the match and register for it.",
 
   "playerProfileTitle": "Player profile",
+  "openPlayerProfileAction": "Open player profile",
   "profileNotVisibleTitle": "Profile not available",
   "errProfileNotVisible": "This player shares their profile with their community members only.",
   "settingsPrivacySection": "Privacy",
