@@ -46,7 +46,12 @@ abstract interface class MatchAdapter {
 
   Future<void> deleteMatch(String matchId);
 
-  /// Roster of a match, in registration order.
+  /// Roster of a match, in the authoritative participant order.
+  ///
+  /// That order is the owner/admin arrangement when the match has one and
+  /// arrival order otherwise, and it is computed server-side by the same
+  /// expression the starting/reserve split is cut over. An implementation
+  /// returns it as it came; nothing above re-sorts it.
   Future<List<MatchRegistration>> fetchRegistrations(String matchId);
 
   /// Registers the signed-in user and returns the seat they were given.
@@ -64,6 +69,39 @@ abstract interface class MatchAdapter {
   /// ask is decided in the database against the caller's own session; nothing
   /// here is trusted to have checked.
   Future<RegistrationStatus> addPlayerToMatch(String matchId, String userId);
+
+  // --- Administrative roster arrangement --------------------------------------
+  //
+  // Two operations, both owner/admin only and both decided in the database
+  // against the caller's own session. Neither carries a seat: starting and
+  // reserve are derived from position by the server cutting one order at
+  // `starting_players`, so there is no input either could take that produces
+  // more starting participants than the match has starting slots.
+  //
+  // The first arrangement of a match activates administrative ordering for the
+  // rest of its life. That is the server's decision to record, not something an
+  // implementation here flags.
+
+  /// Writes the authoritative participant order of [matchId].
+  ///
+  /// [registrationIds] is every seat of the match exactly once, starting
+  /// participants first. Sending the whole order rather than a move is what
+  /// makes a roster that changed underneath refusable: the server compares the
+  /// list against its own participants and refuses a mismatch instead of
+  /// applying it to a roster the caller never saw.
+  Future<void> setRosterOrder(String matchId, List<String> registrationIds);
+
+  /// Exchanges the positions of two seats.
+  ///
+  /// The approved mechanism for moving a participant into a full starting
+  /// lineup: two positions are exchanged, so the number above the cut is the
+  /// number that was above it. Works in either direction and for either kind of
+  /// participant, because both are seats in one order.
+  Future<void> swapParticipants(
+    String matchId,
+    String firstRegistrationId,
+    String secondRegistrationId,
+  );
 
   // --- Professional Guests ---------------------------------------------------
   //

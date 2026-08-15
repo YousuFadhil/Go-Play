@@ -108,13 +108,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
   }
 
   String _positionLabel(AppLocalizations l10n, String position) =>
-      switch (position) {
-        'GK' => l10n.positionGk,
-        'DEF' => l10n.positionDef,
-        'MID' => l10n.positionMid,
-        'FWD' => l10n.positionFwd,
-        _ => position,
-      };
+      positionLabelValue(l10n, position);
 
   void _showMessage(String message) {
     if (!mounted) return;

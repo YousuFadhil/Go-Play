@@ -24,6 +24,7 @@
 | Community invitation | Owner and admin: share the link, copy the link, copy the join code, regenerate the code |
 | Create / edit match | Owner and admin |
 | Match details | Roster, reserve list, register and withdraw |
+| Arrange participants | Owner and admin: the starting and reserve lists side by side, reordered by drag handle and crossed by swap |
 | Notifications | The user's own notifications |
 | Administration | System Admin only: three tabs — users, communities, matches — each a search box, a list and a delete action |
 
@@ -118,6 +119,36 @@ too. Granting the role happens in SQL, outside the app.
 
 Hiding the icon is a convenience. Every admin function checks `is_system_admin()`
 server-side, so a client that got to the screen anyway would be refused.
+
+## Arranging the roster
+
+The one screen that shows the starting list and the reserve list together,
+because the operations it offers are about the boundary between them. Reached
+from the match management hub; the two existing roster screens — manage players,
+manage reserve — are unchanged, since adding, removing and renaming are
+questions about one list at a time.
+
+Three affordances, and each maps to exactly one server operation:
+
+- **A drag handle on every row** reorders within its own list. The whole
+  participant order is sent, starting participants first.
+- **Dragging a row onto another** swaps the two, in either direction and across
+  either list.
+- **Tapping a row, then another** does the same swap. It exists because the same
+  operation has to be reachable without a pointer that can hold a drag.
+
+The row body owns the cross-list drag and the handle owns the reorder, which is
+why the two gestures do not collide.
+
+A full starting list can never gain a participant: no seat is ever sent, and the
+server derives starting and reserve by cutting one order at the match's starting
+count. Reordering inside a list leaves the same people above the cut; a swap
+moves two positions and creates none.
+
+The screen names the ordering the match is under, because the state is
+permanent — after the first change, registration order stops deciding anything
+and does not come back (DD-14). A played match is arrangeable like any other and
+says that its starting list is kept as the record of who played.
 
 ## Role-dependent UI
 

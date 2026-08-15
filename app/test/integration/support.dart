@@ -215,4 +215,8 @@ const _codes = <String>[
   'INVALID_GUEST_NAME',
   'GUEST_NOT_FOUND',
   'INVALID_MVP',
+  // Administrative roster arrangement (migration 0053).
+  'ROSTER_MISMATCH',
+  'INVALID_SWAP',
+  'ROSTER_ORDER_MODE_LOCKED',
 ];

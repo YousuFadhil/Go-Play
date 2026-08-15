@@ -337,8 +337,11 @@ alphabet, reissued only if the owner needs to invalidate what was shared.
 
 ## 6. Business rules carried by the model
 
-- Registration order decides who starts: the first `starting_players` are
-  confirmed, the rest are reserve.
+- Registration order decides who starts **until an owner or admin arranges the
+  roster**: the first `starting_players` of the authoritative order are
+  confirmed, the rest are reserve. The authoritative order is
+  `match_registrations.admin_order` when `matches.roster_order_mode = 'manual'`
+  and arrival order otherwise — see §7 and `07-Database-Design.md`.
 - No two registrations for one person in overlapping live matches.
 - Withdrawing deletes the registration row, which is what allows re-registering
   (DD-01).
@@ -350,3 +353,36 @@ alphabet, reissued only if the owner needs to invalidate what was shared.
 - `communities.join_policy` in (`OPEN`, `CODE_REQUIRED`), default `OPEN`. It
   replaced `is_private`, which conflated visibility with joining; a community is
   always visible now.
+
+## 7. The administrative roster arrangement (migration `0053`)
+
+Two columns, and no new entity.
+
+| Column | Meaning |
+|---|---|
+| `matches.roster_order_mode` | `registration` (default) or `manual`. Records that an owner or admin has arranged this match's roster. **One-way**: a trigger refuses `manual` → `registration`, so administrative ordering is never reverted, not even by an admin writing the row directly. |
+| `match_registrations.admin_order` | The participant's place in that arrangement, 1 first. Null for every participant of a match still in registration order; non-null for every participant of an arranged one. Unique per match, **deferrable**, because every arrangement rewrites the order as one statement and a permutation passes through a moment where two rows share a value. |
+
+The authoritative participant order is one expression, used by
+`rebalance_roster`, by `next_reserve_registration` and by the
+`v_match_registrations.roster_position` column the app reads:
+
+```
+ORDER BY admin_order NULLS LAST, (user_id IS NULL), registration_order
+```
+
+Everything that follows is a consequence of that one clause plus the existing
+cut at `starting_players`:
+
+- **The default is untouched.** A match nobody has arranged has `admin_order`
+  null on every row, so the first term ties and the two derived terms decide —
+  which is exactly migration `0045`'s behaviour, including the Professional
+  Guest FIFO/LIFO fallback.
+- **`registration_order` keeps its meaning.** It is the record of arrival, it is
+  what the default ordering reads, and it is what an arrangement is seeded from
+  the first time one is created. It is never rewritten.
+- **A guest is ordered against a community player by the same column.** There is
+  one participant order, not a user queue and a guest queue.
+- **Capacity cannot be exceeded.** No operation grants a seat. Starting and
+  reserve are derived by cutting the order, and there are only ever
+  `starting_players` positions above the cut.

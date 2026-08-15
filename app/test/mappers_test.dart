@@ -221,18 +221,44 @@ void main() {
   });
 
   group('matchRegistrationFromRow', () {
-    test('reads the joined profile, the seat and the order', () {
+    test('reads the profile, the seat, the order and the arrangement', () {
       final registration = matchRegistrationFromRow(const {
+        'registration_id': 'reg-4',
+        'user_id': 'u4',
+        'professional_guest_id': null,
+        'participant_type': 'USER',
+        'display_name': 'Khalid',
+        'primary_position': 'FWD',
         'status': 'reserve',
         'registration_order': 12,
-        'user': {'id': 'u4', 'full_name': 'Khalid', 'primary_position': 'FWD'},
+        'admin_order': 5,
+        'roster_position': 5,
       });
 
+      expect(registration.registrationId, 'reg-4');
       expect(registration.userId, 'u4');
       expect(registration.fullName, 'Khalid');
       expect(registration.position, 'FWD');
       expect(registration.status, RegistrationStatus.reserve);
       expect(registration.registrationOrder, 12);
+      expect(registration.adminOrder, 5);
+    });
+
+    test('a match nobody has arranged carries no administrative position', () {
+      final registration = matchRegistrationFromRow(const {
+        'registration_id': 'reg-1',
+        'user_id': 'u1',
+        'professional_guest_id': null,
+        'participant_type': 'USER',
+        'display_name': 'Sara',
+        'primary_position': 'GK',
+        'status': 'confirmed',
+        'registration_order': 1,
+        'admin_order': null,
+        'roster_position': 1,
+      });
+
+      expect(registration.adminOrder, isNull);
     });
   });
 

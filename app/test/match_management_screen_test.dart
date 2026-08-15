@@ -95,6 +95,19 @@ void main() {
     expect(find.text('Delete match'), findsOneWidget);
   });
 
+  testWidgets('arranging the roster is offered, in every match state',
+      (tester) async {
+    // Not gated on the lock the way editing is: the approved rule is that an
+    // owner or admin arranges a roster in every state, including a played
+    // match, and the database is what keeps a played record intact.
+    await pumpManagement(tester, FakeMatchAdapter(match: completed));
+
+    expect(find.byKey(const Key('arrangeRosterEntry')), findsOneWidget);
+    final entry =
+        tester.widget<ListTile>(find.byKey(const Key('arrangeRosterEntry')));
+    expect(entry.enabled, isTrue);
+  });
+
   testWidgets('a delete that succeeds reports nothing and leaves the screen',
       (tester) async {
     final adapter = FakeMatchAdapter(match: completed);
@@ -216,6 +229,18 @@ class FakeMatchAdapter implements MatchAdapter {
 
   @override
   Future<void> withdrawFromMatch(String matchId) => throw UnimplementedError();
+
+  @override
+  Future<void> setRosterOrder(String matchId, List<String> registrationIds) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> swapParticipants(
+    String matchId,
+    String firstRegistrationId,
+    String secondRegistrationId,
+  ) =>
+      throw UnimplementedError();
 
   @override
   Future<void> removePlayer(String matchId, String userId) =>

@@ -571,6 +571,78 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errGuestNotFound => 'هذا المحترف لم يعد ضمن المباراة.';
 
   @override
+  String get arrangeRosterTitle => 'ترتيب المشاركين';
+
+  @override
+  String get arrangeRosterSubtitle =>
+      'أعد ترتيب الأساسيين والاحتياط، أو بدّل بين مشارك وآخر.';
+
+  @override
+  String get arrangeRosterHint =>
+      'اسحب المقبض لإعادة الترتيب داخل القائمة. اضغط على مشارك ثم على آخر للتبديل بينهما.';
+
+  @override
+  String arrangeStartingSection(int count, int capacity) {
+    return 'الأساسيون ($count/$capacity)';
+  }
+
+  @override
+  String arrangeReserveSection(int count) {
+    return 'الاحتياط ($count)';
+  }
+
+  @override
+  String get arrangeModeManual => 'ترتيب المنظّم';
+
+  @override
+  String get arrangeModeManualHelp =>
+      'تتبع هذه المباراة الترتيب الذي حدّدته. لم يعد ترتيب التسجيل هو ما يحدد الأساسيين.';
+
+  @override
+  String get arrangeModeRegistration => 'ترتيب التسجيل';
+
+  @override
+  String get arrangeModeRegistrationHelp =>
+      'يبدأ اللاعبون بحسب ترتيب انضمامهم، ويأتي المحترفون بعدهم. أول تغيير تجريه يجعل ترتيبك أنت هو المعتمد.';
+
+  @override
+  String arrangeSelectedHint(String name) {
+    return 'تم اختيار $name. اضغط على مشارك آخر للتبديل بينهما.';
+  }
+
+  @override
+  String get arrangeClearSelection => 'إلغاء';
+
+  @override
+  String get arrangeReorderHandle => 'اسحب لإعادة الترتيب';
+
+  @override
+  String get arrangeSwapAction => 'تبديل مع المشارك المختار';
+
+  @override
+  String get arrangeSelectAction => 'اختيار للتبديل';
+
+  @override
+  String get arrangeSaved => 'تم تحديث الترتيب.';
+
+  @override
+  String get arrangeStartingEmpty => 'لا يوجد مشاركون أساسيون بعد.';
+
+  @override
+  String get arrangeReserveEmpty => 'لا أحد في قائمة الاحتياط.';
+
+  @override
+  String get arrangeCompletedNote =>
+      'هذه المباراة انتهت. يُحفظ الترتيب، وتبقى قائمة الأساسيين كما هي سجلاً لمن شارك فعلاً.';
+
+  @override
+  String get errRosterChanged =>
+      'تغيّرت قائمة المشاركين أثناء ترتيبك لها. أُعيد تحميلها — حاول مرة أخرى.';
+
+  @override
+  String get errInvalidSwap => 'لا يمكن التبديل بين هذين المشاركين.';
+
+  @override
   String get errMatchCompleted => 'المباراة منتهية ولم يعد بالإمكان تعديلها.';
 
   @override

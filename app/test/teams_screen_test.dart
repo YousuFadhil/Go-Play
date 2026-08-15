@@ -59,6 +59,7 @@ void main() {
 
   MatchRegistration seat(String id, String name, String position) =>
       MatchRegistration(
+        registrationId: 'reg-$id',
         userId: id,
         fullName: name,
         position: position,
@@ -186,6 +187,7 @@ void main() {
           registrations: [
             ...fourSeats(),
             const MatchRegistration(
+              registrationId: 'reg-g1',
               professionalGuestId: 'g1',
               fullName: 'Ahmed',
               status: RegistrationStatus.confirmed,
@@ -217,6 +219,7 @@ void main() {
           registrations: [
             ...fourSeats(),
             const MatchRegistration(
+              registrationId: 'reg-g1',
               professionalGuestId: 'g1',
               fullName: 'Ahmed',
               status: RegistrationStatus.confirmed,
@@ -327,6 +330,7 @@ void main() {
       final registrations = [
         ...fourSeats().take(3),
         const MatchRegistration(
+          registrationId: 'reg-u4',
           userId: 'u4',
           fullName: 'Yousef Al Amri',
           position: 'FWD',
@@ -1519,6 +1523,18 @@ class FakeMatchAdapter implements MatchAdapter {
 
   @override
   Future<void> withdrawFromMatch(String matchId) => throw UnimplementedError();
+
+  @override
+  Future<void> setRosterOrder(String matchId, List<String> registrationIds) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> swapParticipants(
+    String matchId,
+    String firstRegistrationId,
+    String secondRegistrationId,
+  ) =>
+      throw UnimplementedError();
 
   @override
   Future<void> removePlayer(String matchId, String userId) =>

@@ -585,6 +585,78 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errGuestNotFound => 'That guest is no longer in this match.';
 
   @override
+  String get arrangeRosterTitle => 'Arrange participants';
+
+  @override
+  String get arrangeRosterSubtitle =>
+      'Reorder the starting and reserve lists, or swap a participant between them.';
+
+  @override
+  String get arrangeRosterHint =>
+      'Drag the handle to reorder a list. Tap a participant, then tap another to swap their places.';
+
+  @override
+  String arrangeStartingSection(int count, int capacity) {
+    return 'Starting ($count/$capacity)';
+  }
+
+  @override
+  String arrangeReserveSection(int count) {
+    return 'Reserve ($count)';
+  }
+
+  @override
+  String get arrangeModeManual => 'Arranged by an organizer';
+
+  @override
+  String get arrangeModeManualHelp =>
+      'This match follows the order you set. Registration order no longer decides who starts.';
+
+  @override
+  String get arrangeModeRegistration => 'Registration order';
+
+  @override
+  String get arrangeModeRegistrationHelp =>
+      'Players start in the order they joined, with professional guests after them. Your first change makes your own order the one that counts.';
+
+  @override
+  String arrangeSelectedHint(String name) {
+    return '$name selected. Tap another participant to swap their places.';
+  }
+
+  @override
+  String get arrangeClearSelection => 'Cancel';
+
+  @override
+  String get arrangeReorderHandle => 'Drag to reorder';
+
+  @override
+  String get arrangeSwapAction => 'Swap with the selected participant';
+
+  @override
+  String get arrangeSelectAction => 'Select for a swap';
+
+  @override
+  String get arrangeSaved => 'Order updated.';
+
+  @override
+  String get arrangeStartingEmpty => 'No starting participants yet.';
+
+  @override
+  String get arrangeReserveEmpty => 'Nobody is on the reserve list.';
+
+  @override
+  String get arrangeCompletedNote =>
+      'This match has been played. The order is saved, and the starting list is kept as the record of who played.';
+
+  @override
+  String get errRosterChanged =>
+      'The roster changed while you were arranging it. It has been reloaded — try again.';
+
+  @override
+  String get errInvalidSwap => 'Those two participants cannot be swapped.';
+
+  @override
   String get errMatchCompleted =>
       'This match is completed and can no longer be changed.';
 

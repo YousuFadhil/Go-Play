@@ -221,6 +221,41 @@
   "guestActionFailed": "That could not be done. Try again.",
   "errInvalidGuestName": "Enter a name between 2 and 60 characters.",
   "errGuestNotFound": "That guest is no longer in this match.",
+
+  "arrangeRosterTitle": "Arrange participants",
+  "arrangeRosterSubtitle": "Reorder the starting and reserve lists, or swap a participant between them.",
+  "arrangeRosterHint": "Drag the handle to reorder a list. Tap a participant, then tap another to swap their places.",
+  "arrangeStartingSection": "Starting ({count}/{capacity})",
+  "@arrangeStartingSection": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "capacity": { "type": "int" }
+    }
+  },
+  "arrangeReserveSection": "Reserve ({count})",
+  "@arrangeReserveSection": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "arrangeModeManual": "Arranged by an organizer",
+  "arrangeModeManualHelp": "This match follows the order you set. Registration order no longer decides who starts.",
+  "arrangeModeRegistration": "Registration order",
+  "arrangeModeRegistrationHelp": "Players start in the order they joined, with professional guests after them. Your first change makes your own order the one that counts.",
+  "arrangeSelectedHint": "{name} selected. Tap another participant to swap their places.",
+  "@arrangeSelectedHint": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "arrangeClearSelection": "Cancel",
+  "arrangeReorderHandle": "Drag to reorder",
+  "arrangeSwapAction": "Swap with the selected participant",
+  "arrangeSelectAction": "Select for a swap",
+  "arrangeSaved": "Order updated.",
+  "arrangeStartingEmpty": "No starting participants yet.",
+  "arrangeReserveEmpty": "Nobody is on the reserve list.",
+  "arrangeCompletedNote": "This match has been played. The order is saved, and the starting list is kept as the record of who played.",
+  "errRosterChanged": "The roster changed while you were arranging it. It has been reloaded — try again.",
+  "errInvalidSwap": "Those two participants cannot be swapped.",
   "errMatchCompleted": "This match is completed and can no longer be changed.",
   "errNotAuthorized": "You do not have permission to do this.",
   "errRegistrationClosed": "Registration is closed; the match reached its maximum.",

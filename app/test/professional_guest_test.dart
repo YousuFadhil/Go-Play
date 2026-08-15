@@ -38,6 +38,7 @@ void main() {
     String? name,
   }) =>
       MatchRegistration(
+        registrationId: 'reg-$userId',
         userId: userId,
         fullName: name ?? 'Player $userId',
         position: 'MID',
@@ -51,6 +52,7 @@ void main() {
     RegistrationStatus status = RegistrationStatus.confirmed,
   }) =>
       MatchRegistration(
+        registrationId: 'reg-$guestId',
         professionalGuestId: guestId,
         fullName: name,
         status: status,
@@ -97,10 +99,16 @@ void main() {
   group('1. a guest is mapped from the provider row', () {
     test('a guest row becomes a guest registration', () {
       final registration = matchRegistrationFromRow({
+        'registration_id': 'reg-guest-1',
+        'user_id': null,
+        'professional_guest_id': 'guest-1',
+        'participant_type': 'PROFESSIONAL',
+        'display_name': 'أحمد',
+        'primary_position': null,
         'status': 'reserve',
         'registration_order': 7,
-        'user': null,
-        'guest': {'id': 'guest-1', 'display_name': 'أحمد'},
+        'admin_order': null,
+        'roster_position': 7,
       });
 
       expect(registration.isProfessionalGuest, isTrue);
@@ -112,18 +120,23 @@ void main() {
       expect(registration.status, RegistrationStatus.reserve);
       expect(registration.registrationOrder, 7);
       expect(registration.participantId, 'guest-1');
+      expect(registration.registrationId, 'reg-guest-1',
+          reason: 'a guest holds a seat, and a seat is what an arrangement '
+              'names');
     });
 
     test('a registered player is unaffected', () {
       final registration = matchRegistrationFromRow({
+        'registration_id': 'reg-user-1',
+        'user_id': 'user-1',
+        'professional_guest_id': null,
+        'participant_type': 'USER',
+        'display_name': 'Sara',
+        'primary_position': 'GK',
         'status': 'confirmed',
         'registration_order': 1,
-        'user': {
-          'id': 'user-1',
-          'full_name': 'Sara',
-          'primary_position': 'GK',
-        },
-        'guest': null,
+        'admin_order': null,
+        'roster_position': 1,
       });
 
       expect(registration.isProfessionalGuest, isFalse);
@@ -137,10 +150,15 @@ void main() {
     test('a row naming neither participant is an infrastructure fault', () {
       expect(
         () => matchRegistrationFromRow({
+          'registration_id': 'reg-1',
+          'user_id': null,
+          'professional_guest_id': null,
+          'participant_type': 'USER',
+          'display_name': 'Nobody',
           'status': 'confirmed',
           'registration_order': 1,
-          'user': null,
-          'guest': null,
+          'admin_order': null,
+          'roster_position': 1,
         }),
         throwsA(isA<InfrastructureFailure>()),
       );
@@ -489,6 +507,7 @@ class FakeMatchAdapter implements MatchAdapter {
     registrations = [
       ...registrations,
       MatchRegistration(
+        registrationId: 'reg-$id',
         professionalGuestId: id,
         fullName: name,
         status: guestSeat,

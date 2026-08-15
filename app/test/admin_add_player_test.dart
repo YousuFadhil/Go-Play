@@ -30,6 +30,7 @@ void main() {
   var nextOrder = 0;
   MatchRegistration registration(String userId, RegistrationStatus status) =>
       MatchRegistration(
+        registrationId: 'reg-$userId',
         userId: userId,
         fullName: 'Player $userId',
         position: 'MID',
