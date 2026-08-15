@@ -1224,7 +1224,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statPeriodMonthly => 'شهري';
 
   @override
-  String get statPeriodAllTime => 'كل الأوقات';
+  String get statPeriodAllTime => 'الكل';
 
   @override
   String get statPeriodWeeklyNote =>

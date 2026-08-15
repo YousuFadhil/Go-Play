@@ -492,7 +492,7 @@ void main() {
 
       expect(find.text('أسبوعي'), findsOneWidget);
       expect(find.text('شهري'), findsOneWidget);
-      expect(find.text('كل الأوقات'), findsOneWidget);
+      expect(find.text('الكل'), findsOneWidget);
 
       await tester.tap(find.text('أسبوعي'));
       await tester.pumpAndSettle();
