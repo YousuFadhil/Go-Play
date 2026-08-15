@@ -150,6 +150,49 @@ permanent — after the first change, registration order stops deciding anything
 and does not come back (DD-14). A played match is arrangeable like any other and
 says that its starting list is kept as the record of who played.
 
+## Player identity
+
+**Every registered Community Player is drawn as an avatar beside their name, and
+that identity opens their Player Profile — subject to the existing profile
+visibility rules. A Professional Guest is visually distinct and opens nothing.**
+
+The rule covers every surface that names a player: match contexts, community and
+member lists, teams and results, leaderboards, and dashboard leader tiles.
+
+One rule, one component. `PlayerAvatar` draws the face and `openPlayerProfile`
+is the only navigation into `ProfileScreen`; there is no second Player Profile.
+
+| | Avatar | Tap |
+|---|---|---|
+| Community player | the stored picture, else their initials, else the person icon — the app's existing `UserAvatar` | opens their Player Profile |
+| Professional Guest | tertiary disc with the badge icon; never a picture, and never another player's | nothing |
+
+**Whether the profile may be read is not decided here.** `player_profile`
+(migration `0043`) answers against the viewer's own session and `ProfileScreen`
+words the refusal. A tappable name is an offer to ask, never a claim that the
+record behind it is readable, and nothing about this rule exposes a phone
+number, an email or an authentication identifier.
+
+**Two absences are drawn as absences.** A measure nobody leads shows no player
+and no avatar, and a statistics record that outlived its account is labelled a
+former player and opens nothing — there is no profile behind it to open.
+
+**Where the row is already spoken for**, the identity — avatar and name — is the
+profile control and the row keeps its own gesture. Drag handles stay drag
+handles, remove buttons stay remove buttons, drop targets stay drop targets:
+
+| Surface | Profile control | What the row keeps |
+|---|---|---|
+| Match details roster | the whole row | nothing else claims it |
+| Community members, Manage members | the whole row / the identity | role chip, member actions |
+| Manage roster | the identity | remove, rename, add |
+| Arrange participants | the identity | drag handle, swap selection, drop target |
+| Result entry | the identity, in the title | MVP star, goal steppers |
+| Teams — pitch | the card, for a reader who cannot manage | the manual-override sheet for an owner or admin |
+| Player pickers (add played player, choose swap partner) | none | the tap is the selection |
+| Community leaderboards | the identity | the rank badge and the value are not tappable |
+| Community dashboard leader tiles | the identity, in the subtitle | the measure icon and the figure |
+
 ## Role-dependent UI
 
 Every management control resolves against the caller's role in that community,

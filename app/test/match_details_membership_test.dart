@@ -13,6 +13,7 @@ import 'package:go_play/features/matches/match_adapter.dart';
 import 'package:go_play/features/matches/match_details_screen.dart';
 import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/matches/match_service.dart';
+import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
 
@@ -189,6 +190,52 @@ void main() {
       expect(find.text('Join the community first'), findsNothing);
       expect(matches.accessReads, 0,
           reason: 'a read that worked asks no follow-up question');
+    });
+
+    testWidgets('a player on the roster is a face, a name and a way into '
+        'their profile', (tester) async {
+      final matches = FakeMatchAdapter(
+        match: match,
+        access: memberContext,
+        registrations: const [
+          MatchRegistration(
+            registrationId: 'reg-u1',
+            userId: 'u1',
+            fullName: 'Yousuf Al Amri',
+            position: 'MID',
+            status: RegistrationStatus.confirmed,
+            registrationOrder: 1,
+            avatarUrl: 'https://example.test/u1.jpg',
+          ),
+          MatchRegistration(
+            registrationId: 'reg-g1',
+            professionalGuestId: 'g1',
+            fullName: 'Ahmed',
+            status: RegistrationStatus.confirmed,
+            registrationOrder: 2,
+          ),
+        ],
+      );
+      await pumpDetails(tester, matches: matches);
+
+      final avatars =
+          tester.widgetList<PlayerAvatar>(find.byType(PlayerAvatar)).toList();
+      expect(avatars, hasLength(2));
+      expect(avatars.first.avatarUrl, 'https://example.test/u1.jpg');
+      expect(avatars.last.isProfessionalGuest, isTrue);
+      expect(avatars.last.avatarUrl, isNull,
+          reason: 'a guest has no account, so no picture is theirs');
+
+      // Nothing else claims a roster row here, so the row is the control — and
+      // the guest's is not a control at all, because there is nothing to open.
+      final tiles = tester
+          .widgetList<ListTile>(find.ancestor(
+            of: find.byType(PlayerAvatar),
+            matching: find.byType(ListTile),
+          ))
+          .toList();
+      expect(tiles.first.onTap, isNotNull);
+      expect(tiles.last.onTap, isNull);
     });
   });
 

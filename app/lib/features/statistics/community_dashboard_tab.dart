@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../profile/player_identity.dart';
 import 'stat_card.dart';
 import 'statistics_models.dart';
 import 'statistics_repository.dart';
@@ -216,17 +217,16 @@ class LeaderTile extends StatelessWidget {
         child: Icon(icon, size: 20),
       ),
       title: Text(label, style: theme.textTheme.bodyMedium),
-      subtitle: Text(
-        leader == null
-            ? l10n.statNoneYet
-            // A record can outlive the profile it describes: the account was
-            // soft-deleted and its figures stayed. The measure is still true,
-            // so the tile keeps it and says who it belonged to as best it can.
-            : leader.fullName ?? l10n.statFormerPlayer,
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: leader == null ? scheme.onSurfaceVariant : scheme.onSurface,
-        ),
-      ),
+      // The leading disc stays the measure's icon: it says which figure this
+      // tile is, and a measure nobody leads has no player to draw. The player
+      // goes where the player's name already was.
+      subtitle: leader == null
+          ? Text(
+              l10n.statNoneYet,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            )
+          : _LeaderIdentity(leader: leader),
       trailing: leader == null
           ? null
           : Text(
@@ -234,6 +234,55 @@ class LeaderTile extends StatelessWidget {
               style: theme.textTheme.labelLarge
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
+    );
+  }
+}
+
+/// Who leads a measure: their face, their name, and the way into their profile.
+///
+/// **A record can outlive the profile it describes.** A soft-deleted account
+/// keeps its figures and loses its `users` row, so the name arrives null and
+/// the tile says so — and offers nothing to open, because there is nothing
+/// behind it. That is `userId: null` here rather than a link certain to be
+/// refused.
+class _LeaderIdentity extends StatelessWidget {
+  const _LeaderIdentity({required this.leader});
+
+  final StatisticLeader leader;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final named = leader.fullName != null;
+
+    return PlayerIdentityTap(
+      key: Key('leaderIdentity_${leader.userId}'),
+      userId: named ? leader.userId : null,
+      borderRadius: BorderRadius.circular(Radii.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PlayerAvatar(
+              avatarUrl: leader.avatarUrl,
+              fullName: leader.fullName,
+              radius: 12,
+            ),
+            const SizedBox(width: Gap.sm),
+            Flexible(
+              child: Text(
+                leader.fullName ?? l10n.statFormerPlayer,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(color: theme.colorScheme.onSurface),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

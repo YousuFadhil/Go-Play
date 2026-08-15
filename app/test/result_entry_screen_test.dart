@@ -9,6 +9,7 @@ import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/matches/match_adapter.dart';
 import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/matches/match_service.dart';
+import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
 import 'package:go_play/features/results/result_adapter.dart';
@@ -212,6 +213,45 @@ void main() {
         find.textContaining('Teams have not been generated'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('a player identity on the result form', () {
+    testWidgets('the face is a profile control and the MVP star is still the '
+        'MVP star', (tester) async {
+      final results = FakeResultAdapter();
+      await pumpResult(tester, results: results);
+      await tester.pumpAndSettle();
+
+      // The identity moved into the title so the leading slot can stay the MVP
+      // star and the trailing one the goal stepper. All three are on the row.
+      expect(
+        tester.widget<PlayerIdentityTap>(find.byKey(const Key('identity_u1')))
+            .userId,
+        'u1',
+      );
+      expect(find.byKey(const Key('mvp_u1')), findsOneWidget);
+      expect(find.byKey(const Key('goalPlus_u1')), findsOneWidget);
+
+      // And they still do what they did: naming a best player, then scoring.
+      await tester.tap(find.byKey(const Key('mvp_u1')));
+      await tester.pump();
+      await tapGoal(tester, 'u1', 1);
+      await enterScore(tester, 'teamAScore', '1');
+      await tester.pumpAndSettle();
+
+      expect(saveButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('a player picture is drawn where there is one', (tester) async {
+      final results = FakeResultAdapter();
+      await pumpResult(tester, results: results);
+      await tester.pumpAndSettle();
+
+      final avatars =
+          tester.widgetList<PlayerAvatar>(find.byType(PlayerAvatar)).toList();
+      expect(avatars, isNotEmpty);
+      expect(avatars.every((a) => !a.isProfessionalGuest), isTrue);
     });
   });
 

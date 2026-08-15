@@ -5,6 +5,7 @@ import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../profile/player_identity.dart';
 import 'match_card.dart';
 import 'match_models.dart';
 import 'match_service.dart';
@@ -400,14 +401,33 @@ class _ArrangeRosterScreenState extends State<ArrangeRosterScreen> {
                   : Colors.transparent,
           child: ListTile(
             onTap: _busy ? null : () => _tap(participant),
-            leading: CircleAvatar(
-              backgroundColor: participant.isProfessionalGuest
-                  ? scheme.tertiaryContainer
-                  : null,
-              foregroundColor: participant.isProfessionalGuest
-                  ? scheme.onTertiaryContainer
-                  : null,
-              child: Text('${index + 1}'),
+            // Every other gesture on this row is already spoken for — the body
+            // starts a drag, the row selects for a swap, the handle reorders —
+            // so the face is what opens a profile and nothing is taken away to
+            // make room for it.
+            leading: PlayerIdentityTap(
+              key: Key('identity_${participant.participantId}'),
+              userId: participant.userId,
+              enabled: !_busy,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 18,
+                    child: Text(
+                      '${index + 1}',
+                      textAlign: TextAlign.end,
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  PlayerAvatar(
+                    avatarUrl: participant.avatarUrl,
+                    fullName: participant.fullName,
+                    isProfessionalGuest: participant.isProfessionalGuest,
+                  ),
+                ],
+              ),
             ),
             title: Text(participantLabel(l10n, participant)),
             subtitle: Text(

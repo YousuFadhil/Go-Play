@@ -22,12 +22,16 @@ import 'team_mapper.dart';
 /// figures still count and whose name cannot be shown, which is exactly what a
 /// null [CommunityPlayerStatistics.fullName] means.
 CommunityPlayerStatistics communityPlayerStatisticsFromRow(
-  Map<String, dynamic> row,
-) {
+  Map<String, dynamic> row, {
+  String? Function(String? path)? avatarUrl,
+}) {
   final user = row['user'] as Map<String, dynamic>?;
   return CommunityPlayerStatistics(
     userId: row['user_id'] as String,
     fullName: user?['full_name'] as String?,
+    // From the same embed as the name, so the two are absent together: a
+    // soft-deleted account has neither a name to show nor a face.
+    avatarUrl: avatarUrl?.call(user?['avatar_path'] as String?),
     matchesPlayed: _counter(row['matches_played']),
     wins: _counter(row['wins']),
     losses: _counter(row['losses']),
@@ -42,10 +46,16 @@ CommunityPlayerStatistics communityPlayerStatisticsFromRow(
 /// `full_name` is `not null` on `users` and the view inner-joins it, so unlike
 /// a `community_statistics` row there is no unnamed case to carry here: a
 /// member whose profile is hidden is not in this view at all.
-CommunityMemberRating communityMemberRatingFromRow(Map<String, dynamic> row) {
+/// [avatarUrl] is supplied by the adapter rather than read from [row]: the view
+/// carries the roster and the rating but not the picture's path.
+CommunityMemberRating communityMemberRatingFromRow(
+  Map<String, dynamic> row, {
+  String? avatarUrl,
+}) {
   return CommunityMemberRating(
     userId: row['user_id'] as String,
     fullName: row['full_name'] as String,
+    avatarUrl: avatarUrl,
     // `ratingFromDb` rather than a cast: `numeric` reaches the client as a JSON
     // number or as its text form depending on the transport, and
     // `overall_rating` was observed arriving as the string "5.15".

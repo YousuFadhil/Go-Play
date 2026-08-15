@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../profile/player_identity.dart';
 import 'statistics_models.dart';
 import 'statistics_repository.dart';
 
@@ -262,12 +263,13 @@ class _LeaderRow extends StatelessWidget {
         children: [
           _RankBadge(rank: entry.rank),
           const SizedBox(width: Gap.md),
+          // The identity is the control; the rank and the value are not. A
+          // board row is a player like any other row that names one.
           Expanded(
-            child: Text(
-              entry.fullName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: _BoardIdentity(
+              entry: entry,
               style: theme.textTheme.titleMedium,
+              radius: 18,
             ),
           ),
           const SizedBox(width: Gap.sm),
@@ -300,11 +302,10 @@ class _RunnerUpRow extends StatelessWidget {
           _RankBadge(rank: entry.rank),
           const SizedBox(width: Gap.md),
           Expanded(
-            child: Text(
-              entry.fullName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: _BoardIdentity(
+              entry: entry,
               style: theme.textTheme.bodyMedium,
+              radius: 14,
             ),
           ),
           const SizedBox(width: Gap.sm),
@@ -314,6 +315,59 @@ class _RunnerUpRow extends StatelessWidget {
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The player named by a board row: their face, their name, and the way into
+/// their profile.
+///
+/// Only the identity is the control. The rank badge and the value sit outside
+/// it, because neither is a player and a board is still a table of figures —
+/// and the block is an `InkWell`, which loses the gesture arena to a scroll, so
+/// the list still scrolls under a finger that starts on a name.
+///
+/// A board holds only registered community members: `v_community_members`
+/// inner-joins active profiles, so there is no unnamed entry here and no
+/// Professional Guest — they hold no membership and no career.
+class _BoardIdentity extends StatelessWidget {
+  const _BoardIdentity({
+    required this.entry,
+    required this.style,
+    required this.radius,
+  });
+
+  final LeaderboardEntry entry;
+  final TextStyle? style;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return PlayerIdentityTap(
+      key: Key('boardIdentity_${entry.userId}'),
+      userId: entry.userId,
+      borderRadius: BorderRadius.circular(Radii.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+        child: Row(
+          children: [
+            PlayerAvatar(
+              avatarUrl: entry.avatarUrl,
+              fullName: entry.fullName,
+              radius: radius,
+            ),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(
+                entry.fullName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

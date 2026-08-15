@@ -4,6 +4,7 @@ import '../../core/diagnostics.dart';
 import '../../features/matches/match_adapter.dart';
 import '../../features/matches/match_models.dart';
 import 'mappers/match_mapper.dart';
+import 'supabase_avatars.dart';
 import 'supabase_bootstrap.dart';
 import 'supabase_failure_mapper.dart';
 
@@ -175,6 +176,14 @@ class SupabaseMatchAdapter implements MatchAdapter {
   /// Both identity joins in the view are outer, so a guest's seat is a row with
   /// no profile rather than no row. The split itself is the `status` the server
   /// wrote and is never recomputed from these rows.
+  /// Faces come from a second read, and only the second read knows why: the
+  /// view carries the profile columns a roster needs but not `avatar_path`, and
+  /// a picture beside a name is not worth a schema change when the column is
+  /// already readable by exactly the people who can read the name. See
+  /// [SupabaseAvatars.urlsForUsers].
+  ///
+  /// Guests are not looked up. They hold no account, so there is no path to
+  /// resolve and nothing that could resolve to somebody else's.
   @override
   Future<List<MatchRegistration>> fetchRegistrations(String matchId) =>
       guarded(() async {
@@ -185,7 +194,19 @@ class SupabaseMatchAdapter implements MatchAdapter {
                 'status, registration_order, admin_order, roster_position')
             .eq('match_id', matchId)
             .order('roster_position', ascending: true);
-        return [for (final row in rows) matchRegistrationFromRow(row)];
+
+        final avatars = await SupabaseAvatars.urlsForUsers(_client, [
+          for (final row in rows)
+            if (row['user_id'] case final String id) id,
+        ]);
+
+        return [
+          for (final row in rows)
+            matchRegistrationFromRow(
+              row,
+              avatarUrl: avatars[row['user_id']],
+            ),
+        ];
       });
 
   /// The two administrative arrangement operations (migration `0053`).

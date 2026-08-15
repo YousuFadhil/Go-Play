@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_header.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
@@ -12,6 +13,7 @@ import '../matches/match_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../members/member_repository.dart';
+import '../profile/player_identity.dart';
 import '../teams/team_models.dart';
 import '../teams/team_repository.dart';
 import 'result_models.dart';
@@ -397,14 +399,9 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
     // controls states who was on the pitch without inventing a half-supported
     // flow — see the Phase 2 report.
     if (assignment.isProfessionalGuest) {
-      final scheme = Theme.of(context).colorScheme;
       return ListTile(
         key: Key('player_$participantId'),
-        leading: CircleAvatar(
-          backgroundColor: scheme.tertiaryContainer,
-          foregroundColor: scheme.onTertiaryContainer,
-          child: const Icon(Icons.workspace_premium_outlined, size: 20),
-        ),
+        leading: const PlayerAvatar(isProfessionalGuest: true),
         title: Text(
           registration == null
               ? l10n.professionalGuestLabel
@@ -419,10 +416,37 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
 
     return ListTile(
       key: Key('player_$userId'),
+      // The face sits in the title rather than the leading slot, because the
+      // leading slot is the MVP star and the trailing one is the goal stepper.
+      // Both are why an organizer opened this screen; neither gives way to a
+      // profile link.
+      //
       // A lineup row names a player id; the roster is what turns it into a name.
       // A player who left the match after the lineup was stored has no roster
       // row left, and is shown without one rather than dropped.
-      title: Text(registration?.fullName ?? '—'),
+      title: PlayerIdentityTap(
+        key: Key('identity_$userId'),
+        userId: userId,
+        enabled: !_busy,
+        borderRadius: BorderRadius.circular(Radii.sm),
+        child: Row(
+          children: [
+            PlayerAvatar(
+              avatarUrl: registration?.avatarUrl,
+              fullName: registration?.fullName,
+              radius: 14,
+            ),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(
+                registration?.fullName ?? '—',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
       subtitle: Text(l10n.goalsScoredLabel(scored)),
       leading: IconButton(
         key: Key('mvp_$userId'),

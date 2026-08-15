@@ -7,7 +7,7 @@ import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../communities/community_models.dart';
 import '../auth/auth_service.dart';
-import '../profile/profile_screen.dart';
+import '../profile/player_identity.dart';
 import 'member_repository.dart';
 
 /// Roster of a community with the actions the viewer's role allows.
@@ -121,13 +121,8 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
 
   /// Opens a member's player profile — the existing screen, told whose record to
   /// read. Tapping yourself lands on your own, which is the same screen again.
-  void _openProfile(CommunityMember member) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProfileScreen(userId: member.userId),
-      ),
-    );
-  }
+  void _openProfile(CommunityMember member) =>
+      openPlayerProfile(context, member.userId);
 
   String _roleLabel(AppLocalizations l10n, CommunityRole role) {
     return switch (role) {
@@ -216,12 +211,9 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                 children: [
                   for (final member in members)
                     ListTile(
-                      leading: CircleAvatar(
-                        radius: 18,
-                        backgroundColor:
-                            theme.colorScheme.surfaceContainerHighest,
-                        foregroundColor: theme.colorScheme.onSurfaceVariant,
-                        child: const Icon(Icons.person, size: 20),
+                      leading: PlayerAvatar(
+                        avatarUrl: member.avatarUrl,
+                        fullName: member.fullName,
                       ),
                       title: Text(member.fullName),
                       subtitle: Text(_roleLabel(l10n, member.role)),

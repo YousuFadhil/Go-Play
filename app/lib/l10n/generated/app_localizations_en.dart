@@ -1556,6 +1556,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerProfileTitle => 'Player profile';
 
   @override
+  String get openPlayerProfileAction => 'Open player profile';
+
+  @override
   String get profileNotVisibleTitle => 'Profile not available';
 
   @override

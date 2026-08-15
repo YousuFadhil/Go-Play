@@ -541,6 +541,7 @@
   "matchMembershipRequiredBodyUnnamed": "هذه المباراة تخص مجتمعاً لم تنضم إليه. انضم إلى المجتمع لعرض المباراة والتسجيل فيها.",
 
   "playerProfileTitle": "ملف اللاعب",
+  "openPlayerProfileAction": "فتح ملف اللاعب",
   "profileNotVisibleTitle": "الملف غير متاح",
   "errProfileNotVisible": "هذا اللاعب يشارك ملفه مع أعضاء مجتمعه فقط.",
   "settingsPrivacySection": "الخصوصية",

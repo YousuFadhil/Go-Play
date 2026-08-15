@@ -7,6 +7,8 @@ import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/statistics/community_dashboard_tab.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
+import 'package:go_play/features/profile/player_identity.dart';
+import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/statistics/statistics_repository.dart';
 
 /// The Community Dashboard, against a fake port.
@@ -24,10 +26,12 @@ void main() {
     int draws = 0,
     int goals = 0,
     int mvp = 0,
+    String? avatarUrl,
   }) =>
       CommunityPlayerStatistics(
         userId: id,
         fullName: name,
+        avatarUrl: avatarUrl,
         matchesPlayed: played,
         wins: wins,
         losses: losses,
@@ -38,7 +42,15 @@ void main() {
 
   /// A community mid-season: three players, one clear leader per measure.
   final squad = [
-    player('u1', 'Ali', played: 3, wins: 2, losses: 1, goals: 5, mvp: 1),
+    // Ali has set a picture; Sara has not, so both the picture and the fallback
+    // are on the same dashboard.
+    player('u1', 'Ali',
+        played: 3,
+        wins: 2,
+        losses: 1,
+        goals: 5,
+        mvp: 1,
+        avatarUrl: 'https://example.test/u1.jpg'),
     player('u2', 'Sara', played: 4, wins: 1, losses: 3, goals: 2, mvp: 2),
     player('u3', 'Omar', played: 1, draws: 1, goals: 0, mvp: 0),
   ];
@@ -164,6 +176,7 @@ void main() {
       FakeStatisticsAdapter adapter, {
       Locale locale = const Locale('en'),
       bool settle = true,
+      NavigatorObserver? observer,
     }) async {
       tester.view.physicalSize = const Size(1000, 1600);
       tester.view.devicePixelRatio = 1;
@@ -173,6 +186,7 @@ void main() {
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
+        navigatorObservers: observer == null ? const [] : [observer],
         home: Scaffold(
           body: CommunityDashboardTab(
             communityId: 'c1',
@@ -182,6 +196,111 @@ void main() {
       ));
       if (settle) await tester.pumpAndSettle();
     }
+
+    // --- player identity on a leader tile ---------------------------------------
+
+    testWidgets('a leader tile carries a face', (tester) async {
+      await pumpDashboard(
+        tester,
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
+      );
+
+      // Ali leads Top scorer with a picture; Sara leads Most MVP without one
+      // and falls back to the initials every other surface uses.
+      final ali = tester.widget<PlayerAvatar>(find.descendant(
+        of: find.byKey(const Key('leaderIdentity_u1')).first,
+        matching: find.byType(PlayerAvatar),
+      ));
+      expect(ali.avatarUrl, 'https://example.test/u1.jpg');
+      expect(ali.isProfessionalGuest, isFalse);
+
+      final sara = tester.widget<PlayerAvatar>(find.descendant(
+        of: find.byKey(const Key('leaderIdentity_u2')).first,
+        matching: find.byType(PlayerAvatar),
+      ));
+      expect(sara.avatarUrl, isNull);
+    });
+
+    testWidgets('the leader identity opens that player', (tester) async {
+      final observer = _DashboardRouteRecorder();
+      await pumpDashboard(
+        tester,
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
+        observer: observer,
+      );
+      observer.pushed.clear();
+
+      await tester.tap(find.byKey(const Key('leaderIdentity_u1')).first);
+
+      final screen = observer.pushed.single
+          .builder(tester.element(find.byType(CommunityDashboardTab)));
+      expect((screen as ProfileScreen).userId, 'u1');
+      observer.discard();
+    });
+
+    testWidgets('a record that outlived its profile opens nothing',
+        (tester) async {
+      final observer = _DashboardRouteRecorder();
+      await pumpDashboard(
+        tester,
+        FakeStatisticsAdapter(
+          players: [player('gone', null, played: 2, goals: 9)],
+          completedMatches: 2,
+        ),
+        observer: observer,
+      );
+      observer.pushed.clear();
+
+      // The label itself is covered by 'an unnamed leader is labelled rather
+      // than blank'; what is new here is that it leads nowhere.
+      await tester.tap(find.byKey(const Key('leaderIdentity_gone')).first);
+      await tester.pumpAndSettle();
+
+      expect(observer.pushed, isEmpty,
+          reason: 'the account is gone, so there is no record to open and no '
+              'link certain to be refused');
+    });
+
+    testWidgets('a measure nobody leads still says so, with no player on it',
+        (tester) async {
+      // Ali has played and scored but has never been named best player, so two
+      // measures have a leader and the third has none.
+      await pumpDashboard(
+        tester,
+        FakeStatisticsAdapter(
+          players: [player('u1', 'Ali', played: 2, goals: 3)],
+          completedMatches: 2,
+        ),
+      );
+
+      final mvpTile = find.widgetWithText(LeaderTile, 'Most valuable player');
+      expect(find.descendant(of: mvpTile, matching: find.text('Not yet')),
+          findsOneWidget);
+      expect(find.descendant(of: mvpTile, matching: find.byType(PlayerAvatar)),
+          findsNothing,
+          reason: 'an absence is not a player');
+
+      // And the measures that do have one still draw them.
+      expect(
+        find.descendant(
+          of: find.widgetWithText(LeaderTile, 'Top scorer'),
+          matching: find.byType(PlayerAvatar),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the figures are unchanged', (tester) async {
+      await pumpDashboard(
+        tester,
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
+      );
+
+      // The same numbers the tiles carried before they carried faces.
+      expect(find.text('5 goals'), findsOneWidget);
+      expect(find.text('4 matches'), findsOneWidget);
+      expect(find.text('2 times'), findsOneWidget);
+    });
 
     testWidgets('shows the indicator until the figures arrive', (tester) async {
       final gate = Completer<void>();
@@ -371,4 +490,23 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
     String communityId,
   ) =>
       throw UnimplementedError('the Community Dashboard reads no roster');
+}
+
+/// Records a pushed route without letting it build: `ProfileScreen` makes the
+/// production repositories when nobody injects any, and this suite has no data
+/// provider.
+class _DashboardRouteRecorder extends NavigatorObserver {
+  final List<MaterialPageRoute<dynamic>> pushed = [];
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is MaterialPageRoute) pushed.add(route);
+  }
+
+  void discard() {
+    for (final route in pushed) {
+      navigator?.removeRoute(route);
+    }
+    pushed.clear();
+  }
 }
