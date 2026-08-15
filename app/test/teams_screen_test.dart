@@ -11,6 +11,7 @@ import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'package:go_play/features/teams/formation.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/pitch_view.dart';
@@ -154,6 +155,89 @@ void main() {
       ),
     ));
   }
+
+  // Regression for the production failure fixed by migration 0052: a match
+  // holding a Professional Guest could not have teams generated at all.
+  //
+  // The fault itself was in PL/pgSQL and is covered by the integration suite.
+  // What belongs here is the half this layer owns: a stored lineup that
+  // contains a guest — no user id, no position, `GUEST` basis reading as a null
+  // `AssignmentBasis` — has to render. If the screen cannot draw the result of
+  // a successful generation, fixing the database would only move the failure.
+  group('a lineup that holds a Professional Guest', () {
+    TeamAssignment guestAssignment(String guestId, TeamId team) =>
+        TeamAssignment(
+          professionalGuestId: guestId,
+          team: team,
+          assignedPosition: null,
+          basis: null,
+        );
+
+    testWidgets('8. the screen renders it without a position or a profile',
+        (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(
+          lineup: [...storedLineup(), guestAssignment('g1', TeamId.a)],
+          roster: fourInputs(),
+        ),
+        matches: FakeMatchAdapter(
+          match: match,
+          registrations: [
+            ...fourSeats(),
+            const MatchRegistration(
+              professionalGuestId: 'g1',
+              fullName: 'Ahmed',
+              status: RegistrationStatus.confirmed,
+              registrationOrder: 5,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Five cards on the pitch, the guest among them: the existing formation
+      // fallback places a positionless participant in whichever line is short,
+      // which is the approved behaviour and not a new presentation rule.
+      expect(find.byType(PlayerCard), findsNWidgets(5));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a guest is never taken for a goalkeeper', (tester) async {
+      // `assignedPosition == Position.gk` is false for null, so a positionless
+      // guest cannot displace the real keeper.
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(
+          lineup: [...storedLineup(), guestAssignment('g1', TeamId.a)],
+          roster: fourInputs(),
+        ),
+        matches: FakeMatchAdapter(
+          match: match,
+          registrations: [
+            ...fourSeats(),
+            const MatchRegistration(
+              professionalGuestId: 'g1',
+              fullName: 'Ahmed',
+              status: RegistrationStatus.confirmed,
+              registrationOrder: 5,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final formation = buildFormation(
+        [...storedLineup(), guestAssignment('g1', TeamId.a)],
+      );
+      expect(
+        formation.goalkeepers.map((a) => a.participantId),
+        ['u1'],
+        reason: 'only the player whose stored position is GK keeps goal',
+      );
+      expect(tester.takeException(), isNull);
+    });
+  });
 
   group('loading', () {
     testWidgets('shows the loading indicator until the data arrives',
