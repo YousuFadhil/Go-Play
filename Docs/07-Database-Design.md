@@ -312,3 +312,91 @@ are the implementation backlog. Four cross-cutting families recur across
 tables and should be closed together rather than one table at a time: the
 unused write rules, the account-deletion cascade ordering, the missing
 `updated_at` columns, and the absent reconciliation checks.
+
+## 7. Administrative roster ordering (migration `0053`)
+
+### Schema
+
+- `matches.roster_order_mode` — `text NOT NULL DEFAULT 'registration'`,
+  constrained to (`registration`, `manual`). It records that an owner or admin
+  has arranged this match's roster. The transition is **one-way**: the
+  `matches_roster_order_mode_locked` trigger raises
+  `ROSTER_ORDER_MODE_LOCKED` on any update that moves it back, so the approved
+  rule "administrative ordering is never silently reverted" is a database
+  invariant rather than a convention the RPCs happen to keep. It has to be,
+  because `matches_update_community_admins` lets an admin write the row
+  directly.
+- `match_registrations.admin_order` — `integer`, null for every participant of a
+  match still in registration order and non-null for every participant of an
+  arranged one. `unique (match_id, admin_order) DEFERRABLE INITIALLY DEFERRED`,
+  and the deferral is load-bearing: every arrangement rewrites the order in one
+  statement, and a permutation of `1,2,3` into `1,3,2` passes through a moment
+  where two rows share a value. Nulls do not collide, so an unarranged match
+  holds as many nulls as it has participants.
+- `match_registrations_admin_order` — a `BEFORE INSERT` trigger that appends a
+  new participant to the end of the arrangement when the match has one. A
+  trigger rather than a line in each of the five functions that insert a
+  registration, for the reason migration `0050` hangs lineup reconciliation off
+  `recompute_match_status`: the invariant belongs at the one place that sees
+  every insert.
+
+### The ordering
+
+One expression, used by `rebalance_roster` (which cuts it at
+`starting_players`), by `next_reserve_registration` (which promotes from it) and
+by `v_match_registrations.roster_position` (which the app reads it through):
+
+```sql
+ORDER BY admin_order NULLS LAST, (user_id IS NULL), registration_order
+```
+
+An unarranged match ties on the first term, so the two derived terms decide and
+migration `0045`'s behaviour is unchanged — including the Professional Guest
+FIFO promotion and LIFO displacement, which remain the approved fallback.
+
+### RPCs
+
+| Function | Who | What it does |
+|---|---|---|
+| `set_match_roster_order(uuid, uuid[])` | owner, admin | Writes the whole participant order, starting participants first. The array must be an **exact permutation** of the match's registration ids — same length, no repeats, all belonging to this match — or the call raises `ROSTER_MISMATCH` |
+| `swap_match_participants(uuid, uuid, uuid)` | owner, admin | Exchanges two seats' positions. `INVALID_SWAP` when the two ids are equal, null, or not both participants of this match |
+
+Both take the match row `FOR UPDATE` before reading anything that depends on
+capacity or ordering — the same lock, in the same place, as registration,
+withdrawal and the guest operations — then activate administrative ordering if
+this is the first arrangement, write, re-cut the roster and call
+`recompute_match_status`. Both are `SECURITY DEFINER` with `search_path` pinned,
+revoked from `anon` and `public`, granted to `authenticated`, and authorized
+internally by `has_community_role(community_id, auth.uid(), 'admin')`. No table
+privilege was widened and no RLS policy changed.
+
+**Why the whole order rather than a move.** "Move X to position 4" has to be
+interpreted against the order the caller was looking at, which may have changed
+since they looked. Sending the resulting order makes the caller's view part of
+the request: a roster that moved underneath is refused with `ROSTER_MISMATCH`
+instead of being applied to a roster nobody saw. That is the whole of the
+concurrency story, and it costs one comparison.
+
+**Why no seat travels.** The array says positions and nothing else; starting and
+reserve are derived by the cut. So capacity and starting/reserve exclusivity are
+not validated in these functions because they cannot be violated in them.
+
+### A played match
+
+`set_match_roster_order` and `swap_match_participants` work on a completed match
+— an owner or admin administers a match in every state — but neither re-cuts its
+roster, for the reason migration `0047` states: everyone in the record played,
+and re-cutting would demote players out of a recorded lineup and notify them
+about a match that is over. The arrangement is stored; the seats are left as the
+record they are.
+
+### Functions changed, and how
+
+`rebalance_roster`, `register_player_in_match`, `withdraw_from_match`,
+`remove_player` and `purge_membership` each gained the new ordering term and
+nothing else, except `register_player_in_match`, which also gained one branch:
+under an arrangement the new row is appended, so its seat is decided by whether
+the arrangement has a starting position left, rather than by the community count
+migration `0045` uses. That branch is what stops the next community player to
+register from displacing a Professional Guest the administrator deliberately put
+in the starting lineup.

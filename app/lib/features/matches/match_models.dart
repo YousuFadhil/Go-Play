@@ -57,17 +57,28 @@ class MatchAccessContext {
 /// the two never disagree and the label is right in either language.
 class MatchRegistration {
   const MatchRegistration({
+    required this.registrationId,
     required this.fullName,
     required this.status,
     required this.registrationOrder,
     this.userId,
     this.professionalGuestId,
     this.position,
+    this.adminOrder,
   }) : assert(
           (userId == null) != (professionalGuestId == null),
           'A seat belongs to a registered user or to a Professional Guest, '
           'never to both and never to neither.',
         );
+
+  /// The seat itself, which is what an administrative roster operation names.
+  ///
+  /// Deliberately not [participantId]: an arrangement is over seats, and a seat
+  /// is one row whichever kind of participant holds it. Naming a user or a
+  /// guest instead would make every operation carry which of the two it meant,
+  /// and the whole point of the single participant order is that it does not
+  /// have to.
+  final String registrationId;
 
   /// Null when this seat belongs to a Professional Guest.
   final String? userId;
@@ -85,6 +96,15 @@ class MatchRegistration {
   final RegistrationStatus status;
   final int registrationOrder;
 
+  /// This seat's place in the owner/admin arrangement, or null while the match
+  /// is still in its default registration order.
+  ///
+  /// Read for one purpose only: telling the reader that a match *has* been
+  /// arranged. It is never a sort key here — the list arrives in the
+  /// authoritative order the server computed, and re-deriving that order in the
+  /// client would be a second implementation of a rule that has one.
+  final int? adminOrder;
+
   bool get isProfessionalGuest => professionalGuestId != null;
 
   /// Whichever identity this seat carries. Safe as a map key across both kinds,
@@ -95,6 +115,19 @@ class MatchRegistration {
 /// Match lifecycle: open -> full (registration closed) -> back to open when a
 /// slot frees. Completed is automatic once the scheduled end time passes.
 enum MatchStatus { open, full, completed }
+
+/// Which ordering decides who starts and who waits.
+///
+/// [registration] is the default and is derived: community players before
+/// Professional Guests, each in arrival order. [manual] means an owner or admin
+/// has arranged the roster, and the arrangement they stored is authoritative
+/// from then on.
+///
+/// The move from [registration] to [manual] is one-way for the life of the
+/// match — an administrator who later arranges the list back into arrival order
+/// has arranged it, not reset it. The database refuses the reverse outright, so
+/// nothing here has to decide whether a match "looks default" again.
+enum RosterOrderMode { registration, manual }
 
 /// A football match scheduled inside a community.
 class Match {
@@ -111,6 +144,7 @@ class Match {
     this.title,
     this.description,
     this.communityName,
+    this.rosterOrderMode = RosterOrderMode.registration,
   });
 
   final String id;
@@ -130,6 +164,12 @@ class Match {
 
   /// Present only when the query joins the community (e.g. Home screen).
   final String? communityName;
+
+  /// Whether an owner or admin has arranged this match's roster. Shown to the
+  /// organizer so an arrangement is a visible state and not a silent one; it
+  /// governs no behaviour here, because the ordering it selects is applied
+  /// server-side.
+  final RosterOrderMode rosterOrderMode;
 
   /// What to show as the match's headline: the title if set, else location.
   String get displayName =>

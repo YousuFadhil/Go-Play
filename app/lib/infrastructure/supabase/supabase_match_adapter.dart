@@ -17,7 +17,8 @@ class SupabaseMatchAdapter implements MatchAdapter {
 
   static const _columns =
       'id, community_id, created_by, location, start_at, end_at, '
-      'starting_players, max_registration, status, title, description';
+      'starting_players, max_registration, status, title, description, '
+      'roster_order_mode';
 
   @override
   Future<List<Match>> fetchCommunityMatches(String communityId) =>
@@ -158,25 +159,72 @@ class SupabaseMatchAdapter implements MatchAdapter {
         operation: 'rpc delete_match',
       );
 
-  /// The roster, community players and Professional Guests alike.
+  /// The roster, community players and Professional Guests alike, through
+  /// `v_match_registrations` (migrations `0048`, `0053`).
   ///
-  /// Both embeds are on nullable foreign keys, so each is an outer join: a
-  /// guest's seat comes back with `user` null and `guest` populated, and the row
-  /// is not dropped. Ordering stays `registration_order` — the queue position
-  /// the database assigned. The starting/reserve split is the `status` the
-  /// server wrote, never something recomputed from these rows.
+  /// The view rather than the table, and the change is about ordering. A roster
+  /// is read in the authoritative participant order — the owner/admin
+  /// arrangement when the match has one, community-before-guest arrival order
+  /// otherwise — and that is a rule, not a column: it reads a null
+  /// `admin_order` as "nobody has arranged this" and falls through to two
+  /// derived terms, one of which (`user_id is null`) is not a column at all.
+  /// The view computes it once as `roster_position`, using the same expression
+  /// `rebalance_roster` cuts at `starting_players`, so ordering by it is
+  /// ordering by the thing the starting/reserve split was made over.
+  ///
+  /// Both identity joins in the view are outer, so a guest's seat is a row with
+  /// no profile rather than no row. The split itself is the `status` the server
+  /// wrote and is never recomputed from these rows.
   @override
   Future<List<MatchRegistration>> fetchRegistrations(String matchId) =>
       guarded(() async {
         final rows = await _client
-            .from('match_registrations')
-            .select('status, registration_order, '
-                'user:users(id, full_name, primary_position), '
-                'guest:match_professional_guests(id, display_name)')
+            .from('v_match_registrations')
+            .select('registration_id, user_id, professional_guest_id, '
+                'participant_type, display_name, primary_position, '
+                'status, registration_order, admin_order, roster_position')
             .eq('match_id', matchId)
-            .order('registration_order', ascending: true);
+            .order('roster_position', ascending: true);
         return [for (final row in rows) matchRegistrationFromRow(row)];
       });
+
+  /// The two administrative arrangement operations (migration `0053`).
+  ///
+  /// Each locks the match row, authorizes the caller against the match's
+  /// community, activates administrative ordering if this is the first
+  /// arrangement, writes the order, re-cuts the starting/reserve split and
+  /// reconciles the stored lineup — in one transaction. Nothing here decides
+  /// any of it, and neither asks whether the match has started or finished:
+  /// the server allows an owner or admin to arrange a roster in every state,
+  /// and keeps a played match's split as the record it is.
+  @override
+  Future<void> setRosterOrder(String matchId, List<String> registrationIds) =>
+      guarded(
+        () async {
+          await _client.rpc('set_match_roster_order', params: {
+            'p_match_id': matchId,
+            'p_registration_ids': registrationIds,
+          });
+        },
+        operation: 'rpc set_match_roster_order',
+      );
+
+  @override
+  Future<void> swapParticipants(
+    String matchId,
+    String firstRegistrationId,
+    String secondRegistrationId,
+  ) =>
+      guarded(
+        () async {
+          await _client.rpc('swap_match_participants', params: {
+            'p_match_id': matchId,
+            'p_first_registration_id': firstRegistrationId,
+            'p_second_registration_id': secondRegistrationId,
+          });
+        },
+        operation: 'rpc swap_match_participants',
+      );
 
   /// The three Professional Guest operations (migration `0047`).
   ///

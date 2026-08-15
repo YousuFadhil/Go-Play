@@ -83,6 +83,7 @@ flutter test test/integration/authorization_test.dart --dart-define=SUPABASE_URL
 | `concurrency_test.dart` | The last-seat race and racing withdrawals |
 | `system_admin_test.dart` | That an ordinary account is refused by every admin function, and cannot read the roster. The grant path and the delete cascades are verified by hand — no test account holds the role, by design |
 | `btge_schema_test.dart` | Migration `0018`: the three Core Player Inputs on the profile including the OP-1 rating range, and the stored lineup — its vocabularies, one assignment per player, one goalkeeper per team, who may read and write, and the cascade with its match |
+| `roster_arrangement_test.dart` | Migration `0053`: the default order untouched, activation and its one-way lock, reorder and swap in both directions, the Professional Guest an administrator put in the starting lineup and everything that must not displace it, capacity and permutation refusals, who may arrange, a completed match, and the BTGE boundary |
 | `team_generation_test.dart` | The adapter above that schema: the generation set is the confirmed seats, a missing date of birth is reported rather than invented, a lineup survives a round trip and is replaced rather than appended, a player can neither write one nor destroy one, and the played lineups Diversity may read |
 
 `btge_schema_test.dart` writes the `player` account's profile columns and reads

@@ -20,6 +20,21 @@ String matchStatusLabel(BuildContext context, MatchStatus status) =>
 String formatMatchTime(BuildContext context, Match match) =>
     formatDayAndTimeRange(context, match.startAt, match.endAt);
 
+/// A profile position as a localized word.
+///
+/// Here rather than in each screen for the reason [participantLabel] is here:
+/// two screens showing the same roster must not be free to word it differently.
+/// An unrecognised value is passed through, which is what a column carrying
+/// something this build does not know about should show.
+String positionLabelValue(AppLocalizations l10n, String position) =>
+    switch (position) {
+      'GK' => l10n.positionGk,
+      'DEF' => l10n.positionDef,
+      'MID' => l10n.positionMid,
+      'FWD' => l10n.positionFwd,
+      _ => position,
+    };
+
 /// What to call a participant on a roster or in a lineup.
 ///
 /// A registered player is their own name. A Professional Guest is named through

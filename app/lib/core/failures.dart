@@ -159,6 +159,17 @@ enum FailureReason {
   invalidGuestName,
   guestNotFound,
 
+  // Arranging a roster (migration `0053`).
+  //
+  // An arrangement names every participant of the match exactly once, so it is
+  // also a statement about the roster the arranger was looking at. A mismatch
+  // means it moved — somebody registered, somebody withdrew, another
+  // administrator arranged it — and the order was refused rather than applied
+  // to a roster nobody saw. The second is two seats that cannot be exchanged:
+  // the same seat twice, or one that is not in this match.
+  rosterChanged,
+  invalidSwap,
+
   // Identity
   emailAlreadyUsed,
 

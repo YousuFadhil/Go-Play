@@ -6,6 +6,7 @@ import '../../core/diagnostics.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import 'arrange_roster_screen.dart';
 import 'edit_match_screen.dart';
 import 'manage_roster_screen.dart';
 import 'match_card.dart';
@@ -177,6 +178,26 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
     }
   }
 
+  /// Arranging the roster, which is a different question from managing either
+  /// list: it is about the boundary between them, so it gets the screen that
+  /// shows both.
+  ///
+  /// Not gated on `canModify`. The approved rule is that an owner or admin
+  /// arranges a roster in every match state, and the database enforces exactly
+  /// that — a played match keeps its starting list as the record it is, which
+  /// is a rule about the outcome and never about who may act.
+  Future<void> _arrangeRoster() async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ArrangeRosterScreen(matchId: widget.matchId),
+      ),
+    );
+    if (changed == true) {
+      _changed = true;
+      _reload();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -302,6 +323,16 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                               l10n.manageReserveTitle, canModify,
                               match.communityId)
                           : null,
+                    ),
+                    ListTile(
+                      key: const Key('arrangeRosterEntry'),
+                      leading: const Icon(Icons.swap_vert),
+                      title: Text(l10n.arrangeRosterTitle),
+                      subtitle: Text(l10n.arrangeRosterSubtitle),
+                      isThreeLine: true,
+                      trailing: const Icon(Icons.chevron_right),
+                      enabled: !_busy,
+                      onTap: !_busy ? _arrangeRoster : null,
                     ),
                   ],
                 ),

@@ -25,6 +25,14 @@ RegistrationStatus registrationStatusFromDb(String value) => switch (value) {
       _ => throw const InfrastructureFailure(),
     };
 
+/// Which ordering a match's roster is under (migration `0053`).
+///
+/// Anything unrecognised reads as the default, which is the state every match
+/// created before the column existed is in and the only state a match can be in
+/// without somebody having deliberately left it.
+RosterOrderMode rosterOrderModeFromDb(String? value) =>
+    value == 'manual' ? RosterOrderMode.manual : RosterOrderMode.registration;
+
 Match matchFromRow(Map<String, dynamic> row) => Match(
       id: row['id'] as String,
       communityId: row['community_id'] as String,
@@ -40,6 +48,7 @@ Match matchFromRow(Map<String, dynamic> row) => Match(
       // Present only when the query joins the community.
       communityName: (row['community'] as Map<String, dynamic>?)?['name']
           as String?,
+      rosterOrderMode: rosterOrderModeFromDb(row['roster_order_mode'] as String?),
     );
 
 /// Reads one row of `match_membership_context` (migration `0042`).
@@ -57,36 +66,62 @@ MatchAccessContext matchAccessContextFromRow(Map<String, dynamic> row) {
   );
 }
 
-/// Reads a registration row joined with whichever participant it names.
+/// Reads one row of `v_match_registrations` (migrations `0048`, `0053`).
 ///
-/// Both embeds are nullable, and exactly one of them is present — the database
-/// states that as a CHECK constraint, so a row with neither (or with both) is
-/// the schema disagreeing with this build rather than something to guess at.
+/// The read model rather than the table, because the roster is read in the
+/// authoritative participant order and that order is a rule — the owner/admin
+/// arrangement when the match has one, arrival order otherwise. The view holds
+/// it as `roster_position`, computed by the same expression `rebalance_roster`
+/// cuts at `starting_players`, so the list this produces is in the order the
+/// starting/reserve split was made over. Re-deriving that here would be a
+/// second implementation of one rule.
 ///
-/// A guest carries no profile, so `position` stays null. That is the absence of
-/// a position and not an unknown one, which is why nothing substitutes a
-/// default here.
+/// `participant_type` is the view's projection of which identity column is set
+/// — the same XOR the table states as a CHECK constraint. A row that names
+/// neither participant is the schema disagreeing with this build rather than
+/// something to guess at.
+///
+/// A guest carries no profile, so `primary_position` is null. That is the
+/// absence of a position and not an unknown one, which is why nothing
+/// substitutes a default here.
 MatchRegistration matchRegistrationFromRow(Map<String, dynamic> row) {
   final status = registrationStatusFromDb(row['status'] as String);
-  final order = row['registration_order'] as int;
-  final user = row['user'] as Map<String, dynamic>?;
-  if (user != null) {
+  final registrationId = row['registration_id'] as String?;
+  final displayName = row['display_name'] as String?;
+  if (registrationId == null || displayName == null) {
+    throw const InfrastructureFailure();
+  }
+
+  final common = (
+    registrationId: registrationId,
+    fullName: displayName,
+    status: status,
+    registrationOrder: row['registration_order'] as int,
+    adminOrder: row['admin_order'] as int?,
+  );
+
+  final guestId = row['professional_guest_id'] as String?;
+  if (row['participant_type'] == 'PROFESSIONAL' && guestId != null) {
     return MatchRegistration(
-      userId: user['id'] as String,
-      fullName: user['full_name'] as String,
-      position: user['primary_position'] as String?,
-      status: status,
-      registrationOrder: order,
+      registrationId: common.registrationId,
+      professionalGuestId: guestId,
+      fullName: common.fullName,
+      status: common.status,
+      registrationOrder: common.registrationOrder,
+      adminOrder: common.adminOrder,
     );
   }
 
-  final guest = row['guest'] as Map<String, dynamic>?;
-  if (guest != null) {
+  final userId = row['user_id'] as String?;
+  if (userId != null) {
     return MatchRegistration(
-      professionalGuestId: guest['id'] as String,
-      fullName: guest['display_name'] as String,
-      status: status,
-      registrationOrder: order,
+      registrationId: common.registrationId,
+      userId: userId,
+      fullName: common.fullName,
+      position: row['primary_position'] as String?,
+      status: common.status,
+      registrationOrder: common.registrationOrder,
+      adminOrder: common.adminOrder,
     );
   }
 

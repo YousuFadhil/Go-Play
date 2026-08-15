@@ -1148,6 +1148,126 @@ abstract class AppLocalizations {
   /// **'That guest is no longer in this match.'**
   String get errGuestNotFound;
 
+  /// No description provided for @arrangeRosterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrange participants'**
+  String get arrangeRosterTitle;
+
+  /// No description provided for @arrangeRosterSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder the starting and reserve lists, or swap a participant between them.'**
+  String get arrangeRosterSubtitle;
+
+  /// No description provided for @arrangeRosterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the handle to reorder a list. Tap a participant, then tap another to swap their places.'**
+  String get arrangeRosterHint;
+
+  /// No description provided for @arrangeStartingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting ({count}/{capacity})'**
+  String arrangeStartingSection(int count, int capacity);
+
+  /// No description provided for @arrangeReserveSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reserve ({count})'**
+  String arrangeReserveSection(int count);
+
+  /// No description provided for @arrangeModeManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Arranged by an organizer'**
+  String get arrangeModeManual;
+
+  /// No description provided for @arrangeModeManualHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'This match follows the order you set. Registration order no longer decides who starts.'**
+  String get arrangeModeManualHelp;
+
+  /// No description provided for @arrangeModeRegistration.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration order'**
+  String get arrangeModeRegistration;
+
+  /// No description provided for @arrangeModeRegistrationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Players start in the order they joined, with professional guests after them. Your first change makes your own order the one that counts.'**
+  String get arrangeModeRegistrationHelp;
+
+  /// No description provided for @arrangeSelectedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} selected. Tap another participant to swap their places.'**
+  String arrangeSelectedHint(String name);
+
+  /// No description provided for @arrangeClearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get arrangeClearSelection;
+
+  /// No description provided for @arrangeReorderHandle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to reorder'**
+  String get arrangeReorderHandle;
+
+  /// No description provided for @arrangeSwapAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap with the selected participant'**
+  String get arrangeSwapAction;
+
+  /// No description provided for @arrangeSelectAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Select for a swap'**
+  String get arrangeSelectAction;
+
+  /// No description provided for @arrangeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Order updated.'**
+  String get arrangeSaved;
+
+  /// No description provided for @arrangeStartingEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No starting participants yet.'**
+  String get arrangeStartingEmpty;
+
+  /// No description provided for @arrangeReserveEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody is on the reserve list.'**
+  String get arrangeReserveEmpty;
+
+  /// No description provided for @arrangeCompletedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This match has been played. The order is saved, and the starting list is kept as the record of who played.'**
+  String get arrangeCompletedNote;
+
+  /// No description provided for @errRosterChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The roster changed while you were arranging it. It has been reloaded — try again.'**
+  String get errRosterChanged;
+
+  /// No description provided for @errInvalidSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Those two participants cannot be swapped.'**
+  String get errInvalidSwap;
+
   /// No description provided for @errMatchCompleted.
   ///
   /// In en, this message translates to:

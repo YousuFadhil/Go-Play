@@ -102,6 +102,13 @@ class SupabaseFailureMapper {
     'INVALID_GUEST_NAME': ValidationFailure(FailureReason.invalidGuestName),
     'GUEST_NOT_FOUND': NotFoundFailure(FailureReason.guestNotFound),
 
+    // Arranging a roster (migration 0053). The first is the roster having moved
+    // between the arranger reading it and sending the order back, which is a
+    // state the operation ran into — the same shape as ALREADY_REGISTERED. The
+    // second is a pair of seats that cannot be exchanged, which is input.
+    'ROSTER_MISMATCH': ConflictFailure(FailureReason.rosterChanged),
+    'INVALID_SWAP': ValidationFailure(FailureReason.invalidSwap),
+
     // Match management
     'MAX_BELOW_REGISTERED': ValidationFailure(
       FailureReason.maxBelowRegistered,

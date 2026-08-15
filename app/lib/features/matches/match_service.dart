@@ -97,7 +97,9 @@ class MatchService {
   /// only so the create/edit screens can show the derived maximum.
   Future<int?> fetchReservePlayers() => _adapter.fetchReservePlayers();
 
-  /// Roster of a match, in registration order.
+  /// Roster of a match, in the authoritative participant order: the owner/admin
+  /// arrangement when there is one, arrival order otherwise. Never re-sorted
+  /// here — the order is a server-side rule and arrives applied.
   Future<List<MatchRegistration>> fetchRegistrations(String matchId) =>
       _adapter.fetchRegistrations(matchId);
 
@@ -108,6 +110,36 @@ class MatchService {
 
   Future<void> withdrawFromMatch(String matchId) =>
       _adapter.withdrawFromMatch(matchId);
+
+  // --- Administrative roster arrangement -----------------------------------------
+  //
+  // Only an owner or a community admin may arrange a roster, and the database
+  // decides that against the caller's own session. Every rule these touch —
+  // which participant starts, whether the arrangement has been activated, what
+  // happens to a stored lineup — is applied in one server-side transaction, so
+  // both of these are followed by a fresh read rather than a local guess.
+
+  /// Stores the authoritative participant order of a match.
+  ///
+  /// [registrationIds] is every seat exactly once, starting participants first.
+  /// The starting/reserve split is not sent and cannot be: the server derives
+  /// it by cutting this order at the match's starting-player count.
+  Future<void> setRosterOrder(String matchId, List<String> registrationIds) =>
+      _adapter.setRosterOrder(matchId, registrationIds);
+
+  /// Exchanges two participants' positions — the approved way to move somebody
+  /// into a starting lineup that is already full, in either direction and for
+  /// either kind of participant.
+  Future<void> swapParticipants(
+    String matchId,
+    String firstRegistrationId,
+    String secondRegistrationId,
+  ) =>
+      _adapter.swapParticipants(
+        matchId,
+        firstRegistrationId,
+        secondRegistrationId,
+      );
 
   // --- Professional Guests -----------------------------------------------------
   //

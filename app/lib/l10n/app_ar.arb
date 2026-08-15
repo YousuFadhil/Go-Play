@@ -184,6 +184,41 @@
   "guestActionFailed": "تعذّر تنفيذ الإجراء. حاول مرة أخرى.",
   "errInvalidGuestName": "أدخل اسماً بين حرفين و60 حرفاً.",
   "errGuestNotFound": "هذا المحترف لم يعد ضمن المباراة.",
+
+  "arrangeRosterTitle": "ترتيب المشاركين",
+  "arrangeRosterSubtitle": "أعد ترتيب الأساسيين والاحتياط، أو بدّل بين مشارك وآخر.",
+  "arrangeRosterHint": "اسحب المقبض لإعادة الترتيب داخل القائمة. اضغط على مشارك ثم على آخر للتبديل بينهما.",
+  "arrangeStartingSection": "الأساسيون ({count}/{capacity})",
+  "@arrangeStartingSection": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "capacity": { "type": "int" }
+    }
+  },
+  "arrangeReserveSection": "الاحتياط ({count})",
+  "@arrangeReserveSection": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "arrangeModeManual": "ترتيب المنظّم",
+  "arrangeModeManualHelp": "تتبع هذه المباراة الترتيب الذي حدّدته. لم يعد ترتيب التسجيل هو ما يحدد الأساسيين.",
+  "arrangeModeRegistration": "ترتيب التسجيل",
+  "arrangeModeRegistrationHelp": "يبدأ اللاعبون بحسب ترتيب انضمامهم، ويأتي المحترفون بعدهم. أول تغيير تجريه يجعل ترتيبك أنت هو المعتمد.",
+  "arrangeSelectedHint": "تم اختيار {name}. اضغط على مشارك آخر للتبديل بينهما.",
+  "@arrangeSelectedHint": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "arrangeClearSelection": "إلغاء",
+  "arrangeReorderHandle": "اسحب لإعادة الترتيب",
+  "arrangeSwapAction": "تبديل مع المشارك المختار",
+  "arrangeSelectAction": "اختيار للتبديل",
+  "arrangeSaved": "تم تحديث الترتيب.",
+  "arrangeStartingEmpty": "لا يوجد مشاركون أساسيون بعد.",
+  "arrangeReserveEmpty": "لا أحد في قائمة الاحتياط.",
+  "arrangeCompletedNote": "هذه المباراة انتهت. يُحفظ الترتيب، وتبقى قائمة الأساسيين كما هي سجلاً لمن شارك فعلاً.",
+  "errRosterChanged": "تغيّرت قائمة المشاركين أثناء ترتيبك لها. أُعيد تحميلها — حاول مرة أخرى.",
+  "errInvalidSwap": "لا يمكن التبديل بين هذين المشاركين.",
   "errMatchCompleted": "المباراة منتهية ولم يعد بالإمكان تعديلها.",
   "errNotAuthorized": "منظّم المباراة فقط يمكنه هذا الإجراء.",
   "errRegistrationClosed": "التسجيل مغلق؛ اكتمل الحد الأقصى للمباراة.",

@@ -1096,6 +1096,18 @@ class FakeMatchAdapter implements MatchAdapter {
   Future<void> withdrawFromMatch(String matchId) => throw UnimplementedError();
 
   @override
+  Future<void> setRosterOrder(String matchId, List<String> registrationIds) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> swapParticipants(
+    String matchId,
+    String firstRegistrationId,
+    String secondRegistrationId,
+  ) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> removePlayer(String matchId, String userId) =>
       throw UnimplementedError();
 
