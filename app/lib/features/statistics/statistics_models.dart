@@ -21,6 +21,7 @@ class CommunityPlayerStatistics {
     required this.draws,
     required this.goals,
     required this.mvpCount,
+    this.avatarUrl,
   });
 
   final String userId;
@@ -30,6 +31,11 @@ class CommunityPlayerStatistics {
   /// rows survive. The counters still count: they describe what happened, and
   /// the community's history does not change because someone left.
   final String? fullName;
+
+  /// The player's picture, from the same embed the name comes through. Null
+  /// where the name is null, for the same reason: there is no profile to read
+  /// either from.
+  final String? avatarUrl;
 
   /// Matches whose result was recorded and whose lineup included this player.
   /// Not registrations, not reserves, and not matches still awaiting a result.
@@ -51,10 +57,15 @@ class CommunityMemberRating {
     required this.userId,
     required this.fullName,
     required this.rating,
+    this.avatarUrl,
   });
 
   final String userId;
   final String fullName;
+
+  /// The member's picture, looked up alongside the view read: the view carries
+  /// the roster and the rating but not `avatar_path`.
+  final String? avatarUrl;
 
   /// The **Global** Rating (`users.overall_rating`) — the player's rating
   /// across every community, not a per-community one. The Community Rating is
@@ -83,10 +94,15 @@ class LeaderboardEntry {
     required this.fullName,
     required this.rank,
     required this.value,
+    this.avatarUrl,
   });
 
   final String userId;
   final String fullName;
+
+  /// The player's picture. Carried on the entry so a board row is a player
+  /// identity like any other — avatar, name, and a way into the profile.
+  final String? avatarUrl;
 
   /// Competition ranking: equal values share a rank, and the next distinct
   /// value takes the place its position implies. Three players tied at the top
@@ -118,11 +134,18 @@ class StatisticLeader {
     required this.userId,
     required this.fullName,
     required this.value,
+    this.avatarUrl,
   });
 
   final String userId;
+
+  /// Null for a record that outlived the profile it describes — a soft-deleted
+  /// account whose figures stayed. The measure is still true and is still
+  /// shown; there is simply nobody left to name, or to open.
   final String? fullName;
+
   final int value;
+  final String? avatarUrl;
 }
 
 /// Every figure the Community Dashboard shows.

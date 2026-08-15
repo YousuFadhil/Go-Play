@@ -125,6 +125,7 @@ class StatisticsRepository {
         fullName: member.fullName,
         rank: ahead + 1,
         value: value,
+        avatarUrl: member.avatarUrl,
       ));
     }
 
@@ -159,6 +160,7 @@ class StatisticsRepository {
       userId: best.userId,
       fullName: best.fullName,
       value: measure(best),
+      avatarUrl: best.avatarUrl,
     );
   }
 

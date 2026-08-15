@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/statistics/statistics_adapter.dart';
 import '../../features/statistics/statistics_models.dart';
 import 'mappers/statistics_mapper.dart';
+import 'supabase_avatars.dart';
 import 'supabase_bootstrap.dart';
 import 'supabase_failure_mapper.dart';
 
@@ -30,8 +31,12 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
   /// when a counter last moved. `period_type` and `period_key` are not read
   /// either — the filter below fixes them, so carrying them back would only
   /// restate the question.
+  ///
+  /// `avatar_path` joins the embed rather than arriving through a second read:
+  /// the query already reaches `users` for the name, and a player's picture is
+  /// readable by exactly the people who can read it.
   static const _columns = 'user_id, matches_played, wins, losses, draws, '
-      'goals, mvp_count, user:users(full_name)';
+      'goals, mvp_count, user:users(full_name, avatar_path)';
 
   @override
   Future<List<CommunityPlayerStatistics>> fetchCommunityPlayerStatistics(
@@ -49,7 +54,13 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
             .eq('period_type', 'overall');
 
         return [
-          for (final row in rows) communityPlayerStatisticsFromRow(row),
+          for (final row in rows)
+            communityPlayerStatisticsFromRow(
+              row,
+              // Unversioned, as everywhere a list of faces is read: busting the
+              // cache on every read would refetch all of them each time.
+              avatarUrl: (path) => SupabaseAvatars.publicUrl(_client, path),
+            ),
         ];
       });
 
@@ -69,7 +80,22 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
             .select('user_id, full_name, overall_rating')
             .eq('community_id', communityId);
 
-        return [for (final row in rows) communityMemberRatingFromRow(row)];
+        // The view carries the roster and the rating; it does not carry
+        // `avatar_path`. The faces are looked up alongside it rather than
+        // widened into the view, which is the same thing the match roster does
+        // and for the same reason — `users.avatar_path` is already readable by
+        // everyone who can read the name beside it.
+        final avatars = await SupabaseAvatars.urlsForUsers(_client, [
+          for (final row in rows) row['user_id'] as String,
+        ]);
+
+        return [
+          for (final row in rows)
+            communityMemberRatingFromRow(
+              row,
+              avatarUrl: avatars[row['user_id']],
+            ),
+        ];
       });
 
   /// How many matches this community has completed.
