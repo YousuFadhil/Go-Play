@@ -175,7 +175,7 @@ PitchFormation buildFormation(
     movedFrom: {
       for (final assignment in midfield)
         if (assignment.assignedPosition == Position.fwd)
-          assignment.userId: Position.fwd,
+          assignment.participantId: Position.fwd,
     },
   );
 }

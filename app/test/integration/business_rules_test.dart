@@ -222,24 +222,57 @@ void main() {
     );
   });
 
-  test('DD-04 an organizer cannot edit a locked match', () async {
+  // SUPERSEDED (migration 0045): this asserted `MATCH_LOCKED`, because
+  // `update_match` refused a match from its scheduled start onwards. The
+  // approved decision is now that an owner or admin retains full administrative
+  // control in every match state, so the lock no longer applies to them — it
+  // applies to self-service, which `DD-04` above still proves.
+  //
+  // The rule the lock was protecting is kept and asserted here instead: an edit
+  // to a match that has already started must not disturb the roster it has.
+  test('DD-04 an organizer may edit a started match, and the roster stands',
+      () async {
     final matchId = await createMatch(owner, communityId,
         startsIn: const Duration(hours: -1),
-        duration: const Duration(hours: 3));
+        duration: const Duration(hours: 3),
+        startingPlayers: 4);
+    for (final user in [owner, admin, player]) {
+      await owner.client.rpc('admin_add_player_to_match', params: {
+        'p_match_id': matchId,
+        'p_user_id': user.id,
+      });
+    }
+    final before = await roster(matchId);
     final start = DateTime.now().toUtc().add(const Duration(days: 2));
 
     final result = await outcomeOf(() async {
       await owner.client.rpc('update_match', params: {
         'p_match_id': matchId,
         'p_title': 'ITest edited match',
-        'p_location': 'Too late',
+        'p_location': 'Edited in progress',
         'p_start_at': start.toIso8601String(),
         'p_end_at': start.add(const Duration(hours: 2)).toIso8601String(),
         'p_starting_players': 10,
         'p_description': null,
       });
     });
-    expect(result, 'MATCH_LOCKED');
+    expect(result, 'ALLOW');
+
+    final row = await owner.client
+        .from('matches')
+        .select('title, starting_players')
+        .eq('id', matchId)
+        .single();
+    expect(row['title'], 'ITest edited match');
+    expect(row['starting_players'], 10);
+
+    final after = await roster(matchId);
+    expect(after.length, before.length);
+    expect(
+      [for (final r in after) r['status']],
+      [for (final r in before) r['status']],
+      reason: 'nobody is demoted by an edit',
+    );
   });
 
   test('DD-05 a finished match is completed and closed', () async {

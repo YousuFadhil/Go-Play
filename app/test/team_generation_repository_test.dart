@@ -88,7 +88,7 @@ void main() {
   /// Which side each player ended on, which is what "a different distribution"
   /// means: positions may move without the split changing (`KB-D6`).
   Map<String, TeamId> splitOf(List<TeamAssignment> lineup) =>
-      {for (final a in lineup) a.userId: a.team};
+      {for (final a in lineup) a.participantId: a.team};
 
   group('a generation that succeeds', () {
     test('every confirmed player is assigned exactly once (BTGE-HC-1, -HC-2)',
@@ -137,10 +137,12 @@ void main() {
     });
 
     test('the same input generates the same lineup (BTGE-PF-6)', () async {
+      // Engine output only, so the position and the basis are always present;
+      // the null-safe reads are the type's, not a case this test provokes.
       String signatureOf(List<TeamAssignment> lineup) => ([
             for (final a in lineup)
-              '${a.userId}:${a.team.name}:${a.assignedPosition.code}'
-                  ':${a.basis.name}',
+              '${a.participantId}:${a.team.name}:${a.assignedPosition?.code}'
+                  ':${a.basis?.name}',
           ]..sort())
               .join('|');
 
@@ -182,8 +184,11 @@ void main() {
       final lineup = await generate(FakeTeamAdapter(roster: roster));
 
       for (final assignment in lineup) {
-        final player = declared[assignment.userId]!;
-        switch (assignment.basis) {
+        final player = declared[assignment.participantId]!;
+        // The engine only ever produces registered players, so a null basis
+        // (the database's GUEST) cannot appear in generated output.
+        expect(assignment.basis, isNotNull);
+        switch (assignment.basis!) {
           case AssignmentBasis.primary:
             expect(assignment.assignedPosition, player.primaryPosition);
           case AssignmentBasis.secondary:

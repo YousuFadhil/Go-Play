@@ -65,6 +65,33 @@ abstract interface class MatchAdapter {
   /// here is trusted to have checked.
   Future<RegistrationStatus> addPlayerToMatch(String matchId, String userId);
 
+  // --- Professional Guests ---------------------------------------------------
+  //
+  // A guest is match-scoped and has no account, so these three name a match and
+  // a guest id and nothing else. Who may call them is decided in the database
+  // against the caller's own session, and none of them asks whether the match
+  // has started or finished: an owner or admin manages guests in every state,
+  // which is the approved rule and is enforced server-side.
+
+  /// Adds a Professional Guest to [matchId] and returns their new id.
+  ///
+  /// The seat they land in — starting or reserve — is the database's decision,
+  /// so it is read back with the roster rather than inferred here.
+  Future<String> addProfessionalGuest(String matchId, String name);
+
+  /// Removes a Professional Guest from the **current roster**.
+  ///
+  /// Anything they did in a match that was played — the side they were on, the
+  /// goals they scored, an MVP award — is preserved. This frees their seat, it
+  /// does not erase them from the record.
+  Future<void> removeProfessionalGuest(String matchId, String guestId);
+
+  Future<void> renameProfessionalGuest(
+    String matchId,
+    String guestId,
+    String name,
+  );
+
   /// The stored reserve allowance, or null when none is configured.
   Future<int?> fetchReservePlayers();
 }

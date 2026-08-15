@@ -80,7 +80,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
       match: match,
       role: results[1] as CommunityRole?,
       lineup: results[2] as List<TeamAssignment>,
-      registrations: {for (final r in registrations) r.userId: r},
+      registrations: {for (final r in registrations) r.participantId: r},
       players: {
         for (final player in results[3] as List<PlayerCoreInputs>)
           player.userId: player,
@@ -393,10 +393,17 @@ class _TeamsScreenState extends State<TeamsScreen> {
     TeamAssignment assignment,
   ) async {
     if (_busy) return;
+    // Every action below — move, swap, change position, remove — is a manual
+    // override of the engine's output, and the engine only ever places
+    // registered players. A Professional Guest is placed by the roster, is not
+    // a generation input, and has no profile for a position change to be
+    // derived against, so their card is shown and not edited here.
+    if (assignment.isProfessionalGuest) return;
     final action = await showDialog<_PlayerAction>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
-        title: Text(l10n.editPlayerTitle(_nameOf(view, assignment.userId))),
+        title:
+            Text(l10n.editPlayerTitle(_nameOf(view, assignment.participantId))),
         children: [
           for (final (action, label, icon)
               in <(_PlayerAction, String, IconData)>[
@@ -430,7 +437,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
       case _PlayerAction.move:
         await _runEdit(
           l10n,
-          () => _teams.movePlayer(widget.matchId, assignment.userId),
+          () => _teams.movePlayer(widget.matchId, assignment.userId!),
         );
       case _PlayerAction.swap:
         await _swap(l10n, view, assignment);
@@ -456,7 +463,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.removePlayedPlayerConfirmTitle),
         content: Text(l10n.removePlayedPlayerConfirmBody(
-          _nameOf(view, assignment.userId),
+          _nameOf(view, assignment.participantId),
         )),
         actions: [
           TextButton(
@@ -474,7 +481,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
     await _runEdit(
       l10n,
-      () => _teams.removePlayedPlayer(widget.matchId, assignment.userId),
+      () => _teams.removePlayedPlayer(widget.matchId, assignment.userId!),
     );
   }
 
@@ -501,7 +508,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
 
-    final inLineup = {for (final a in view.lineup) a.userId};
+    final inLineup = {for (final a in view.lineup) a.participantId};
     final candidates = [
       for (final member in members)
         if (!inLineup.contains(member.userId)) member,
@@ -570,7 +577,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
   ) async {
     final others = [
       for (final other in view.lineup)
-        if (other.team != assignment.team) other,
+        // A guest is not a swap partner: `swapPlayers` exchanges two registered
+        // players, and offering one here would produce a refusal at the port.
+        if (other.team != assignment.team && !other.isProfessionalGuest) other,
     ];
     if (others.isEmpty) {
       _showMessage(l10n.swapNobodyAvailable);
@@ -585,9 +594,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
           for (final other in others)
             ListTile(
               leading: const CircleAvatar(child: Icon(Icons.person)),
-              title: Text(_nameOf(view, other.userId)),
+              title: Text(_nameOf(view, other.participantId)),
+              // Non-null by construction: `others` above excludes Professional
+              // Guests, and a lineup row naming a registered player always
+              // carries a position — the database refuses one that does not.
               subtitle:
-                  Text(_positionLabel(l10n, other.assignedPosition.code)),
+                  Text(_positionLabel(l10n, other.assignedPosition!.code)),
               onTap: () => Navigator.of(dialogContext).pop(other),
             ),
         ],
@@ -599,8 +611,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
       l10n,
       () => _teams.swapPlayers(
         widget.matchId,
-        assignment.userId,
-        partner.userId,
+        assignment.userId!,
+        partner.userId!,
       ),
     );
   }
@@ -649,7 +661,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
       l10n,
       () => _teams.changeAssignedPosition(
         widget.matchId,
-        assignment.userId,
+        assignment.userId!,
         chosen,
       ),
     );

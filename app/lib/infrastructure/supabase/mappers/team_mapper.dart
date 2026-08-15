@@ -32,17 +32,23 @@ String teamToDb(TeamId team) => switch (team) {
       TeamId.b => 'B',
     };
 
-AssignmentBasis assignmentBasisFromDb(String value) => switch (value) {
+/// `GUEST` reads as null: a Professional Guest has no profile, so none of the
+/// three profile-derived bases is true of them. `AssignmentBasis` is the
+/// engine's own vocabulary and gains no fourth value for a participant the
+/// engine never sees.
+AssignmentBasis? assignmentBasisFromDb(String value) => switch (value) {
       'PRIMARY' => AssignmentBasis.primary,
       'SECONDARY' => AssignmentBasis.secondary,
       'TRANSITION' => AssignmentBasis.transition,
+      'GUEST' => null,
       _ => throw const InfrastructureFailure(),
     };
 
-String assignmentBasisToDb(AssignmentBasis basis) => switch (basis) {
+String assignmentBasisToDb(AssignmentBasis? basis) => switch (basis) {
       AssignmentBasis.primary => 'PRIMARY',
       AssignmentBasis.secondary => 'SECONDARY',
       AssignmentBasis.transition => 'TRANSITION',
+      null => 'GUEST',
     };
 
 /// `numeric(3,1)` reaches the client as a JSON number or as its text form
@@ -82,22 +88,40 @@ PlayerCoreInputs playerCoreInputsFromRow(
   );
 }
 
-TeamAssignment teamAssignmentFromRow(Map<String, dynamic> row) =>
-    TeamAssignment(
-      userId: row['user_id'] as String,
-      team: teamFromDb(row['team'] as String),
-      assignedPosition: positionFromDb(row['assigned_position'] as String),
-      basis: assignmentBasisFromDb(row['assignment_basis'] as String),
-    );
+/// A lineup row, naming either a registered user or a Professional Guest.
+///
+/// `assigned_position` is null for a guest and never for a registered player —
+/// migration `0051` makes that a CHECK constraint, so the absence here is the
+/// database's statement that there is no position, not a gap to fill.
+TeamAssignment teamAssignmentFromRow(Map<String, dynamic> row) {
+  final position = row['assigned_position'] as String?;
+  return TeamAssignment(
+    userId: row['user_id'] as String?,
+    professionalGuestId: row['professional_guest_id'] as String?,
+    team: teamFromDb(row['team'] as String),
+    assignedPosition: position == null ? null : positionFromDb(position),
+    basis: assignmentBasisFromDb(row['assignment_basis'] as String),
+  );
+}
 
 /// One player's place in the lineup, as `replace_match_lineup` reads it.
 ///
 /// No `match_id`: the match is an argument of that function, which is what
 /// keeps a row from naming a different match than the one being authorized.
+/// Exactly one identity key is sent. Sending both, or neither, is what the
+/// table's CHECK constraint refuses, so the payload is built to match it rather
+/// than to be corrected by it.
 Map<String, dynamic> teamAssignmentToRow(TeamAssignment assignment) => {
-      'user_id': assignment.userId,
+      if (assignment.userId != null) 'user_id': assignment.userId,
+      if (assignment.professionalGuestId != null)
+        'professional_guest_id': assignment.professionalGuestId,
       'team': teamToDb(assignment.team),
-      'assigned_position': positionToDb(assignment.assignedPosition),
+      // Null travels as null: a guest with no position is written as having
+      // none, and the CHECK constraint refuses the same for a registered
+      // player, whose position is never null in the first place.
+      'assigned_position': assignment.assignedPosition == null
+          ? null
+          : positionToDb(assignment.assignedPosition!),
       'assignment_basis': assignmentBasisToDb(assignment.basis),
       // out_of_position is deliberately not stored: §5.1 derives it from the
       // basis, and a stored copy could disagree with it.
@@ -113,9 +137,15 @@ PastMatch pastMatchFromRow(Map<String, dynamic> row) {
   final rows = (row['assignments'] as List).cast<Map<String, dynamic>>();
   final byTeam = <String, Set<String>>{};
   for (final assignment in rows) {
+    // Diversity counts who has played *with* whom, and a Professional Guest is
+    // not somebody the engine can pair anyone with: they have no profile, no
+    // history and are never a generation input. A guest row carries a null
+    // `user_id` and is skipped rather than counted as a partner.
+    final userId = assignment['user_id'] as String?;
+    if (userId == null) continue;
     byTeam
         .putIfAbsent(assignment['team'] as String, () => <String>{})
-        .add(assignment['user_id'] as String);
+        .add(userId);
   }
   final teams = <Set<String>>[];
   for (final team in const ['A', 'B']) {

@@ -284,7 +284,7 @@ void main() {
 
       final midfielders = tester
           .widgetList<PlayerCard>(find.byType(PlayerCard))
-          .where((card) => card.assignment.userId.startsWith('m'));
+          .where((card) => card.assignment.participantId.startsWith('m'));
 
       expect(midfielders, hasLength(2));
       for (final card in midfielders) {

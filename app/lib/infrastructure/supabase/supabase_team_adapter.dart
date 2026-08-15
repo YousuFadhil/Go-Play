@@ -22,9 +22,17 @@ class SupabaseTeamAdapter implements TeamAdapter {
 
   final SupabaseClient _client;
 
-  static const _assignmentColumns =
-      'user_id, team, assigned_position, assignment_basis';
+  static const _assignmentColumns = 'user_id, professional_guest_id, team, '
+      'assigned_position, assignment_basis';
 
+  /// The generation set: **registered community players only**.
+  ///
+  /// `user_id is not null` is what keeps a Professional Guest out of the engine,
+  /// and it is not a filter of convenience. A guest has no profile, so none of
+  /// the Core Player Inputs §4.1 requires exists for them — no rating, no date
+  /// of birth, no primary position — and §4.3 rejects a missing input rather
+  /// than substituting one. They are added to a lineup after generation, never
+  /// as an input to it.
   @override
   Future<List<PlayerCoreInputs>> fetchConfirmedPlayerInputs(String matchId) =>
       guarded(() async {
@@ -34,6 +42,7 @@ class SupabaseTeamAdapter implements TeamAdapter {
                 'primary_position, secondary_position, avatar_path)')
             .eq('match_id', matchId)
             .eq('status', 'confirmed')
+            .not('user_id', 'is', null)
             .order('registration_order', ascending: true);
         return [
           for (final row in rows)
@@ -56,10 +65,14 @@ class SupabaseTeamAdapter implements TeamAdapter {
       guarded(() async {
         // `!inner` drops matches with no stored lineup before the limit is
         // applied, so [limit] counts lineups rather than matches.
+        // Guest rows come back and are dropped in the mapper rather than
+        // filtered here: the embed's filter would apply to the *match* rows, so
+        // excluding them at this level would drop whole matches instead of
+        // whole participants.
         final rows = await _client
             .from('matches')
-            .select('start_at, '
-                'assignments:match_team_assignments!inner(user_id, team)')
+            .select('start_at, assignments:match_team_assignments!inner('
+                'user_id, team)')
             .eq('community_id', communityId)
             .neq('id', excludeMatchId)
             .lt('end_at', DateTime.now().toUtc().toIso8601String())

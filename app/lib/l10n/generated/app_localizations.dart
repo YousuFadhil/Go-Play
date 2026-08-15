@@ -1052,6 +1052,102 @@ abstract class AppLocalizations {
   /// **'That player is not a member of this community.'**
   String get errPlayerNotCommunityMember;
 
+  /// How a Professional Guest is named in a roster or a lineup. Arabic renders this as محترف (الاسم).
+  ///
+  /// In en, this message translates to:
+  /// **'Professional ({name})'**
+  String professionalGuestName(String name);
+
+  /// No description provided for @professionalGuestLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Professional guest'**
+  String get professionalGuestLabel;
+
+  /// No description provided for @addGuestButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add professional guest'**
+  String get addGuestButton;
+
+  /// No description provided for @addGuestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a professional guest'**
+  String get addGuestTitle;
+
+  /// No description provided for @renameGuestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename professional guest'**
+  String get renameGuestTitle;
+
+  /// No description provided for @guestNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get guestNameLabel;
+
+  /// No description provided for @guestNameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name between 2 and 60 characters.'**
+  String get guestNameInvalid;
+
+  /// No description provided for @guestAddedConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was added to the starting players.'**
+  String guestAddedConfirmed(String name);
+
+  /// No description provided for @guestAddedReserve.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was added to the reserve list.'**
+  String guestAddedReserve(String name);
+
+  /// No description provided for @removeGuestButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove guest'**
+  String get removeGuestButton;
+
+  /// No description provided for @renameGuestButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get renameGuestButton;
+
+  /// No description provided for @removeGuestConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this professional guest?'**
+  String get removeGuestConfirmTitle;
+
+  /// No description provided for @removeGuestConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} loses their place in this match. Anything they did in a match that was already played is kept.'**
+  String removeGuestConfirmBody(String name);
+
+  /// No description provided for @guestActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That could not be done. Try again.'**
+  String get guestActionFailed;
+
+  /// No description provided for @errInvalidGuestName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name between 2 and 60 characters.'**
+  String get errInvalidGuestName;
+
+  /// No description provided for @errGuestNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'That guest is no longer in this match.'**
+  String get errGuestNotFound;
+
   /// No description provided for @errMatchCompleted.
   ///
   /// In en, this message translates to:

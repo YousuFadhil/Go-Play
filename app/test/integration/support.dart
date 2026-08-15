@@ -211,4 +211,8 @@ const _codes = <String>[
   'RESULT_PARTICIPANT_REMOVED',
   'INVALID_TEAM',
   'INVALID_POSITION',
+  // Professional Guests (migrations 0047, 0049).
+  'INVALID_GUEST_NAME',
+  'GUEST_NOT_FOUND',
+  'INVALID_MVP',
 ];

@@ -99,11 +99,17 @@ List<RatingDelta> ratingDeltasFor(
 }) {
   final deltas = <RatingDelta>[];
 
+  // A Professional Guest wins and loses the match and no rating moves: they
+  // have no account, so there is no rating for one to move. This mirrors
+  // migration `0046`, which filters the same participants out of the database's
+  // own engine, and it is what keeps the two statements of the rules in step.
   if (!result.isDraw) {
     for (final assignment in lineup) {
+      final userId = assignment.userId;
+      if (userId == null) continue;
       final won = assignment.team == result.winner;
       deltas.add(RatingDelta(
-        userId: assignment.userId,
+        userId: userId,
         reason: won ? RatingChangeReason.win : RatingChangeReason.loss,
         delta: won ? rules.win : rules.loss,
       ));
@@ -119,10 +125,12 @@ List<RatingDelta> ratingDeltasFor(
   // fifth. The cap is on the total, not on each goal: five goals reach it
   // exactly, and everything beyond stops there.
   for (final assignment in lineup) {
-    final scored = result.goalsBy(assignment.userId);
+    final userId = assignment.userId;
+    if (userId == null) continue;
+    final scored = result.goalsBy(userId);
     if (scored == 0) continue;
     deltas.add(RatingDelta(
-      userId: assignment.userId,
+      userId: userId,
       reason: RatingChangeReason.goal,
       delta: math.min(rules.goal * scored, rules.goalCap),
     ));

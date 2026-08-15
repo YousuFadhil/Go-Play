@@ -515,6 +515,62 @@ class AppLocalizationsAr extends AppLocalizations {
       'هذا اللاعب ليس عضواً في هذا المجتمع.';
 
   @override
+  String professionalGuestName(String name) {
+    return 'محترف ($name)';
+  }
+
+  @override
+  String get professionalGuestLabel => 'لاعب محترف';
+
+  @override
+  String get addGuestButton => 'إضافة لاعب محترف';
+
+  @override
+  String get addGuestTitle => 'إضافة لاعب محترف';
+
+  @override
+  String get renameGuestTitle => 'تعديل اسم اللاعب المحترف';
+
+  @override
+  String get guestNameLabel => 'الاسم';
+
+  @override
+  String get guestNameInvalid => 'أدخل اسماً بين حرفين و60 حرفاً.';
+
+  @override
+  String guestAddedConfirmed(String name) {
+    return 'تمت إضافة $name إلى اللاعبين الأساسيين.';
+  }
+
+  @override
+  String guestAddedReserve(String name) {
+    return 'تمت إضافة $name إلى قائمة الاحتياط.';
+  }
+
+  @override
+  String get removeGuestButton => 'إزالة المحترف';
+
+  @override
+  String get renameGuestButton => 'تعديل الاسم';
+
+  @override
+  String get removeGuestConfirmTitle => 'إزالة هذا اللاعب المحترف؟';
+
+  @override
+  String removeGuestConfirmBody(String name) {
+    return 'سيفقد $name مكانه في هذه المباراة. ويبقى كل ما سجّله في مباراة انتهت كما هو.';
+  }
+
+  @override
+  String get guestActionFailed => 'تعذّر تنفيذ الإجراء. حاول مرة أخرى.';
+
+  @override
+  String get errInvalidGuestName => 'أدخل اسماً بين حرفين و60 حرفاً.';
+
+  @override
+  String get errGuestNotFound => 'هذا المحترف لم يعد ضمن المباراة.';
+
+  @override
   String get errMatchCompleted => 'المباراة منتهية ولم يعد بالإمكان تعديلها.';
 
   @override

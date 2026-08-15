@@ -20,6 +20,29 @@ String matchStatusLabel(BuildContext context, MatchStatus status) =>
 String formatMatchTime(BuildContext context, Match match) =>
     formatDayAndTimeRange(context, match.startAt, match.endAt);
 
+/// What to call a participant on a roster or in a lineup.
+///
+/// A registered player is their own name. A Professional Guest is named through
+/// the approved sentence — `محترف (الاسم)` in Arabic — which is why this is one
+/// function and not a string built at each call site: the wording is a product
+/// decision and the two screens that show a roster must not be free to differ.
+String participantLabel(AppLocalizations l10n, MatchRegistration registration) =>
+    registration.isProfessionalGuest
+        ? l10n.professionalGuestName(registration.fullName)
+        : registration.fullName;
+
+/// The subtitle under a participant. A guest has no profile and therefore no
+/// position: saying what they are is more use than leaving the line blank, and
+/// it is the second place the roster makes the distinction visible.
+String participantSubtitle(
+  AppLocalizations l10n,
+  MatchRegistration registration,
+  String Function(String position) positionLabel,
+) =>
+    registration.isProfessionalGuest
+        ? l10n.professionalGuestLabel
+        : positionLabel(registration.position ?? '');
+
 /// Shared list tile for a match; used on Home and in community details.
 class MatchCard extends StatelessWidget {
   const MatchCard({

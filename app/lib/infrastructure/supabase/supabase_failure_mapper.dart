@@ -96,6 +96,12 @@ class SupabaseFailureMapper {
       FailureReason.notCommunityMember,
     ),
 
+    // Professional Guests (migration 0047). The name is input the caller got
+    // wrong; the missing guest is a state the operation ran into — the same two
+    // shapes every other pair here takes.
+    'INVALID_GUEST_NAME': ValidationFailure(FailureReason.invalidGuestName),
+    'GUEST_NOT_FOUND': NotFoundFailure(FailureReason.guestNotFound),
+
     // Match management
     'MAX_BELOW_REGISTERED': ValidationFailure(
       FailureReason.maxBelowRegistered,

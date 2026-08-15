@@ -8,6 +8,7 @@ import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../communities/community_models.dart';
+import '../matches/match_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../members/member_repository.dart';
@@ -97,7 +98,7 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
       match: match,
       role: results[1] as CommunityRole?,
       lineup: lineup,
-      players: {for (final r in registrations) r.userId: r},
+      players: {for (final r in registrations) r.participantId: r},
       recorded: recorded,
     );
     _draft = _ResultDraft.from(recorded);
@@ -386,7 +387,34 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
     _ResultDraft draft,
     TeamAssignment assignment,
   ) {
-    final userId = assignment.userId;
+    final participantId = assignment.participantId;
+    final registration = view.players[participantId];
+
+    // A Professional Guest played, and this screen says so. What it does not do
+    // is offer them a goal stepper or the MVP star: the database supports both,
+    // but sending either through `record_match_result` means a guest-shaped
+    // payload this screen does not build yet. Showing the row without the
+    // controls states who was on the pitch without inventing a half-supported
+    // flow — see the Phase 2 report.
+    if (assignment.isProfessionalGuest) {
+      final scheme = Theme.of(context).colorScheme;
+      return ListTile(
+        key: Key('player_$participantId'),
+        leading: CircleAvatar(
+          backgroundColor: scheme.tertiaryContainer,
+          foregroundColor: scheme.onTertiaryContainer,
+          child: const Icon(Icons.workspace_premium_outlined, size: 20),
+        ),
+        title: Text(
+          registration == null
+              ? l10n.professionalGuestLabel
+              : participantLabel(l10n, registration),
+        ),
+        subtitle: Text(l10n.professionalGuestLabel),
+      );
+    }
+
+    final userId = assignment.userId!;
     final scored = draft.goalsOf(userId);
 
     return ListTile(
@@ -394,7 +422,7 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
       // A lineup row names a player id; the roster is what turns it into a name.
       // A player who left the match after the lineup was stored has no roster
       // row left, and is shown without one rather than dropped.
-      title: Text(view.players[userId]?.fullName ?? '—'),
+      title: Text(registration?.fullName ?? '—'),
       subtitle: Text(l10n.goalsScoredLabel(scored)),
       leading: IconButton(
         key: Key('mvp_$userId'),

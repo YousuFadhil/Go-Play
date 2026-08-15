@@ -156,6 +156,11 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
       MaterialPageRoute(
         builder: (_) => ManageRosterScreen(
           matchId: widget.matchId,
+          // Unconditional, and not `canRemove`. This screen is already gated on
+          // the owner/admin role, and the approved rule is that they manage
+          // Professional Guests in every match state — the lock that closes the
+          // community roster does not close this.
+          canManageGuests: true,
           // Carried from the match already loaded here rather than re-fetched:
           // the roster screen needs it only to know which community the
           // addable members come from.
