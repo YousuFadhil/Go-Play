@@ -3,6 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
+// `show`n, not imported whole: intl exports a `TextDirection` of its own and
+// it would shadow Flutter's everywhere in this file.
+import 'package:intl/intl.dart' show DateFormat;
 
 import '../../core/l10n.dart';
 import '../../core/time_format.dart';
@@ -155,20 +158,11 @@ class TeamLineupCard extends StatelessWidget {
   /// *read* lives inside it.
   static const _margin = 72.0;
 
-  /// The pitch is allowed outside it, and deliberately. Held to the text
-  /// column, the pitch's touchlines line up with the type and the whole thing
-  /// reads as a panel inside a card; taken almost to the edge of the frame, it
-  /// reads as the picture the card is *of*.
-  static const _bleed = 24.0;
-
   static const _page = EdgeInsets.symmetric(horizontal: _margin);
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final fixture = _fixture(context);
-    final place = _place();
-    final format = _format();
 
     return Stack(
       fit: StackFit.expand,
@@ -177,38 +171,27 @@ class TeamLineupCard extends StatelessWidget {
           child: CustomPaint(painter: _AtmospherePainter()),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 62, bottom: 54),
+          padding: const EdgeInsets.only(top: 58, bottom: 52),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // The header is centred, and the pitch beneath it is symmetrical
+              // about the same axis: one centre line through the whole card is
+              // what makes a poster look composed rather than assembled.
               Padding(
                 padding: _page,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const _Masthead(),
-                    const SizedBox(height: 32),
-                    if (data.communityName case final String name) ...[
-                      _Subject(name: name),
-                      const SizedBox(height: 18),
-                    ],
-                    if (fixture.isNotEmpty || place != null || format != null)
-                      _ContextLine(
-                        parts: fixture,
-                        place: place,
-                        format: format,
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 26),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: _bleed),
-                  child: _PitchStage(data: data),
+                child: _Header(
+                  name: data.communityName,
+                  day: _day(context),
+                  clock: _clock(context),
+                  place: _place(),
+                  format: _format(),
                 ),
               ),
               const SizedBox(height: 24),
+              // No horizontal padding: the pitch is the width of the picture.
+              Expanded(child: _PitchStage(data: data)),
+              const SizedBox(height: 22),
               Padding(padding: _page, child: _Signature(label: l10n.appName)),
             ],
           ),
@@ -217,40 +200,64 @@ class TeamLineupCard extends StatelessWidget {
     );
   }
 
-  /// When the match is, in the app's own wording.
-  ///
-  /// The day and the clock, each formatted by the helper the rest of the
-  /// product uses, so a lineup card and a match card cannot describe the same
-  /// fixture two different ways. Returned as parts rather than as one joined
-  /// string because the header punctuates them itself.
-  List<String> _fixture(BuildContext context) => [
-        if (data.startAt case final DateTime start)
-          formatMatchDay(context, start),
-        if (data.startAt case final DateTime start)
-          if (data.endAt case final DateTime end)
-            formatTimeRange(context, start, end)
-          else
-            formatTime(context, start),
-      ];
+  /// The day, in the app's own wording, so a lineup card and a match card
+  /// cannot describe the same fixture two different ways.
+  String? _day(BuildContext context) {
+    final start = data.startAt;
+    return start == null ? null : formatMatchDay(context, start);
+  }
 
-  /// Where it is — set on its own line under the day.
+  /// The clock, in the pieces the header sets separately.
   ///
-  /// Underneath rather than alongside, because a venue's full name is longer
-  /// than a date and a clock put together, and crowded onto one line it takes
-  /// the date's room with it: the header's first line is the one piece of
-  /// context a reader always wants, and it is not allowed to be trimmed to make
-  /// space for the second.
+  /// **One meridiem where one will do.** The shared helper writes each end with
+  /// its own and isolates the pair, which is right for a list of matches and
+  /// wrong on a poster: set in Arabic it puts two "م" in one short line and
+  /// leaves the reader working out which one is the kick-off. So a match that
+  /// starts and ends in the same half of the day is written "8:00–10:00 م", and
+  /// only one that crosses noon or midnight is written with both — the one time
+  /// the second one carries information. Twelve-hour either way, which is the
+  /// product's decision and not the device's.
+  ///
+  /// **Two pieces, never one string.** A range with a meridiem at each end
+  /// cannot be written as one run of text and laid out reliably: the neutral
+  /// dash between an Arabic "ص" and the digits after it joins the wrong side,
+  /// and the line comes out as "11:00 م 1:00 – ص" whichever direction the
+  /// paragraph is given. Handing the header two pieces and letting it place
+  /// them left to right is not a workaround for that — it is the only way to
+  /// state an order that the text itself does not carry.
+  List<String> _clock(BuildContext context) {
+    final start = data.startAt;
+    if (start == null) return const [];
+
+    final locale = Localizations.localeOf(context).toString();
+    final clock = DateFormat('h:mm', locale);
+    final half = DateFormat('a', locale);
+
+    final end = data.endAt;
+    if (end == null) return ['${clock.format(start)} ${half.format(start)}'];
+    if (half.format(start) == half.format(end)) {
+      // Safe as one piece: the meridiem is at the end, where an LTR line puts
+      // it anyway, and there is nothing neutral between two directions.
+      return ['${clock.format(start)}–${clock.format(end)} ${half.format(end)}'];
+    }
+    return [
+      '${clock.format(start)} ${half.format(start)}',
+      '${clock.format(end)} ${half.format(end)}',
+    ];
+  }
+
+  /// Where it is.
   String? _place() {
     final place = data.location?.trim();
     return (place == null || place.isEmpty) ? null : place;
   }
 
-  /// "5 v 5" — the shape of the match, read off the lineup being drawn.
+  /// "5 V 5" — the shape of the match, read off the lineup being drawn.
   ///
   /// Counted from what the card actually puts on the pitch rather than from the
   /// stored lineup, because a squad with nobody in goal has its keepers left
-  /// out (§10.1) and a tag disagreeing with the picture beneath it is worse
-  /// than no tag. Null where a side is empty: there is no format to name.
+  /// out (§10.1) and a line disagreeing with the picture beneath it is worse
+  /// than no line. Null where a side is empty: there is no format to name.
   String? _format() {
     int drawn(TeamId team) => data
         .of(team)
@@ -261,32 +268,205 @@ class TeamLineupCard extends StatelessWidget {
     final a = drawn(TeamId.a);
     final b = drawn(TeamId.b);
     if (a == 0 || b == 0) return null;
-    return '$a v $b';
+    return '$a V $b';
   }
 }
 
-/// The rule across the top of the card.
+/// The head of the card: who, when, where, and what shape of match.
 ///
-/// An editorial masthead and nothing more: a hairline the width of the page
-/// with its first stretch in the brand's colour. It is what tells the eye the
-/// picture has a top edge, which is the job a heading would otherwise be given
-/// — and a heading above the community's name is exactly what this card must
-/// not have.
-class _Masthead extends StatelessWidget {
-  const _Masthead();
+/// **Centred, and the pitch below it shares the axis.** One centre line runs
+/// through the whole picture — the kicker, the community, the dateline, the
+/// centre circle, the signature — which is the difference between a composed
+/// poster and a stack of left-aligned rows.
+///
+/// **Hierarchy by scale, not by chrome.** The community is set at poster size;
+/// the day is a clear line under it; the clock and the venue are one quiet line
+/// under that; and the format rides above everything as a kicker, small and
+/// tracked, between two short rules. Nothing here is boxed, chipped or filled:
+/// a container around any of it would put the application back on the card.
+///
+/// Every part is optional and nothing is stood in for. A card with no fixture
+/// is a community and a lineup, and the header is simply shorter.
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.name,
+    required this.day,
+    required this.clock,
+    required this.place,
+    required this.format,
+  });
+
+  final String? name;
+  final String? day;
+  final List<String> clock;
+  final String? place;
+  final String? format;
+
+  @override
+  Widget build(BuildContext context) {
+    final place = this.place;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (format case final String format) ...[
+          _Kicker(label: format),
+          const SizedBox(height: 26),
+        ],
+        if (name case final String name) ...[
+          _Subject(name: name),
+          const SizedBox(height: 18),
+        ],
+        if (day case final String day)
+          Text(
+            day,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: TeamLineupCard._inkMuted,
+              fontSize: 34,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+            ),
+          ),
+        if (clock.isNotEmpty || place != null) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (clock.isNotEmpty) _Clock(parts: clock),
+              if (clock.isNotEmpty && place != null) const _Diamond(),
+              if (place != null) Flexible(child: _Aside(text: place)),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The clock: kick-off, a dash, and the end of the match.
+///
+/// Laid out as separate pieces in a row that is pinned left to right, so the
+/// start is on the left of the dash in every language. A match runs
+/// start-then-end whatever the reader's script does, and this is the only
+/// arrangement that says so without depending on how a bidirectional paragraph
+/// happens to resolve a neutral character between two directions.
+class _Clock extends StatelessWidget {
+  const _Clock({required this.parts});
+
+  final List<String> parts;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      textDirection: TextDirection.ltr,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 132, height: 6, color: TeamLineupCard._accent),
-        Expanded(
-          child: Container(
-            height: 6,
-            color: TeamLineupCard._ink.withValues(alpha: 0.10),
+        for (final (index, part) in parts.indexed) ...[
+          if (index > 0)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: _Aside(text: '–', direction: TextDirection.ltr),
+            ),
+          _Aside(text: part, direction: TextDirection.ltr),
+        ],
+      ],
+    );
+  }
+}
+
+/// One piece of the quiet line under the day.
+class _Aside extends StatelessWidget {
+  const _Aside({required this.text, this.direction});
+
+  final String text;
+
+  /// Set only where the piece has an order of its own that the paragraph must
+  /// not decide — which is the clock, and nothing else.
+  final TextDirection? direction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      textDirection: direction,
+      style: const TextStyle(
+        color: TeamLineupCard._inkFaint,
+        fontSize: 30,
+        fontWeight: FontWeight.w500,
+        height: 1.25,
+      ),
+    );
+  }
+}
+
+/// The shape of the match, set as the kicker over the whole card.
+///
+/// A poster's overline: small, tracked, in the brand's colour, with a short
+/// rule running out of each side of it. It is the one place tracking is safe —
+/// two digits and a Latin V — and it puts the format where a reader looks
+/// first without letting it compete with the name underneath.
+class _Kicker extends StatelessWidget {
+  const _Kicker({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const _KickerRule(fadeTowardsStart: true),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: Text(
+            label,
+            // Digits against digits: it reads the same way in both languages.
+            textDirection: TextDirection.ltr,
+            style: const TextStyle(
+              color: TeamLineupCard._accent,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 5,
+              height: 1.0,
+            ),
           ),
         ),
+        const _KickerRule(fadeTowardsStart: false),
       ],
+    );
+  }
+}
+
+/// One of the two rules beside the kicker, fading away from it.
+class _KickerRule extends StatelessWidget {
+  const _KickerRule({required this.fadeTowardsStart});
+
+  final bool fadeTowardsStart;
+
+  @override
+  Widget build(BuildContext context) {
+    const solid = Color(0x8A3DDC84);
+    const gone = Color(0x003DDC84);
+
+    return Container(
+      width: 116,
+      height: 4,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: fadeTowardsStart
+              ? const [gone, solid]
+              : const [solid, gone],
+        ),
+      ),
     );
   }
 }
@@ -305,113 +485,26 @@ class _Subject extends StatelessWidget {
     // cursive joins.
     return SizedBox(
       width: double.infinity,
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: AlignmentDirectional.centerStart,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 1080 - TeamLineupCard._margin * 2,
-            ),
-            child: Text(
-              name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: TeamLineupCard._ink,
-                fontSize: 104,
-                fontWeight: FontWeight.w800,
-                height: 1.02,
-              ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 1080 - TeamLineupCard._margin * 2,
+          ),
+          child: Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: TeamLineupCard._ink,
+              fontSize: 108,
+              fontWeight: FontWeight.w800,
+              height: 1.02,
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The fixture, as a dateline under the subject.
-///
-/// The day and the clock on one line, punctuated by a small accent diamond,
-/// with the shape of the match set at the far end of it; the venue on a second
-/// line, quieter. Everything on it is optional and nothing is stood in for —
-/// the block simply carries fewer lines.
-class _ContextLine extends StatelessWidget {
-  const _ContextLine({
-    required this.parts,
-    required this.place,
-    required this.format,
-  });
-
-  final List<String> parts;
-  final String? place;
-  final String? format;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  for (final (index, part) in parts.indexed) ...[
-                    if (index > 0) const _Diamond(),
-                    Flexible(
-                      child: Text(
-                        part,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: TeamLineupCard._inkMuted,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w500,
-                          height: 1.25,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (format case final String tag) ...[
-              const SizedBox(width: 20),
-              Text(
-                tag,
-                // A count against a count: it runs the same way in both
-                // languages.
-                textDirection: TextDirection.ltr,
-                style: const TextStyle(
-                  color: TeamLineupCard._accent,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  height: 1.25,
-                ),
-              ),
-            ],
-          ],
-        ),
-        if (place case final String place) ...[
-          const SizedBox(height: 6),
-          Text(
-            place,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: TeamLineupCard._inkFaint,
-              fontSize: 29,
-              fontWeight: FontWeight.w500,
-              height: 1.25,
-            ),
-          ),
-        ],
-      ],
     );
   }
 }
@@ -531,22 +624,27 @@ class _PitchStage extends StatelessWidget {
 
   final TeamLineupCardData data;
 
-  /// Width over height — a 68 by 92 metre pitch, which is inside the laws' own
-  /// range and is the widest the composition will take.
+  /// The widest the pitch is allowed to be drawn, as width over height.
   ///
-  /// The height of the frame is what limits this pitch, not its width: a
-  /// narrower pitch would leave a gutter down both sides of the card and put
-  /// the touchlines back where the type is, which is precisely what makes a
-  /// pitch read as a panel. At this proportion it reaches the edges of the
-  /// picture and stops being a panel at all.
-  static const _ratio = 0.74;
+  /// **The pitch takes the whole width of the picture and gives on the other
+  /// axis.** A pitch held to a fixed proportion leaves a gutter down both sides
+  /// of the card, and a gutter is what turns a drawing into a panel sitting on
+  /// a background. So the stage fills the frame edge to edge and lets the
+  /// proportion float: at 0.86 the touchlines are past the edge of the picture
+  /// and the pitch simply carries on out of frame, which is what "bleed" means
+  /// and what no bordered container can do.
+  ///
+  /// A real pitch runs anywhere from about 0.57 to 0.9 wide against long, so
+  /// nothing in this band is a pitch a reader would not recognise, and the
+  /// markings inside it stay in their own true proportions either way.
+  static const _maxRatio = 0.86;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final height = math.min(constraints.maxHeight, constraints.maxWidth / _ratio);
-        final width = height * _ratio;
+        final height = constraints.maxHeight;
+        final width = math.min(constraints.maxWidth, height * _maxRatio);
         return Center(
           child: SizedBox(
             width: width,
@@ -566,9 +664,11 @@ class _Pitch extends StatelessWidget {
   final TeamLineupCardData data;
   final Size size;
 
-  /// Room between the touchline and the outermost player, so nobody is drawn
-  /// standing on a marking.
-  static const _insetX = 26.0;
+  /// Room between the edge of the picture and the outermost player. Wider than
+  /// it needs to be for the markings' sake: the pitch runs out of frame now, so
+  /// this is what keeps the players and their names inside the safe margin the
+  /// type is set to.
+  static const _insetX = 66.0;
   static const _insetY = 46.0;
 
   /// The halfway line's own room. Without it the two attacks meet exactly on
@@ -628,16 +728,16 @@ class _Pitch extends StatelessWidget {
           // penalty areas — which occupy the middle 59% of each end — and above
           // the goal rows, which are centred.
           PositionedDirectional(
-            start: 40,
-            top: 24,
+            start: _insetX,
+            top: 18,
             child: _TeamLabel(
               label: l10n.teamAName,
               tint: TeamLineupCard._accent,
             ),
           ),
           PositionedDirectional(
-            start: 40,
-            bottom: 24,
+            start: _insetX,
+            bottom: 18,
             child: _TeamLabel(
               label: l10n.teamBName,
               tint: TeamLineupCard._ice,
@@ -791,18 +891,19 @@ class _MarkMetrics {
   final double hintSize;
   final double cellWidth;
 
-  /// A face this large stops reading as a photograph on a poster.
-  static const _maxRadius = 58.0;
+  /// A face this large stops reading as a photograph on a poster. Five a side
+  /// reaches it; eleven a side never comes close.
+  static const _maxRadius = 66.0;
 
   /// And below this it stops reading as a face at all. A lineup denser than the
   /// engine can produce is drawn at this size and allowed to be tight rather
   /// than shrunk into illegibility.
   static const _minRadius = 22.0;
 
-  /// The badge sits over the foot of the circle and hangs below it by half its
-  /// own height.
-  double get badgeHeight => ratingSize * 1.72;
-  double get badgeOverhang => badgeHeight * 0.5;
+  /// The rating tag is set into the corner of the photograph and hangs a little
+  /// below it.
+  double get badgeHeight => ratingSize * 1.44;
+  double get badgeOverhang => badgeHeight * 0.34;
 
   /// The room a name is given: its own cell, less a gutter wide enough to read
   /// as a gap. Two long names in neighbouring cells both trim to their own
@@ -834,9 +935,9 @@ class _MarkMetrics {
   static _MarkMetrics _at(double radius, double cellWidth, bool hasHint) {
     return _MarkMetrics(
       radius: radius,
-      nameSize: (radius * 0.60).clamp(19.0, 34.0).toDouble(),
-      ratingSize: (radius * 0.46).clamp(16.0, 26.0).toDouble(),
-      hintSize: hasHint ? (radius * 0.38).clamp(13.0, 20.0).toDouble() : 0.0,
+      nameSize: (radius * 0.58).clamp(19.0, 37.0).toDouble(),
+      ratingSize: (radius * 0.44).clamp(16.0, 27.0).toDouble(),
+      hintSize: hasHint ? (radius * 0.34).clamp(13.0, 21.0).toDouble() : 0.0,
       cellWidth: cellWidth,
     );
   }
@@ -847,17 +948,24 @@ class _MarkMetrics {
 /// **A graphic element, not a list row.** The card's own mark rather than
 /// `PlayerCard` or `PlayerAvatar`: those are the Teams screen's, are built for
 /// a phone and carry Material's colours, which is the look a shared picture
-/// must not have. What is here instead is a photograph ringed in its team's
-/// colour, lifted off the grass by a shadow, with the rating set into a solid
-/// badge across the foot of the circle — the way a football graphic has always
-/// written a number on a player.
+/// must not have. What is here instead is a photograph in a hairline of its
+/// team's colour, lifted off the grass by a shadow, with the rating set into
+/// the corner of it as a small square tag — the way a football graphic has
+/// always written a number on a player.
+///
+/// **Three things, one shape.** Photograph, rating, name: the rating is cut
+/// into the corner of the face rather than floated under it, so the mark is a
+/// single object with a number on it instead of three stacked components. It is
+/// also the reason the tag is square-cornered on a round photograph — a rounded
+/// pill under a circle is the silhouette of a chip, which is the one thing this
+/// must not look like.
 ///
 /// **The rating stays.** It is the one figure this product has that a lineup
-/// graphic can carry, and it is drawn as a badge rather than as a line of text
-/// so that it reads as part of the player instead of as metadata under them.
+/// graphic can carry, and the tag is filled solid in the team's colour so it
+/// survives whatever photograph is behind it.
 ///
-/// **A player without a photograph is not a lesser player.** The same ring, the
-/// same shadow, the same badge; their initials in their team's colour where
+/// **A player without a photograph is not a lesser player.** The same hairline,
+/// the same shadow, the same tag; their initials in their team's colour where
 /// their profile gives initials, and the game's own mark where it does not. A
 /// dash is never lettered into a disc: somebody who left the match after the
 /// lineup was stored has no profile to take initials from.
@@ -914,8 +1022,8 @@ class TeamLineupPlayerMark extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: radius * 2 + 16,
-          height: radius * 2 + ratingSize * 0.86,
+          width: radius * 2 + ratingSize * 0.9,
+          height: radius * 2 + ratingSize * 0.49,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.topCenter,
@@ -927,10 +1035,14 @@ class TeamLineupPlayerMark extends StatelessWidget {
                 fullName: fullName,
                 isProfessionalGuest: isProfessionalGuest,
               ),
+              // The trailing corner, which is the leading edge of nothing:
+              // in Arabic it moves to the other side of the face with the rest
+              // of the reading order.
               if (rating != null)
-                Positioned(
+                PositionedDirectional(
                   bottom: 0,
-                  child: _RatingBadge(
+                  end: 0,
+                  child: _RatingTag(
                     rating: rating,
                     tint: tint,
                     size: ratingSize,
@@ -939,7 +1051,7 @@ class TeamLineupPlayerMark extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: radius * 0.16),
         _PlayerName(text: name, maxWidth: nameWidth, size: nameSize),
         if (movedFrom case final Position position)
           if (hintSize > 0)
@@ -978,15 +1090,19 @@ class _Face extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: _base,
+        // A hairline rather than a ring. The heavy ring the card had before
+        // drew a second circle around every photograph, and twenty-two of those
+        // is a page of targets; this states the team and gets out of the way,
+        // leaving the rating tag to carry the colour.
         border: Border.all(
-          color: tint.withValues(alpha: 0.88),
-          width: (radius * 0.075).clamp(2.5, 4.5),
+          color: tint.withValues(alpha: 0.62),
+          width: (radius * 0.045).clamp(2.0, 3.0),
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xB3000000),
-            blurRadius: radius * 0.55,
-            offset: Offset(0, radius * 0.16),
+            color: const Color(0xBF000000),
+            blurRadius: radius * 0.6,
+            offset: Offset(0, radius * 0.18),
           ),
         ],
       ),
@@ -1019,8 +1135,8 @@ class _Face extends StatelessWidget {
           frameBuilder: (_, child, frame, wasSynchronous) =>
               frame == null && !wasSynchronous ? fallback : child,
         ),
-        // A scrim across the foot, so the badge that crosses it keeps its edge
-        // whatever the photograph happens to be.
+        // A scrim across the foot, so the tag cut into the corner keeps its
+        // edge whatever the photograph happens to be.
         const Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -1113,9 +1229,9 @@ class _Fallback extends StatelessWidget {
   }
 }
 
-/// The rating, as a solid badge across the foot of the photograph.
-class _RatingBadge extends StatelessWidget {
-  const _RatingBadge({
+/// The rating, as a solid tag cut into the corner of the photograph.
+class _RatingTag extends StatelessWidget {
+  const _RatingTag({
     required this.rating,
     required this.tint,
     required this.size,
@@ -1128,12 +1244,21 @@ class _RatingBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: size * 0.44, vertical: size * 0.36),
+      padding: EdgeInsets.symmetric(
+        horizontal: size * 0.30,
+        vertical: size * 0.22,
+      ),
       decoration: BoxDecoration(
         color: tint,
-        borderRadius: BorderRadius.circular(999),
+        // Barely rounded: enough that it is drawn rather than cut out, not so
+        // much that it becomes a pill.
+        borderRadius: BorderRadius.circular(size * 0.24),
         boxShadow: const [
-          BoxShadow(color: Color(0x99000000), blurRadius: 10, offset: Offset(0, 3)),
+          BoxShadow(
+            color: Color(0xA6000000),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: Text(
@@ -1333,14 +1458,18 @@ class _AtmospherePainter extends CustomPainter {
         ),
     );
 
-    // The pitch's own atmosphere, pooled low.
+    // The grass. Painted here rather than inside the pitch, and wider and
+    // taller than the pitch is, so the field the players stand on has no edge
+    // anywhere: it is brightest where the centre circle is and gone by the time
+    // it reaches the type.
     canvas.drawRect(
       rect,
       Paint()
         ..shader = ui.Gradient.radial(
-          Offset(size.width * 0.5, size.height * 0.72),
-          size.height * 0.55,
-          const [Color(0x3312B36E), Color(0x00000000)],
+          Offset(size.width * 0.5, size.height * 0.62),
+          size.height * 0.60,
+          const [Color(0x4712B36E), Color(0x2612B36E), Color(0x00000000)],
+          const [0.0, 0.55, 1.0],
         ),
     );
 
@@ -1401,19 +1530,12 @@ class _PitchPainter extends CustomPainter {
     final w = field.width;
     final h = field.height;
 
-    // The grass: a radial breath, so it has no edge of its own. Strong enough
-    // that the pitch is a lit field rather than a rectangle drawn on the dark,
-    // which is most of what stops it reading as a container.
-    canvas.drawRect(
-      field,
-      Paint()
-        ..shader = ui.Gradient.radial(
-          Offset(field.center.dx, field.center.dy),
-          h * 0.66,
-          const [Color(0x3D18C77A), Color(0x1A18C77A), Color(0x00000000)],
-          const [0.0, 0.58, 1.0],
-        ),
-    );
+    // No grass is painted here. The green belongs to the ground the whole card
+    // is printed on — a pitch that fills the frame and is *also* filled with a
+    // tone of its own gains an edge exactly where the fill stops, which is the
+    // border this drawing spent two passes getting rid of. The atmosphere
+    // paints one glow across the lower half of the card instead, and the pitch
+    // is line work over it.
 
     /// White, at [alpha] through the middle of the pitch and weaker towards
     /// both goals. The fade is what removes the frame: the four corners of the

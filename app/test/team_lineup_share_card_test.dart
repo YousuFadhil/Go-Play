@@ -6,6 +6,8 @@ import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+// `show`n: intl exports a TextDirection that would shadow Flutter's.
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/matches/match_adapter.dart';
@@ -80,6 +82,8 @@ void main() {
     Map<String, PlayerCoreInputs>? players,
     Map<String, String>? resolvedNames,
     bool hasNaturalGoalkeeper = true,
+    DateTime? startAt,
+    DateTime? endAt,
   }) {
     final assignments = lineup ?? storedLineup();
     return TeamLineupCardData(
@@ -97,6 +101,8 @@ void main() {
               a.participantId: names[a.participantId] ?? '—',
           },
       hasNaturalGoalkeeper: hasNaturalGoalkeeper,
+      startAt: startAt,
+      endAt: endAt,
     );
   }
 
@@ -416,6 +422,48 @@ void main() {
       await pumpCard(tester, cardData(), locale: const Locale('ar'));
 
       expect(find.text('GO PLAY'), findsOneWidget);
+    });
+
+    testWidgets('a match inside one half of the day is given one meridiem',
+        (tester) async {
+      // "8:00–10:00 PM", not "8:00 PM - 10:00 PM": one range, written once.
+      await pumpCard(
+        tester,
+        cardData(
+          startAt: DateTime(2026, 8, 21, 20),
+          endAt: DateTime(2026, 8, 21, 22),
+        ),
+      );
+
+      expect(find.text('8:00–10:00 PM'), findsOneWidget);
+    });
+
+    testWidgets('a match that crosses noon reads start-then-end in Arabic',
+        (tester) async {
+      // The one case that needs both meridiems, and the case that cannot be
+      // written as one string: with "11:00 ص – 1:00 م" in a single run, the
+      // neutral dash joins the Arabic side and the line resolves to
+      // "11:00 م 1:00 – ص" — the match appearing to end before it began. The
+      // two ends are laid out as separate pieces so the order is the card's
+      // rather than the paragraph's.
+      final start = DateTime(2026, 8, 21, 11);
+      final end = DateTime(2026, 8, 21, 13);
+      String at(DateTime t) => '${DateFormat('h:mm', 'ar').format(t)} '
+          '${DateFormat('a', 'ar').format(t)}';
+
+      await pumpCard(
+        tester,
+        cardData(startAt: start, endAt: end),
+        locale: const Locale('ar'),
+      );
+
+      expect(find.text(at(start)), findsOneWidget);
+      expect(find.text(at(end)), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text(at(start))).dx,
+        lessThan(tester.getTopLeft(find.text(at(end))).dx),
+        reason: 'the kick-off is on the left of the dash in every language',
+      );
     });
   });
 
