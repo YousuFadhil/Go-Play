@@ -10,7 +10,11 @@ import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../members/member_repository.dart';
 import '../profile/player_identity.dart';
+import '../sharing/share_card_flow.dart';
+import '../sharing/share_card_renderer.dart';
+import '../sharing/share_service.dart';
 import 'pitch_view.dart';
+import 'team_lineup_card.dart';
 import 'team_generation_settings.dart';
 import 'team_models.dart';
 import 'team_repository.dart';
@@ -35,6 +39,8 @@ class TeamsScreen extends StatefulWidget {
     this.teamRepository,
     this.matchService,
     this.memberRepository,
+    this.renderer,
+    this.shareService,
   });
 
   final String matchId;
@@ -45,6 +51,12 @@ class TeamsScreen extends StatefulWidget {
   final TeamRepository? teamRepository;
   final MatchService? matchService;
   final MemberRepository? memberRepository;
+
+  /// The Share Card Engine's two ports, passed straight through to
+  /// [presentShareCard]. Supplied only by tests; this screen composes no card
+  /// of its own and adds no renderer, preview or share service.
+  final ShareCardRenderer? renderer;
+  final ShareService? shareService;
 
   @override
   State<TeamsScreen> createState() => _TeamsScreenState();
@@ -62,10 +74,38 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// a second tap cannot start another one.
   bool _busy = false;
 
+  /// The lineup currently on screen, or null while it loads, after a load
+  /// failed, or when none is stored.
+  ///
+  /// Held beside the future because the Share action sits in the header, above
+  /// the `FutureBuilder` that draws the pitch — and the card has to be made of
+  /// the lineup the reader is looking at rather than of one read again when
+  /// they press.
+  _TeamsView? _shown;
+
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _future = _track(_load());
+  }
+
+  /// Keeps [_shown] in step with whichever load is current.
+  ///
+  /// A generation replaces the lineup and reloads, so a result from a load that
+  /// has been superseded must not become the card.
+  Future<_TeamsView> _track(Future<_TeamsView> load) {
+    load.then(
+      (view) {
+        if (!mounted || _future != load) return;
+        setState(() => _shown = view);
+      },
+      // Already reported by the builder, which shows the retry.
+      onError: (_) {
+        if (!mounted || _future != load) return;
+        setState(() => _shown = null);
+      },
+    );
+    return load;
   }
 
   Future<_TeamsView> _load() async {
@@ -96,9 +136,14 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// returns a Future, and `=> _future = _load()` returns the future it just
   /// assigned.
   void _reload() {
+    final load = _load();
     setState(() {
-      _future = _load();
+      _future = load;
+      // What is on screen is about to be replaced. Until the new lineup lands
+      // there is nothing to make a card of.
+      _shown = null;
     });
+    _track(load);
   }
 
   void _showMessage(String message) {
@@ -199,12 +244,94 @@ class _TeamsScreenState extends State<TeamsScreen> {
     return ok ?? false;
   }
 
+  /// Whether there is a lineup to picture right now.
+  ///
+  /// A match with no stored lineup shows "not generated yet" and has nothing on
+  /// it to send, so the action is offered only once there is one.
+  bool get _canShare => _shown?.lineup.isNotEmpty ?? false;
+
+  /// Composes the lineup card for what is on screen and hands it to the engine.
+  ///
+  /// **Every value is already resolved before this runs.** Nothing here reads a
+  /// repository, and the names are the ones the pitch is already showing —
+  /// [_nameOf] is the screen's rule, applied once, and handed over rather than
+  /// re-derived inside a card.
+  Future<void> _shareLineup() async {
+    final view = _shown;
+    if (view == null || view.lineup.isEmpty) return;
+
+    // Nothing about the match goes onto the card — not its name, its location
+    // or its time. A lineup is shareable as a football lineup, and which match
+    // produced it is not part of what it says.
+    final data = TeamLineupCardData(
+      lineup: view.lineup,
+      players: view.players,
+      names: {
+        for (final assignment in view.lineup)
+          assignment.participantId: _nameOf(view, assignment.participantId),
+      },
+      hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
+    );
+
+    // The faces are fetched before the card is composed, not while it is. The
+    // engine gives a template two frames to settle, which is ample for layout
+    // and nowhere near enough for a network image — so a card composed without
+    // this would show a blank disc for every player who has a picture.
+    await _precacheFaces(view);
+    if (!mounted) return;
+
+    await presentShareCard(
+      context,
+      template: (context) => TeamLineupCard(data: data),
+      renderer: widget.renderer,
+      shareService: widget.shareService,
+    );
+  }
+
+  /// Loads the lineup's pictures into the image cache.
+  ///
+  /// Best effort, and issued together because they are independent. A picture
+  /// that will not load is not an error anywhere else in the app either, and
+  /// the pitch already falls back to a plain disc. `onError` is what keeps that
+  /// true: without a handler `precacheImage` reports the failure to
+  /// `FlutterError`, turning a missing photograph into an app-level error.
+  ///
+  /// A Professional Guest holds no account, so there is no picture of theirs to
+  /// fetch — the pitch draws them their own way.
+  Future<void> _precacheFaces(_TeamsView view) async {
+    final urls = <String>{
+      for (final assignment in view.lineup)
+        if (!assignment.isProfessionalGuest)
+          if (view.players[assignment.participantId]?.avatarUrl
+              case final String url)
+            url,
+    };
+    if (urls.isEmpty) return;
+
+    await Future.wait([
+      for (final url in urls)
+        precacheImage(NetworkImage(url), context, onError: (_, __) {}),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppHeader(title: Text(l10n.teamsTitle)),
+      appBar: AppHeader(
+        title: Text(l10n.teamsTitle),
+        // In the header, where a screen's own action belongs. Disabled rather
+        // than hidden while the lineup loads or when none is stored: an action
+        // that comes and goes as teams are regenerated reads as a bug.
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.ios_share),
+            tooltip: l10n.shareTeamLineupAction,
+            onPressed: _canShare && !_busy ? _shareLineup : null,
+          ),
+        ],
+      ),
       body: FutureBuilder<_TeamsView>(
         future: _future,
         builder: (context, snapshot) {
