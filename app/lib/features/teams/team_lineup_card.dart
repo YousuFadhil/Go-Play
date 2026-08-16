@@ -154,6 +154,11 @@ class TeamLineupCard extends StatelessWidget {
   static const _inkMuted = Color(0xC2FFFFFF);
   static const _inkFaint = Color(0x8AFFFFFF);
 
+  /// The quietest thing on the card that is still meant to be read. The fixture
+  /// has three ranks now — day, then clock and place — and a hierarchy needs a
+  /// third tone as much as it needs a third size.
+  static const _inkDim = Color(0x66FFFFFF);
+
   /// The safe margin the type is set against. Everything the reader must
   /// *read* lives inside it.
   static const _margin = 72.0;
@@ -171,7 +176,11 @@ class TeamLineupCard extends StatelessWidget {
           child: CustomPaint(painter: _AtmospherePainter()),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 58, bottom: 52),
+          // Deeper at both ends than a print margin needs to be. This picture
+          // is looked at in a Story, where the app that shows it puts its own
+          // furniture across the top and the bottom of the frame; the kicker
+          // and the signature are the two things that would sit under it.
+          padding: const EdgeInsets.only(top: 84, bottom: 76),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -311,11 +320,14 @@ class _Header extends StatelessWidget {
       children: [
         if (format case final String format) ...[
           _Kicker(label: format),
-          const SizedBox(height: 26),
+          const SizedBox(height: 24),
         ],
         if (name case final String name) ...[
           _Subject(name: name),
-          const SizedBox(height: 18),
+          // A clear step down before the fixture begins. The subject needs air
+          // beneath it more than the two lines under it need to be close: the
+          // gap is what tells the eye where the headline ends.
+          const SizedBox(height: 22),
         ],
         if (day case final String day)
           Text(
@@ -324,14 +336,15 @@ class _Header extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: TeamLineupCard._inkMuted,
-              fontSize: 34,
+              color: TeamLineupCard._inkFaint,
+              fontSize: 30,
               fontWeight: FontWeight.w600,
               height: 1.25,
+              letterSpacing: 0.4,
             ),
           ),
         if (clock.isNotEmpty || place != null) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -397,8 +410,8 @@ class _Aside extends StatelessWidget {
       textAlign: TextAlign.center,
       textDirection: direction,
       style: const TextStyle(
-        color: TeamLineupCard._inkFaint,
-        fontSize: 30,
+        color: TeamLineupCard._inkDim,
+        fontSize: 27,
         fontWeight: FontWeight.w500,
         height: 1.25,
       ),
@@ -431,9 +444,9 @@ class _Kicker extends StatelessWidget {
             textDirection: TextDirection.ltr,
             style: const TextStyle(
               color: TeamLineupCard._accent,
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 5,
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 7,
               height: 1.0,
             ),
           ),
@@ -529,7 +542,15 @@ class _Diamond extends StatelessWidget {
   }
 }
 
-/// The product's signature: a hairline, then the name, once, at the foot.
+/// The product's signature: a hairline, then a play mark and the name, once,
+/// at the foot.
+///
+/// **A signature, not a logo.** The card is the community's, and the product
+/// signs it the way a studio signs a poster — small, at the bottom edge, in the
+/// same accent that runs through the rest of the picture. The mark beside the
+/// name is a play triangle: the shape the product is named for, drawn rather
+/// than fetched, so nothing here is an asset that could belong to somebody
+/// else.
 class _Signature extends StatelessWidget {
   const _Signature({required this.label});
 
@@ -544,23 +565,20 @@ class _Signature extends StatelessWidget {
           height: 2,
           child: CustomPaint(painter: _HairlinePainter()),
         ),
-        const SizedBox(height: 20),
-        // The mark and the tick beside it are one thing and it reads left to
-        // right, so the row is pinned rather than inherited: an Arabic card
-        // would otherwise put the tick after the name.
+        const SizedBox(height: 22),
+        // The mark and the name are one thing and it reads left to right, so
+        // the row is pinned rather than inherited: an Arabic card would
+        // otherwise put the triangle after the name and point it backwards.
         Row(
           textDirection: TextDirection.ltr,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: TeamLineupCard._accent,
-                shape: BoxShape.circle,
-              ),
+            const SizedBox(
+              width: 17,
+              height: 19,
+              child: CustomPaint(painter: _PlayMarkPainter()),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 15),
             Text(
               label.toUpperCase(),
               // A name, not a sentence: it reads left to right in both
@@ -569,9 +587,9 @@ class _Signature extends StatelessWidget {
               textDirection: TextDirection.ltr,
               style: const TextStyle(
                 color: TeamLineupCard._inkFaint,
-                fontSize: 25,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 7,
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 8,
               ),
             ),
           ],
@@ -579,6 +597,24 @@ class _Signature extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The play triangle that signs the card.
+class _PlayMarkPainter extends CustomPainter {
+  const _PlayMarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, size.height / 2)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = TeamLineupCard._accent);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlayMarkPainter oldDelegate) => false;
 }
 
 /// A rule that fades out at both ends, so the foot of the card closes without
@@ -942,11 +978,6 @@ class _MarkMetrics {
   /// than shrunk into illegibility.
   static const _minRadius = 22.0;
 
-  /// The rating tag is set into the corner of the photograph and hangs a little
-  /// below it.
-  double get badgeHeight => ratingSize * 1.44;
-  double get badgeOverhang => badgeHeight * 0.34;
-
   /// The room a name is given: its own cell, less a gutter wide enough to read
   /// as a gap. Two long names in neighbouring cells both trim to their own
   /// share and the space between them is what tells the reader they are two
@@ -966,8 +997,12 @@ class _MarkMetrics {
       (nameSize * _lineHeight).ceilToDouble() * nameLines;
 
   /// The whole mark, top of the photograph to the foot of the last line.
+  ///
+  /// Nothing hangs off the circle any more — the rating is inside it — so the
+  /// mark is exactly its face, its gap and its name. The room that used to be
+  /// reserved for a badge overhanging the photograph is spent on the face.
   double get height =>
-      radius * 2 + badgeOverhang + radius * 0.16 + nameHeight + hintSize * 1.5;
+      radius * 2 + radius * 0.16 + nameHeight + hintSize * 1.5;
 
   /// The name's leading, and the one place it is stated.
   static const _lineHeight = 1.2;
@@ -999,7 +1034,12 @@ class _MarkMetrics {
     return _MarkMetrics(
       radius: radius,
       nameSize: (radius * 0.58).clamp(19.0, 37.0).toDouble(),
-      ratingSize: (radius * 0.44).clamp(16.0, 27.0).toDouble(),
+      // Larger than the tag it replaces: a figure read against a photograph
+      // needs more weight than one read against a solid fill, and it is now
+      // the only number on the mark. It also holds a floor of its own — the
+      // face shrinks with the lineup and the rating must not shrink with it
+      // past the point where a phone can read it.
+      ratingSize: (radius * 0.56).clamp(21.0, 34.0).toDouble(),
       hintSize: hasHint ? (radius * 0.34).clamp(13.0, 21.0).toDouble() : 0.0,
       cellWidth: cellWidth,
       nameLines: nameLines,
@@ -1093,35 +1133,14 @@ class TeamLineupPlayerMark extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: radius * 2 + ratingSize * 0.9,
-          height: radius * 2 + ratingSize * 0.49,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.topCenter,
-            children: [
-              _Face(
-                radius: radius,
-                tint: tint,
-                avatarUrl: avatarUrl,
-                fullName: fullName,
-                isProfessionalGuest: isProfessionalGuest,
-              ),
-              // The trailing corner, which is the leading edge of nothing:
-              // in Arabic it moves to the other side of the face with the rest
-              // of the reading order.
-              if (rating != null)
-                PositionedDirectional(
-                  bottom: 0,
-                  end: 0,
-                  child: _RatingTag(
-                    rating: rating,
-                    tint: tint,
-                    size: ratingSize,
-                  ),
-                ),
-            ],
-          ),
+        _Face(
+          radius: radius,
+          tint: tint,
+          avatarUrl: avatarUrl,
+          fullName: fullName,
+          isProfessionalGuest: isProfessionalGuest,
+          rating: rating,
+          ratingSize: ratingSize,
         ),
         SizedBox(height: radius * 0.16),
         // The name and what qualifies it are one block, given the room the card
@@ -1156,7 +1175,20 @@ class TeamLineupPlayerMark extends StatelessWidget {
   }
 }
 
-/// The photograph, ringed and lifted off the grass.
+/// The player's face: the photograph, their team's colour on it, and the number
+/// they are rated, all inside one circle.
+///
+/// **The rating is on the picture, not beside it.** A chip hanging off the
+/// corner of a photograph is a component; a figure reversed out of the foot of
+/// the picture is what a broadcast graphic does with a number, and it is the
+/// same move a shirt number makes. The dark foot of the circle is drawn to
+/// carry it, so the number sits on the treatment rather than on whatever the
+/// photograph happens to be.
+///
+/// **The team is on the picture too.** A wash of the side's colour over the
+/// lower half of every face, and the ring around it — so a reader sorting
+/// twenty-two players into two teams is reading the players themselves rather
+/// than hunting for a legend.
 class _Face extends StatelessWidget {
   const _Face({
     required this.radius,
@@ -1164,6 +1196,8 @@ class _Face extends StatelessWidget {
     required this.avatarUrl,
     required this.fullName,
     required this.isProfessionalGuest,
+    required this.rating,
+    required this.ratingSize,
   });
 
   final double radius;
@@ -1171,6 +1205,8 @@ class _Face extends StatelessWidget {
   final String? avatarUrl;
   final String? fullName;
   final bool isProfessionalGuest;
+  final double? rating;
+  final double ratingSize;
 
   /// What sits behind a photograph that has not loaded, and under one that has.
   static const _base = Color(0xFF0D1614);
@@ -1178,6 +1214,7 @@ class _Face extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final diameter = radius * 2;
+    final rating = this.rating;
 
     return Container(
       width: diameter,
@@ -1185,23 +1222,68 @@ class _Face extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: _base,
-        // A hairline rather than a ring. The heavy ring the card had before
-        // drew a second circle around every photograph, and twenty-two of those
-        // is a page of targets; this states the team and gets out of the way,
-        // leaving the rating tag to carry the colour.
+        // A ring, not a rim: enough of the team's colour to sort a player at a
+        // glance, not so much that twenty-two of them become a page of targets.
         border: Border.all(
-          color: tint.withValues(alpha: 0.62),
-          width: (radius * 0.045).clamp(2.0, 3.0),
+          color: tint.withValues(alpha: 0.85),
+          width: (radius * 0.062).clamp(2.5, 4.0),
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xBF000000),
-            blurRadius: radius * 0.6,
-            offset: Offset(0, radius * 0.18),
+            color: const Color(0xC7000000),
+            blurRadius: radius * 0.62,
+            offset: Offset(0, radius * 0.2),
           ),
         ],
       ),
-      child: ClipOval(child: _content(diameter)),
+      child: ClipOval(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _content(diameter),
+            // The team's colour laid over the foot of the face, and the dark
+            // the number is read against. One gradient does both.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    const Color(0xF2000000),
+                    const Color(0xB3000000),
+                    tint.withValues(alpha: 0.20),
+                    const Color(0x00000000),
+                  ],
+                  stops: const [0.0, 0.16, 0.34, 0.58],
+                ),
+              ),
+            ),
+            if (rating != null)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: radius * 0.08),
+                  child: Text(
+                    rating.toStringAsFixed(1),
+                    // Western digits, as everywhere a rating is written in this
+                    // product.
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(
+                      color: tint,
+                      fontSize: ratingSize,
+                      fontWeight: FontWeight.w900,
+                      height: 1.0,
+                      letterSpacing: -0.5,
+                      shadows: const [
+                        Shadow(blurRadius: 6, color: Color(0xE6000000)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1216,35 +1298,16 @@ class _Face extends StatelessWidget {
     final url = avatarUrl;
     if (isProfessionalGuest || url == null) return fallback;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.network(
-          url,
-          width: diameter,
-          height: diameter,
-          fit: BoxFit.cover,
-          // A picture that will not load is not an error and not a hole: it is
-          // the same player, drawn the way a player without one is drawn.
-          errorBuilder: (_, __, ___) => fallback,
-          frameBuilder: (_, child, frame, wasSynchronous) =>
-              frame == null && !wasSynchronous ? fallback : child,
-        ),
-        // A scrim across the foot, so the tag cut into the corner keeps its
-        // edge whatever the photograph happens to be.
-        const Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [Color(0x8C000000), Color(0x00000000)],
-                stops: [0.0, 0.45],
-              ),
-            ),
-          ),
-        ),
-      ],
+    return Image.network(
+      url,
+      width: diameter,
+      height: diameter,
+      fit: BoxFit.cover,
+      // A picture that will not load is not an error and not a hole: it is
+      // the same player, drawn the way a player without one is drawn.
+      errorBuilder: (_, __, ___) => fallback,
+      frameBuilder: (_, child, frame, wasSynchronous) =>
+          frame == null && !wasSynchronous ? fallback : child,
     );
   }
 
@@ -1286,12 +1349,16 @@ class _Fallback extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            tint.withValues(alpha: 0.20),
-            tint.withValues(alpha: 0.05),
+            tint.withValues(alpha: 0.18),
+            tint.withValues(alpha: 0.04),
           ],
         ),
       ),
-      child: Center(
+      // Above centre, because the foot of the circle belongs to the rating:
+      // initials and the number have to share one round space, and letters
+      // sitting on a figure is worse than either of them slightly off centre.
+      child: Align(
+        alignment: const Alignment(0, -0.22),
         child: switch ((isProfessionalGuest, initials)) {
           // A guest is marked as a guest, never lettered: they have no account
           // and no name of their own on this card.
@@ -1319,53 +1386,6 @@ class _Fallback extends StatelessWidget {
               color: tint.withValues(alpha: 0.55),
             ),
         },
-      ),
-    );
-  }
-}
-
-/// The rating, as a solid tag cut into the corner of the photograph.
-class _RatingTag extends StatelessWidget {
-  const _RatingTag({
-    required this.rating,
-    required this.tint,
-    required this.size,
-  });
-
-  final double rating;
-  final Color tint;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: size * 0.30,
-        vertical: size * 0.22,
-      ),
-      decoration: BoxDecoration(
-        color: tint,
-        // Barely rounded: enough that it is drawn rather than cut out, not so
-        // much that it becomes a pill.
-        borderRadius: BorderRadius.circular(size * 0.24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0xA6000000),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Text(
-        rating.toStringAsFixed(1),
-        // Western digits, as everywhere a rating is written in this product.
-        textDirection: TextDirection.ltr,
-        style: TextStyle(
-          color: const Color(0xFF04140C),
-          fontSize: size,
-          fontWeight: FontWeight.w900,
-          height: 1.0,
-        ),
       ),
     );
   }
@@ -1576,19 +1596,22 @@ class _TeamLabel extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 6, height: 30, color: tint),
-        const SizedBox(width: 12),
+        // The team's colour, solid, at the size of the type beside it: the
+        // label and the players it names are marked with the same swatch, which
+        // is what turns a caption into a key.
+        Container(width: 26, height: 26, color: tint),
+        const SizedBox(width: 14),
         Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: TeamLineupCard._ink.withValues(alpha: 0.92),
-            fontSize: 31,
+            color: TeamLineupCard._ink.withValues(alpha: 0.95),
+            fontSize: 30,
             fontWeight: FontWeight.w800,
             height: 1.1,
             // No tracking: `teamAName` is "الفريق أ" in Arabic.
-            shadows: const [Shadow(blurRadius: 8, color: Color(0xCC000000))],
+            shadows: const [Shadow(blurRadius: 10, color: Color(0xD9000000))],
           ),
         ),
       ],
@@ -1705,12 +1728,38 @@ class _PitchPainter extends CustomPainter {
     final w = field.width;
     final h = field.height;
 
-    // No grass is painted here. The green belongs to the ground the whole card
-    // is printed on — a pitch that fills the frame and is *also* filled with a
-    // tone of its own gains an edge exactly where the fill stops, which is the
-    // border this drawing spent two passes getting rid of. The atmosphere
-    // paints one glow across the lower half of the card instead, and the pitch
-    // is line work over it.
+    // The grass itself belongs to the ground the whole card is printed on — a
+    // pitch that fills the frame and is *also* filled with a tone of its own
+    // gains an edge exactly where the fill stops, which is the border this
+    // drawing spent two passes getting rid of.
+    //
+    // What is painted here is whose half is whose. Each end carries a breath of
+    // its team's colour, strongest behind the goal they defend and gone by the
+    // halfway line, so the two sides read as two sides before a reader has
+    // looked at a single player. It is the oldest device in the matchday
+    // graphic and it answers "who is where" in the time it takes to glance.
+    for (final (edge, colour) in [
+      (field.top, TeamLineupCard._accent),
+      (field.bottom, TeamLineupCard._ice),
+    ]) {
+      // Painted past the ends of the pitch, not up to them. A glow that stops
+      // where the pitch stops draws the very edge this picture keeps trying to
+      // lose: the light has to fall off through the frame, not at it.
+      canvas.drawRect(
+        Rect.fromLTRB(
+          field.left,
+          field.top - h * 0.22,
+          field.right,
+          field.bottom + h * 0.22,
+        ),
+        Paint()
+          ..shader = ui.Gradient.radial(
+            Offset(field.center.dx, edge),
+            h * 0.52,
+            [colour.withValues(alpha: 0.14), colour.withValues(alpha: 0)],
+          ),
+      );
+    }
 
     /// White, at [alpha] through the middle of the pitch and weaker towards
     /// both goals. The fade is what removes the frame: the four corners of the

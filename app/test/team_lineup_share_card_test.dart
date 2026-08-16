@@ -147,6 +147,24 @@ void main() {
       expect(find.text('GO PLAY'), findsOneWidget);
     });
 
+    testWidgets('the two sides are told apart by colour', (tester) async {
+      // Every mark carries its team's colour — the ring around the face, the
+      // rating reversed out of it, the swatch beside the label naming the half.
+      // A reader sorting twenty-two players into two teams reads the players,
+      // not a legend, so the two tints must never collapse into one.
+      await pumpCard(tester, cardData());
+
+      Color tintOf(String name) => tester
+          .widgetList<TeamLineupPlayerMark>(find.byType(TeamLineupPlayerMark))
+          .firstWhere((mark) => mark.name == name)
+          .tint;
+
+      // u1 plays for Team A, u2 for Team B.
+      expect(tintOf('Sara Al Balushi'), isNot(tintOf('Ahmed Al Harthy')));
+      // And the sides are internally consistent: u3 is Team A with u1.
+      expect(tintOf('Noor Al Kindi'), tintOf('Sara Al Balushi'));
+    });
+
     testWidgets('both teams share one pitch', (tester) async {
       // A lineup is two sides of the same match; a pitch each would say they
       // are two separate things.
