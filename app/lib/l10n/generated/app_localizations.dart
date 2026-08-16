@@ -2312,6 +2312,18 @@ abstract class AppLocalizations {
   /// **'Share my statistics'**
   String get shareMyStatisticsAction;
 
+  /// No description provided for @shareCardStatPlayers.
+  ///
+  /// In en, this message translates to:
+  /// **'Players'**
+  String get shareCardStatPlayers;
+
+  /// No description provided for @shareCommunityStatisticsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share community statistics'**
+  String get shareCommunityStatisticsAction;
+
   /// No description provided for @statPeriodLabel.
   ///
   /// In en, this message translates to:

@@ -4,6 +4,10 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../profile/player_identity.dart';
+import '../sharing/share_card_flow.dart';
+import '../sharing/share_card_renderer.dart';
+import '../sharing/share_service.dart';
+import 'community_statistics_card.dart';
 import 'stat_card.dart';
 import 'statistics_models.dart';
 import 'statistics_period.dart';
@@ -27,11 +31,30 @@ class CommunityDashboardTab extends StatefulWidget {
   const CommunityDashboardTab({
     super.key,
     required this.communityId,
+    this.communityName,
     StatisticsRepository? repository,
+    this.renderer,
+    this.shareService,
   }) : _repository = repository;
 
   final String communityId;
+
+  /// What this community is called, for the card that carries these figures.
+  ///
+  /// Passed in rather than read: the screen hosting this tab already has the
+  /// community, and a second read for a name it is displaying in its own title
+  /// would be a round trip for something already on screen. Null while it is
+  /// not known, and the card cannot be composed until it is — a community's
+  /// figures with no community on them belong to nobody.
+  final String? communityName;
+
   final StatisticsRepository? _repository;
+
+  /// The Share Card Engine's two ports, passed straight through to
+  /// [presentShareCard]. Supplied only by tests; this tab composes no card of
+  /// its own and adds no renderer, preview or share service.
+  final ShareCardRenderer? renderer;
+  final ShareService? shareService;
 
   @override
   State<CommunityDashboardTab> createState() => _CommunityDashboardTabState();
@@ -43,10 +66,38 @@ class _CommunityDashboardTabState extends State<CommunityDashboardTab> {
   StatisticsPeriod _period = StatisticsPeriod.allTime;
   late Future<CommunityDashboard> _dashboardFuture;
 
+  /// The figures currently on screen, or null while they load or after a load
+  /// failed. Held beside the future because the Share action sits above the
+  /// `FutureBuilder` that draws them — and a card must be made of what the
+  /// reader is looking at rather than of a figure read again when they press.
+  CommunityDashboard? _shown;
+
   @override
   void initState() {
     super.initState();
-    _dashboardFuture = _repository.fetchDashboard(widget.communityId, _period);
+    _dashboardFuture =
+        _track(_repository.fetchDashboard(widget.communityId, _period));
+  }
+
+  /// Keeps [_shown] in step with whichever load is current.
+  ///
+  /// The period can change while a read is in flight, so a result is kept only
+  /// if it is still the one being awaited — otherwise a slow weekly read
+  /// landing after the reader switched to All Time would put a week's figures
+  /// behind an All Time card.
+  Future<CommunityDashboard> _track(Future<CommunityDashboard> load) {
+    load.then(
+      (dashboard) {
+        if (!mounted || _dashboardFuture != load) return;
+        setState(() => _shown = dashboard);
+      },
+      // Already reported by the builder, which shows the retry.
+      onError: (_) {
+        if (!mounted || _dashboardFuture != load) return;
+        setState(() => _shown = null);
+      },
+    );
+    return load;
   }
 
   Future<void> _refresh() async {
@@ -57,6 +108,7 @@ class _CommunityDashboardTabState extends State<CommunityDashboardTab> {
     setState(() {
       _dashboardFuture = future;
     });
+    _track(future);
     // Awaited only so the refresh indicator stays up until the figures land.
     // A failure is swallowed here rather than ignored: the builder below is
     // already showing it, and letting it escape would be an unhandled error
@@ -73,19 +125,107 @@ class _CommunityDashboardTabState extends State<CommunityDashboardTab> {
     setState(() {
       _period = period;
       _dashboardFuture = future;
+      // The figures on screen belong to the period being left. Until the new
+      // ones land there is nothing to make a card of.
+      _shown = null;
     });
-    future.then<void>((_) {}, onError: (_) {});
+    _track(future);
+  }
+
+  /// Whether a card can be made right now: figures on screen, and a community
+  /// to put on them.
+  bool get _canShare => _shown != null && widget.communityName != null;
+
+  /// Composes the card for what is on screen and hands it to the engine.
+  ///
+  /// **Every figure is already resolved before this runs.** Nothing here reads
+  /// a repository, and the period is the Dashboard's own — this tab keeps its
+  /// period separately from the Leaderboards, and sharing does not change that.
+  Future<void> _share() async {
+    final dashboard = _shown;
+    final name = widget.communityName;
+    if (dashboard == null || name == null) return;
+
+    final data = CommunityStatisticsCardData.of(
+      dashboard,
+      communityName: name,
+      period: _period,
+    );
+
+    // The leaders' pictures are fetched before the card is composed, not while
+    // it is. The engine gives a template two frames to settle, which is ample
+    // for layout and nowhere near enough for a network image — so a card
+    // composed without this would show initials for players who have photos.
+    await _precacheLeaders(dashboard);
+    if (!mounted) return;
+
+    await presentShareCard(
+      context,
+      template: (context) => CommunityStatisticsCard(data: data),
+      renderer: widget.renderer,
+      shareService: widget.shareService,
+    );
+  }
+
+  /// Loads whatever leader pictures exist into the image cache.
+  ///
+  /// Best effort by design, and issued together because the three are
+  /// independent: a picture that will not load is not an error anywhere else in
+  /// the app either, and the avatar falls back to initials. `onError` is what
+  /// keeps that true — without a handler `precacheImage` reports the failure to
+  /// `FlutterError`, turning a missing photograph into an app-level error.
+  Future<void> _precacheLeaders(CommunityDashboard dashboard) async {
+    final urls = <String>{
+      for (final leader in [
+        dashboard.topScorer,
+        dashboard.mostActivePlayer,
+        dashboard.mostMvp,
+      ])
+        if (leader?.avatarUrl != null) leader!.avatarUrl!,
+    };
+    if (urls.isEmpty) return;
+
+    await Future.wait([
+      for (final url in urls)
+        precacheImage(NetworkImage(url), context, onError: (_, __) {}),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     // The selector sits outside the FutureBuilder so it stays put — and stays
     // usable — while a period loads or fails. A control that vanishes into a
     // spinner is one the reader cannot use to get out of the state they are in.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        StatisticsPeriodSelector(selected: _period, onChanged: _selectPeriod),
+        // Share sits beside the period rather than in the screen's app bar,
+        // and that is the point: the bar belongs to the community screen and
+        // its tabs, while this figure set and this period belong to the
+        // Dashboard alone. The Leaderboards keep their own period and get no
+        // Share action from this.
+        Row(
+          children: [
+            Expanded(
+              child: StatisticsPeriodSelector(
+                selected: _period,
+                onChanged: _selectPeriod,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, Gap.md, Gap.sm, 0),
+              child: IconButton(
+                icon: const Icon(Icons.ios_share),
+                tooltip: l10n.shareCommunityStatisticsAction,
+                // Disabled rather than hidden while the figures load: an action
+                // that comes and goes as periods change reads as a bug.
+                onPressed: _canShare ? _share : null,
+              ),
+            ),
+          ],
+        ),
         Expanded(
           child: FutureBuilder<CommunityDashboard>(
             future: _dashboardFuture,
