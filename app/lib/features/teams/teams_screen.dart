@@ -260,10 +260,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
     final view = _shown;
     if (view == null || view.lineup.isEmpty) return;
 
-    // Nothing about the match goes onto the card — not its name, its location
-    // or its time. A lineup is shareable as a football lineup, and which match
-    // produced it is not part of what it says.
+    // The community is the card's subject; the fixture is one line of context
+    // under it. Both are already on the loaded view — `fetchMatch` joins the
+    // community for its name — so this is plumbing, not a second read. Every
+    // one of these may be absent, and the card draws nothing where they are
+    // rather than standing something in.
     final data = TeamLineupCardData(
+      communityName: view.match.communityName,
+      startAt: view.match.startAt,
+      endAt: view.match.endAt,
+      location: view.match.location,
       lineup: view.lineup,
       players: view.players,
       names: {
