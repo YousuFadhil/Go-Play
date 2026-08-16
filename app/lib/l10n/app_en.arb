@@ -521,6 +521,8 @@
   "shareCardStatGoals": "Goals",
   "shareCardStatMvp": "MVP",
   "shareMyStatisticsAction": "Share my statistics",
+  "shareCardStatPlayers": "Players",
+  "shareCommunityStatisticsAction": "Share community statistics",
 
   "statPeriodLabel": "Period",
   "statPeriodWeekly": "Weekly",

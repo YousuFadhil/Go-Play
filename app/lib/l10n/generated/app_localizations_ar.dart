@@ -1248,6 +1248,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shareMyStatisticsAction => 'مشاركة إحصائياتي';
 
   @override
+  String get shareCardStatPlayers => 'اللاعبون';
+
+  @override
+  String get shareCommunityStatisticsAction => 'مشاركة إحصائيات المجتمع';
+
+  @override
   String get statPeriodLabel => 'الفترة';
 
   @override
