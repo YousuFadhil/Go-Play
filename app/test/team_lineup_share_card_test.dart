@@ -18,7 +18,6 @@ import 'package:go_play/features/sharing/share_card_canvas.dart';
 import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
-import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_lineup_card.dart';
 import 'package:go_play/features/teams/team_models.dart';
@@ -148,7 +147,7 @@ void main() {
       await pumpCard(tester, cardData());
 
       // One painted board carrying both halves, and one mark per player.
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
       expect(find.text('Team A'), findsOneWidget);
       expect(find.text('Team B'), findsOneWidget);
     });
@@ -212,10 +211,12 @@ void main() {
       );
 
       expect(find.text('Professional (Omar)'), findsOneWidget);
-      // The guest treatment is the app's own avatar's, not a second one.
-      final avatars =
-          tester.widgetList<PlayerAvatar>(find.byType(PlayerAvatar));
-      expect(avatars.where((a) => a.isProfessionalGuest), hasLength(1));
+      // A guest is marked as one on the card's own mark: same ring, same
+      // shadow, the guest's badge instead of a face.
+      final marks = tester.widgetList<TeamLineupPlayerMark>(
+        find.byType(TeamLineupPlayerMark),
+      );
+      expect(marks.where((m) => m.isProfessionalGuest), hasLength(1));
     });
 
     testWidgets('a player with a picture keeps it, one without falls back',
@@ -235,9 +236,10 @@ void main() {
         ),
       );
 
-      final avatars =
-          tester.widgetList<PlayerAvatar>(find.byType(PlayerAvatar));
-      expect(avatars.map((a) => a.avatarUrl),
+      final marks = tester.widgetList<TeamLineupPlayerMark>(
+        find.byType(TeamLineupPlayerMark),
+      );
+      expect(marks.map((m) => m.avatarUrl),
           containsAll(<String?>['https://example.test/u1.jpg', null]));
       expect(tester.takeException(), isNull,
           reason: 'a missing picture is the app\'s fallback, not an error');
@@ -251,12 +253,12 @@ void main() {
 
       expect(find.text('Sara Al Balushi'), findsNothing,
           reason: 'u1 keeps goal, and there is no goal row to draw them in');
-      expect(find.byType(PlayerAvatar), findsNWidgets(3));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(3));
 
       // With a keeper in the squad, the same lineup draws all four.
       await pumpCard(tester, cardData());
       expect(find.text('Sara Al Balushi'), findsOneWidget);
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
     });
 
     test('an empty lineup is not a card', () {
@@ -351,33 +353,36 @@ void main() {
     testWidgets('the card looks the same whatever theme composed it',
         (tester) async {
       // A picture that leaves the phone must not change because the reader has
-      // dark mode on, so the pitch's own scheme is pinned inside the card.
+      // dark mode on. The card takes no colour from the ambient scheme — every
+      // one of them is its own constant — and this asserts the consequence
+      // rather than the mechanism: the two files are the same file.
       tester.view.physicalSize = const Size(2400, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
-      ColorScheme schemeOnPitch() => Theme.of(
-            tester.element(find.byType(PlayerAvatar).first),
-          ).colorScheme;
-
-      final schemes = <ColorScheme>[];
+      final images = <ShareCardImage>[];
       for (final brightness in Brightness.values) {
+        final key = GlobalKey();
         await tester.pumpWidget(MaterialApp(
           theme: ThemeData(brightness: brightness),
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: Align(
             alignment: Alignment.topLeft,
-            child: ShareCardSurface(child: TeamLineupCard(data: cardData())),
+            child: RepaintBoundary(
+              key: key,
+              child: ShareCardSurface(child: TeamLineupCard(data: cardData())),
+            ),
           ),
         ));
         await tester.pump();
-        schemes.add(schemeOnPitch());
+
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        images.add((await tester.runAsync(() => captureShareCard(boundary)))!);
       }
 
-      expect(schemes.first.primary, schemes.last.primary);
-      expect(schemes.first.brightness, Brightness.light);
-      expect(schemes.last.brightness, Brightness.light);
+      expect(images.first.bytes, images.last.bytes);
     });
   });
 
@@ -620,7 +625,7 @@ void main() {
       );
       // And the match's own name is not on the card.
       expect(find.textContaining('Friday Night'), findsNothing);
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
       expect(find.text('GO PLAY'), findsOneWidget);
     });
 
@@ -636,7 +641,7 @@ void main() {
 
       expect(find.textContaining('Al Amerat Pitch'), findsNothing);
       expect(find.text('Al Amerat FC'), findsOneWidget);
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
     });
 
     testWidgets('a card with no community and no fixture is still a lineup',
@@ -644,7 +649,7 @@ void main() {
       // Both are optional and neither is invented. The pitch carries the card.
       await pumpCard(tester, cardData());
 
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
       expect(find.text('GO PLAY'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
