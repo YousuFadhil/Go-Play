@@ -1272,6 +1272,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareCommunityStatisticsAction => 'Share community statistics';
 
   @override
+  String get shareTeamLineupAction => 'Share the lineup';
+
+  @override
   String get statPeriodLabel => 'Period';
 
   @override

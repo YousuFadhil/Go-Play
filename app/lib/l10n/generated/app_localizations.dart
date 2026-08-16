@@ -2324,6 +2324,12 @@ abstract class AppLocalizations {
   /// **'Share community statistics'**
   String get shareCommunityStatisticsAction;
 
+  /// No description provided for @shareTeamLineupAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share the lineup'**
+  String get shareTeamLineupAction;
+
   /// No description provided for @statPeriodLabel.
   ///
   /// In en, this message translates to:
