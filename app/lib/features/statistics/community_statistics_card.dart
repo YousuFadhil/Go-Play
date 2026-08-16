@@ -123,23 +123,39 @@ class CommunityStatisticsCard extends StatelessWidget {
                 const _Wordmark(size: 44, spacing: 14),
                 const SizedBox(height: 18),
                 Container(width: 132, height: 6, color: _accent),
-                const Spacer(flex: 2),
+                // With leaders, fixed gaps down to the totals and the leaders
+                // take the rest: before this, four elastic gaps shared the
+                // slack and left a band of empty green between every pair.
+                //
+                // With none, the same fixed block is centred instead — slack
+                // above it and below — because pinning it to the top would
+                // leave the whole lower half of the frame empty.
+                if (!data.hasLeaders) const Spacer(),
+                const SizedBox(height: 76),
                 _CommunityName(name: data.communityName),
-                const SizedBox(height: 30),
+                const SizedBox(height: 28),
                 _PeriodBadge(
                   label: StatisticsPeriodSelector.label(
                     context.l10n,
                     data.period,
                   ),
                 ),
-                const Spacer(flex: 2),
+                const SizedBox(height: 76),
                 _Totals(data: data),
-                const Spacer(flex: 2),
                 // A community with nothing to show leaves the section out
                 // rather than printing three empty rows: an absence stated
                 // three times reads as a broken card.
-                if (data.hasLeaders) _Leaders(data: data),
-                if (data.hasLeaders) const Spacer(flex: 2),
+                //
+                // Where there are leaders they take the rest of the card and
+                // space themselves down it; where there are none the slack
+                // goes above and below the totals instead, so the figures sit
+                // in the middle of the frame rather than clinging to the top.
+                if (data.hasLeaders) ...[
+                  const SizedBox(height: 56),
+                  Expanded(child: _Leaders(data: data)),
+                ] else
+                  const Spacer(),
+                const SizedBox(height: 32),
                 const _Wordmark(size: 30, spacing: 10, muted: true),
               ],
             ),
@@ -279,7 +295,6 @@ class _Leaders extends StatelessWidget {
     final l10n = context.l10n;
 
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           l10n.statLeadersTitle.toUpperCase(),
@@ -290,27 +305,37 @@ class _Leaders extends StatelessWidget {
             letterSpacing: 6,
           ),
         ),
-        const SizedBox(height: 36),
+        const SizedBox(height: 16),
+        // The rows share whatever the card has left, so the section fills its
+        // part of the frame instead of sitting in a corner of it.
+        //
         // Only the measures somebody actually leads. A row saying "Not yet" on
         // a picture sent to other people is an absence they cannot act on.
-        if (data.topScorer != null)
-          _LeaderRow(
-            label: l10n.statTopScorer,
-            leader: data.topScorer!,
-            describeValue: l10n.goalsScoredLabel,
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              if (data.topScorer != null)
+                _LeaderRow(
+                  label: l10n.statTopScorer,
+                  leader: data.topScorer!,
+                  describeValue: l10n.goalsScoredLabel,
+                ),
+              if (data.mostActivePlayer != null)
+                _LeaderRow(
+                  label: l10n.statMostActivePlayer,
+                  leader: data.mostActivePlayer!,
+                  describeValue: l10n.statMatchesPlayedValue,
+                ),
+              if (data.mostMvp != null)
+                _LeaderRow(
+                  label: l10n.statMostMvp,
+                  leader: data.mostMvp!,
+                  describeValue: l10n.statMvpValue,
+                ),
+            ],
           ),
-        if (data.mostActivePlayer != null)
-          _LeaderRow(
-            label: l10n.statMostActivePlayer,
-            leader: data.mostActivePlayer!,
-            describeValue: l10n.statMatchesPlayedValue,
-          ),
-        if (data.mostMvp != null)
-          _LeaderRow(
-            label: l10n.statMostMvp,
-            leader: data.mostMvp!,
-            describeValue: l10n.statMvpValue,
-          ),
+        ),
       ],
     );
   }
@@ -334,17 +359,37 @@ class _LeaderRow extends StatelessWidget {
     final l10n = context.l10n;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 30),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           // The app's own avatar, at card scale. Its fallback is the app's —
           // initials, and a figure where there is not even a name.
-          PlayerAvatar(
-            avatarUrl: leader.avatarUrl,
-            fullName: leader.fullName,
-            radius: 54,
+          Theme(
+            // **Pinned, so the same community produces the same picture.** A
+            // leader without a photograph falls back to a `CircleAvatar`,
+            // which takes its colours from the ambient scheme — so without
+            // this a reader in dark mode shared a pale lilac disc on a green
+            // football card while a reader in light mode shared a green one.
+            // It changes nothing in the app: this Theme exists only inside the
+            // card being composed.
+            data: Theme.of(context).copyWith(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF1B7A43),
+                brightness: Brightness.light,
+              ),
+            ),
+            child: PlayerAvatar(
+              avatarUrl: leader.avatarUrl,
+              fullName: leader.fullName,
+              radius: 54,
+            ),
           ),
-          const SizedBox(width: 28),
+          const SizedBox(width: 24),
+          // The figure goes *under* the name rather than opposite it. Across
+          // the row it sat an arm's length of empty green away from the player
+          // it belongs to; beside the name it stole the room the name needed
+          // and long names were cut off. Stacked, it is unmistakably this
+          // player's figure and the name keeps the full width of the card.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,16 +422,18 @@ class _LeaderRow extends StatelessWidget {
                     height: 1.1,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  describeValue(leader.value),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: CommunityStatisticsCard._accent,
+                    fontSize: 40,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
-            ),
-          ),
-          const SizedBox(width: 20),
-          Text(
-            describeValue(leader.value),
-            style: const TextStyle(
-              color: CommunityStatisticsCard._accent,
-              fontSize: 40,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ],

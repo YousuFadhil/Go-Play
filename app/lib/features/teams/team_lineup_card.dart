@@ -124,12 +124,14 @@ class TeamLineupCard extends StatelessWidget {
             const _Wordmark(size: 44, spacing: 14),
             const SizedBox(height: 18),
             Container(width: 132, height: 6, color: _accent),
-            const Spacer(),
-            Flexible(
-              flex: 20,
-              child: _ScaledPitch(data: data),
-            ),
-            const Spacer(),
+            const SizedBox(height: 44),
+            // `Expanded`, not `Flexible` with spacers either side. A loose fit
+            // lets the `FittedBox` below settle at its child's natural size —
+            // which left the pitch at its composed width, a little over a
+            // third of the card, with the rest of the frame empty. A tight box
+            // is what gives `BoxFit.contain` something to scale up into.
+            Expanded(child: _ScaledPitch(data: data)),
+            const SizedBox(height: 40),
             const _Wordmark(size: 30, spacing: 10, muted: true),
           ],
         ),
@@ -172,35 +174,47 @@ class _ScaledPitch extends StatelessWidget {
           // `Material` over it. The card has no `Scaffold` to supply one.
           child: Material(
             type: MaterialType.transparency,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(Radii.md),
-              child: CustomPaint(
-                painter: _FullPitchPainter(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: Gap.md),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _TeamLabel(label: l10n.teamAName),
-                      // Team A defends the top goal, so its rows run the other
-                      // way: the goal first and the attack last, meeting Team
-                      // B's attack at the halfway line.
-                      ..._Half(
-                        assignments: data.of(TeamId.a),
-                        data: data,
-                        towardsTop: true,
-                      ).rows(),
-                      const SizedBox(height: Gap.sm),
-                      ..._Half(
-                        assignments: data.of(TeamId.b),
-                        data: data,
-                        towardsTop: false,
-                      ).rows(),
-                      _TeamLabel(label: l10n.teamBName),
-                    ],
+            // The labels sit above and below the pitch rather than on it. On
+            // the grass they landed inside the penalty areas, crossing the box
+            // markings; out here each one still names the half it touches and
+            // overlaps nothing.
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _TeamLabel(label: l10n.teamAName),
+                const SizedBox(height: Gap.xs),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(Radii.md),
+                  child: CustomPaint(
+                    painter: _FullPitchPainter(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: Gap.md),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Team A defends the top goal, so its rows run the
+                          // other way: the goal first and the attack last,
+                          // meeting Team B's attack at the halfway line.
+                          ..._Half(
+                            assignments: data.of(TeamId.a),
+                            data: data,
+                            towardsTop: true,
+                          ).rows(),
+                          const SizedBox(height: Gap.sm),
+                          ..._Half(
+                            assignments: data.of(TeamId.b),
+                            data: data,
+                            towardsTop: false,
+                          ).rows(),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: Gap.xs),
+                _TeamLabel(label: l10n.teamBName),
+              ],
             ),
           ),
         ),
@@ -304,20 +318,24 @@ class _TeamLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-      child: Text(
-        label.toUpperCase(),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 3,
-          // A hard shadow, so the label stays readable over a pale stripe
-          // without darkening the pitch for everyone — the same treatment the
-          // player names on the pitch already use.
-          shadows: [Shadow(blurRadius: 2, color: Color(0x99000000))],
-        ),
+      child: Row(
+        children: [
+          Container(width: 3, height: 13, color: TeamLineupCard._accent),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 3,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

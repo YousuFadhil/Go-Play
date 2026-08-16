@@ -157,10 +157,24 @@ class _Identity extends StatelessWidget {
             shape: BoxShape.circle,
             color: PlayerStatisticsCard._accent,
           ),
-          child: PlayerAvatar(
-            avatarUrl: data.avatarUrl,
-            fullName: data.fullName,
-            radius: 176,
+          child: Theme(
+            // **Pinned, so the same player produces the same picture.** The
+            // avatar's fallback disc is a `CircleAvatar`, which takes its
+            // colours from the ambient scheme — so without this a reader in
+            // dark mode shared a different image of the same figures than a
+            // reader in light mode. It changes nothing in the app: this Theme
+            // exists only inside the card being composed.
+            data: Theme.of(context).copyWith(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF1B7A43),
+                brightness: Brightness.light,
+              ),
+            ),
+            child: PlayerAvatar(
+              avatarUrl: data.avatarUrl,
+              fullName: data.fullName,
+              radius: 176,
+            ),
           ),
         ),
         const SizedBox(height: 44),
