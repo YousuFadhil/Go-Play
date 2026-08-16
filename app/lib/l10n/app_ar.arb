@@ -442,6 +442,12 @@
   "errShareCardRender": "تعذّر إنشاء البطاقة. حاول مرة أخرى.",
   "errShareCardShare": "المشاركة غير متاحة حالياً.",
 
+  "shareCardStatMatches": "المباريات",
+  "shareCardStatWins": "الانتصارات",
+  "shareCardStatGoals": "الأهداف",
+  "shareCardStatMvp": "أفضل لاعب",
+  "shareMyStatisticsAction": "مشاركة إحصائياتي",
+
   "statPeriodLabel": "الفترة",
   "statPeriodWeekly": "أسبوعي",
   "statPeriodMonthly": "شهري",

@@ -1251,6 +1251,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errShareCardShare => 'Sharing is not available right now.';
 
   @override
+  String get shareCardStatMatches => 'Matches';
+
+  @override
+  String get shareCardStatWins => 'Wins';
+
+  @override
+  String get shareCardStatGoals => 'Goals';
+
+  @override
+  String get shareCardStatMvp => 'MVP';
+
+  @override
+  String get shareMyStatisticsAction => 'Share my statistics';
+
+  @override
   String get statPeriodLabel => 'Period';
 
   @override
