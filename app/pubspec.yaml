@@ -27,6 +27,16 @@ dependencies:
   # app runs without a Firebase project configured — see PushService.
   firebase_core: ^3.8.0
   firebase_messaging: ^15.1.5
+  # The OS share sheet. Flutter ships no sharing API, and the alternative is
+  # hand-written platform channels plus an Android FileProvider — for three
+  # platforms — to reach something every OS already provides. One package, and
+  # the only file that names it is NativeShareService.
+  #
+  # It also owns the temporary file: the card is handed over as bytes and
+  # share_plus writes them into the OS temporary directory on the platforms
+  # that need a path. So the app writes nothing itself, which is what keeps
+  # `dart:io` out of this feature and the web build compiling.
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:

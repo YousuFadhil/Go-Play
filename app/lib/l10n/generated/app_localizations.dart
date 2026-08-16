@@ -2246,6 +2246,150 @@ abstract class AppLocalizations {
   /// **'Highest rated ranks by the player\'s overall rating across every community.'**
   String get leaderboardRatingNote;
 
+  /// No description provided for @shareCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share card'**
+  String get shareCardTitle;
+
+  /// No description provided for @shareCardShareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareCardShareAction;
+
+  /// No description provided for @shareCardCloseAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get shareCardCloseAction;
+
+  /// No description provided for @shareCardPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your card…'**
+  String get shareCardPreparing;
+
+  /// No description provided for @errShareCardRender.
+  ///
+  /// In en, this message translates to:
+  /// **'The card could not be created. Please try again.'**
+  String get errShareCardRender;
+
+  /// No description provided for @errShareCardShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing is not available right now.'**
+  String get errShareCardShare;
+
+  /// No description provided for @shareCardStatMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches'**
+  String get shareCardStatMatches;
+
+  /// No description provided for @shareCardStatWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Wins'**
+  String get shareCardStatWins;
+
+  /// No description provided for @shareCardStatGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get shareCardStatGoals;
+
+  /// No description provided for @shareCardStatMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'MVP'**
+  String get shareCardStatMvp;
+
+  /// No description provided for @shareMyStatisticsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share my statistics'**
+  String get shareMyStatisticsAction;
+
+  /// No description provided for @shareCardStatPlayers.
+  ///
+  /// In en, this message translates to:
+  /// **'Players'**
+  String get shareCardStatPlayers;
+
+  /// No description provided for @shareCommunityStatisticsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share community statistics'**
+  String get shareCommunityStatisticsAction;
+
+  /// No description provided for @shareTeamLineupAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share the lineup'**
+  String get shareTeamLineupAction;
+
+  /// No description provided for @statPeriodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get statPeriodLabel;
+
+  /// No description provided for @statPeriodWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get statPeriodWeekly;
+
+  /// No description provided for @statPeriodMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get statPeriodMonthly;
+
+  /// No description provided for @statPeriodAllTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get statPeriodAllTime;
+
+  /// No description provided for @statPeriodWeeklyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This week\'s figures. Weeks run Monday to Sunday, Oman time.'**
+  String get statPeriodWeeklyNote;
+
+  /// No description provided for @statPeriodMonthlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This calendar month\'s figures, Oman time.'**
+  String get statPeriodMonthlyNote;
+
+  /// No description provided for @statPeriodRatingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The rating is your current rating across every community. It is not a figure for this period.'**
+  String get statPeriodRatingNote;
+
+  /// No description provided for @statPeriodNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'You have not played a recorded match in this period.'**
+  String get statPeriodNoMatches;
+
+  /// No description provided for @statPeriodEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No results have been recorded in this community in this period.'**
+  String get statPeriodEmptyBody;
+
+  /// No description provided for @leaderboardsPeriodEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No results have been recorded in this period, so there is nothing to rank yet.'**
+  String get leaderboardsPeriodEmpty;
+
   /// No description provided for @cancelButton.
   ///
   /// In en, this message translates to:

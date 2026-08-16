@@ -1215,6 +1215,83 @@ class AppLocalizationsAr extends AppLocalizations {
       'يعتمد ترتيب «الأعلى تقييماً» على التقييم العام للاعب في كل المجتمعات.';
 
   @override
+  String get shareCardTitle => 'بطاقة المشاركة';
+
+  @override
+  String get shareCardShareAction => 'مشاركة';
+
+  @override
+  String get shareCardCloseAction => 'إغلاق';
+
+  @override
+  String get shareCardPreparing => 'جارٍ تجهيز بطاقتك…';
+
+  @override
+  String get errShareCardRender => 'تعذّر إنشاء البطاقة. حاول مرة أخرى.';
+
+  @override
+  String get errShareCardShare => 'المشاركة غير متاحة حالياً.';
+
+  @override
+  String get shareCardStatMatches => 'المباريات';
+
+  @override
+  String get shareCardStatWins => 'الانتصارات';
+
+  @override
+  String get shareCardStatGoals => 'الأهداف';
+
+  @override
+  String get shareCardStatMvp => 'أفضل لاعب';
+
+  @override
+  String get shareMyStatisticsAction => 'مشاركة إحصائياتي';
+
+  @override
+  String get shareCardStatPlayers => 'اللاعبون';
+
+  @override
+  String get shareCommunityStatisticsAction => 'مشاركة إحصائيات المجتمع';
+
+  @override
+  String get shareTeamLineupAction => 'مشاركة التشكيلة';
+
+  @override
+  String get statPeriodLabel => 'الفترة';
+
+  @override
+  String get statPeriodWeekly => 'أسبوعي';
+
+  @override
+  String get statPeriodMonthly => 'شهري';
+
+  @override
+  String get statPeriodAllTime => 'الكل';
+
+  @override
+  String get statPeriodWeeklyNote =>
+      'أرقام هذا الأسبوع. يبدأ الأسبوع من الاثنين وينتهي بالأحد بتوقيت عُمان.';
+
+  @override
+  String get statPeriodMonthlyNote => 'أرقام هذا الشهر الميلادي بتوقيت عُمان.';
+
+  @override
+  String get statPeriodRatingNote =>
+      'التقييم هو تقييمك الحالي في كل المجتمعات، وليس رقماً خاصاً بهذه الفترة.';
+
+  @override
+  String get statPeriodNoMatches =>
+      'لم تلعب أي مباراة مسجَّلة النتيجة في هذه الفترة.';
+
+  @override
+  String get statPeriodEmptyBody =>
+      'لم تُسجَّل أي نتيجة في هذا المجتمع خلال هذه الفترة.';
+
+  @override
+  String get leaderboardsPeriodEmpty =>
+      'لم تُسجَّل أي نتيجة في هذه الفترة، فلا يوجد ما يُرتَّب بعد.';
+
+  @override
   String get cancelButton => 'إلغاء';
 
   @override

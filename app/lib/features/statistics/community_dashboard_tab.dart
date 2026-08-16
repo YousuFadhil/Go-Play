@@ -4,25 +4,57 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../profile/player_identity.dart';
+import '../sharing/share_card_flow.dart';
+import '../sharing/share_card_renderer.dart';
+import '../sharing/share_service.dart';
+import 'community_statistics_card.dart';
 import 'stat_card.dart';
 import 'statistics_models.dart';
+import 'statistics_period.dart';
+import 'statistics_period_selector.dart';
 import 'statistics_repository.dart';
 
-/// The Community Dashboard: what this community has done, and who leads it.
+/// The Community Dashboard: what this community has done, and who leads it,
+/// over the period the reader picked.
 ///
 /// It owns its own load rather than joining the details screen's, for one
 /// practical reason — a recorded result changes these figures and nothing else
 /// on that screen, so the dashboard needs to be refreshable on its own. Pulling
 /// down does it.
+///
+/// **The period is this tab's state, not the screen's.** The dashboard and the
+/// leaderboards are two separate loads that already refresh independently, and
+/// a reader looking at a board for the month has said nothing about what the
+/// dashboard should show. Each surface remembers its own choice, and each opens
+/// on All Time — the figures the app has always shown first.
 class CommunityDashboardTab extends StatefulWidget {
   const CommunityDashboardTab({
     super.key,
     required this.communityId,
+    this.communityName,
     StatisticsRepository? repository,
+    this.renderer,
+    this.shareService,
   }) : _repository = repository;
 
   final String communityId;
+
+  /// What this community is called, for the card that carries these figures.
+  ///
+  /// Passed in rather than read: the screen hosting this tab already has the
+  /// community, and a second read for a name it is displaying in its own title
+  /// would be a round trip for something already on screen. Null while it is
+  /// not known, and the card cannot be composed until it is — a community's
+  /// figures with no community on them belong to nobody.
+  final String? communityName;
+
   final StatisticsRepository? _repository;
+
+  /// The Share Card Engine's two ports, passed straight through to
+  /// [presentShareCard]. Supplied only by tests; this tab composes no card of
+  /// its own and adds no renderer, preview or share service.
+  final ShareCardRenderer? renderer;
+  final ShareService? shareService;
 
   @override
   State<CommunityDashboardTab> createState() => _CommunityDashboardTabState();
@@ -31,22 +63,52 @@ class CommunityDashboardTab extends StatefulWidget {
 class _CommunityDashboardTabState extends State<CommunityDashboardTab> {
   late final StatisticsRepository _repository =
       widget._repository ?? StatisticsRepository();
+  StatisticsPeriod _period = StatisticsPeriod.allTime;
   late Future<CommunityDashboard> _dashboardFuture;
+
+  /// The figures currently on screen, or null while they load or after a load
+  /// failed. Held beside the future because the Share action sits above the
+  /// `FutureBuilder` that draws them — and a card must be made of what the
+  /// reader is looking at rather than of a figure read again when they press.
+  CommunityDashboard? _shown;
 
   @override
   void initState() {
     super.initState();
-    _dashboardFuture = _repository.fetchDashboard(widget.communityId);
+    _dashboardFuture =
+        _track(_repository.fetchDashboard(widget.communityId, _period));
+  }
+
+  /// Keeps [_shown] in step with whichever load is current.
+  ///
+  /// The period can change while a read is in flight, so a result is kept only
+  /// if it is still the one being awaited — otherwise a slow weekly read
+  /// landing after the reader switched to All Time would put a week's figures
+  /// behind an All Time card.
+  Future<CommunityDashboard> _track(Future<CommunityDashboard> load) {
+    load.then(
+      (dashboard) {
+        if (!mounted || _dashboardFuture != load) return;
+        setState(() => _shown = dashboard);
+      },
+      // Already reported by the builder, which shows the retry.
+      onError: (_) {
+        if (!mounted || _dashboardFuture != load) return;
+        setState(() => _shown = null);
+      },
+    );
+    return load;
   }
 
   Future<void> _refresh() async {
-    final future = _repository.fetchDashboard(widget.communityId);
+    final future = _repository.fetchDashboard(widget.communityId, _period);
     // A block body, not an arrow: `() => _dashboardFuture = future` evaluates
     // to the assigned Future, and setState asserts when its callback returns
     // one.
     setState(() {
       _dashboardFuture = future;
     });
+    _track(future);
     // Awaited only so the refresh indicator stays up until the figures land.
     // A failure is swallowed here rather than ignored: the builder below is
     // already showing it, and letting it escape would be an unhandled error
@@ -54,31 +116,147 @@ class _CommunityDashboardTabState extends State<CommunityDashboardTab> {
     await future.then<void>((_) {}, onError: (_) {});
   }
 
+  /// A different period is a different set of figures, so it is a fresh read
+  /// rather than a filter over what is already here — the counters for a week
+  /// are different rows, not a subset of the running total.
+  void _selectPeriod(StatisticsPeriod period) {
+    if (period == _period) return;
+    final future = _repository.fetchDashboard(widget.communityId, period);
+    setState(() {
+      _period = period;
+      _dashboardFuture = future;
+      // The figures on screen belong to the period being left. Until the new
+      // ones land there is nothing to make a card of.
+      _shown = null;
+    });
+    _track(future);
+  }
+
+  /// Whether a card can be made right now: figures on screen, and a community
+  /// to put on them.
+  bool get _canShare => _shown != null && widget.communityName != null;
+
+  /// Composes the card for what is on screen and hands it to the engine.
+  ///
+  /// **Every figure is already resolved before this runs.** Nothing here reads
+  /// a repository, and the period is the Dashboard's own — this tab keeps its
+  /// period separately from the Leaderboards, and sharing does not change that.
+  Future<void> _share() async {
+    final dashboard = _shown;
+    final name = widget.communityName;
+    if (dashboard == null || name == null) return;
+
+    final data = CommunityStatisticsCardData.of(
+      dashboard,
+      communityName: name,
+      period: _period,
+    );
+
+    // The leaders' pictures are fetched before the card is composed, not while
+    // it is. The engine gives a template two frames to settle, which is ample
+    // for layout and nowhere near enough for a network image — so a card
+    // composed without this would show initials for players who have photos.
+    await _precacheLeaders(dashboard);
+    if (!mounted) return;
+
+    await presentShareCard(
+      context,
+      template: (context) => CommunityStatisticsCard(data: data),
+      renderer: widget.renderer,
+      shareService: widget.shareService,
+    );
+  }
+
+  /// Loads whatever leader pictures exist into the image cache.
+  ///
+  /// Best effort by design, and issued together because the three are
+  /// independent: a picture that will not load is not an error anywhere else in
+  /// the app either, and the avatar falls back to initials. `onError` is what
+  /// keeps that true — without a handler `precacheImage` reports the failure to
+  /// `FlutterError`, turning a missing photograph into an app-level error.
+  Future<void> _precacheLeaders(CommunityDashboard dashboard) async {
+    final urls = <String>{
+      for (final leader in [
+        dashboard.topScorer,
+        dashboard.mostActivePlayer,
+        dashboard.mostMvp,
+      ])
+        if (leader?.avatarUrl != null) leader!.avatarUrl!,
+    };
+    if (urls.isEmpty) return;
+
+    await Future.wait([
+      for (final url in urls)
+        precacheImage(NetworkImage(url), context, onError: (_, __) {}),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<CommunityDashboard>(
-      future: _dashboardFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const LoadingState();
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return ErrorState(onRetry: _refresh);
-        }
+    final l10n = context.l10n;
 
-        return RefreshIndicator(
-          onRefresh: _refresh,
-          child: _DashboardBody(dashboard: snapshot.data!),
-        );
-      },
+    // The selector sits outside the FutureBuilder so it stays put — and stays
+    // usable — while a period loads or fails. A control that vanishes into a
+    // spinner is one the reader cannot use to get out of the state they are in.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Share sits beside the period rather than in the screen's app bar,
+        // and that is the point: the bar belongs to the community screen and
+        // its tabs, while this figure set and this period belong to the
+        // Dashboard alone. The Leaderboards keep their own period and get no
+        // Share action from this.
+        Row(
+          children: [
+            Expanded(
+              child: StatisticsPeriodSelector(
+                selected: _period,
+                onChanged: _selectPeriod,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, Gap.md, Gap.sm, 0),
+              child: IconButton(
+                icon: const Icon(Icons.ios_share),
+                tooltip: l10n.shareCommunityStatisticsAction,
+                // Disabled rather than hidden while the figures load: an action
+                // that comes and goes as periods change reads as a bug.
+                onPressed: _canShare ? _share : null,
+              ),
+            ),
+          ],
+        ),
+        Expanded(
+          child: FutureBuilder<CommunityDashboard>(
+            future: _dashboardFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const LoadingState();
+              }
+              if (snapshot.hasError || !snapshot.hasData) {
+                return ErrorState(onRetry: _refresh);
+              }
+
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                child: _DashboardBody(
+                  dashboard: snapshot.data!,
+                  period: _period,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _DashboardBody extends StatelessWidget {
-  const _DashboardBody({required this.dashboard});
+  const _DashboardBody({required this.dashboard, required this.period});
 
   final CommunityDashboard dashboard;
+  final StatisticsPeriod period;
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +323,12 @@ class _DashboardBody extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: kPageMargin),
             child: EmptyState(
               icon: Icons.emoji_events_outlined,
-              message: l10n.statEmptyBody,
+              // "yet" is only true of All Time. A quiet week in a community
+              // that has played for a year is not a community waiting for its
+              // first result, and telling the reader it is would read as a bug.
+              message: period.isBounded
+                  ? l10n.statPeriodEmptyBody
+                  : l10n.statEmptyBody,
             ),
           )
         else
@@ -172,6 +355,13 @@ class _DashboardBody extends StatelessWidget {
               ),
             ],
           ),
+        // The scope note is true of every period — it says what a figure counts,
+        // not what stretch it covers. The period note says the stretch, and only
+        // where there is one: "all time" needs no explaining.
+        if (period == StatisticsPeriod.weekly)
+          FootNote(l10n.statPeriodWeeklyNote)
+        else if (period == StatisticsPeriod.monthly)
+          FootNote(l10n.statPeriodMonthlyNote),
         FootNote(l10n.statScopeNote),
       ],
     );

@@ -387,7 +387,13 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                   positionLabel: _positionLabel,
                   onCopyJoinCode: _copyJoinCode,
                 ),
-                CommunityDashboardTab(communityId: widget.communityId),
+                CommunityDashboardTab(
+                  communityId: widget.communityId,
+                  // Already loaded and already in this screen's title; the tab
+                  // needs it for the card it can share and reads nothing of its
+                  // own to get it.
+                  communityName: community.name,
+                ),
                 CommunityLeaderboardsTab(communityId: widget.communityId),
               ],
             ),

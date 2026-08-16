@@ -7,6 +7,8 @@ import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/statistics/community_leaderboards_tab.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
+import 'package:go_play/features/statistics/statistics_period.dart';
+import 'package:go_play/features/statistics/statistics_period_selector.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/statistics/statistics_repository.dart';
@@ -621,6 +623,251 @@ void main() {
       );
     });
   });
+
+  group('building the boards for a period', () {
+    /// One week of the same season: Zed, who has no season record at all, has
+    /// had a good week, and Ali has not played.
+    final thisWeek = [
+      counters('u4', played: 2, wins: 2, goals: 4, mvp: 1),
+      counters('u2', played: 1, wins: 0, goals: 1, mvp: 0),
+    ];
+
+    FakeLeaderboardAdapter seasonAndWeek() => FakeLeaderboardAdapter(
+          members: roster,
+          records: records,
+          periodRecords: {StatisticsPeriod.weekly: thisWeek},
+        );
+
+    test('the chosen period reaches the counters read', () async {
+      final adapter = seasonAndWeek();
+
+      await StatisticsRepository(adapter)
+          .fetchLeaderboards('c1', StatisticsPeriod.monthly);
+
+      expect(adapter.periodsAsked, [StatisticsPeriod.monthly]);
+    });
+
+    test('All Time is what it always was', () async {
+      final adapter = seasonAndWeek();
+      final boards = await StatisticsRepository(adapter).fetchLeaderboards('c1');
+
+      expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
+      expect(boardOf(boards, LeaderboardKind.topScorer).entries.first.fullName,
+          'Ali');
+      expect(boardOf(boards, LeaderboardKind.topScorer).entries.first.value, 5);
+    });
+
+    test('a week ranks the week, and the season falls away', () async {
+      final boards = await StatisticsRepository(seasonAndWeek())
+          .fetchLeaderboards('c1', StatisticsPeriod.weekly);
+
+      final scorers = boardOf(boards, LeaderboardKind.topScorer);
+      expect(scorers.entries.map((e) => e.fullName), ['Zed', 'Sara']);
+      expect(scorers.entries.first.value, 4);
+      // Ali leads the season's board and does not appear on this one at all:
+      // he did not play, so the measure did not happen to him this week.
+      expect(scorers.entries.map((e) => e.fullName), isNot(contains('Ali')));
+    });
+
+    test('the top three, the ranking and the tie-breaking are unchanged',
+        () async {
+      final tied = [
+        counters('u2', goals: 3),
+        counters('u1', goals: 3),
+        counters('u3', goals: 1),
+        counters('u4', goals: 1),
+      ];
+      final boards = await StatisticsRepository(
+        FakeLeaderboardAdapter(
+          members: roster,
+          records: records,
+          periodRecords: {StatisticsPeriod.monthly: tied},
+        ),
+      ).fetchLeaderboards('c1', StatisticsPeriod.monthly);
+
+      final scorers = boardOf(boards, LeaderboardKind.topScorer);
+      // Three deep, however many are eligible.
+      expect(scorers.entries, hasLength(3));
+      // Competition ranking: the two at three share first, and the next
+      // distinct value takes third.
+      expect(scorers.entries.map((e) => e.rank), [1, 1, 3]);
+      // And the tie breaks by name, so the board reads the same every time.
+      expect(scorers.entries.map((e) => e.fullName), ['Ali', 'Sara', 'Omar']);
+    });
+
+    test('a period a member did not play in leaves them off every board',
+        () async {
+      // Not eligibility -- Ali is still a member and still on Highest rated.
+      // He simply has no counters in this week.
+      final boards = await StatisticsRepository(seasonAndWeek())
+          .fetchLeaderboards('c1', StatisticsPeriod.weekly);
+
+      expect(
+        boardOf(boards, LeaderboardKind.highestRated).entries.first.fullName,
+        'Ali',
+      );
+      expect(
+        boardOf(boards, LeaderboardKind.mostActive)
+            .entries
+            .map((e) => e.fullName),
+        isNot(contains('Ali')),
+      );
+    });
+
+    test('a period nobody played in builds no counted board at all', () async {
+      final boards = await StatisticsRepository(seasonAndWeek())
+          .fetchLeaderboards('c1', StatisticsPeriod.monthly);
+
+      // The rating is not a period figure and has no periodic form, so its
+      // board stands. The four counted boards are gone rather than filled with
+      // zeros, which is the same rule that hides them for a new community.
+      expect(boards.map((b) => b.kind), [LeaderboardKind.highestRated]);
+    });
+
+    test('the rating board reads the same in every period', () async {
+      // `OP-1` gives the Global Rating no periodic form and this cycle does not
+      // invent one. Its board is deliberately identical in all three views.
+      final adapter = seasonAndWeek();
+      final repository = StatisticsRepository(adapter);
+
+      final allTime = await repository.fetchLeaderboards('c1');
+      final weekly =
+          await repository.fetchLeaderboards('c1', StatisticsPeriod.weekly);
+
+      List<String> ratedNames(List<Leaderboard> boards) =>
+          boardOf(boards, LeaderboardKind.highestRated)
+              .entries
+              .map((e) => e.fullName)
+              .toList();
+
+      expect(ratedNames(weekly), ratedNames(allTime));
+      expect(
+        boardOf(weekly, LeaderboardKind.highestRated).entries.first.value,
+        boardOf(allTime, LeaderboardKind.highestRated).entries.first.value,
+      );
+    });
+  });
+
+  group('choosing a period on the boards', () {
+    final thisWeek = [counters('u4', played: 2, wins: 2, goals: 4, mvp: 1)];
+
+    FakeLeaderboardAdapter seasonAndWeek() => FakeLeaderboardAdapter(
+          members: roster,
+          records: records,
+          periodRecords: {StatisticsPeriod.weekly: thisWeek},
+        );
+
+    Future<void> pumpBoards(
+      WidgetTester tester,
+      FakeLeaderboardAdapter adapter, {
+      Locale locale = const Locale('en'),
+      Size size = const Size(900, 1800),
+    }) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(MaterialApp(
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: CommunityLeaderboardsTab(
+            communityId: 'c1',
+            repository: StatisticsRepository(adapter),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('all three periods are offered, and it opens on All time',
+        (tester) async {
+      final adapter = seasonAndWeek();
+      await pumpBoards(tester, adapter);
+
+      expect(find.text('Weekly'), findsOneWidget);
+      expect(find.text('Monthly'), findsOneWidget);
+      expect(find.text('All time'), findsOneWidget);
+      expect(
+        tester
+            .widget<StatisticsPeriodSelector>(
+                find.byType(StatisticsPeriodSelector))
+            .selected,
+        StatisticsPeriod.allTime,
+      );
+      expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
+    });
+
+    testWidgets('choosing a week re-reads and re-ranks', (tester) async {
+      final adapter = seasonAndWeek();
+      await pumpBoards(tester, adapter);
+
+      // Ali leads Top scorer over the season.
+      expect(
+        find.descendant(
+          of: find.widgetWithText(LeaderboardCard, 'Top scorer'),
+          matching: find.text('Ali'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Weekly'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.periodsAsked,
+          [StatisticsPeriod.allTime, StatisticsPeriod.weekly]);
+      expect(
+        find.descendant(
+          of: find.widgetWithText(LeaderboardCard, 'Top scorer'),
+          matching: find.text('Zed'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Weeks run Monday to Sunday'), findsOneWidget);
+    });
+
+    testWidgets('a period with nothing in it shows no counted board and no '
+        'invented leader', (tester) async {
+      final adapter = seasonAndWeek();
+      await pumpBoards(tester, adapter);
+
+      await tester.tap(find.text('Monthly'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(LeaderboardCard, 'Top scorer'), findsNothing);
+      expect(find.widgetWithText(LeaderboardCard, 'Most wins'), findsNothing);
+      // The rating board is not a counted one and stays.
+      expect(
+        find.widgetWithText(LeaderboardCard, 'Highest rated'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the selector survives a narrow screen in English and Arabic',
+        (tester) async {
+      for (final locale in const [Locale('en'), Locale('ar')]) {
+        await pumpBoards(
+          tester,
+          seasonAndWeek(),
+          locale: locale,
+          size: const Size(320, 640),
+        );
+
+        expect(find.byType(StatisticsPeriodSelector), findsOneWidget);
+        expect(tester.takeException(), isNull,
+            reason: 'a period label must shrink rather than overflow');
+      }
+    });
+
+    testWidgets('Arabic names all three periods in Arabic', (tester) async {
+      await pumpBoards(tester, seasonAndWeek(), locale: const Locale('ar'));
+
+      expect(find.text('أسبوعي'), findsOneWidget);
+      expect(find.text('شهري'), findsOneWidget);
+      expect(find.text('الكل'), findsOneWidget);
+    });
+  });
 }
 
 /// The statistics port, answering a roster and its counters from memory.
@@ -628,18 +875,26 @@ class FakeLeaderboardAdapter implements StatisticsAdapter {
   FakeLeaderboardAdapter({
     required this.members,
     required this.records,
+    this.periodRecords = const {},
     this.failure,
     this.gate,
   });
 
   final List<CommunityMemberRating> members;
   final List<CommunityPlayerStatistics> records;
+
+  /// The counters for a bounded period. Absent means the period holds nothing,
+  /// which is what the database returns for a week nobody played in.
+  final Map<StatisticsPeriod, List<CommunityPlayerStatistics>> periodRecords;
   final Failure? failure;
 
   /// Held open to keep the first load pending while the test looks at it.
   final Future<void>? gate;
 
   int reads = 0;
+
+  /// Every period the counters were asked for, in order.
+  final List<StatisticsPeriod> periodsAsked = [];
 
   @override
   Future<List<CommunityMemberRating>> fetchCommunityMemberRatings(
@@ -654,17 +909,32 @@ class FakeLeaderboardAdapter implements StatisticsAdapter {
   @override
   Future<List<CommunityPlayerStatistics>> fetchCommunityPlayerStatistics(
     String communityId,
+    StatisticsPeriod period,
   ) async {
+    periodsAsked.add(period);
     if (gate != null) await gate;
     if (failure != null) throw failure!;
-    return records;
+    return period == StatisticsPeriod.allTime
+        ? records
+        : periodRecords[period] ?? const [];
   }
 
   /// A board shows no community-wide totals. Reaching this from the
   /// leaderboards would be a defect, so it fails loudly rather than answering.
   @override
-  Future<int> fetchCompletedMatches(String communityId) =>
+  Future<int> fetchCompletedMatches(
+    String communityId,
+    StatisticsPeriod period,
+  ) =>
       throw UnimplementedError('the leaderboards read no match totals');
+
+  /// A board is a community's ranking, never one player's own totals.
+  @override
+  Future<List<CommunityPlayerStatistics>> fetchPlayerPeriodStatistics(
+    String userId,
+    StatisticsPeriod period,
+  ) =>
+      throw UnimplementedError('the leaderboards read no player totals');
 }
 
 /// Records a pushed route without letting it build: `ProfileScreen` makes the

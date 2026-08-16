@@ -1232,6 +1232,85 @@ class AppLocalizationsEn extends AppLocalizations {
       'Highest rated ranks by the player\'s overall rating across every community.';
 
   @override
+  String get shareCardTitle => 'Share card';
+
+  @override
+  String get shareCardShareAction => 'Share';
+
+  @override
+  String get shareCardCloseAction => 'Close';
+
+  @override
+  String get shareCardPreparing => 'Preparing your card…';
+
+  @override
+  String get errShareCardRender =>
+      'The card could not be created. Please try again.';
+
+  @override
+  String get errShareCardShare => 'Sharing is not available right now.';
+
+  @override
+  String get shareCardStatMatches => 'Matches';
+
+  @override
+  String get shareCardStatWins => 'Wins';
+
+  @override
+  String get shareCardStatGoals => 'Goals';
+
+  @override
+  String get shareCardStatMvp => 'MVP';
+
+  @override
+  String get shareMyStatisticsAction => 'Share my statistics';
+
+  @override
+  String get shareCardStatPlayers => 'Players';
+
+  @override
+  String get shareCommunityStatisticsAction => 'Share community statistics';
+
+  @override
+  String get shareTeamLineupAction => 'Share the lineup';
+
+  @override
+  String get statPeriodLabel => 'Period';
+
+  @override
+  String get statPeriodWeekly => 'Weekly';
+
+  @override
+  String get statPeriodMonthly => 'Monthly';
+
+  @override
+  String get statPeriodAllTime => 'All time';
+
+  @override
+  String get statPeriodWeeklyNote =>
+      'This week\'s figures. Weeks run Monday to Sunday, Oman time.';
+
+  @override
+  String get statPeriodMonthlyNote =>
+      'This calendar month\'s figures, Oman time.';
+
+  @override
+  String get statPeriodRatingNote =>
+      'The rating is your current rating across every community. It is not a figure for this period.';
+
+  @override
+  String get statPeriodNoMatches =>
+      'You have not played a recorded match in this period.';
+
+  @override
+  String get statPeriodEmptyBody =>
+      'No results have been recorded in this community in this period.';
+
+  @override
+  String get leaderboardsPeriodEmpty =>
+      'No results have been recorded in this period, so there is nothing to rank yet.';
+
+  @override
   String get cancelButton => 'Cancel';
 
   @override

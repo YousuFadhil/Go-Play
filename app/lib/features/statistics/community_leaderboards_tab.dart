@@ -5,13 +5,17 @@ import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../profile/player_identity.dart';
 import 'statistics_models.dart';
+import 'statistics_period.dart';
+import 'statistics_period_selector.dart';
 import 'statistics_repository.dart';
 
-/// The community's leaderboards: five measures, led by one player each.
+/// The community's leaderboards: five measures, led by one player each, over
+/// the period the reader picked.
 ///
 /// It owns its own load rather than joining the details screen's, for the same
 /// reason the dashboard does — a recorded result changes these standings and
-/// nothing else on that screen, so pulling down here refreshes them.
+/// nothing else on that screen, so pulling down here refreshes them. The period
+/// is this tab's own state for the same reason again.
 class CommunityLeaderboardsTab extends StatefulWidget {
   const CommunityLeaderboardsTab({
     super.key,
@@ -32,16 +36,17 @@ class CommunityLeaderboardsTab extends StatefulWidget {
 class _CommunityLeaderboardsTabState extends State<CommunityLeaderboardsTab> {
   late final StatisticsRepository _statistics =
       widget.repository ?? StatisticsRepository();
+  StatisticsPeriod _period = StatisticsPeriod.allTime;
   late Future<List<Leaderboard>> _boardsFuture;
 
   @override
   void initState() {
     super.initState();
-    _boardsFuture = _statistics.fetchLeaderboards(widget.communityId);
+    _boardsFuture = _statistics.fetchLeaderboards(widget.communityId, _period);
   }
 
   Future<void> _refresh() async {
-    final future = _statistics.fetchLeaderboards(widget.communityId);
+    final future = _statistics.fetchLeaderboards(widget.communityId, _period);
     // A block body, not an arrow: an arrow returns the assigned Future, and
     // setState asserts when its callback returns one.
     setState(() {
@@ -53,31 +58,54 @@ class _CommunityLeaderboardsTabState extends State<CommunityLeaderboardsTab> {
     await future.then<void>((_) {}, onError: (_) {});
   }
 
+  /// A different period ranks different counters, so the boards are read again
+  /// rather than re-sorted.
+  void _selectPeriod(StatisticsPeriod period) {
+    if (period == _period) return;
+    final future = _statistics.fetchLeaderboards(widget.communityId, period);
+    setState(() {
+      _period = period;
+      _boardsFuture = future;
+    });
+    future.then<void>((_) {}, onError: (_) {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Leaderboard>>(
-      future: _boardsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const LoadingState();
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return ErrorState(onRetry: _refresh);
-        }
+    // Outside the FutureBuilder, so the control stays put and stays usable
+    // while a period loads or fails.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        StatisticsPeriodSelector(selected: _period, onChanged: _selectPeriod),
+        Expanded(
+          child: FutureBuilder<List<Leaderboard>>(
+            future: _boardsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const LoadingState();
+              }
+              if (snapshot.hasError || !snapshot.hasData) {
+                return ErrorState(onRetry: _refresh);
+              }
 
-        return RefreshIndicator(
-          onRefresh: _refresh,
-          child: _BoardsBody(boards: snapshot.data!),
-        );
-      },
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                child: _BoardsBody(boards: snapshot.data!, period: _period),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _BoardsBody extends StatelessWidget {
-  const _BoardsBody({required this.boards});
+  const _BoardsBody({required this.boards, required this.period});
 
   final List<Leaderboard> boards;
+  final StatisticsPeriod period;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +120,10 @@ class _BoardsBody extends StatelessWidget {
         children: [
           EmptyState(
             icon: Icons.leaderboard_outlined,
-            message: l10n.leaderboardsEmpty,
+            // A period with no results is not a community with no results.
+            message: period.isBounded
+                ? l10n.leaderboardsPeriodEmpty
+                : l10n.leaderboardsEmpty,
           ),
         ],
       );
@@ -108,6 +139,14 @@ class _BoardsBody extends StatelessWidget {
       padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.xxl),
       children: [
         for (final board in boards) LeaderboardCard(board: board),
+        // Which stretch the counted boards cover. Said before the rating note,
+        // because in a bounded period the two together are the whole answer:
+        // four boards are this week's, and the fifth is not a week's figure at
+        // all.
+        if (period == StatisticsPeriod.weekly)
+          FootNote(l10n.statPeriodWeeklyNote)
+        else if (period == StatisticsPeriod.monthly)
+          FootNote(l10n.statPeriodMonthlyNote),
         // Said once, and only when a rating is actually on screen: the figure
         // is the player's rating everywhere, not their rating here.
         if (showsRating) FootNote(l10n.leaderboardRatingNote),
