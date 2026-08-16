@@ -689,11 +689,36 @@ class _Pitch extends StatelessWidget {
       [...a.rows, ...b.rows].fold(1, (m, row) => math.max(m, row.length)),
     );
 
-    final metrics = _MarkMetrics.resolve(
-      cellWidth: (size.width - _insetX * 2) / columns,
-      rowHeight: (size.height - _insetY * 2 - _midGutter * 2) / 2 / rows,
-      hasHint: a.hasHint || b.hasHint,
+    final cellWidth = (size.width - _insetX * 2) / columns;
+    final rowHeight =
+        (size.height - _insetY * 2 - _midGutter * 2) / 2 / rows;
+    final hasHint = a.hasHint || b.hasHint;
+
+    var metrics = _MarkMetrics.resolve(
+      cellWidth: cellWidth,
+      rowHeight: rowHeight,
+      hasHint: hasHint,
+      nameLines: 1,
     );
+
+    // **A second line is bought, not assumed.** Room for one is room taken off
+    // every photograph on the card, so it is only reserved where a name on
+    // *this* lineup cannot be set on one line without being shrunk past what a
+    // reader can take in — and then it is reserved for every mark, because one
+    // size for everybody is what stops the drawing looking accidental. A five
+    // a side of ordinary names resolves exactly as it did before this existed.
+    if (_PlayerName.anyNeedsTwoLines(context, _drawnNames(a, b), metrics)) {
+      final roomier = _MarkMetrics.resolve(
+        cellWidth: cellWidth,
+        rowHeight: rowHeight,
+        hasHint: hasHint,
+        nameLines: 2,
+      );
+      // Unless there is no room to buy it with: a lineup already at the
+      // smallest face the card draws keeps its one line and its ellipsis
+      // rather than running over the row below.
+      if (roomier.height <= rowHeight) metrics = roomier;
+    }
 
     return CustomPaint(
       painter: const _PitchPainter(),
@@ -746,6 +771,17 @@ class _Pitch extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Every name the card is about to draw, both halves.
+  Iterable<String> _drawnNames(_Half a, _Half b) sync* {
+    for (final half in [a, b]) {
+      for (final row in half.rows) {
+        for (final assignment in row) {
+          yield data.names[assignment.participantId] ?? '—';
+        }
+      }
+    }
   }
 }
 
@@ -842,6 +878,8 @@ class _PitchRow extends StatelessWidget {
                 radius: metrics.radius,
                 nameSize: metrics.nameSize,
                 nameWidth: metrics.nameWidth,
+                nameHeight: metrics.nameHeight,
+                nameLines: metrics.nameLines,
                 ratingSize: metrics.ratingSize,
                 hintSize: metrics.hintSize,
                 // The initials come from the **profile**, never from the
@@ -883,6 +921,7 @@ class _MarkMetrics {
     required this.ratingSize,
     required this.hintSize,
     required this.cellWidth,
+    required this.nameLines,
   });
 
   final double radius;
@@ -890,6 +929,9 @@ class _MarkMetrics {
   final double ratingSize;
   final double hintSize;
   final double cellWidth;
+
+  /// How many lines of name the card has reserved room for, on every mark.
+  final int nameLines;
 
   /// A face this large stops reading as a photograph on a poster. Five a side
   /// reaches it; eleven a side never comes close.
@@ -911,34 +953,56 @@ class _MarkMetrics {
   /// names rather than one long one.
   double get nameWidth => cellWidth - 34;
 
+  /// The room the name is given, whether or not this particular name uses all
+  /// of it. Reserved rather than measured per player so that every photograph
+  /// in a row sits at the same height: a mark that grew a line would otherwise
+  /// push its own face up out of line with the four beside it.
+  ///
+  /// Rounded up per line, because that is what the text engine does: a line box
+  /// of 33.06 × 1.2 is laid out as 40 pixels, not 39.67, and two of them
+  /// overrun a block reserved at the exact arithmetic by two thirds of a pixel
+  /// — which is a real overflow, and which the engine paints a stripe over.
+  double get nameHeight =>
+      (nameSize * _lineHeight).ceilToDouble() * nameLines;
+
   /// The whole mark, top of the photograph to the foot of the last line.
   double get height =>
-      radius * 2 + badgeOverhang + 8 + nameSize * 1.2 + hintSize * 1.5;
+      radius * 2 + badgeOverhang + radius * 0.16 + nameHeight + hintSize * 1.5;
+
+  /// The name's leading, and the one place it is stated.
+  static const _lineHeight = 1.2;
 
   factory _MarkMetrics.resolve({
     required double cellWidth,
     required double rowHeight,
     required bool hasHint,
+    required int nameLines,
   }) {
     // Largest first, and the first size that fits both ways wins. A whole
     // pixel at a time: the answer feeds a photograph's diameter, and a
     // fractional radius buys nothing a reader can see.
     for (var radius = _maxRadius; radius > _minRadius; radius -= 1) {
-      final candidate = _at(radius, cellWidth, hasHint);
+      final candidate = _at(radius, cellWidth, hasHint, nameLines);
       if (candidate.height <= rowHeight && radius * 2 + 12 <= cellWidth) {
         return candidate;
       }
     }
-    return _at(_minRadius, cellWidth, hasHint);
+    return _at(_minRadius, cellWidth, hasHint, nameLines);
   }
 
-  static _MarkMetrics _at(double radius, double cellWidth, bool hasHint) {
+  static _MarkMetrics _at(
+    double radius,
+    double cellWidth,
+    bool hasHint,
+    int nameLines,
+  ) {
     return _MarkMetrics(
       radius: radius,
       nameSize: (radius * 0.58).clamp(19.0, 37.0).toDouble(),
       ratingSize: (radius * 0.44).clamp(16.0, 27.0).toDouble(),
       hintSize: hasHint ? (radius * 0.34).clamp(13.0, 21.0).toDouble() : 0.0,
       cellWidth: cellWidth,
+      nameLines: nameLines,
     );
   }
 }
@@ -979,6 +1043,8 @@ class TeamLineupPlayerMark extends StatelessWidget {
     required this.nameWidth,
     required this.ratingSize,
     required this.hintSize,
+    this.nameHeight,
+    this.nameLines = 1,
     this.fullName,
     this.avatarUrl,
     this.rating,
@@ -1009,6 +1075,12 @@ class TeamLineupPlayerMark extends StatelessWidget {
   final double nameSize;
   final double nameWidth;
   final double ratingSize;
+
+  /// The room reserved for the name, and how many lines of it the card decided
+  /// this lineup needs. Both are the same on every mark, so the faces in a row
+  /// stay in line whether or not a particular name uses the second line.
+  final double? nameHeight;
+  final int nameLines;
 
   /// Zero where no player on this card was moved out of their line, which is
   /// what keeps a row from reserving space for a hint nobody needs.
@@ -1052,10 +1124,33 @@ class TeamLineupPlayerMark extends StatelessWidget {
           ),
         ),
         SizedBox(height: radius * 0.16),
-        _PlayerName(text: name, maxWidth: nameWidth, size: nameSize),
-        if (movedFrom case final Position position)
-          if (hintSize > 0)
-            _MovedFromHint(position: position, tint: tint, size: hintSize),
+        // The name and what qualifies it are one block, given the room the card
+        // reserved and filled from the top. A name that takes one line where
+        // the card reserved two leaves the slack at the foot of the block
+        // rather than between itself and its own hint.
+        SizedBox(
+          height: nameHeight == null
+              ? null
+              : nameHeight! + (hintSize > 0 ? hintSize * 1.5 : 0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _PlayerName(
+                text: name,
+                maxWidth: nameWidth,
+                size: nameSize,
+                lines: nameLines,
+              ),
+              if (movedFrom case final Position position)
+                if (hintSize > 0)
+                  _MovedFromHint(
+                    position: position,
+                    tint: tint,
+                    size: hintSize,
+                  ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -1328,62 +1423,142 @@ class _MovedFromHint extends StatelessWidget {
 
 /// A player's name, set as large as its own cell allows.
 ///
-/// **Space first, size second, ellipsis last.** The name is measured at the
-/// size the composition chose and, where it does not fit its cell, is stepped
-/// down a point at a time to a floor. Only a name that will not fit even at the
-/// floor is trimmed — and it is trimmed rather than allowed to run into the
-/// player beside it. Nothing is tracked out or capitalised, because a name here
-/// is Arabic as often as it is Latin.
+/// **One line at full size, then a smaller line, then two lines, then — and
+/// only then — an ellipsis.** In that order, because that is the order a
+/// typesetter would try. A name is stepped down a point at a time while it
+/// still reads comfortably; a name that cannot be set on one line even then is
+/// broken over two rather than shrunk into the floor or cut off, because
+/// "عبدالرحمن بن سليمان الحارثي" over two lines is a player a reader can
+/// identify and "عبدالرحمن بن سليمان الحـ…" is not. Only a name that will not
+/// fit the room reserved for it, at the smallest size this card will set, is
+/// trimmed — and it is trimmed rather than allowed to run into the player
+/// beside it.
+///
+/// **The room is fixed and the name sits at the top of it.** The mark reserves
+/// the same block on every player, so whether this particular name takes one
+/// line or two, a two-line name never pushes its own photograph out of line
+/// with the players either side of it.
+///
+/// Nothing is tracked out or capitalised: a name here is Arabic as often as it
+/// is Latin, and the line the text engine breaks is the one the reader's script
+/// asks for.
 class _PlayerName extends StatelessWidget {
   const _PlayerName({
     required this.text,
     required this.maxWidth,
     required this.size,
+    this.lines = 1,
   });
 
   final String text;
   final double maxWidth;
   final double size;
 
+  /// How many lines this card reserved room for.
+  final int lines;
+
   /// Below this a name stops being readable in a picture somebody will look at
   /// on a phone, so it ellipsizes instead of shrinking further.
   static const _floor = 18.0;
 
+  /// How far a name may be shrunk before a second line is the better answer.
+  /// Much past this and one name is visibly smaller than the ten around it,
+  /// which reads as a mistake rather than as a fit.
+  static const _comfort = 0.82;
+
+  /// The name's own style at [at], merged onto whatever the card is set in, so
+  /// that a measurement and the text it measures cannot disagree.
+  static TextStyle styleAt(BuildContext context, double at) =>
+      DefaultTextStyle.of(context).style.merge(
+            TextStyle(
+              color: TeamLineupCard._ink,
+              fontSize: at,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+              shadows: const [Shadow(blurRadius: 8, color: Color(0xCC000000))],
+            ),
+          );
+
+  /// Whether [text] fits [maxLines] lines of [maxWidth] at [at].
+  static bool _fits(
+    BuildContext context,
+    String text,
+    double at,
+    double maxWidth,
+    int maxLines,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: styleAt(context, at)),
+      maxLines: maxLines,
+      textDirection: Directionality.of(context),
+      textScaler: TextScaler.noScaling,
+    )..layout(maxWidth: maxWidth);
+    return !painter.didExceedMaxLines && painter.width <= maxWidth;
+  }
+
+  /// Whether any of these names would have to be cut, or shrunk past comfort,
+  /// to be set on the one line [metrics] currently reserves.
+  ///
+  /// The question the pitch asks before it decides whether to buy a second line
+  /// for the whole card.
+  static bool anyNeedsTwoLines(
+    BuildContext context,
+    Iterable<String> names,
+    _MarkMetrics metrics,
+  ) {
+    final comfort = math.max(_floor, metrics.nameSize * _comfort);
+    for (final name in names) {
+      if (!_fits(context, name, comfort, metrics.nameWidth, 1)) return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final base = DefaultTextStyle.of(context).style;
+    var chosen = size;
+    var used = 1;
 
-    TextStyle styled(double at) => base.merge(
-          TextStyle(
-            color: TeamLineupCard._ink,
-            fontSize: at,
-            fontWeight: FontWeight.w700,
-            height: 1.2,
-            shadows: const [Shadow(blurRadius: 8, color: Color(0xCC000000))],
-          ),
-        );
+    if (!_fits(context, text, size, maxWidth, 1)) {
+      // Smaller, a point at a time, while one line still reads as one of the
+      // card's names rather than as a footnote.
+      final comfort = math.max(_floor, size * _comfort);
+      var settled = false;
+      for (var at = size - 1; at >= comfort; at -= 1) {
+        if (_fits(context, text, at, maxWidth, 1)) {
+          chosen = at;
+          settled = true;
+          break;
+        }
+      }
 
-    var chosen = math.max(_floor, size);
-    for (var at = size; at >= _floor; at -= 1) {
-      final painter = TextPainter(
-        text: TextSpan(text: text, style: styled(at)),
-        maxLines: 1,
-        textDirection: Directionality.of(context),
-        textScaler: TextScaler.noScaling,
-      )..layout();
-      chosen = at;
-      if (painter.width <= maxWidth) break;
+      if (!settled && lines >= 2) {
+        // Two lines, as large as two lines can be set here.
+        for (var at = size; at >= _floor; at -= 1) {
+          if (_fits(context, text, at, maxWidth, 2)) {
+            chosen = at;
+            used = 2;
+            settled = true;
+            break;
+          }
+        }
+      }
+
+      // Nothing fits: the floor, the reserved lines, and an ellipsis.
+      if (!settled) {
+        chosen = math.min(size, comfort);
+        used = lines;
+      }
     }
 
     return SizedBox(
       width: maxWidth,
       child: Text(
         text,
-        maxLines: 1,
-        softWrap: false,
+        maxLines: used,
+        softWrap: used > 1,
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
-        style: styled(chosen),
+        style: styleAt(context, chosen),
       ),
     );
   }

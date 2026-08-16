@@ -293,6 +293,114 @@ void main() {
     });
   });
 
+  // --- names ------------------------------------------------------------------
+
+  group('a name is set, not cut', () {
+    /// Eleven a side, the densest lineup the card draws, with [long] given to
+    /// one player and ordinary names to the rest.
+    TeamLineupCardData crowded({String? long}) {
+      final lineup = <TeamAssignment>[
+        for (var i = 0; i < 11; i++)
+          assignment('a$i', TeamId.a, Position.values[i % 4]),
+        for (var i = 0; i < 11; i++)
+          assignment('b$i', TeamId.b, Position.values[i % 4]),
+      ];
+      return cardData(
+        lineup: lineup,
+        players: {
+          for (final a in lineup)
+            a.participantId: input(a.participantId, Position.mid),
+        },
+        resolvedNames: {
+          for (final a in lineup)
+            a.participantId: a.participantId == 'a0' && long != null
+                ? long
+                // Short and distinct, so a name can be found by its own text
+                // and no name is long enough to need a second line of its own.
+                : 'P${a.participantId}',
+        },
+      );
+    }
+
+    testWidgets('one too long for a line is set on two, not trimmed',
+        (tester) async {
+      // The alternative the card used to reach for was a smaller and smaller
+      // one-liner and then an ellipsis, which turns a player into an initial
+      // and a row of dots.
+      const long = 'Abdulrahman Bin Sulaiman Al Harthy';
+      await pumpCard(tester, crowded(long: long));
+
+      expect(find.text(long), findsOneWidget,
+          reason: 'the name itself is never altered');
+      expect(tester.widget<Text>(find.text(long)).maxLines, 2);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an ordinary name keeps its one line', (tester) async {
+      // The second line is bought only where it is needed: a lineup of names
+      // that fit is composed exactly as it was before it existed.
+      await pumpCard(
+        tester,
+        cardData(resolvedNames: const {
+          'u1': 'Sara',
+          'u2': 'Ahmed',
+          'u3': 'Noor',
+          'u4': 'Yousef',
+        }),
+      );
+
+      expect(tester.widget<Text>(find.text('Sara')).maxLines, 1);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no two names on the card overlap, however long they are',
+        (tester) async {
+      // The one thing a two-line name must never buy: a name running into the
+      // player beside it, or into the row underneath.
+      const long = 'Abdulrahman Bin Sulaiman Al Harthy';
+      await pumpCard(tester, crowded(long: long));
+
+      final boxes = <Rect>[
+        for (final element in find.byType(TeamLineupPlayerMark).evaluate())
+          tester.getRect(
+            find.text((element.widget as TeamLineupPlayerMark).name),
+          ),
+      ];
+
+      expect(boxes, hasLength(22));
+      for (var i = 0; i < boxes.length; i++) {
+        for (var j = i + 1; j < boxes.length; j++) {
+          expect(boxes[i].overlaps(boxes[j]), isFalse,
+              reason: 'two names share the same pixels: '
+                  '${boxes[i]} and ${boxes[j]}');
+        }
+      }
+    });
+
+    testWidgets('every rating is still on the card, long names or not',
+        (tester) async {
+      const long = 'Abdulrahman Bin Sulaiman Al Harthy';
+      await pumpCard(tester, crowded(long: long));
+
+      // One tag per player, and the long name has not cost anybody theirs.
+      expect(find.text('6.0'), findsNWidgets(22));
+    });
+
+    testWidgets('Arabic sets two lines the same way, right to left',
+        (tester) async {
+      const long = 'عبدالرحمن بن سليمان الحارثي البوسعيدي';
+      await pumpCard(tester, crowded(long: long), locale: const Locale('ar'));
+
+      expect(find.text(long), findsOneWidget);
+      expect(tester.widget<Text>(find.text(long)).maxLines, 2);
+      expect(
+        Directionality.of(tester.element(find.text(long))),
+        TextDirection.rtl,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   // --- geometry ---------------------------------------------------------------
 
   group('the card is the engine\'s card', () {
