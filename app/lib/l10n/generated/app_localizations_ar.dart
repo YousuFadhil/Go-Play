@@ -1215,6 +1215,24 @@ class AppLocalizationsAr extends AppLocalizations {
       'يعتمد ترتيب «الأعلى تقييماً» على التقييم العام للاعب في كل المجتمعات.';
 
   @override
+  String get shareCardTitle => 'بطاقة المشاركة';
+
+  @override
+  String get shareCardShareAction => 'مشاركة';
+
+  @override
+  String get shareCardCloseAction => 'إغلاق';
+
+  @override
+  String get shareCardPreparing => 'جارٍ تجهيز بطاقتك…';
+
+  @override
+  String get errShareCardRender => 'تعذّر إنشاء البطاقة. حاول مرة أخرى.';
+
+  @override
+  String get errShareCardShare => 'المشاركة غير متاحة حالياً.';
+
+  @override
   String get statPeriodLabel => 'الفترة';
 
   @override
