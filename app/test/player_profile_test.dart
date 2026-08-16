@@ -22,6 +22,7 @@ import 'package:go_play/features/results/result_adapter.dart';
 import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
 import 'package:go_play/features/settings/settings_screen.dart';
+import 'package:go_play/features/statistics/player_statistics_screen.dart';
 import 'package:go_play/infrastructure/supabase/mappers/profile_mapper.dart';
 
 /// A player's profile, as another player sees it.
@@ -63,6 +64,14 @@ void main() {
         statistics: stats(),
         isSelf: isSelf,
         dateOfBirth: dateOfBirth,
+      );
+
+  /// The signed-in player's own record, which is the reading of this screen
+  /// that carries the account's controls.
+  PlayerProfile ownProfile() => const PlayerProfile(
+        fullName: 'Salim Al Harthy',
+        phone: '+96890123456',
+        primaryPosition: PlayerPosition.def,
       );
 
   /// A date of birth that is exactly [years] old today, so the derived age is
@@ -224,6 +233,71 @@ void main() {
       expect(find.text('Edit profile'), findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
+    });
+  });
+
+  group('the way in to Player Statistics', () {
+    testWidgets('the player\'s own profile offers it', (tester) async {
+      await pumpPlayerProfile(
+        tester,
+        profiles: FakeProfileAdapter(profile: ownProfile()),
+        userId: null,
+      );
+
+      expect(
+        find.widgetWithText(ListTile, 'My statistics'),
+        findsOneWidget,
+        reason: 'the only way into the screen, and the only way to share a '
+            'card of it',
+      );
+    });
+
+    testWidgets('tapping it opens Player Statistics for the signed-in player',
+        (tester) async {
+      final observer = _RouteRecorder();
+      tester.view.physicalSize = const Size(900, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(MaterialApp(
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        navigatorObservers: [observer],
+        home: ProfileScreen(
+          profileRepository:
+              ProfileRepository(FakeProfileAdapter(profile: ownProfile())),
+          resultRepository: ResultRepository(_FakeResultAdapter(stats())),
+          communityRepository: CommunityRepository(_FakeCommunityAdapter()),
+          authService: AuthService(_StubAuthAdapter()),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      observer.pushed.clear();
+
+      await tester.tap(find.widgetWithText(ListTile, 'My statistics'));
+
+      // The route is read rather than built: the screen makes the production
+      // repositories when nobody injects any, and this suite has no data
+      // provider behind them.
+      final screen = observer.pushed.single
+          .builder(tester.element(find.byType(ProfileScreen)));
+      expect(screen, isA<PlayerStatisticsScreen>());
+      // Null is the signed-in player, which is the identity this branch of the
+      // profile already knows it is showing. A userId read here would be a
+      // second answer to a question the session settles.
+      expect((screen as PlayerStatisticsScreen).userId, isNull);
+      observer.discard();
+    });
+
+    testWidgets('somebody else\'s profile does not', (tester) async {
+      // The screen it opens is the signed-in player's record, so offering it
+      // on another player's profile would lead somewhere that is not them.
+      await pumpPlayerProfile(
+        tester,
+        profiles: FakeProfileAdapter(player: viewOf()),
+      );
+
+      expect(find.widgetWithText(ListTile, 'My statistics'), findsNothing);
     });
   });
 
@@ -523,6 +597,27 @@ class FakeProfileAdapter implements ProfileAdapter {
 
   @override
   Future<void> removeMyAvatar() => throw UnimplementedError();
+}
+
+/// Records a pushed route without letting it build.
+///
+/// `PlayerStatisticsScreen` makes the production repositories when nobody
+/// injects any, and this suite has no data provider behind them — so the route
+/// is read for what it would build rather than built.
+class _RouteRecorder extends NavigatorObserver {
+  final List<MaterialPageRoute<dynamic>> pushed = [];
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is MaterialPageRoute) pushed.add(route);
+  }
+
+  void discard() {
+    for (final route in pushed) {
+      navigator?.removeRoute(route);
+    }
+    pushed.clear();
+  }
 }
 
 class _FakeResultAdapter implements ResultAdapter {

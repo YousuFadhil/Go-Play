@@ -516,6 +516,12 @@
   "errShareCardRender": "The card could not be created. Please try again.",
   "errShareCardShare": "Sharing is not available right now.",
 
+  "shareCardStatMatches": "Matches",
+  "shareCardStatWins": "Wins",
+  "shareCardStatGoals": "Goals",
+  "shareCardStatMvp": "MVP",
+  "shareMyStatisticsAction": "Share my statistics",
+
   "statPeriodLabel": "Period",
   "statPeriodWeekly": "Weekly",
   "statPeriodMonthly": "Monthly",

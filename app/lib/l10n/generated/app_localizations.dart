@@ -2282,6 +2282,36 @@ abstract class AppLocalizations {
   /// **'Sharing is not available right now.'**
   String get errShareCardShare;
 
+  /// No description provided for @shareCardStatMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches'**
+  String get shareCardStatMatches;
+
+  /// No description provided for @shareCardStatWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Wins'**
+  String get shareCardStatWins;
+
+  /// No description provided for @shareCardStatGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get shareCardStatGoals;
+
+  /// No description provided for @shareCardStatMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'MVP'**
+  String get shareCardStatMvp;
+
+  /// No description provided for @shareMyStatisticsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share my statistics'**
+  String get shareMyStatisticsAction;
+
   /// No description provided for @statPeriodLabel.
   ///
   /// In en, this message translates to:

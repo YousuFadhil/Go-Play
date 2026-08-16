@@ -1233,6 +1233,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errShareCardShare => 'المشاركة غير متاحة حالياً.';
 
   @override
+  String get shareCardStatMatches => 'المباريات';
+
+  @override
+  String get shareCardStatWins => 'الانتصارات';
+
+  @override
+  String get shareCardStatGoals => 'الأهداف';
+
+  @override
+  String get shareCardStatMvp => 'أفضل لاعب';
+
+  @override
+  String get shareMyStatisticsAction => 'مشاركة إحصائياتي';
+
+  @override
   String get statPeriodLabel => 'الفترة';
 
   @override
