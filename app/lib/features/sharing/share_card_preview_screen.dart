@@ -42,11 +42,33 @@ class _ShareCardPreviewScreenState extends State<ShareCardPreviewScreen> {
   /// which is exactly long enough to press the button twice.
   bool _sharing = false;
 
+  /// The Share button, so the sheet can be anchored to it.
+  final GlobalKey _shareButtonKey = GlobalKey();
+
+  /// Where the Share button is on screen, or null if it is not laid out.
+  ///
+  /// On iPad and macOS the share sheet is a popover that points at whatever
+  /// summoned it; without this it points at the middle of the screen instead
+  /// of at the button the reader just pressed. It is read here, in the screen
+  /// that owns the button, because a position is a fact about this layout —
+  /// the service is handed the answer rather than a widget to interrogate.
+  Rect? _shareOrigin() {
+    final box = _shareButtonKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    // Global, as the platform wants it: the popover is positioned against the
+    // window, not against anything in this screen's coordinate space.
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
   Future<void> _shareNow() async {
     if (_sharing) return;
+    // Read before the await: after it the button is disabled and the screen
+    // may have been rebuilt, and an origin measured then is measured against a
+    // layout the reader no longer pressed.
+    final origin = _shareOrigin();
     setState(() => _sharing = true);
     try {
-      await _share.shareImage(widget.image);
+      await _share.shareImage(widget.image, origin: origin);
       // Every outcome is silent. Sharing succeeded, or the reader closed the
       // sheet themselves — neither is news, and a confirmation of something
       // the reader just watched happen is noise.
@@ -105,6 +127,9 @@ class _ShareCardPreviewScreenState extends State<ShareCardPreviewScreen> {
                 width: double.infinity,
                 height: kButtonHeight,
                 child: FilledButton.icon(
+                  // The key is what lets the sheet be anchored here; the button
+                  // itself is unchanged in size, place and behaviour.
+                  key: _shareButtonKey,
                   onPressed: _sharing ? null : _shareNow,
                   icon: const Icon(Icons.ios_share),
                   label: Text(l10n.shareCardShareAction),

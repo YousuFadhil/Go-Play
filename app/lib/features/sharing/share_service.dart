@@ -1,3 +1,8 @@
+// `Rect` only, and from `dart:ui` rather than from a package: where on screen a
+// share was asked for is a fact about the app's own layout, not a type borrowed
+// from whatever sends the picture.
+import 'dart:ui' show Rect;
+
 import 'share_card_renderer.dart';
 
 /// What became of a share.
@@ -34,7 +39,22 @@ enum ShareOutcome {
 abstract interface class ShareService {
   /// Offers [image] to the operating system's share sheet.
   ///
+  /// [origin] is where on screen the reader asked to share, in global
+  /// coordinates — normally the bounds of the control they pressed.
+  ///
+  /// **It is for the platforms that show the sheet as a popover.** On iPad and
+  /// macOS a share sheet is anchored to whatever invoked it, and one with
+  /// nothing to anchor to opens in the middle of the screen, pointing at
+  /// nothing — a share that looks like it came from somewhere else on the
+  /// screen than the button the reader just pressed. Every other platform
+  /// shows a sheet from the bottom edge and has nothing to anchor, so the
+  /// argument changes nothing on Android or the web.
+  ///
+  /// Optional because a caller that genuinely has no position — a share
+  /// triggered by something other than a control — should say so rather than
+  /// invent one.
+  ///
   /// Throws [InfrastructureFailure] when the sheet could not be shown at all.
   /// A sheet that was shown and closed returns [ShareOutcome.dismissed].
-  Future<ShareOutcome> shareImage(ShareCardImage image);
+  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin});
 }

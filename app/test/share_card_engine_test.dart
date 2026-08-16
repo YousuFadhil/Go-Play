@@ -4,8 +4,11 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:go_play/core/failures.dart';
+import 'package:go_play/infrastructure/platform/native_share_service.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/sharing/share_card_canvas.dart';
 import 'package:go_play/features/sharing/share_card_flow.dart';
@@ -523,6 +526,42 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
     });
 
+    testWidgets('the sheet is anchored to the Share button', (tester) async {
+      // On iPad and macOS a share sheet is a popover pointing at whatever
+      // summoned it. Without an origin it points at the middle of the screen,
+      // as though the share had come from somewhere the reader never pressed.
+      final share = FakeShareService();
+      await pumpPreview(tester, share);
+
+      await tester.tap(find.text('Share'));
+      await tester.pumpAndSettle();
+
+      final origin = share.origins.single;
+      expect(origin, isNotNull);
+      // Exactly the button, in global coordinates.
+      final button = find.byType(FilledButton);
+      expect(origin, tester.getTopLeft(button) & tester.getSize(button));
+      expect(origin!.width, greaterThan(0));
+      expect(origin.height, greaterThan(0));
+    });
+
+    testWidgets('the anchor is read before the button is disabled',
+        (tester) async {
+      // The guard against a double sheet disables the button, and a rect
+      // measured after that is measured against a layout the reader did not
+      // press. A refused share still recorded a real anchor.
+      final share = FakeShareService(failure: const InfrastructureFailure());
+      final expected = <Rect>[];
+      await pumpPreview(tester, share);
+      expected.add(tester.getTopLeft(find.byType(FilledButton)) &
+          tester.getSize(find.byType(FilledButton)));
+
+      await tester.tap(find.text('Share'));
+      await tester.pumpAndSettle();
+
+      expect(share.origins.single, expected.single);
+    });
+
     testWidgets('a failed share leaves the button usable again', (tester) async {
       final share = FakeShareService(failure: const InfrastructureFailure());
       await pumpPreview(tester, share);
@@ -658,6 +697,69 @@ void main() {
     });
   });
 
+  // --- the platform layer, against a fake share sheet --------------------------
+
+  group('the native share service', () {
+    testWidgets('it hands the card and its anchor to the platform',
+        (tester) async {
+      final sheet = FakeShareSheet();
+      final service = NativeShareService(sheet.call);
+      const origin = Rect.fromLTWH(16, 700, 368, 52);
+
+      final outcome =
+          await service.shareImage(_card(fileName: 'anchored.png'), origin: origin);
+
+      expect(outcome, ShareOutcome.shared);
+      final params = sheet.received.single;
+      // The anchor arrives on the parameter the package reads for the iPad and
+      // macOS popover, unchanged.
+      expect(params.sharePositionOrigin, origin);
+      // And the picture is still the picture: one file, named as asked.
+      expect(params.files, hasLength(1));
+      expect(params.fileNameOverrides, ['anchored.png']);
+      expect(params.files!.single.mimeType, 'image/png');
+    });
+
+    testWidgets('a share with no anchor is still a share', (tester) async {
+      // Android and the web have nothing to anchor, and the package ignores
+      // the parameter there. Nothing about this path may depend on it.
+      final sheet = FakeShareSheet();
+      final service = NativeShareService(sheet.call);
+
+      final outcome = await service.shareImage(_card());
+
+      expect(outcome, ShareOutcome.shared);
+      expect(sheet.received.single.sharePositionOrigin, isNull);
+      expect(sheet.received.single.files, hasLength(1));
+    });
+
+    testWidgets('every platform outcome becomes the application\'s own',
+        (tester) async {
+      for (final (status, expected) in [
+        (ShareResultStatus.success, ShareOutcome.shared),
+        (ShareResultStatus.dismissed, ShareOutcome.dismissed),
+        (ShareResultStatus.unavailable, ShareOutcome.unknown),
+      ]) {
+        final service = NativeShareService(FakeShareSheet(status: status).call);
+        expect(await service.shareImage(_card()), expected);
+      }
+    });
+
+    testWidgets('a platform that throws becomes an InfrastructureFailure',
+        (tester) async {
+      // The package's exception stops here, as a provider's stops in an
+      // adapter (OP-5).
+      final service = NativeShareService(
+        FakeShareSheet(thrown: PlatformException(code: 'x')).call,
+      );
+
+      await expectLater(
+        () => service.shareImage(_card()),
+        throwsA(isA<InfrastructureFailure>()),
+      );
+    });
+  });
+
   // --- 6. the engine knows nothing about the app's domains --------------------
 
   group('the engine is domain-neutral', () {
@@ -751,15 +853,43 @@ class FakeShareService implements ShareService {
   /// artifact rather than something rebuilt on the way.
   final List<ShareCardImage> shared = [];
 
+  /// Where each share said it came from. Kept for every attempt, including a
+  /// refused one, because the origin is read before the service is called.
+  final List<Rect?> origins = [];
+
   /// Counted separately from [shared]: a refused share is still an attempt.
   int attempts = 0;
 
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image) async {
+  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async {
     attempts++;
+    origins.add(origin);
     if (failure != null) throw failure!;
     shared.add(image);
     return outcome;
+  }
+}
+
+/// The share sheet, recording what it was asked to show.
+///
+/// It stands in for `SharePlus.instance.share`, so what these tests read is the
+/// real [ShareParams] the platform layer builds — the anchor arriving on
+/// `sharePositionOrigin` is an assertion about the parameter `share_plus`
+/// actually reads for the iPad popover, not about a wrapper of our own.
+class FakeShareSheet {
+  FakeShareSheet({this.status = ShareResultStatus.success, this.thrown});
+
+  final ShareResultStatus status;
+
+  /// What the platform channel does when the sheet cannot be shown.
+  final Object? thrown;
+
+  final List<ShareParams> received = [];
+
+  Future<ShareResult> call(ShareParams params) async {
+    received.add(params);
+    if (thrown != null) throw thrown!;
+    return ShareResult('fake', status);
   }
 }
 
