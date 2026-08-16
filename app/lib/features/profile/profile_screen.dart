@@ -12,6 +12,7 @@ import '../communities/community_repository.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
 import '../settings/settings_screen.dart';
+import '../statistics/player_statistics_screen.dart';
 import '../statistics/stat_card.dart';
 import 'edit_profile_screen.dart';
 import 'profile_models.dart';
@@ -248,6 +249,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Gap.sm,
                   ),
                 ),
+                // The way into the same record by period, and the only way
+                // there is. The counters above are the career; this is that
+                // career broken into weeks and months — and the screen it opens
+                // is where a card of it can be shared from.
+                //
+                // Its own card rather than the one below: settings and logout
+                // are things done to the account, and this is more of the
+                // record it sits under.
+                //
+                // Offered on the player's own profile only, because the screen
+                // it opens is the signed-in player's — it resolves whose record
+                // to read from the session, exactly as this screen does when
+                // `userId` is null.
+                if (_isOwnProfile)
+                  SectionCard(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.insights_outlined),
+                        title: Text(l10n.playerStatisticsTitle),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            // No `userId`: null is the signed-in player, which
+                            // is what this branch already knows it is showing.
+                            // Passing one read here would be a second answer to
+                            // a question the session already settles.
+                            builder: (_) => const PlayerStatisticsScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 // The account's own actions, apart from the record above them.
                 // The second place logout lives, the header menu being the
                 // first. It stays on the record rather than moving to the
