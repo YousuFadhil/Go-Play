@@ -6,6 +6,8 @@ import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+// `show`n: intl exports a TextDirection that would shadow Flutter's.
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/matches/match_adapter.dart';
@@ -18,7 +20,6 @@ import 'package:go_play/features/sharing/share_card_canvas.dart';
 import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
-import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_lineup_card.dart';
 import 'package:go_play/features/teams/team_models.dart';
@@ -81,6 +82,8 @@ void main() {
     Map<String, PlayerCoreInputs>? players,
     Map<String, String>? resolvedNames,
     bool hasNaturalGoalkeeper = true,
+    DateTime? startAt,
+    DateTime? endAt,
   }) {
     final assignments = lineup ?? storedLineup();
     return TeamLineupCardData(
@@ -98,6 +101,8 @@ void main() {
               a.participantId: names[a.participantId] ?? '—',
           },
       hasNaturalGoalkeeper: hasNaturalGoalkeeper,
+      startAt: startAt,
+      endAt: endAt,
     );
   }
 
@@ -148,7 +153,7 @@ void main() {
       await pumpCard(tester, cardData());
 
       // One painted board carrying both halves, and one mark per player.
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
       expect(find.text('Team A'), findsOneWidget);
       expect(find.text('Team B'), findsOneWidget);
     });
@@ -212,10 +217,12 @@ void main() {
       );
 
       expect(find.text('Professional (Omar)'), findsOneWidget);
-      // The guest treatment is the app's own avatar's, not a second one.
-      final avatars =
-          tester.widgetList<PlayerAvatar>(find.byType(PlayerAvatar));
-      expect(avatars.where((a) => a.isProfessionalGuest), hasLength(1));
+      // A guest is marked as one on the card's own mark: same ring, same
+      // shadow, the guest's badge instead of a face.
+      final marks = tester.widgetList<TeamLineupPlayerMark>(
+        find.byType(TeamLineupPlayerMark),
+      );
+      expect(marks.where((m) => m.isProfessionalGuest), hasLength(1));
     });
 
     testWidgets('a player with a picture keeps it, one without falls back',
@@ -235,9 +242,10 @@ void main() {
         ),
       );
 
-      final avatars =
-          tester.widgetList<PlayerAvatar>(find.byType(PlayerAvatar));
-      expect(avatars.map((a) => a.avatarUrl),
+      final marks = tester.widgetList<TeamLineupPlayerMark>(
+        find.byType(TeamLineupPlayerMark),
+      );
+      expect(marks.map((m) => m.avatarUrl),
           containsAll(<String?>['https://example.test/u1.jpg', null]));
       expect(tester.takeException(), isNull,
           reason: 'a missing picture is the app\'s fallback, not an error');
@@ -251,12 +259,12 @@ void main() {
 
       expect(find.text('Sara Al Balushi'), findsNothing,
           reason: 'u1 keeps goal, and there is no goal row to draw them in');
-      expect(find.byType(PlayerAvatar), findsNWidgets(3));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(3));
 
       // With a keeper in the squad, the same lineup draws all four.
       await pumpCard(tester, cardData());
       expect(find.text('Sara Al Balushi'), findsOneWidget);
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
     });
 
     test('an empty lineup is not a card', () {
@@ -282,6 +290,114 @@ void main() {
       expect(data.of(TeamId.a).map((a) => a.participantId), ['u1', 'u3']);
       expect(data.of(TeamId.b).map((a) => a.participantId), ['u2', 'u4']);
       expect(data.lineup, hasLength(4));
+    });
+  });
+
+  // --- names ------------------------------------------------------------------
+
+  group('a name is set, not cut', () {
+    /// Eleven a side, the densest lineup the card draws, with [long] given to
+    /// one player and ordinary names to the rest.
+    TeamLineupCardData crowded({String? long}) {
+      final lineup = <TeamAssignment>[
+        for (var i = 0; i < 11; i++)
+          assignment('a$i', TeamId.a, Position.values[i % 4]),
+        for (var i = 0; i < 11; i++)
+          assignment('b$i', TeamId.b, Position.values[i % 4]),
+      ];
+      return cardData(
+        lineup: lineup,
+        players: {
+          for (final a in lineup)
+            a.participantId: input(a.participantId, Position.mid),
+        },
+        resolvedNames: {
+          for (final a in lineup)
+            a.participantId: a.participantId == 'a0' && long != null
+                ? long
+                // Short and distinct, so a name can be found by its own text
+                // and no name is long enough to need a second line of its own.
+                : 'P${a.participantId}',
+        },
+      );
+    }
+
+    testWidgets('one too long for a line is set on two, not trimmed',
+        (tester) async {
+      // The alternative the card used to reach for was a smaller and smaller
+      // one-liner and then an ellipsis, which turns a player into an initial
+      // and a row of dots.
+      const long = 'Abdulrahman Bin Sulaiman Al Harthy';
+      await pumpCard(tester, crowded(long: long));
+
+      expect(find.text(long), findsOneWidget,
+          reason: 'the name itself is never altered');
+      expect(tester.widget<Text>(find.text(long)).maxLines, 2);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an ordinary name keeps its one line', (tester) async {
+      // The second line is bought only where it is needed: a lineup of names
+      // that fit is composed exactly as it was before it existed.
+      await pumpCard(
+        tester,
+        cardData(resolvedNames: const {
+          'u1': 'Sara',
+          'u2': 'Ahmed',
+          'u3': 'Noor',
+          'u4': 'Yousef',
+        }),
+      );
+
+      expect(tester.widget<Text>(find.text('Sara')).maxLines, 1);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no two names on the card overlap, however long they are',
+        (tester) async {
+      // The one thing a two-line name must never buy: a name running into the
+      // player beside it, or into the row underneath.
+      const long = 'Abdulrahman Bin Sulaiman Al Harthy';
+      await pumpCard(tester, crowded(long: long));
+
+      final boxes = <Rect>[
+        for (final element in find.byType(TeamLineupPlayerMark).evaluate())
+          tester.getRect(
+            find.text((element.widget as TeamLineupPlayerMark).name),
+          ),
+      ];
+
+      expect(boxes, hasLength(22));
+      for (var i = 0; i < boxes.length; i++) {
+        for (var j = i + 1; j < boxes.length; j++) {
+          expect(boxes[i].overlaps(boxes[j]), isFalse,
+              reason: 'two names share the same pixels: '
+                  '${boxes[i]} and ${boxes[j]}');
+        }
+      }
+    });
+
+    testWidgets('every rating is still on the card, long names or not',
+        (tester) async {
+      const long = 'Abdulrahman Bin Sulaiman Al Harthy';
+      await pumpCard(tester, crowded(long: long));
+
+      // One tag per player, and the long name has not cost anybody theirs.
+      expect(find.text('6.0'), findsNWidgets(22));
+    });
+
+    testWidgets('Arabic sets two lines the same way, right to left',
+        (tester) async {
+      const long = 'عبدالرحمن بن سليمان الحارثي البوسعيدي';
+      await pumpCard(tester, crowded(long: long), locale: const Locale('ar'));
+
+      expect(find.text(long), findsOneWidget);
+      expect(tester.widget<Text>(find.text(long)).maxLines, 2);
+      expect(
+        Directionality.of(tester.element(find.text(long))),
+        TextDirection.rtl,
+      );
+      expect(tester.takeException(), isNull);
     });
   });
 
@@ -351,33 +467,36 @@ void main() {
     testWidgets('the card looks the same whatever theme composed it',
         (tester) async {
       // A picture that leaves the phone must not change because the reader has
-      // dark mode on, so the pitch's own scheme is pinned inside the card.
+      // dark mode on. The card takes no colour from the ambient scheme — every
+      // one of them is its own constant — and this asserts the consequence
+      // rather than the mechanism: the two files are the same file.
       tester.view.physicalSize = const Size(2400, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
-      ColorScheme schemeOnPitch() => Theme.of(
-            tester.element(find.byType(PlayerAvatar).first),
-          ).colorScheme;
-
-      final schemes = <ColorScheme>[];
+      final images = <ShareCardImage>[];
       for (final brightness in Brightness.values) {
+        final key = GlobalKey();
         await tester.pumpWidget(MaterialApp(
           theme: ThemeData(brightness: brightness),
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: Align(
             alignment: Alignment.topLeft,
-            child: ShareCardSurface(child: TeamLineupCard(data: cardData())),
+            child: RepaintBoundary(
+              key: key,
+              child: ShareCardSurface(child: TeamLineupCard(data: cardData())),
+            ),
           ),
         ));
         await tester.pump();
-        schemes.add(schemeOnPitch());
+
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        images.add((await tester.runAsync(() => captureShareCard(boundary)))!);
       }
 
-      expect(schemes.first.primary, schemes.last.primary);
-      expect(schemes.first.brightness, Brightness.light);
-      expect(schemes.last.brightness, Brightness.light);
+      expect(images.first.bytes, images.last.bytes);
     });
   });
 
@@ -411,6 +530,48 @@ void main() {
       await pumpCard(tester, cardData(), locale: const Locale('ar'));
 
       expect(find.text('GO PLAY'), findsOneWidget);
+    });
+
+    testWidgets('a match inside one half of the day is given one meridiem',
+        (tester) async {
+      // "8:00–10:00 PM", not "8:00 PM - 10:00 PM": one range, written once.
+      await pumpCard(
+        tester,
+        cardData(
+          startAt: DateTime(2026, 8, 21, 20),
+          endAt: DateTime(2026, 8, 21, 22),
+        ),
+      );
+
+      expect(find.text('8:00–10:00 PM'), findsOneWidget);
+    });
+
+    testWidgets('a match that crosses noon reads start-then-end in Arabic',
+        (tester) async {
+      // The one case that needs both meridiems, and the case that cannot be
+      // written as one string: with "11:00 ص – 1:00 م" in a single run, the
+      // neutral dash joins the Arabic side and the line resolves to
+      // "11:00 م 1:00 – ص" — the match appearing to end before it began. The
+      // two ends are laid out as separate pieces so the order is the card's
+      // rather than the paragraph's.
+      final start = DateTime(2026, 8, 21, 11);
+      final end = DateTime(2026, 8, 21, 13);
+      String at(DateTime t) => '${DateFormat('h:mm', 'ar').format(t)} '
+          '${DateFormat('a', 'ar').format(t)}';
+
+      await pumpCard(
+        tester,
+        cardData(startAt: start, endAt: end),
+        locale: const Locale('ar'),
+      );
+
+      expect(find.text(at(start)), findsOneWidget);
+      expect(find.text(at(end)), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text(at(start))).dx,
+        lessThan(tester.getTopLeft(find.text(at(end))).dx),
+        reason: 'the kick-off is on the left of the dash in every language',
+      );
     });
   });
 
@@ -620,7 +781,7 @@ void main() {
       );
       // And the match's own name is not on the card.
       expect(find.textContaining('Friday Night'), findsNothing);
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
       expect(find.text('GO PLAY'), findsOneWidget);
     });
 
@@ -636,7 +797,7 @@ void main() {
 
       expect(find.textContaining('Al Amerat Pitch'), findsNothing);
       expect(find.text('Al Amerat FC'), findsOneWidget);
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
     });
 
     testWidgets('a card with no community and no fixture is still a lineup',
@@ -644,7 +805,7 @@ void main() {
       // Both are optional and neither is invented. The pitch carries the card.
       await pumpCard(tester, cardData());
 
-      expect(find.byType(PlayerAvatar), findsNWidgets(4));
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
       expect(find.text('GO PLAY'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
