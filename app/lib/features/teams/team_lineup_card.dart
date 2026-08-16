@@ -1,7 +1,9 @@
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/design.dart';
 import '../../core/l10n.dart';
+import 'formation.dart';
 import 'pitch_view.dart';
 import 'team_models.dart';
 
@@ -12,6 +14,11 @@ import 'team_models.dart';
 /// and the name each player is shown under; all of that arrives here and
 /// nothing is looked up again.
 ///
+/// **The lineup, and nothing about the match.** No title, no location, no kick
+/// off, no community — a lineup is shareable as a football lineup, and the
+/// match it happened to be generated for is not part of what it says. There is
+/// no field here to carry one.
+///
 /// [names] is the resolved display name per participant, and it is passed
 /// rather than derived on purpose. The screen's rule — the profile first, the
 /// registration second, a dash for somebody neither knows — is `KB-017`
@@ -20,17 +27,11 @@ import 'team_models.dart';
 @immutable
 class TeamLineupCardData {
   const TeamLineupCardData({
-    required this.matchTitle,
     required this.lineup,
     required this.players,
     required this.names,
     required this.hasNaturalGoalkeeper,
   });
-
-  /// What the match is called, so a lineup sent to a group chat says which
-  /// match it is. Identity, not a figure: this card carries no statistic that
-  /// the Teams screen does not already show.
-  final String matchTitle;
 
   /// The stored lineup, both sides, exactly as the screen holds it.
   final List<TeamAssignment> lineup;
@@ -43,8 +44,8 @@ class TeamLineupCardData {
   /// Participant id to the name the screen shows for them.
   final Map<String, String> names;
 
-  /// Whether the squad holds anybody who keeps goal (§10.1). Decides whether
-  /// the pitch draws a goal row at all, and is the screen's own answer.
+  /// Whether the squad holds anybody who keeps goal (§10.1). Decides whether a
+  /// goal row is drawn at all, and is the screen's own answer.
   final bool hasNaturalGoalkeeper;
 
   List<TeamAssignment> of(TeamId team) => [
@@ -60,26 +61,33 @@ class TeamLineupCardData {
   bool get isShareable => lineup.isNotEmpty;
 }
 
-/// The Team Lineup share card: who is playing, on a pitch.
+/// The Team Lineup share card: both teams, facing each other, on one pitch.
 ///
-/// **It reuses the pitch the app already draws.** [PitchView] is the lineup —
-/// the formation, the rows, the cards, the out-of-position markers and the
-/// guest treatment are all its work and none of it is restated here. Drawing a
-/// second pitch for the card would be two pitches free to disagree about what a
-/// lineup looks like.
+/// **One pitch, not two.** A lineup is two sides of the same match, and drawing
+/// each on a pitch of its own says they are two separate things. Team A defends
+/// the top goal and Team B the bottom, so the two attacks meet at the halfway
+/// line the way they would on the day.
+///
+/// **The formation and the player cards are the app's own.** [buildFormation]
+/// decides the rows — including which player is drawn out of their line — and
+/// [PlayerCard] draws each one, with the picture, the initial, the Professional
+/// Guest treatment and the out-of-position marker it already has. Only the
+/// arrangement of the two halves is this card's, because that is the part
+/// `PitchView` cannot express: it paints one pitch per team by construction.
 ///
 /// **Scaled, not widened.** A `PlayerCard` is capped at 82 logical pixels, so a
 /// pitch handed the card's full 1080 would draw phone-sized cards marooned in
-/// the middle of it. Instead each side is laid out at a phone's width and
-/// scaled up, which enlarges the whole composition together — text stays crisp
-/// because it is painted at the final scale rather than stretched.
+/// the middle of it. The whole pitch is composed at a phone's width and scaled
+/// up, which enlarges the composition together — text stays crisp because it is
+/// painted at the final scale rather than stretched.
 ///
-/// **Its own theme, fixed.** The pitch takes its accents from the ambient
+/// **Its own theme, fixed.** `PlayerCard` takes its accents from the ambient
 /// `Theme`, and a picture that leaves the phone must not change because the
-/// reader has dark mode on. A light scheme is pinned here for the pitch alone.
+/// reader has dark mode on. A light scheme is pinned here.
 ///
-/// **Presentation only.** It takes [TeamLineupCardData] and draws it: no
-/// repository, no formation decision of its own, no statistic invented.
+/// **Presentation only, and match-agnostic.** It takes [TeamLineupCardData] and
+/// draws it: no repository, no formation decision of its own, no statistic
+/// invented, and nothing identifying the match.
 class TeamLineupCard extends StatelessWidget {
   const TeamLineupCard({super.key, required this.data});
 
@@ -87,7 +95,7 @@ class TeamLineupCard extends StatelessWidget {
 
   /// The card's own palette. The same greens as the Player and Community
   /// cards — the three are one product's cards and should read as a set.
-  static const _pitch = Color(0xFF07341C);
+  static const _pitchDark = Color(0xFF07341C);
   static const _pitchDeep = Color(0xFF04180E);
   static const _accent = Color(0xFF3DDC84);
   static const _ink = Color(0xFFFFFFFF);
@@ -95,52 +103,34 @@ class TeamLineupCard extends StatelessWidget {
 
   static const _margin = 72.0;
 
-  /// The width each side's pitch is composed at before being scaled up. A
-  /// phone's width, because that is what `PitchView`'s sizes were chosen
-  /// against.
-  static const _pitchDesignWidth = 390.0;
+  /// The width the pitch is composed at before being scaled up. A phone's
+  /// width, because that is what `PlayerCard`'s sizes were chosen against.
+  static const _pitchDesignWidth = 420.0;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [_pitch, _pitchDeep],
+          colors: [_pitchDark, _pitchDeep],
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(_margin, 88, _margin, 76),
+        padding: const EdgeInsets.fromLTRB(_margin, 96, _margin, 84),
         child: Column(
           children: [
-            const _Wordmark(size: 42, spacing: 14),
-            const SizedBox(height: 16),
-            Container(width: 124, height: 6, color: _accent),
-            const SizedBox(height: 40),
-            _MatchTitle(title: data.matchTitle),
-            const SizedBox(height: 40),
-            // The two sides share what is left, so a lopsided lineup does not
-            // give one team more of the card than the other.
-            Expanded(
-              child: _Side(
-                label: l10n.teamAName,
-                assignments: data.of(TeamId.a),
-                data: data,
-              ),
+            const _Wordmark(size: 44, spacing: 14),
+            const SizedBox(height: 18),
+            Container(width: 132, height: 6, color: _accent),
+            const Spacer(),
+            Flexible(
+              flex: 20,
+              child: _ScaledPitch(data: data),
             ),
-            const SizedBox(height: 28),
-            Expanded(
-              child: _Side(
-                label: l10n.teamBName,
-                assignments: data.of(TeamId.b),
-                data: data,
-              ),
-            ),
-            const SizedBox(height: 36),
-            const _Wordmark(size: 28, spacing: 10, muted: true),
+            const Spacer(),
+            const _Wordmark(size: 30, spacing: 10, muted: true),
           ],
         ),
       ),
@@ -148,137 +138,257 @@ class TeamLineupCard extends StatelessWidget {
   }
 }
 
-/// Which match this lineup is for.
-class _MatchTitle extends StatelessWidget {
-  const _MatchTitle({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(
-        title,
-        maxLines: 2,
-        textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: TeamLineupCard._ink,
-          fontSize: 66,
-          fontWeight: FontWeight.w800,
-          height: 1.1,
-          letterSpacing: -1,
-        ),
-      ),
-    );
-  }
-}
-
-/// One team: its name, how many are on it, and its pitch.
-class _Side extends StatelessWidget {
-  const _Side({
-    required this.label,
-    required this.assignments,
-    required this.data,
-  });
-
-  final String label;
-  final List<TeamAssignment> assignments;
-  final TeamLineupCardData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Container(width: 8, height: 34, color: TeamLineupCard._accent),
-            const SizedBox(width: 18),
-            Expanded(
-              child: Text(
-                label.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: TeamLineupCard._ink,
-                  fontSize: 38,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 4,
-                ),
-              ),
-            ),
-            Text(
-              // How many are on this side — the same count the Teams screen
-              // puts beside the team name, and not a figure of this card's own.
-              '${assignments.length}',
-              style: const TextStyle(
-                color: TeamLineupCard._inkMuted,
-                fontSize: 38,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Expanded(child: _ScaledPitch(assignments: assignments, data: data)),
-      ],
-    );
-  }
-}
-
-/// The app's own pitch, composed at a phone's width and enlarged to the card.
+/// The pitch, composed at a phone's width and enlarged to the card.
 ///
-/// `FittedBox` with `contain` rather than `fitWidth`: the slot's height is
-/// fixed by the card, and a tall lineup — many rows — has to shrink to fit
-/// rather than run off the bottom of a picture.
+/// `contain` rather than `fitWidth`: a crowded lineup makes a taller pitch, and
+/// it has to shrink to fit rather than run off the bottom of a picture. The
+/// pitch's height is its content's, so no arrangement can overflow it.
 class _ScaledPitch extends StatelessWidget {
-  const _ScaledPitch({required this.assignments, required this.data});
+  const _ScaledPitch({required this.data});
 
-  final List<TeamAssignment> assignments;
   final TeamLineupCardData data;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
 
     return FittedBox(
       fit: BoxFit.contain,
       child: SizedBox(
         width: TeamLineupCard._pitchDesignWidth,
         child: Theme(
-          // Pinned so the card is the same picture for every reader. The pitch
-          // reads `primary` for a player's initial and `tertiaryContainer` for
-          // a Professional Guest, and both would otherwise follow whatever
-          // theme the composing phone happened to be in.
+          // Pinned so the card is the same picture for every reader.
+          // `PlayerCard` reads `primary` for a player's initial and
+          // `tertiaryContainer` for a Professional Guest, and both would
+          // otherwise follow whatever theme the composing phone was in.
           data: theme.copyWith(
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xFF1B7A43),
               brightness: Brightness.light,
             ),
           ),
-          // `PitchView` builds an `InkWell` per card even with no tap handler,
-          // and an ink well wants a `Material` over it. The card has no
-          // `Scaffold` to supply one.
+          // `PlayerCard` builds an `InkWell`, and an ink well wants a
+          // `Material` over it. The card has no `Scaffold` to supply one.
           child: Material(
             type: MaterialType.transparency,
-            child: PitchView(
-              assignments: assignments,
-              players: data.players,
-              hasNaturalGoalkeeper: data.hasNaturalGoalkeeper,
-              // Resolved by the screen. A dash for somebody neither the
-              // profiles nor the roster knows, exactly as the pitch behind
-              // this card shows them.
-              nameOf: (participantId) => data.names[participantId] ?? '—',
-              // Nothing on a picture is tappable.
-              onTapPlayer: null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Radii.md),
+              child: CustomPaint(
+                painter: _FullPitchPainter(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: Gap.md),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _TeamLabel(label: l10n.teamAName),
+                      // Team A defends the top goal, so its rows run the other
+                      // way: the goal first and the attack last, meeting Team
+                      // B's attack at the halfway line.
+                      ..._Half(
+                        assignments: data.of(TeamId.a),
+                        data: data,
+                        towardsTop: true,
+                      ).rows(),
+                      const SizedBox(height: Gap.sm),
+                      ..._Half(
+                        assignments: data.of(TeamId.b),
+                        data: data,
+                        towardsTop: false,
+                      ).rows(),
+                      _TeamLabel(label: l10n.teamBName),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// One team's half of the pitch.
+///
+/// [towardsTop] is which goal the team defends. It reverses the row order and
+/// nothing else: the formation itself — who is in attack, how the midfield
+/// wraps, who is drawn out of their line — is [buildFormation]'s and is not
+/// touched.
+class _Half {
+  const _Half({
+    required this.assignments,
+    required this.data,
+    required this.towardsTop,
+  });
+
+  final List<TeamAssignment> assignments;
+  final TeamLineupCardData data;
+  final bool towardsTop;
+
+  List<Widget> rows() {
+    final formation = buildFormation(
+      assignments,
+      // The same stable order the pitch uses, so a row does not reshuffle
+      // between builds.
+      order: (a, b) => (data.names[a.participantId] ?? '')
+          .compareTo(data.names[b.participantId] ?? ''),
+    );
+
+    // `buildFormation` returns rows top-down for a team attacking upwards:
+    // attack, midfield, defence, goal.
+    final lines = <List<TeamAssignment>>[
+      if (formation.attack.isNotEmpty) formation.attack,
+      ...formation.midfieldRows,
+      if (formation.defence.isNotEmpty) formation.defence,
+      if (data.hasNaturalGoalkeeper && formation.goalkeepers.isNotEmpty)
+        formation.goalkeepers,
+    ];
+
+    final ordered = towardsTop ? lines.reversed.toList() : lines;
+    return [
+      for (final line in ordered)
+        _PitchLine(line: line, data: data, movedFrom: formation.movedFrom),
+    ];
+  }
+}
+
+/// One line of the pitch. The players spread evenly across it, so the shape of
+/// the row is the shape of the line.
+class _PitchLine extends StatelessWidget {
+  const _PitchLine({
+    required this.line,
+    required this.data,
+    required this.movedFrom,
+  });
+
+  final List<TeamAssignment> line;
+  final TeamLineupCardData data;
+  final Map<String, Position> movedFrom;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Gap.xs, horizontal: Gap.sm),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final assignment in line)
+            Flexible(
+              child: PlayerCard(
+                assignment: assignment,
+                player: data.players[assignment.participantId],
+                // Resolved by the screen. A dash for somebody neither the
+                // profiles nor the roster knows, exactly as the pitch behind
+                // this card shows them.
+                name: data.names[assignment.participantId] ?? '—',
+                movedFrom: movedFrom[assignment.participantId],
+                // Nothing on a picture is tappable.
+                onTap: null,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Which side a half belongs to, written on the grass.
+class _TeamLabel extends StatelessWidget {
+  const _TeamLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+      child: Text(
+        label.toUpperCase(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 3,
+          // A hard shadow, so the label stays readable over a pale stripe
+          // without darkening the pitch for everyone — the same treatment the
+          // player names on the pitch already use.
+          shadows: [Shadow(blurRadius: 2, color: Color(0x99000000))],
+        ),
+      ),
+    );
+  }
+}
+
+/// A full pitch: mown bands, a touchline, a halfway line with its centre
+/// circle, and a penalty area at each end.
+///
+/// Painted rather than assembled from widgets because none of it is interactive
+/// and all of it is geometry. The markings are deliberately faint — they are
+/// there to say "this is a pitch", and anything stronger competes with the
+/// names sitting on top of them.
+class _FullPitchPainter extends CustomPainter {
+  static const _grass = Color(0xFF2E7D4F);
+  static const _stripe = Color(0xFF35895A);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(rect, Paint()..color = _grass);
+
+    // Mown bands across the pitch. Eight on a full pitch, where the team view
+    // uses six on a half.
+    const bands = 8;
+    final bandHeight = size.height / bands;
+    final stripePaint = Paint()..color = _stripe;
+    for (var i = 0; i < bands; i += 2) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, i * bandHeight, size.width, bandHeight),
+        stripePaint,
+      );
+    }
+
+    final line = Paint()
+      ..color = Colors.white.withValues(alpha: 0.28)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    final inset = rect.deflate(10);
+    canvas.drawRect(inset, line);
+
+    // The halfway line, where the two teams meet.
+    final middle = size.height / 2;
+    canvas.drawLine(
+      Offset(inset.left, middle),
+      Offset(inset.right, middle),
+      line,
+    );
+    canvas.drawCircle(
+      Offset(size.width / 2, middle),
+      size.width * 0.13,
+      line,
+    );
+
+    // A penalty area at each end, scaled to the pitch so it holds its
+    // proportions whatever height the lineup needs.
+    final boxWidth = inset.width * 0.44;
+    final boxHeight = (inset.height * 0.12).clamp(18.0, 72.0);
+    final boxLeft = inset.left + (inset.width - boxWidth) / 2;
+    canvas.drawRect(
+      Rect.fromLTWH(boxLeft, inset.top, boxWidth, boxHeight),
+      line,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(boxLeft, inset.bottom - boxHeight, boxWidth, boxHeight),
+      line,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _FullPitchPainter oldDelegate) => false;
 }
 
 /// The Go Play name, as the card's mark.

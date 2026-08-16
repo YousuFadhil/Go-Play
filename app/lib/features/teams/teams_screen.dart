@@ -260,12 +260,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
     final view = _shown;
     if (view == null || view.lineup.isEmpty) return;
 
+    // Nothing about the match goes onto the card — not its name, its location
+    // or its time. A lineup is shareable as a football lineup, and which match
+    // produced it is not part of what it says.
     final data = TeamLineupCardData(
-      // `displayName`, not `title`: a match need not be named, and the app
-      // already answers that with its location. The card uses the same
-      // headline the match is listed under everywhere else rather than a
-      // fallback of its own.
-      matchTitle: view.match.displayName,
       lineup: view.lineup,
       players: view.players,
       names: {

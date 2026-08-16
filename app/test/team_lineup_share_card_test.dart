@@ -77,7 +77,6 @@ void main() {
       ];
 
   TeamLineupCardData cardData({
-    String matchTitle = 'Friday Night',
     List<TeamAssignment>? lineup,
     Map<String, PlayerCoreInputs>? players,
     Map<String, String>? resolvedNames,
@@ -85,7 +84,6 @@ void main() {
   }) {
     final assignments = lineup ?? storedLineup();
     return TeamLineupCardData(
-      matchTitle: matchTitle,
       lineup: assignments,
       players: players ??
           {
@@ -140,34 +138,45 @@ void main() {
       for (final name in names.values) {
         expect(find.text(name), findsOneWidget);
       }
-      // The match it belongs to, and the Go Play mark top and bottom.
-      expect(find.text('Friday Night'), findsOneWidget);
+      // The Go Play mark top and bottom, and nothing naming a match.
       expect(find.text('GO PLAY'), findsNWidgets(2));
     });
 
-    testWidgets('each side carries its own count', (tester) async {
-      // Three against one, so the two counts cannot be confused.
+    testWidgets('both teams share one pitch', (tester) async {
+      // A lineup is two sides of the same match; a pitch each would say they
+      // are two separate things.
+      await pumpCard(tester, cardData());
+
+      expect(find.byType(PitchView), findsNothing,
+          reason: 'PitchView paints one pitch per team, which is the one thing '
+              'this card cannot use it for');
+      // The player cards are still the app's own, all four of them.
+      expect(find.byType(PlayerCard), findsNWidgets(4));
+      expect(find.text('TEAM A'), findsOneWidget);
+      expect(find.text('TEAM B'), findsOneWidget);
+    });
+
+    testWidgets('the two teams face each other across the halfway line',
+        (tester) async {
+      // Team A defends the top goal, so its keeper is the topmost card and
+      // Team B's the bottommost — the two attacks meet in the middle.
       await pumpCard(
         tester,
         cardData(lineup: [
           assignment('u1', TeamId.a, Position.gk),
-          assignment('u2', TeamId.a, Position.def),
-          assignment('u3', TeamId.a, Position.mid),
+          assignment('u3', TeamId.a, Position.fwd),
           assignment('u4', TeamId.b, Position.fwd),
+          assignment('u2', TeamId.b, Position.gk),
         ]),
       );
 
-      expect(find.text('3'), findsOneWidget);
-      expect(find.text('1'), findsOneWidget);
-    });
+      double topOf(String name) => tester.getTopLeft(find.text(name)).dy;
 
-    testWidgets('it is the app\'s own pitch, one per side', (tester) async {
-      // Not a second lineup drawing: the formation, the rows and the cards are
-      // `PitchView`'s work, and this card reuses it rather than restating it.
-      await pumpCard(tester, cardData());
-
-      expect(find.byType(PitchView), findsNWidgets(2));
-      expect(find.byType(PlayerCard), findsNWidgets(4));
+      // Team A: keeper above forward. Team B: forward above keeper.
+      expect(topOf('Sara Al Balushi'), lessThan(topOf('Noor Al Kindi')));
+      expect(topOf('Yousef Al Amri'), lessThan(topOf('Ahmed Al Harthy')));
+      // And the two forwards are the innermost pair.
+      expect(topOf('Noor Al Kindi'), lessThan(topOf('Yousef Al Amri')));
     });
 
     testWidgets('a player who left the match keeps the screen\'s dash',
@@ -206,7 +215,7 @@ void main() {
       );
 
       expect(find.text('Professional (Omar)'), findsOneWidget);
-      // The guest treatment is the pitch's, not a second one built for cards.
+      // The guest treatment is `PlayerCard`'s, not a second one built here.
       final cards = tester.widgetList<PlayerCard>(find.byType(PlayerCard));
       expect(cards.where((c) => c.assignment.isProfessionalGuest), hasLength(1));
     });
@@ -236,13 +245,19 @@ void main() {
     });
 
     testWidgets('no goalkeeper in the squad means no goal row', (tester) async {
-      // The screen's own answer, passed through: the pitch draws a goal row
-      // only where the squad has somebody who keeps goal.
+      // The screen's own answer, passed through: a goal row is drawn only
+      // where the squad has somebody who keeps goal, so the two keepers in
+      // this lineup are not drawn at all.
       await pumpCard(tester, cardData(hasNaturalGoalkeeper: false));
 
-      for (final view in tester.widgetList<PitchView>(find.byType(PitchView))) {
-        expect(view.hasNaturalGoalkeeper, isFalse);
-      }
+      expect(find.text('Sara Al Balushi'), findsNothing,
+          reason: 'u1 keeps goal, and there is no goal row to draw them in');
+      expect(find.byType(PlayerCard), findsNWidgets(3));
+
+      // With a keeper in the squad, the same lineup draws all four.
+      await pumpCard(tester, cardData());
+      expect(find.text('Sara Al Balushi'), findsOneWidget);
+      expect(find.byType(PlayerCard), findsNWidgets(4));
     });
 
     test('an empty lineup is not a card', () {
@@ -250,6 +265,16 @@ void main() {
       // nothing on it to send.
       expect(cardData().isShareable, isTrue);
       expect(cardData(lineup: const []).isShareable, isFalse);
+    });
+
+    test('the data carries a lineup and nothing about a match', () {
+      // There is no field for a match title, location or time: the type itself
+      // is what stops one being drawn.
+      final data = cardData();
+      expect(data.lineup, hasLength(4));
+      expect(data.names.values, contains('Sara Al Balushi'));
+      expect(data.hasNaturalGoalkeeper, isTrue);
+      expect(data.isShareable, isTrue);
     });
 
     test('the sides are split from the one lineup it was handed', () {
@@ -333,7 +358,7 @@ void main() {
       addTearDown(tester.view.reset);
 
       ColorScheme schemeOnPitch() => Theme.of(
-            tester.element(find.byType(PitchView).first),
+            tester.element(find.byType(PlayerCard).first),
           ).colorScheme;
 
       final schemes = <ColorScheme>[];
@@ -371,13 +396,8 @@ void main() {
 
     testWidgets('Arabic names both sides in Arabic, right to left',
         (tester) async {
-      await pumpCard(
-        tester,
-        cardData(matchTitle: 'مباراة الجمعة'),
-        locale: const Locale('ar'),
-      );
+      await pumpCard(tester, cardData(), locale: const Locale('ar'));
 
-      expect(find.text('مباراة الجمعة'), findsOneWidget);
       expect(find.text('الفريق أ'), findsOneWidget);
       expect(find.text('الفريق ب'), findsOneWidget);
       expect(
@@ -556,7 +576,6 @@ void main() {
 
       final data =
           tester.widget<TeamLineupCard>(find.byType(TeamLineupCard)).data;
-      expect(data.matchTitle, 'Friday Night');
       expect(data.lineup.map((a) => a.participantId),
           storedLineup().map((a) => a.participantId));
       expect(data.of(TeamId.a).map((a) => a.participantId), ['u1', 'u3']);
@@ -568,20 +587,23 @@ void main() {
       expect(data.hasNaturalGoalkeeper, isTrue);
     });
 
-    testWidgets('an unnamed match is headlined the way the app headlines one',
-        (tester) async {
-      // `Match.displayName` falls back to the location. The card uses the
-      // app's existing rule rather than one of its own.
-      final renderer = await pumpTeams(tester, lineup: storedLineup(), title: null);
+    testWidgets('nothing about the match reaches the card', (tester) async {
+      // The lineup is shareable as a football lineup. The match that produced
+      // it — its name, where it is played, when — is not part of what the card
+      // says, and there is no field on the data for one to travel in.
+      final renderer = await pumpTeams(tester, lineup: storedLineup());
 
       await tester.tap(find.byTooltip('Share the lineup'));
       await tester.pumpAndSettle();
       await pumpTemplate(tester, renderer);
 
-      expect(
-        tester.widget<TeamLineupCard>(find.byType(TeamLineupCard)).data.matchTitle,
-        'Al Amerat Pitch',
-      );
+      expect(find.text('Friday Night'), findsNothing);
+      expect(find.text('Al Amerat Pitch'), findsNothing);
+      expect(find.textContaining('Friday'), findsNothing);
+      expect(find.textContaining('Amerat'), findsNothing);
+      // What is on it is the lineup and the mark, and nothing else.
+      expect(find.byType(PlayerCard), findsNWidgets(4));
+      expect(find.text('GO PLAY'), findsNWidgets(2));
     });
 
     testWidgets('nothing is composed until the lineup has loaded',
