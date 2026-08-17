@@ -143,7 +143,12 @@ class TeamLineupCard extends StatelessWidget {
   // --- the palette ------------------------------------------------------------
 
   /// Reserved for Team A, the rating it carries and the brand's own mark.
-  static const _accent = Color(0xFF3DDC84);
+  ///
+  /// Lifted a step in luminance for the lit pitch beneath it. The hue is the
+  /// product's own and does not move; what moves is how far it stands off the
+  /// grass, because a side whose colour is the colour it is standing on is not
+  /// a side a reader can pick out.
+  static const _accent = Color(0xFF5DF39D);
 
   /// Team B. Not a second hue competing with the brand — the same graphic
   /// language in a cold neutral, so the two sides separate without the card
@@ -152,12 +157,12 @@ class TeamLineupCard extends StatelessWidget {
 
   static const _ink = Color(0xFFFFFFFF);
   static const _inkMuted = Color(0xC2FFFFFF);
-  static const _inkFaint = Color(0x8AFFFFFF);
+  static const _inkFaint = Color(0x9EFFFFFF);
 
   /// The quietest thing on the card that is still meant to be read. The fixture
   /// has three ranks now — day, then clock and place — and a hierarchy needs a
   /// third tone as much as it needs a third size.
-  static const _inkDim = Color(0x66FFFFFF);
+  static const _inkDim = Color(0x80FFFFFF);
 
   /// The safe margin the type is set against. Everything the reader must
   /// *read* lives inside it.
@@ -469,7 +474,7 @@ class _MastheadRulePainter extends CustomPainter {
         ..shader = ui.Gradient.linear(
           rect.centerLeft,
           rect.centerRight,
-          const [Color(0x8A3DDC84), Color(0x1FFFFFFF), Color(0x14FFFFFF)],
+          const [Color(0x8A5DF39D), Color(0x2EFFFFFF), Color(0x1FFFFFFF)],
           const [0.0, 0.32, 1.0],
         ),
     );
@@ -628,8 +633,8 @@ class _HairlinePainter extends CustomPainter {
           rect.centerRight,
           [
             const Color(0x00FFFFFF),
-            const Color(0x24FFFFFF),
-            const Color(0x24FFFFFF),
+            const Color(0x33FFFFFF),
+            const Color(0x33FFFFFF),
             const Color(0x00FFFFFF),
           ],
           const [0.0, 0.22, 0.78, 1.0],
@@ -1312,7 +1317,7 @@ class _Face extends StatelessWidget {
   final double ratingSize;
 
   /// What sits behind a photograph that has not loaded, and under one that has.
-  static const _base = Color(0xFF0D1614);
+  static const _base = Color(0xFF102A20);
 
   @override
   Widget build(BuildContext context) {
@@ -1745,7 +1750,7 @@ class _AtmospherePainter extends CustomPainter {
         ..shader = ui.Gradient.linear(
           rect.topCenter,
           rect.bottomCenter,
-          const [Color(0xFF0C1215), Color(0xFF070B0E), Color(0xFF04070A)],
+          const [Color(0xFF0E2219), Color(0xFF19563D), Color(0xFF0A1D15)],
           const [0.0, 0.52, 1.0],
         ),
     );
@@ -1757,7 +1762,7 @@ class _AtmospherePainter extends CustomPainter {
         ..shader = ui.Gradient.radial(
           Offset(size.width * 0.5, -size.height * 0.06),
           size.height * 0.52,
-          const [Color(0x2A9FE9C6), Color(0x00000000)],
+          const [Color(0x42D9FFEC), Color(0x00000000)],
         ),
     );
 
@@ -1771,7 +1776,7 @@ class _AtmospherePainter extends CustomPainter {
         ..shader = ui.Gradient.radial(
           Offset(size.width * 0.5, size.height * 0.62),
           size.height * 0.60,
-          const [Color(0x4712B36E), Color(0x2612B36E), Color(0x00000000)],
+          const [Color(0x7A1FD189), Color(0x421FD189), Color(0x00000000)],
           const [0.0, 0.55, 1.0],
         ),
     );
@@ -1782,7 +1787,7 @@ class _AtmospherePainter extends CustomPainter {
         ..shader = ui.Gradient.radial(
           rect.center,
           size.height * 0.62,
-          const [Color(0x00000000), Color(0x00000000), Color(0x99000000)],
+          const [Color(0x00000000), Color(0x00000000), Color(0x59041C13)],
           const [0.0, 0.55, 1.0],
         ),
     );
@@ -1853,7 +1858,7 @@ class _PitchPainter extends CustomPainter {
           ..shader = ui.Gradient.radial(
             Offset(size.width / 2, camera.yAt(v)),
             size.height * 0.54,
-            [colour.withValues(alpha: 0.13), colour.withValues(alpha: 0)],
+            [colour.withValues(alpha: 0.20), colour.withValues(alpha: 0)],
           ),
       );
     }
@@ -1873,7 +1878,7 @@ class _PitchPainter extends CustomPainter {
         ..close();
       canvas.drawPath(
         band,
-        Paint()..color = Colors.white.withValues(alpha: 0.017),
+        Paint()..color = Colors.white.withValues(alpha: 0.032),
       );
     }
 
@@ -1899,8 +1904,8 @@ class _PitchPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round
       ..shader = fade(alpha);
 
-    final touchline = stroke(0.34, 4.5);
-    final marking = stroke(0.26, 3.5);
+    final touchline = stroke(0.50, 4.5);
+    final marking = stroke(0.38, 3.5);
 
     void line(double u0, double v0, double u1, double v1, Paint paint) =>
         canvas.drawLine(at(u0, v0), at(u1, v1), paint);
