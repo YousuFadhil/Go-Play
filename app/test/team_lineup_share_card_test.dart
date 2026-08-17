@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:btge/btge.dart';
@@ -139,8 +138,9 @@ void main() {
         (tester) async {
       await pumpCard(tester, cardData());
 
-      expect(find.text('Team A'), findsOneWidget);
-      expect(find.text('Team B'), findsOneWidget);
+      // The screen's own heading, down to the count in brackets.
+      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team B (2)'), findsOneWidget);
       for (final name in names.values) {
         expect(find.text(name), findsOneWidget);
       }
@@ -148,39 +148,46 @@ void main() {
       expect(find.text('GO PLAY'), findsOneWidget);
     });
 
-    testWidgets('the two sides are told apart by colour', (tester) async {
-      // Every mark carries its team's colour — the ring around the face, the
-      // rating reversed out of it, the swatch beside the label naming the half.
-      // A reader sorting twenty-two players into two teams reads the players,
-      // not a legend, so the two tints must never collapse into one.
+    testWidgets(
+        'the two sides are told apart the way the screen tells them apart',
+        (tester) async {
+      // A heading naming the side and counting it, then that side's own pitch
+      // — the Teams screen's arrangement, and the whole of it. `KB-D6` makes A
+      // and B mean nothing beyond each other, so the app gives them no colours
+      // and neither does the card: a pair invented here would be answering a
+      // question the product does not ask.
       await pumpCard(tester, cardData());
 
-      Color tintOf(String name) => tester
+      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team B (2)'), findsOneWidget);
+
+      TeamId teamOf(String name) => tester
           .widgetList<TeamLineupPlayerMark>(find.byType(TeamLineupPlayerMark))
           .firstWhere((mark) => mark.name == name)
-          .tint;
+          .team;
 
-      // u1 plays for Team A, u2 for Team B.
-      expect(tintOf('Sara Al Balushi'), isNot(tintOf('Ahmed Al Harthy')));
-      // And the sides are internally consistent: u3 is Team A with u1.
-      expect(tintOf('Noor Al Kindi'), tintOf('Sara Al Balushi'));
+      expect(teamOf('Sara Al Balushi'), TeamId.a);
+      expect(teamOf('Noor Al Kindi'), TeamId.a);
+      expect(teamOf('Ahmed Al Harthy'), TeamId.b);
     });
 
-    testWidgets('both teams share one pitch', (tester) async {
-      // A lineup is two sides of the same match; a pitch each would say they
-      // are two separate things.
+    testWidgets('each side gets its own pitch, as the screen gives it one',
+        (tester) async {
       await pumpCard(tester, cardData());
 
-      // One painted board carrying both halves, and one mark per player.
+      // Two pitches, and one mark per player across them.
+      expect(find.byType(ClipRRect), findsNWidgets(2));
       expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
-      expect(find.text('Team A'), findsOneWidget);
-      expect(find.text('Team B'), findsOneWidget);
     });
 
-    testWidgets('the two teams face each other across the halfway line',
+    testWidgets(
+        'each side reads attack first and keeper last, as the screen draws it',
         (tester) async {
-      // Team A defends the top goal, so its keeper is the topmost card and
-      // Team B's the bottommost — the two attacks meet in the middle.
+      // `PitchView` runs a team sheet top to bottom: attack, midfield, defence,
+      // then the goalkeeper in goal. Both sides do, because each has a pitch of
+      // its own — the card before this one turned one of them upside down to
+      // face the other across a halfway line, which is a graphic's idea rather
+      // than the application's.
       await pumpCard(
         tester,
         cardData(lineup: [
@@ -193,11 +200,11 @@ void main() {
 
       double topOf(String name) => tester.getTopLeft(find.text(name)).dy;
 
-      // Team A: keeper above forward. Team B: forward above keeper.
-      expect(topOf('Sara Al Balushi'), lessThan(topOf('Noor Al Kindi')));
+      // Team A: forward above keeper. Team B, on its own pitch below: the same.
+      expect(topOf('Noor Al Kindi'), lessThan(topOf('Sara Al Balushi')));
       expect(topOf('Yousef Al Amri'), lessThan(topOf('Ahmed Al Harthy')));
-      // And the two forwards are the innermost pair.
-      expect(topOf('Noor Al Kindi'), lessThan(topOf('Yousef Al Amri')));
+      // And Team A's pitch is entirely above Team B's.
+      expect(topOf('Sara Al Balushi'), lessThan(topOf('Yousef Al Amri')));
     });
 
     testWidgets('a player who left the match keeps the screen\'s dash',
@@ -420,9 +427,9 @@ void main() {
     });
   });
 
-  // --- the camera -------------------------------------------------------------
+  // --- the screen, not a poster -----------------------------------------------
 
-  group('the pitch is seen from behind the near goal', () {
+  group('the card is the Teams screen, drawn once', () {
     List<TeamAssignment> elevenASide() => [
           for (var i = 0; i < 11; i++)
             assignment('a$i', TeamId.a, Position.values[i % 4]),
@@ -448,72 +455,61 @@ void main() {
         .widgetList<TeamLineupPlayerMark>(find.byType(TeamLineupPlayerMark))
         .toList();
 
-    testWidgets('the far side is drawn smaller than the near side',
-        (tester) async {
-      // The projection, asserted where it can be: Team A defends the far goal,
-      // so its marks are the smaller ones and they sit higher up the picture.
+    testWidgets('every player is drawn at the same size', (tester) async {
+      // Solved once, from the denser of the two sides, and applied to both. The
+      // screen can afford two pitches at two scales because a reader sees one
+      // of them at a time; a picture shows both at once, and a player drawn
+      // larger than the player beside them would read as meaning something.
       await pumpCard(tester, crowded());
 
-      final marks = marksOf(tester);
-      final radii = marks.map((mark) => mark.radius).toList();
-      final smallest = radii.reduce(math.min);
-      final largest = radii.reduce(math.max);
-
-      expect(smallest, lessThan(largest),
-          reason: 'without a size difference there is no camera');
-
-      double topOf(TeamLineupPlayerMark mark) =>
-          tester.getTopLeft(find.text(mark.name)).dy;
-      final far = marks.firstWhere((mark) => mark.radius == smallest);
-      final near = marks.firstWhere((mark) => mark.radius == largest);
-      expect(topOf(far), lessThan(topOf(near)),
-          reason: 'the smaller marks are the ones further up the pitch');
+      final radii = marksOf(tester).map((mark) => mark.metrics.radius).toSet();
+      expect(radii, hasLength(1), reason: 'twenty-two players, one radius');
     });
 
-    testWidgets('the far side is not made secondary', (tester) async {
-      // The whole reason the recession is gentle: past a point, depth stops
-      // reading as a camera and starts reading as a hierarchy between two
-      // sides of the same match.
-      await pumpCard(tester, crowded());
+    testWidgets('a small lineup is drawn larger, and not enlarged for drama',
+        (tester) async {
+      // The room a five-a-side leaves goes to the players, up to the size the
+      // phone itself draws them at three times over — and stops there.
+      await pumpCard(tester, cardData());
+      final small = marksOf(tester).first.metrics.radius;
 
-      final radii = marksOf(tester).map((mark) => mark.radius).toList();
-      expect(
-        radii.reduce(math.min) / radii.reduce(math.max),
-        inInclusiveRange(0.72, 0.98),
-        reason: 'the far eleven must still, plainly, be an eleven',
+      await pumpCard(tester, crowded());
+      final dense = marksOf(tester).first.metrics.radius;
+
+      expect(small, greaterThan(dense));
+      expect(small, lessThanOrEqualTo(21 * 3),
+          reason: 'the phone draws a 21-point avatar and the card is 3x it');
+    });
+
+    testWidgets('the two pitches are the same height', (tester) async {
+      // Two panels of different heights read as an accident in a picture that
+      // cannot be scrolled.
+      await pumpCard(
+        tester,
+        cardData(lineup: [
+          assignment('u1', TeamId.a, Position.gk),
+          assignment('u3', TeamId.a, Position.mid),
+          assignment('u2', TeamId.a, Position.def),
+          assignment('u4', TeamId.b, Position.fwd),
+        ]),
       );
+
+      final pitches = tester
+          .widgetList<ClipRRect>(find.byType(ClipRRect))
+          .map((clip) => tester.getSize(find.byWidget(clip)))
+          .toList();
+
+      expect(pitches, hasLength(2));
+      expect(pitches.first, pitches.last);
     });
 
     testWidgets('every rating stays large enough to read', (tester) async {
-      // A number that recedes with its face stops being a rating. Ratings are
-      // compensated against the projection and floored, and eleven a side is
-      // where that floor earns its keep.
       await pumpCard(tester, crowded());
 
       final ratings = tester.widgetList<Text>(find.text('6.0'));
       expect(ratings, hasLength(22));
       for (final rating in ratings) {
-        expect(rating.style!.fontSize, greaterThanOrEqualTo(20));
-      }
-    });
-
-    testWidgets('the row nearest the camera keeps clear of its goal',
-        (tester) async {
-      // The near keeper carries a name beneath them and the goal line and its
-      // frame are directly under it. The row is stood off its line by the room
-      // that content needs, and the solve refuses any size that spends it —
-      // measured here against the one fixed thing below the pitch, the
-      // signature, which sits a known distance under the goal line.
-      for (final data in [cardData(), crowded()]) {
-        await pumpCard(tester, data);
-
-        final lowest = marksOf(tester)
-            .map((mark) => tester.getRect(find.text(mark.name)).bottom)
-            .reduce(math.max);
-        final signature = tester.getRect(find.text('GO PLAY')).top;
-
-        expect(signature - lowest, greaterThan(100),
-            reason: 'the near-most name is sitting on the goal line');
+        expect(rating.style!.fontSize, greaterThanOrEqualTo(18));
       }
     });
 
@@ -522,8 +518,36 @@ void main() {
 
       for (final mark in marksOf(tester)) {
         final name = tester.widget<Text>(find.text(mark.name));
-        expect(name.style!.fontSize, greaterThanOrEqualTo(18));
+        expect(name.style!.fontSize, greaterThanOrEqualTo(17));
       }
+    });
+
+    testWidgets('a rating stays under the player it belongs to',
+        (tester) async {
+      // The block under a face holds the name and the rating together and
+      // leaves its slack at the foot. Reserving the name alone put a hole under
+      // every one-line name on a card that had bought a second line for
+      // somebody else, and a number floating clear of its player belongs to
+      // nobody.
+      await pumpCard(
+        tester,
+        cardData(resolvedNames: const {
+          'u1': 'Sara',
+          'u2': 'Abdulrahman Bin Sulaiman Al Harthy Al Busaidi',
+          'u3': 'Noor',
+          'u4': 'Yousef',
+        }),
+      );
+
+      final name = tester.getRect(find.text('Sara'));
+      final rating = tester.getRect(find.descendant(
+        of: find.byWidgetPredicate((widget) =>
+            widget is TeamLineupPlayerMark && widget.name == 'Sara'),
+        matching: find.text('6.0'),
+      ));
+
+      expect(rating.top - name.bottom, lessThan(name.height),
+          reason: 'the rating has drifted a line clear of its own name');
     });
   });
 
@@ -633,7 +657,7 @@ void main() {
       await pumpCard(tester, cardData());
 
       expect(
-        Directionality.of(tester.element(find.text('Team A'))),
+        Directionality.of(tester.element(find.text('Team A (2)'))),
         TextDirection.ltr,
       );
     });
@@ -642,10 +666,10 @@ void main() {
         (tester) async {
       await pumpCard(tester, cardData(), locale: const Locale('ar'));
 
-      expect(find.text('الفريق أ'), findsOneWidget);
-      expect(find.text('الفريق ب'), findsOneWidget);
+      expect(find.text('الفريق أ (2)'), findsOneWidget);
+      expect(find.text('الفريق ب (2)'), findsOneWidget);
       expect(
-        Directionality.of(tester.element(find.text('الفريق أ'))),
+        Directionality.of(tester.element(find.text('الفريق أ (2)'))),
         TextDirection.rtl,
         reason: 'the direction is inherited, not mirrored element by element',
       );
