@@ -497,6 +497,26 @@ void main() {
       }
     });
 
+    testWidgets('the row nearest the camera keeps clear of its goal',
+        (tester) async {
+      // The near keeper carries a name beneath them and the goal line and its
+      // frame are directly under it. The row is stood off its line by the room
+      // that content needs, and the solve refuses any size that spends it —
+      // measured here against the one fixed thing below the pitch, the
+      // signature, which sits a known distance under the goal line.
+      for (final data in [cardData(), crowded()]) {
+        await pumpCard(tester, data);
+
+        final lowest = marksOf(tester)
+            .map((mark) => tester.getRect(find.text(mark.name)).bottom)
+            .reduce(math.max);
+        final signature = tester.getRect(find.text('GO PLAY')).top;
+
+        expect(signature - lowest, greaterThan(100),
+            reason: 'the near-most name is sitting on the goal line');
+      }
+    });
+
     testWidgets('every name stays large enough to read', (tester) async {
       await pumpCard(tester, crowded());
 

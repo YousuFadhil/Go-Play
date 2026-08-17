@@ -748,6 +748,8 @@ class _Pitch extends StatelessWidget {
   static const _bFrom = 0.58;
   static const _bTo = 0.94;
 
+
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -771,18 +773,23 @@ class _Pitch extends StatelessWidget {
       ],
     );
 
+    // The rows as the composition places them: the near-most one stood off its
+    // goal by whatever the solve could afford.
+    final placed = _Composition.place(rows);
+
     return CustomPaint(
       painter: _PitchPainter(camera: camera),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (final row in rows)
+          for (final row in placed)
             for (final (index, assignment) in row.players.indexed)
               _place(composition, row, index, assignment),
           // The team key: one solid swatch of the side's colour on the grass it
           // defends, at the corner the type margin allows.
           _label(l10n.teamAName, TeamLineupCard._accent, _aFrom, top: true),
-          _label(l10n.teamBName, TeamLineupCard._ice, _bTo, top: false),
+          _label(l10n.teamBName, TeamLineupCard._ice, placed.last.v,
+              top: false),
         ],
       ),
     );
@@ -886,6 +893,13 @@ class _Row {
 
   bool get hinted =>
       players.any((p) => movedFrom.containsKey(p.participantId));
+
+  _Row at(double depth) => _Row(
+        players: players,
+        tint: tint,
+        movedFrom: movedFrom,
+        v: depth,
+      );
 }
 
 /// One team's half of the pitch, already arranged into rows.
@@ -992,6 +1006,10 @@ class _Composition {
   /// And below this it stops reading as a face at all.
   static const _minRadius = 20.0;
 
+  /// The air the near-most row keeps between the foot of its name and the goal
+  /// line under it.
+  static const _goalClearance = 20.0;
+
   /// The name's leading, and the one place it is stated.
   static const _lineHeight = 1.2;
 
@@ -1029,6 +1047,35 @@ class _Composition {
     );
   }
 
+
+  /// How far off its goal line that row is stood.
+  ///
+  /// Far enough that the whole mark finishes clear of the line and of the frame
+  /// standing behind it, and no further: the goal area reaches a little further
+  /// out again, and clearing that as well would cost every player on the card
+  /// about a quarter of their size — one keeper's margin paid for by
+  /// twenty-one other people, which is the wrong trade.
+  static const _standOff = 0.912;
+
+  /// The rows as they are actually drawn.
+  ///
+  /// **A keeper carries their name beneath them and the near goal is directly
+  /// under it.** At the nominal end of the half that name lands on the goal
+  /// line and on the frame standing behind it, which reads as a mistake rather
+  /// than as a picture. So the row closest to the camera is stood off its line
+  /// by the room its content needs — the same thing a keeper does on a real
+  /// pitch — and every other row stays exactly where the formation puts it.
+  ///
+  /// This is a cap and not a position: a half whose rows already end short of
+  /// it is untouched, and the solve still refuses any size at which the content
+  /// fails to clear the line even from here.
+  static List<_Row> place(List<_Row> rows) => [
+        for (final (index, row) in rows.indexed)
+          index == rows.length - 1 && row.v > _standOff
+              ? row.at(_standOff)
+              : row,
+      ];
+
   /// The largest base size at which no mark runs into the row in front of it,
   /// into the player beside it, or off either end of the pitch.
   static _Composition solve({
@@ -1049,20 +1096,27 @@ class _Composition {
         );
 
     bool fits(_Composition composition) {
-      for (final (index, row) in rows.indexed) {
+      final placed = place(rows);
+      for (final (index, row) in placed.indexed) {
         final metrics = composition.at(row.v, hinted: row.hinted);
         final top = camera.yAt(row.v) - metrics.radius;
 
-        // Off the far or the near end of the stage.
+        // Off the far end of the stage.
         if (top < 0) return false;
-        if (index == rows.length - 1 &&
-            top + metrics.height > camera.size.height) {
+
+        // Or into the near goal. The row closest to the camera has the goal
+        // area, the goal line and the frame beneath it, and its whole mark —
+        // face, rating, name and note — has to finish above them with room to
+        // spare. Standing the row off its line is what buys that room; this is
+        // what refuses a size that would spend it anyway.
+        if (index == placed.length - 1 &&
+            top + metrics.height > camera.yAt(1) - _goalClearance) {
           return false;
         }
 
         // Into the row in front.
-        if (index < rows.length - 1) {
-          final next = rows[index + 1];
+        if (index < placed.length - 1) {
+          final next = placed[index + 1];
           final nextTop = camera.yAt(next.v) -
               composition.at(next.v, hinted: next.hinted).radius;
           if (top + metrics.height > nextTop) return false;
