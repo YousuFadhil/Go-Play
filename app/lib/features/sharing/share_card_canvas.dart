@@ -45,8 +45,8 @@ abstract final class ShareCardCanvas {
 /// The surface a template paints on, and the thing that makes two devices
 /// produce one image.
 ///
-/// It fixes three things a template must not inherit from the phone it is being
-/// composed on:
+/// It fixes four things a template must not inherit from the phone it is being
+/// composed on, or from wherever in the tree it happens to be mounted:
 ///
 ///  * **the size** — [ShareCardCanvas.designSize], so `MediaQuery.sizeOf` inside
 ///    a template describes the card rather than the screen behind it;
@@ -54,7 +54,17 @@ abstract final class ShareCardCanvas {
 ///    text up wants *their app* larger, not the picture they are about to send
 ///    to somebody else reflowed;
 ///  * **the padding** — cleared, because a card has no notch and no status bar
-///    to avoid.
+///    to avoid;
+///  * **the text a template starts from** — plain, opaque and undecorated.
+///
+/// That last one is not a nicety. A card is composed in the [Overlay], and an
+/// overlay entry has no `Material` above it, so text inside one starts from
+/// whatever `WidgetsApp` hands a widget that forgot to put one there — which in
+/// a debug build is the "you are missing a Material" style: yellow, underlined,
+/// and metrics of its own. The picture that left the phone carried both, and
+/// the different metrics pushed the templates' own reserved blocks into
+/// overflow. A template is a picture rather than a screen and starts from the
+/// same text wherever it is mounted, which is what this states.
 ///
 /// Reading direction is deliberately *not* fixed: it is inherited, so an Arabic
 /// card composes right-to-left exactly as the app does.
@@ -79,11 +89,22 @@ class ShareCardSurface extends StatelessWidget {
           viewInsets: EdgeInsets.zero,
           devicePixelRatio: 1,
         ),
-        // A card is opaque: it is a picture, and a transparent PNG sent to a
-        // messaging app is composited against whatever that app decides.
-        child: ColoredBox(
-          color: const Color(0xFF000000),
-          child: child,
+        // Stated rather than inherited, and stated without the theme: the same
+        // lineup composed by a reader in light mode and a reader in dark mode
+        // has to be the same file, and a text theme carries a colour that is
+        // not.
+        child: DefaultTextStyle(
+          style: const TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontWeight: FontWeight.w400,
+            decoration: TextDecoration.none,
+          ),
+          // A card is opaque: it is a picture, and a transparent PNG sent to a
+          // messaging app is composited against whatever that app decides.
+          child: ColoredBox(
+            color: const Color(0xFF000000),
+            child: child,
+          ),
         ),
       ),
     );

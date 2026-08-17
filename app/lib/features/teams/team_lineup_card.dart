@@ -993,6 +993,7 @@ class _Composition {
     required this.baseRadius,
     required this.columns,
     required this.nameLines,
+    required this.lineHeight,
   });
 
   final _Camera camera;
@@ -1015,8 +1016,17 @@ class _Composition {
   /// line under it.
   static const _goalClearance = 20.0;
 
-  /// The name's leading, and the one place it is stated.
-  static const _lineHeight = 1.2;
+  /// What one line of name actually occupies, per point of type, on the engine
+  /// this card is being composed by.
+  ///
+  /// **Measured rather than assumed.** The style asks for a leading of 1.2 and
+  /// a desktop text engine gives exactly that; Android's gives a few pixels
+  /// more for the same style, and the block reserved from the arithmetic then
+  /// overran by those few pixels — an overflow stripe baked into a picture
+  /// somebody was about to send. So the height of a line is read from the
+  /// engine that will draw it.
+  final double lineHeight;
+
 
   /// The room one mark is given across at depth [v] — its share of the band the
   /// players stand in, which narrows with the pitch.
@@ -1044,7 +1054,7 @@ class _Composition {
     return _Metrics(
       radius: radius,
       nameSize: nameSize,
-      nameHeight: (nameSize * _lineHeight).ceilToDouble() * nameLines,
+      nameHeight: (nameSize * lineHeight).ceilToDouble() * nameLines,
       nameWidth: slotAt(v) - 30 * scale,
       ratingSize: ratingSize,
       hintSize:
@@ -1093,11 +1103,16 @@ class _Composition {
       1,
       rows.fold(1, (widest, row) => math.max(widest, row.players.length)),
     );
+    // One measurement for the whole card: the ratio is a property of the text
+    // engine and the style, not of any particular size.
+    final lineHeight = _PlayerName.measuredLineHeight(context, names);
+
     _Composition candidate(double radius, int lines) => _Composition(
           camera: camera,
           baseRadius: radius,
           columns: columns,
           nameLines: lines,
+          lineHeight: lineHeight,
         );
 
     bool fits(_Composition composition) {
@@ -1606,6 +1621,33 @@ class _PlayerName extends StatelessWidget {
               shadows: const [Shadow(blurRadius: 8, color: Color(0xCC000000))],
             ),
           );
+
+  /// What one line of this style occupies, per point of type.
+  ///
+  /// Laid out at a reference size and divided back down, so the answer is the
+  /// engine's own leading rather than the one the style asked for — and laid
+  /// out with the card's own names, because the answer is not the same for
+  /// every script. A line of Arabic set through a fallback face is taller than
+  /// the 1.2 the style asks for, and a block reserved from the arithmetic is a
+  /// block that overflows on the device where that face lives.
+  static double measuredLineHeight(BuildContext context, Iterable<String> names) {
+    const probe = 40.0;
+    var tallest = _comfortLineHeight;
+    for (final text in {'Ag', ...names}) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: styleAt(context, probe)),
+        maxLines: 1,
+        textDirection: Directionality.of(context),
+        textScaler: TextScaler.noScaling,
+      )..layout();
+      tallest = math.max(tallest, painter.height / probe);
+    }
+    return tallest;
+  }
+
+  /// Never less than the leading the style asks for: a measurement that came
+  /// back short would reserve less room than the text takes.
+  static const _comfortLineHeight = 1.2;
 
   /// Whether [text] fits [maxLines] lines of [maxWidth] at [at].
   static bool _fits(
