@@ -662,11 +662,12 @@ class _Camera {
   /// How much smaller the far end of the pitch is drawn than the near end.
   ///
   /// **Enough depth to be a camera, not enough to be a hierarchy.** Further
-  /// down the scale — a third, a half — the two sides stop being two sides of a
-  /// match and become a foreground team and a background team, which is not
-  /// what a lineup is. At 0.78 the recession is unmistakable and the far eleven
-  /// is still, plainly, an eleven.
-  static const _farScale = 0.78;
+  /// down the scale — the 0.58 the exploration used — the two sides stop being
+  /// two sides of a match and become a foreground team and a background team,
+  /// which is not what a lineup is. Further up it, at 0.78, eleven a side reads
+  /// as a lean rather than as a camera: eight rows of players compress the
+  /// recession until it is barely there. 0.70 is where both hold.
+  static const _farScale = 0.70;
 
   /// The near end runs wider than the frame, so the touchlines nearest the
   /// camera leave the picture instead of stopping inside it.
