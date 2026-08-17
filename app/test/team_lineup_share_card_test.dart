@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:btge/btge.dart';
@@ -416,6 +417,93 @@ void main() {
         TextDirection.rtl,
       );
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // --- the camera -------------------------------------------------------------
+
+  group('the pitch is seen from behind the near goal', () {
+    List<TeamAssignment> elevenASide() => [
+          for (var i = 0; i < 11; i++)
+            assignment('a$i', TeamId.a, Position.values[i % 4]),
+          for (var i = 0; i < 11; i++)
+            assignment('b$i', TeamId.b, Position.values[i % 4]),
+        ];
+
+    TeamLineupCardData crowded() {
+      final lineup = elevenASide();
+      return cardData(
+        lineup: lineup,
+        players: {
+          for (final a in lineup)
+            a.participantId: input(a.participantId, Position.mid),
+        },
+        resolvedNames: {
+          for (final a in lineup) a.participantId: 'P${a.participantId}',
+        },
+      );
+    }
+
+    List<TeamLineupPlayerMark> marksOf(WidgetTester tester) => tester
+        .widgetList<TeamLineupPlayerMark>(find.byType(TeamLineupPlayerMark))
+        .toList();
+
+    testWidgets('the far side is drawn smaller than the near side',
+        (tester) async {
+      // The projection, asserted where it can be: Team A defends the far goal,
+      // so its marks are the smaller ones and they sit higher up the picture.
+      await pumpCard(tester, crowded());
+
+      final marks = marksOf(tester);
+      final radii = marks.map((mark) => mark.radius).toList();
+      final smallest = radii.reduce(math.min);
+      final largest = radii.reduce(math.max);
+
+      expect(smallest, lessThan(largest),
+          reason: 'without a size difference there is no camera');
+
+      double topOf(TeamLineupPlayerMark mark) =>
+          tester.getTopLeft(find.text(mark.name)).dy;
+      final far = marks.firstWhere((mark) => mark.radius == smallest);
+      final near = marks.firstWhere((mark) => mark.radius == largest);
+      expect(topOf(far), lessThan(topOf(near)),
+          reason: 'the smaller marks are the ones further up the pitch');
+    });
+
+    testWidgets('the far side is not made secondary', (tester) async {
+      // The whole reason the recession is gentle: past a point, depth stops
+      // reading as a camera and starts reading as a hierarchy between two
+      // sides of the same match.
+      await pumpCard(tester, crowded());
+
+      final radii = marksOf(tester).map((mark) => mark.radius).toList();
+      expect(
+        radii.reduce(math.min) / radii.reduce(math.max),
+        inInclusiveRange(0.72, 0.98),
+        reason: 'the far eleven must still, plainly, be an eleven',
+      );
+    });
+
+    testWidgets('every rating stays large enough to read', (tester) async {
+      // A number that recedes with its face stops being a rating. Ratings are
+      // compensated against the projection and floored, and eleven a side is
+      // where that floor earns its keep.
+      await pumpCard(tester, crowded());
+
+      final ratings = tester.widgetList<Text>(find.text('6.0'));
+      expect(ratings, hasLength(22));
+      for (final rating in ratings) {
+        expect(rating.style!.fontSize, greaterThanOrEqualTo(20));
+      }
+    });
+
+    testWidgets('every name stays large enough to read', (tester) async {
+      await pumpCard(tester, crowded());
+
+      for (final mark in marksOf(tester)) {
+        final name = tester.widget<Text>(find.text(mark.name));
+        expect(name.style!.fontSize, greaterThanOrEqualTo(18));
+      }
     });
   });
 

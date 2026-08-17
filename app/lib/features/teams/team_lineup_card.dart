@@ -318,42 +318,30 @@ class _Header extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        if (format case final String format) ...[
-          _Kicker(label: format),
-          const SizedBox(height: 24),
-        ],
+        // The masthead: the shape of the match at one end of a rule, the clock
+        // at the other, and the width of the page between them. It is a
+        // newspaper's device and it does three things at once — it puts a top
+        // edge on the picture, it carries the two pieces of fixture that are
+        // shortest, and it leaves the middle of the header for the subject.
+        _Masthead(format: format, clock: clock),
+        const SizedBox(height: 30),
         if (name case final String name) ...[
           _Subject(name: name),
-          // A clear step down before the fixture begins. The subject needs air
-          // beneath it more than the two lines under it need to be close: the
+          // A clear step down before the rest of the fixture. The subject needs
+          // air beneath it more than the line under it needs to be close: the
           // gap is what tells the eye where the headline ends.
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
         ],
-        if (day case final String day)
-          Text(
-            day,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: TeamLineupCard._inkFaint,
-              fontSize: 30,
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-              letterSpacing: 0.4,
-            ),
-          ),
-        if (clock.isNotEmpty || place != null) ...[
-          const SizedBox(height: 8),
+        if (day != null || place != null)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (clock.isNotEmpty) _Clock(parts: clock),
-              if (clock.isNotEmpty && place != null) const _Diamond(),
-              if (place != null) Flexible(child: _Aside(text: place)),
+              if (day case final String day) Flexible(child: _Aside(text: day)),
+              if (day != null && place != null) const _Diamond(),
+              if (place case final String place)
+                Flexible(child: _Aside(text: place)),
             ],
           ),
-        ],
       ],
     );
   }
@@ -419,69 +407,76 @@ class _Aside extends StatelessWidget {
   }
 }
 
-/// The shape of the match, set as the kicker over the whole card.
+/// The masthead: the format at the start of a rule, the clock at the end.
 ///
-/// A poster's overline: small, tracked, in the brand's colour, with a short
-/// rule running out of each side of it. It is the one place tracking is safe —
-/// two digits and a Latin V — and it puts the format where a reader looks
-/// first without letting it compete with the name underneath.
-class _Kicker extends StatelessWidget {
-  const _Kicker({required this.label});
+/// **A newspaper's device, doing a newspaper's job.** The rule puts a top edge
+/// on the picture without a heading having to; the two shortest pieces of
+/// fixture ride it, which keeps them out of the way of the subject; and the
+/// format sits where a reader looks first — strong enough to be read at a
+/// glance, small enough that it never competes with the name underneath.
+class _Masthead extends StatelessWidget {
+  const _Masthead({required this.format, required this.clock});
 
-  final String label;
+  final String? format;
+  final List<String> clock;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const _KickerRule(fadeTowardsStart: true),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 22),
-          child: Text(
-            label,
+        if (format case final String format) ...[
+          Text(
+            format,
             // Digits against digits: it reads the same way in both languages.
             textDirection: TextDirection.ltr,
             style: const TextStyle(
               color: TeamLineupCard._accent,
-              fontSize: 34,
+              fontSize: 32,
               fontWeight: FontWeight.w900,
-              letterSpacing: 7,
+              letterSpacing: 6,
               height: 1.0,
             ),
           ),
+          const SizedBox(width: 22),
+        ],
+        const Expanded(
+          child: SizedBox(
+            height: 3,
+            child: CustomPaint(painter: _MastheadRulePainter()),
+          ),
         ),
-        const _KickerRule(fadeTowardsStart: false),
+        if (clock.isNotEmpty) ...[
+          const SizedBox(width: 22),
+          _Clock(parts: clock),
+        ],
       ],
     );
   }
 }
 
-/// One of the two rules beside the kicker, fading away from it.
-class _KickerRule extends StatelessWidget {
-  const _KickerRule({required this.fadeTowardsStart});
-
-  final bool fadeTowardsStart;
+/// The rule itself: brightest where the format leaves it and quietest where the
+/// clock picks it up, so the line reads as one movement across the page.
+class _MastheadRulePainter extends CustomPainter {
+  const _MastheadRulePainter();
 
   @override
-  Widget build(BuildContext context) {
-    const solid = Color(0x8A3DDC84);
-    const gone = Color(0x003DDC84);
-
-    return Container(
-      width: 116,
-      height: 4,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: fadeTowardsStart
-              ? const [gone, solid]
-              : const [solid, gone],
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          rect.centerLeft,
+          rect.centerRight,
+          const [Color(0x8A3DDC84), Color(0x1FFFFFFF), Color(0x14FFFFFF)],
+          const [0.0, 0.32, 1.0],
         ),
-      ),
     );
   }
+
+  @override
+  bool shouldRepaint(covariant _MastheadRulePainter oldDelegate) => false;
 }
 
 /// Whose teams these are. The largest thing on the card.
@@ -648,69 +643,109 @@ class _HairlinePainter extends CustomPainter {
 
 // --- the pitch ----------------------------------------------------------------
 
+/// Where a point on the pitch lands once the camera is behind the near goal.
+///
+/// **One projection, and everything on the card obeys it.** The touchlines, the
+/// boxes, the mown bands, the two goals and every player are placed through
+/// this, which is what makes the depth read as a camera rather than as a
+/// drawing with a few slanted lines in it.
+///
+/// [u] runs 0 at the left touchline to 1 at the right; [v] runs 0 at the far
+/// goal to 1 at the near one. Nothing outside this class knows how the picture
+/// is projected.
+@immutable
+class _Camera {
+  const _Camera({required this.size});
+
+  final Size size;
+
+  /// How much smaller the far end of the pitch is drawn than the near end.
+  ///
+  /// **Enough depth to be a camera, not enough to be a hierarchy.** Further
+  /// down the scale — a third, a half — the two sides stop being two sides of a
+  /// match and become a foreground team and a background team, which is not
+  /// what a lineup is. At 0.78 the recession is unmistakable and the far eleven
+  /// is still, plainly, an eleven.
+  static const _farScale = 0.78;
+
+  /// The near end runs wider than the frame, so the touchlines nearest the
+  /// camera leave the picture instead of stopping inside it.
+  static const _nearPitch = 1.13;
+
+  /// The band the players stand in, which is not the width of the pitch: nobody
+  /// is drawn on the touchline, and this is what keeps the outermost name
+  /// inside the margin the type is set to.
+  static const _nearPlayers = 0.87;
+
+  double get _centre => size.width / 2;
+
+  /// Depth eases as it recedes, so rows bunch towards the far goal the way they
+  /// do down a real camera's barrel.
+  double _depth(double v) => math.pow(v.clamp(0.0, 1.0), 1.07).toDouble();
+
+  double scaleAt(double v) => _farScale + (1 - _farScale) * _depth(v);
+
+  /// The goal lines stand off the ends of the stage: the far one clear of the
+  /// fixture above it, the near one clear of the signature below.
+  static const _padFar = 52.0;
+  /// The near end takes the deeper margin: it is the end whose keeper carries
+  /// a name under them, and the end the signature sits below.
+  static const _padNear = 62.0;
+
+  double yAt(double v) =>
+      _padFar + (size.height - _padFar - _padNear) * _depth(v);
+
+  double pitchWidthAt(double v) => size.width * _nearPitch * scaleAt(v);
+
+  double playerBandAt(double v) => size.width * _nearPlayers * scaleAt(v);
+
+  Offset project(double u, double v) =>
+      Offset(_centre + (u - 0.5) * pitchWidthAt(v), yAt(v));
+
+  /// Where the [index]th of [count] players in a row at depth [v] stands.
+  double playerX(int index, int count, double v) {
+    final band = playerBandAt(v);
+    return _centre - band / 2 + band * (index + 0.5) / count;
+  }
+}
+
 /// The room the pitch is given, and the pitch built to fill it.
 ///
-/// The proportions are held and the size is not: the stage takes the height the
+/// The stage takes the whole width of the picture and whatever height the
 /// composition leaves it — a community with a two-line name leaves less — and
-/// derives the width from that. Everything drawn inside is measured from the
-/// resolved size rather than from a constant, so the pitch is never a fixed
-/// drawing squeezed into a variable box.
+/// the camera works in those units. Nothing here is a fixed drawing squeezed
+/// into a variable box.
 class _PitchStage extends StatelessWidget {
   const _PitchStage({required this.data});
 
   final TeamLineupCardData data;
 
-  /// The widest the pitch is allowed to be drawn, as width over height.
-  ///
-  /// **The pitch takes the whole width of the picture and gives on the other
-  /// axis.** A pitch held to a fixed proportion leaves a gutter down both sides
-  /// of the card, and a gutter is what turns a drawing into a panel sitting on
-  /// a background. So the stage fills the frame edge to edge and lets the
-  /// proportion float: at 0.86 the touchlines are past the edge of the picture
-  /// and the pitch simply carries on out of frame, which is what "bleed" means
-  /// and what no bordered container can do.
-  ///
-  /// A real pitch runs anywhere from about 0.57 to 0.9 wide against long, so
-  /// nothing in this band is a pitch a reader would not recognise, and the
-  /// markings inside it stay in their own true proportions either way.
-  static const _maxRatio = 0.86;
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final height = constraints.maxHeight;
-        final width = math.min(constraints.maxWidth, height * _maxRatio);
-        return Center(
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: _Pitch(data: data, size: Size(width, height)),
-          ),
-        );
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        return _Pitch(data: data, camera: _Camera(size: size));
       },
     );
   }
 }
 
-/// One pitch, both teams, facing each other across the halfway line.
+/// One pitch, both teams, facing each other down the length of it.
 class _Pitch extends StatelessWidget {
-  const _Pitch({required this.data, required this.size});
+  const _Pitch({required this.data, required this.camera});
 
   final TeamLineupCardData data;
-  final Size size;
+  final _Camera camera;
 
-  /// Room between the edge of the picture and the outermost player. Wider than
-  /// it needs to be for the markings' sake: the pitch runs out of frame now, so
-  /// this is what keeps the players and their names inside the safe margin the
-  /// type is set to.
-  static const _insetX = 66.0;
-  static const _insetY = 46.0;
-
-  /// The halfway line's own room. Without it the two attacks meet exactly on
-  /// the line — no overlap, but no air either, and the one place on the card
-  /// where the two teams touch is the place that most needs to be legible.
-  static const _midGutter = 16.0;
+  /// The depths the two sides occupy. Team A defends the far goal and Team B
+  /// the near one, and neither reaches its goal line or the halfway line: a
+  /// keeper stands off their line, and two attacks do not stand on top of each
+  /// other.
+  static const _aFrom = 0.06;
+  static const _aTo = 0.42;
+  static const _bFrom = 0.58;
+  static const _bTo = 0.94;
 
   @override
   Widget build(BuildContext context) {
@@ -719,106 +754,137 @@ class _Pitch extends StatelessWidget {
     final a = _Half.of(data, TeamId.a, towardsTop: true);
     final b = _Half.of(data, TeamId.b, towardsTop: false);
 
-    final rows = math.max(1, math.max(a.rows.length, b.rows.length));
-    final columns = math.max(
-      1,
-      [...a.rows, ...b.rows].fold(1, (m, row) => math.max(m, row.length)),
+    final rows = <_Row>[
+      ..._depths(a.rows, _aFrom, _aTo, TeamLineupCard._accent, a.movedFrom),
+      ..._depths(b.rows, _bFrom, _bTo, TeamLineupCard._ice, b.movedFrom),
+    ];
+
+    final composition = _Composition.solve(
+      context: context,
+      camera: camera,
+      rows: rows,
+      names: [
+        for (final row in rows)
+          for (final assignment in row.players)
+            data.names[assignment.participantId] ?? '—',
+      ],
     );
-
-    final cellWidth = (size.width - _insetX * 2) / columns;
-    final rowHeight =
-        (size.height - _insetY * 2 - _midGutter * 2) / 2 / rows;
-    final hasHint = a.hasHint || b.hasHint;
-
-    var metrics = _MarkMetrics.resolve(
-      cellWidth: cellWidth,
-      rowHeight: rowHeight,
-      hasHint: hasHint,
-      nameLines: 1,
-    );
-
-    // **A second line is bought, not assumed.** Room for one is room taken off
-    // every photograph on the card, so it is only reserved where a name on
-    // *this* lineup cannot be set on one line without being shrunk past what a
-    // reader can take in — and then it is reserved for every mark, because one
-    // size for everybody is what stops the drawing looking accidental. A five
-    // a side of ordinary names resolves exactly as it did before this existed.
-    if (_PlayerName.anyNeedsTwoLines(context, _drawnNames(a, b), metrics)) {
-      final roomier = _MarkMetrics.resolve(
-        cellWidth: cellWidth,
-        rowHeight: rowHeight,
-        hasHint: hasHint,
-        nameLines: 2,
-      );
-      // Unless there is no room to buy it with: a lineup already at the
-      // smallest face the card draws keeps its one line and its ellipsis
-      // rather than running over the row below.
-      if (roomier.height <= rowHeight) metrics = roomier;
-    }
 
     return CustomPaint(
-      painter: const _PitchPainter(),
+      painter: _PitchPainter(camera: camera),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _insetX,
-              vertical: _insetY,
-            ),
-            child: Column(
-              children: [
-                // Team A defends the top goal, so its rows run the other way:
-                // the goal first and the attack last, meeting Team B's attack
-                // at the halfway line.
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: _midGutter),
-                    child: a.build(data, metrics, TeamLineupCard._accent),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: _midGutter),
-                    child: b.build(data, metrics, TeamLineupCard._ice),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // On the grass and clear of it: inside the touchline, outside the
-          // penalty areas — which occupy the middle 59% of each end — and above
-          // the goal rows, which are centred.
-          PositionedDirectional(
-            start: _insetX,
-            top: 18,
-            child: _TeamLabel(
-              label: l10n.teamAName,
-              tint: TeamLineupCard._accent,
-            ),
-          ),
-          PositionedDirectional(
-            start: _insetX,
-            bottom: 18,
-            child: _TeamLabel(
-              label: l10n.teamBName,
-              tint: TeamLineupCard._ice,
-            ),
-          ),
+          for (final row in rows)
+            for (final (index, assignment) in row.players.indexed)
+              _place(composition, row, index, assignment),
+          // The team key: one solid swatch of the side's colour on the grass it
+          // defends, at the corner the type margin allows.
+          _label(l10n.teamAName, TeamLineupCard._accent, _aFrom, top: true),
+          _label(l10n.teamBName, TeamLineupCard._ice, _bTo, top: false),
         ],
       ),
     );
   }
 
-  /// Every name the card is about to draw, both halves.
-  Iterable<String> _drawnNames(_Half a, _Half b) sync* {
-    for (final half in [a, b]) {
-      for (final row in half.rows) {
-        for (final assignment in row) {
-          yield data.names[assignment.participantId] ?? '—';
-        }
-      }
-    }
+  /// The rows of a half, each pinned to its own depth.
+  List<_Row> _depths(
+    List<List<TeamAssignment>> rows,
+    double from,
+    double to,
+    Color tint,
+    Map<String, Position> movedFrom,
+  ) {
+    return [
+      for (final (index, players) in rows.indexed)
+        _Row(
+          players: players,
+          tint: tint,
+          movedFrom: movedFrom,
+          v: rows.length == 1
+              ? (from + to) / 2
+              : from + (to - from) * index / (rows.length - 1),
+        ),
+    ];
   }
+
+  Widget _place(
+    _Composition composition,
+    _Row row,
+    int index,
+    TeamAssignment assignment,
+  ) {
+    final metrics = composition.at(row.v, hinted: row.hinted);
+    final x = camera.playerX(index, row.players.length, row.v);
+    final player = data.players[assignment.participantId];
+
+    return Positioned(
+      left: x - composition.slotAt(row.v) / 2,
+      top: camera.yAt(row.v) - metrics.radius,
+      width: composition.slotAt(row.v),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: TeamLineupPlayerMark(
+          // Resolved by the screen. A dash for somebody neither the profiles
+          // nor the roster knows.
+          name: data.names[assignment.participantId] ?? '—',
+          radius: metrics.radius,
+          nameSize: metrics.nameSize,
+          nameWidth: metrics.nameWidth,
+          nameHeight: metrics.nameHeight,
+          nameLines: composition.nameLines,
+          ratingSize: metrics.ratingSize,
+          hintSize: metrics.hintSize,
+          // The initials come from the **profile**, never from the resolved
+          // name: somebody who left the match after the lineup was stored has
+          // no profile and a dash for a name, and lettering a disc with a dash
+          // is not initials.
+          fullName: player?.fullName,
+          avatarUrl: player?.avatarUrl,
+          rating: player?.overallRating,
+          isProfessionalGuest: assignment.isProfessionalGuest,
+          movedFrom: row.movedFrom[assignment.participantId],
+          tint: row.tint,
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String label, Color tint, double v, {required bool top}) {
+    // Inside the touchline at that depth, but never inside the margin the type
+    // is set to: the far end of the pitch is narrower than the near end and the
+    // corner moves with it.
+    final inset = math.max(
+      TeamLineupCard._margin,
+      (camera.size.width - camera.pitchWidthAt(v)) / 2 + 18,
+    );
+    return PositionedDirectional(
+      start: inset,
+      top: top ? math.max(0.0, camera.yAt(v) - 78) : null,
+      bottom:
+          top ? null : math.max(0.0, camera.size.height - camera.yAt(v) - 10),
+      child: _TeamLabel(label: label, tint: tint),
+    );
+  }
+}
+
+/// One line of a formation, at the depth the camera puts it.
+@immutable
+class _Row {
+  const _Row({
+    required this.players,
+    required this.tint,
+    required this.movedFrom,
+    required this.v,
+  });
+
+  final List<TeamAssignment> players;
+  final Color tint;
+  final Map<String, Position> movedFrom;
+  final double v;
+
+  bool get hinted =>
+      players.any((p) => movedFrom.containsKey(p.participantId));
 }
 
 /// One team's half of the pitch, already arranged into rows.
@@ -862,188 +928,170 @@ class _Half {
       movedFrom: formation.movedFrom,
     );
   }
-
-  Widget build(TeamLineupCardData data, _MarkMetrics metrics, Color tint) {
-    return Column(
-      children: [
-        for (final row in rows)
-          Expanded(
-            child: _PitchRow(
-              row: row,
-              data: data,
-              metrics: metrics,
-              movedFrom: movedFrom,
-              tint: tint,
-            ),
-          ),
-      ],
-    );
-  }
 }
 
-/// One line of the pitch. The players spread evenly across it, so the shape of
-/// the row is the shape of the line.
-class _PitchRow extends StatelessWidget {
-  const _PitchRow({
-    required this.row,
-    required this.data,
-    required this.metrics,
-    required this.movedFrom,
-    required this.tint,
-  });
-
-  final List<TeamAssignment> row;
-  final TeamLineupCardData data;
-  final _MarkMetrics metrics;
-  final Map<String, Position> movedFrom;
-  final Color tint;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        for (final assignment in row)
-          SizedBox(
-            width: metrics.cellWidth,
-            child: Center(
-              child: TeamLineupPlayerMark(
-                // Resolved by the screen. A dash for somebody neither the
-                // profiles nor the roster knows.
-                name: data.names[assignment.participantId] ?? '—',
-                radius: metrics.radius,
-                nameSize: metrics.nameSize,
-                nameWidth: metrics.nameWidth,
-                nameHeight: metrics.nameHeight,
-                nameLines: metrics.nameLines,
-                ratingSize: metrics.ratingSize,
-                hintSize: metrics.hintSize,
-                // The initials come from the **profile**, never from the
-                // resolved name: somebody who left the match after the lineup
-                // was stored has no profile and a dash for a name, and
-                // lettering a disc with a dash is not initials.
-                fullName: data.players[assignment.participantId]?.fullName,
-                avatarUrl: data.players[assignment.participantId]?.avatarUrl,
-                rating: data.players[assignment.participantId]?.overallRating,
-                isProfessionalGuest: assignment.isProfessionalGuest,
-                movedFrom: movedFrom[assignment.participantId],
-                tint: tint,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// How large a player is drawn, decided once for the whole card.
-///
-/// **One size for everybody, chosen by the densest row.** A per-player
-/// `scaleDown` — what the card did before — gives a five-a-side keeper a
-/// different size from the defender beside them, and a graphic whose elements
-/// are almost the same size is a graphic that looks accidental. So the size is
-/// solved once against the tightest cell either team produces, and every mark
-/// on the card is that size.
-///
-/// **Five-a-side and eleven-a-side are not the same drawing.** Nothing here is
-/// a scale factor applied to a fixed design: fewer rows and shorter rows leave
-/// a larger cell, which resolves to a larger face, a larger name and a larger
-/// rating. A crowded lineup resolves the other way and stays inside its row.
+/// What one mark measures at one depth.
 @immutable
-class _MarkMetrics {
-  const _MarkMetrics({
+class _Metrics {
+  const _Metrics({
     required this.radius,
     required this.nameSize,
+    required this.nameHeight,
+    required this.nameWidth,
     required this.ratingSize,
     required this.hintSize,
-    required this.cellWidth,
-    required this.nameLines,
   });
 
   final double radius;
   final double nameSize;
+  final double nameHeight;
+  final double nameWidth;
   final double ratingSize;
   final double hintSize;
-  final double cellWidth;
-
-  /// How many lines of name the card has reserved room for, on every mark.
-  final int nameLines;
-
-  /// A face this large stops reading as a photograph on a poster. Five a side
-  /// reaches it; eleven a side never comes close.
-  static const _maxRadius = 66.0;
-
-  /// And below this it stops reading as a face at all. A lineup denser than the
-  /// engine can produce is drawn at this size and allowed to be tight rather
-  /// than shrunk into illegibility.
-  static const _minRadius = 22.0;
-
-  /// The room a name is given: its own cell, less a gutter wide enough to read
-  /// as a gap. Two long names in neighbouring cells both trim to their own
-  /// share and the space between them is what tells the reader they are two
-  /// names rather than one long one.
-  double get nameWidth => cellWidth - 34;
-
-  /// The room the name is given, whether or not this particular name uses all
-  /// of it. Reserved rather than measured per player so that every photograph
-  /// in a row sits at the same height: a mark that grew a line would otherwise
-  /// push its own face up out of line with the four beside it.
-  ///
-  /// Rounded up per line, because that is what the text engine does: a line box
-  /// of 33.06 × 1.2 is laid out as 40 pixels, not 39.67, and two of them
-  /// overrun a block reserved at the exact arithmetic by two thirds of a pixel
-  /// — which is a real overflow, and which the engine paints a stripe over.
-  double get nameHeight =>
-      (nameSize * _lineHeight).ceilToDouble() * nameLines;
 
   /// The whole mark, top of the photograph to the foot of the last line.
-  ///
-  /// Nothing hangs off the circle any more — the rating is inside it — so the
-  /// mark is exactly its face, its gap and its name. The room that used to be
-  /// reserved for a badge overhanging the photograph is spent on the face.
-  double get height =>
-      radius * 2 + radius * 0.16 + nameHeight + hintSize * 1.5;
+  double get height => radius * 2 + radius * 0.16 + nameHeight + hintSize * 1.5;
+}
+
+/// How large the players are drawn, solved once for the whole card.
+///
+/// **One size, seen from one camera.** Every mark is the same player-sized
+/// object; what differs between them is how far away they are. So a single base
+/// size is solved here against every row at once — the tightest gap on the card
+/// decides it — and each mark is drawn at that size times its own depth.
+///
+/// **Two things refuse to recede.** A rating and a name are read rather than
+/// looked at, so both are compensated against the projection and floored: the
+/// far eleven's numbers stay legible on a phone even though the far eleven's
+/// faces are smaller. The compensation is partial on purpose — take it all the
+/// way and the depth stops reading; leave it out and eleven a side loses its
+/// numbers.
+@immutable
+class _Composition {
+  const _Composition({
+    required this.camera,
+    required this.baseRadius,
+    required this.columns,
+    required this.nameLines,
+  });
+
+  final _Camera camera;
+
+  /// The size of a mark at the near end of the pitch, where the camera is.
+  final double baseRadius;
+
+  /// How many players stand in the widest row on the card.
+  final int columns;
+
+  final int nameLines;
+
+  /// A face this large stops reading as a photograph on a poster.
+  static const _maxRadius = 62.0;
+
+  /// And below this it stops reading as a face at all.
+  static const _minRadius = 20.0;
 
   /// The name's leading, and the one place it is stated.
   static const _lineHeight = 1.2;
 
-  factory _MarkMetrics.resolve({
-    required double cellWidth,
-    required double rowHeight,
-    required bool hasHint,
-    required int nameLines,
-  }) {
-    // Largest first, and the first size that fits both ways wins. A whole
-    // pixel at a time: the answer feeds a photograph's diameter, and a
-    // fractional radius buys nothing a reader can see.
-    for (var radius = _maxRadius; radius > _minRadius; radius -= 1) {
-      final candidate = _at(radius, cellWidth, hasHint, nameLines);
-      if (candidate.height <= rowHeight && radius * 2 + 12 <= cellWidth) {
-        return candidate;
-      }
-    }
-    return _at(_minRadius, cellWidth, hasHint, nameLines);
+  /// The room one mark is given across at depth [v] — its share of the band the
+  /// players stand in, which narrows with the pitch.
+  double slotAt(double v) => camera.playerBandAt(v) / columns;
+
+  /// The room a name is given at the far end, which is the tightest on the
+  /// card and the width the two-line question is asked against.
+  double get nameWidth => slotAt(0) - 30 * camera.scaleAt(0);
+
+  /// [hinted] is whether this row carries anybody drawn out of their line. Only
+  /// those rows reserve the note beneath the name: a card where one midfielder
+  /// moved should not spend a line of every other row on it, and the rows are
+  /// measured against the space in front of them one at a time anyway.
+  _Metrics at(double v, {bool hinted = false}) {
+    final scale = camera.scaleAt(v);
+    final radius = baseRadius * scale;
+    final nameSize = (baseRadius * 0.58 * (0.74 + 0.26 * scale))
+        .clamp(19.0, 37.0)
+        .toDouble();
+    final ratingSize = (baseRadius * 0.52 * (0.62 + 0.38 * scale))
+        .clamp(20.0, 34.0)
+        // Never wider than the face it is set into.
+        .clamp(0.0, radius * 0.70)
+        .toDouble();
+    return _Metrics(
+      radius: radius,
+      nameSize: nameSize,
+      nameHeight: (nameSize * _lineHeight).ceilToDouble() * nameLines,
+      nameWidth: slotAt(v) - 30 * scale,
+      ratingSize: ratingSize,
+      hintSize:
+          hinted ? (radius * 0.34).clamp(13.0, 21.0).toDouble() : 0.0,
+    );
   }
 
-  static _MarkMetrics _at(
-    double radius,
-    double cellWidth,
-    bool hasHint,
-    int nameLines,
-  ) {
-    return _MarkMetrics(
-      radius: radius,
-      nameSize: (radius * 0.58).clamp(19.0, 37.0).toDouble(),
-      // Larger than the tag it replaces: a figure read against a photograph
-      // needs more weight than one read against a solid fill, and it is now
-      // the only number on the mark. It also holds a floor of its own — the
-      // face shrinks with the lineup and the rating must not shrink with it
-      // past the point where a phone can read it.
-      ratingSize: (radius * 0.56).clamp(21.0, 34.0).toDouble(),
-      hintSize: hasHint ? (radius * 0.34).clamp(13.0, 21.0).toDouble() : 0.0,
-      cellWidth: cellWidth,
-      nameLines: nameLines,
+  /// The largest base size at which no mark runs into the row in front of it,
+  /// into the player beside it, or off either end of the pitch.
+  static _Composition solve({
+    required BuildContext context,
+    required _Camera camera,
+    required List<_Row> rows,
+    required List<String> names,
+  }) {
+    final columns = math.max(
+      1,
+      rows.fold(1, (widest, row) => math.max(widest, row.players.length)),
     );
+    _Composition candidate(double radius, int lines) => _Composition(
+          camera: camera,
+          baseRadius: radius,
+          columns: columns,
+          nameLines: lines,
+        );
+
+    bool fits(_Composition composition) {
+      for (final (index, row) in rows.indexed) {
+        final metrics = composition.at(row.v, hinted: row.hinted);
+        final top = camera.yAt(row.v) - metrics.radius;
+
+        // Off the far or the near end of the stage.
+        if (top < 0) return false;
+        if (index == rows.length - 1 &&
+            top + metrics.height > camera.size.height) {
+          return false;
+        }
+
+        // Into the row in front.
+        if (index < rows.length - 1) {
+          final next = rows[index + 1];
+          final nextTop = camera.yAt(next.v) -
+              composition.at(next.v, hinted: next.hinted).radius;
+          if (top + metrics.height > nextTop) return false;
+        }
+
+        // Into the player alongside.
+        final band = camera.playerBandAt(row.v);
+        if (metrics.radius * 2 + 12 > band / row.players.length) return false;
+      }
+      return true;
+    }
+
+    // Largest first, and the first size that fits wins — with the second line
+    // decided *at that size* rather than inherited from a larger one. The two
+    // questions are not independent: a smaller face sets a smaller name, and a
+    // smaller name is likelier to fit on one line. Asking them together is what
+    // stops the card reserving a line no name on it ends up using, and paying
+    // for that line out of every photograph.
+    for (var radius = _maxRadius; radius > _minRadius; radius -= 1) {
+      final oneLine = candidate(radius, 1);
+      final needsTwo = _PlayerName.anyNeedsTwoLines(
+        context,
+        names,
+        size: oneLine.at(rows.first.v).nameSize,
+        maxWidth: oneLine.nameWidth,
+      );
+      final trial = needsTwo ? candidate(radius, 2) : oneLine;
+      if (fits(trial)) return trial;
+    }
+    return candidate(_minRadius, 2);
   }
 }
 
@@ -1517,18 +1565,20 @@ class _PlayerName extends StatelessWidget {
   }
 
   /// Whether any of these names would have to be cut, or shrunk past comfort,
-  /// to be set on the one line [metrics] currently reserves.
+  /// to be set on one line of [maxWidth] at [size].
   ///
   /// The question the pitch asks before it decides whether to buy a second line
-  /// for the whole card.
+  /// for the whole card. It is asked at the far end of the projection, where
+  /// the type is smallest: a name that fits back there fits everywhere.
   static bool anyNeedsTwoLines(
     BuildContext context,
-    Iterable<String> names,
-    _MarkMetrics metrics,
-  ) {
-    final comfort = math.max(_floor, metrics.nameSize * _comfort);
+    Iterable<String> names, {
+    required double size,
+    required double maxWidth,
+  }) {
+    final comfort = math.max(_floor, size * _comfort);
     for (final name in names) {
-      if (!_fits(context, name, comfort, metrics.nameWidth, 1)) return true;
+      if (!_fits(context, name, comfort, maxWidth, 1)) return true;
     }
     return false;
   }
@@ -1706,187 +1756,152 @@ class _AtmospherePainter extends CustomPainter {
   bool shouldRepaint(covariant _AtmospherePainter oldDelegate) => false;
 }
 
-/// The pitch itself, drawn onto the ground rather than into a frame.
+/// The pitch, drawn from behind the near goal.
 ///
-/// Real markings in real proportions, taken from a 68 × 105 metre pitch: the
-/// penalty area is 40.3 × 16.5, the goal area 18.3 × 5.5, the centre circle
-/// 9.15 in radius and the penalty spot 11 from the goal line. Getting these
-/// right is most of what separates a football graphic from a rectangle with a
-/// circle in it.
+/// Real markings in real proportions, every one of them run through the same
+/// [_Camera] the players are: touchlines that converge, penalty and goal areas
+/// that narrow with distance, a centre circle that flattens into an ellipse,
+/// mown bands that compress as they recede, and a goal at each end drawn at its
+/// own depth. Getting these right is most of what separates a football graphic
+/// from a rectangle with a circle in it — and putting them in perspective is
+/// what separates a matchday graphic from a tactics board.
 ///
-/// **No box and no fill.** The line work fades towards both goal ends, so the
-/// pitch dissolves into the composition instead of ending at a border, and the
-/// only fill is a breath of emerald with no edge to it. Strokes are 4–6px in
-/// the engine's own units, which is what survives a messaging app's
+/// **No box and no fill.** The grass belongs to the ground the whole card is
+/// printed on; what is added here is the light behind each goal, painted past
+/// the ends of the pitch so it falls off through the frame rather than at it,
+/// and line work that fades towards both goals. Strokes are 3–5px in the
+/// engine's own units at the near end, which is what survives a messaging app's
 /// re-compression; a hairline would not.
 class _PitchPainter extends CustomPainter {
-  const _PitchPainter();
+  const _PitchPainter({required this.camera});
+
+  final _Camera camera;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final field = (Offset.zero & size).deflate(3);
-    final w = field.width;
-    final h = field.height;
+    final near = camera.pitchWidthAt(1);
 
-    // The grass itself belongs to the ground the whole card is printed on — a
-    // pitch that fills the frame and is *also* filled with a tone of its own
-    // gains an edge exactly where the fill stops, which is the border this
-    // drawing spent two passes getting rid of.
+    Offset at(double u, double v) => camera.project(u, v);
+
+    // --- the light each side defends -----------------------------------------
     //
-    // What is painted here is whose half is whose. Each end carries a breath of
-    // its team's colour, strongest behind the goal they defend and gone by the
-    // halfway line, so the two sides read as two sides before a reader has
-    // looked at a single player. It is the oldest device in the matchday
-    // graphic and it answers "who is where" in the time it takes to glance.
-    for (final (edge, colour) in [
-      (field.top, TeamLineupCard._accent),
-      (field.bottom, TeamLineupCard._ice),
+    // Painted well past both ends, so no edge of colour lands anywhere near the
+    // end of the pitch.
+    for (final (v, colour) in [
+      (0.0, TeamLineupCard._accent),
+      (1.0, TeamLineupCard._ice),
     ]) {
-      // Painted past the ends of the pitch, not up to them. A glow that stops
-      // where the pitch stops draws the very edge this picture keeps trying to
-      // lose: the light has to fall off through the frame, not at it.
       canvas.drawRect(
-        Rect.fromLTRB(
-          field.left,
-          field.top - h * 0.22,
-          field.right,
-          field.bottom + h * 0.22,
-        ),
+        Rect.fromLTRB(-near, -size.height * 0.3, size.width + near,
+            size.height * 1.3),
         Paint()
           ..shader = ui.Gradient.radial(
-            Offset(field.center.dx, edge),
-            h * 0.52,
-            [colour.withValues(alpha: 0.14), colour.withValues(alpha: 0)],
+            Offset(size.width / 2, camera.yAt(v)),
+            size.height * 0.54,
+            [colour.withValues(alpha: 0.13), colour.withValues(alpha: 0)],
           ),
       );
     }
 
-    /// White, at [alpha] through the middle of the pitch and weaker towards
-    /// both goals. The fade is what removes the frame: the four corners of the
-    /// touchline arrive at the edge of the card already half gone.
+    // --- the mow -------------------------------------------------------------
+    //
+    // Eight bands the length of the pitch. They are what tells the eye the
+    // ground is receding rather than merely narrowing, and at this alpha they
+    // are felt more than seen.
+    for (var i = 0; i < 8; i += 2) {
+      final v0 = i / 8, v1 = (i + 1) / 8;
+      final band = Path()
+        ..moveTo(at(0, v0).dx, camera.yAt(v0))
+        ..lineTo(at(1, v0).dx, camera.yAt(v0))
+        ..lineTo(at(1, v1).dx, camera.yAt(v1))
+        ..lineTo(at(0, v1).dx, camera.yAt(v1))
+        ..close();
+      canvas.drawPath(
+        band,
+        Paint()..color = Colors.white.withValues(alpha: 0.017),
+      );
+    }
+
+    // --- the line work -------------------------------------------------------
+
+    /// White at [alpha] through the middle of the pitch and weaker towards both
+    /// goals, so nothing ends in a corner.
     Shader fade(double alpha) => ui.Gradient.linear(
-          Offset(0, field.top),
-          Offset(0, field.bottom),
+          Offset(0, camera.yAt(0)),
+          Offset(0, camera.yAt(1)),
           [
-            Colors.white.withValues(alpha: alpha * 0.18),
-            Colors.white.withValues(alpha: alpha * 0.80),
+            Colors.white.withValues(alpha: alpha * 0.28),
+            Colors.white.withValues(alpha: alpha * 0.85),
             Colors.white.withValues(alpha: alpha),
-            Colors.white.withValues(alpha: alpha * 0.80),
-            Colors.white.withValues(alpha: alpha * 0.18),
+            Colors.white.withValues(alpha: alpha * 0.62),
           ],
-          const [0.0, 0.20, 0.5, 0.80, 1.0],
+          const [0.0, 0.3, 0.62, 1.0],
         );
 
-    /// The same thing across the pitch, for the two lines that run that way.
-    Shader across(double alpha) => ui.Gradient.linear(
-          Offset(field.left, 0),
-          Offset(field.right, 0),
-          [
-            Colors.white.withValues(alpha: 0),
-            Colors.white.withValues(alpha: alpha),
-            Colors.white.withValues(alpha: alpha),
-            Colors.white.withValues(alpha: 0),
-          ],
-          const [0.0, 0.22, 0.78, 1.0],
-        );
-
-    final touchline = Paint()
+    Paint stroke(double alpha, double width) => Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 5
-      ..shader = fade(0.42);
+      ..strokeWidth = width
+      ..strokeJoin = StrokeJoin.round
+      ..shader = fade(alpha);
 
-    final goalLine = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 5
-      ..shader = across(0.42);
+    final touchline = stroke(0.34, 4.5);
+    final marking = stroke(0.26, 3.5);
 
-    final marking = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..shader = fade(0.32);
+    void line(double u0, double v0, double u1, double v1, Paint paint) =>
+        canvas.drawLine(at(u0, v0), at(u1, v1), paint);
 
-    final dot = Paint()..shader = fade(0.32);
+    // Touchlines, converging towards the far goal. Drawn before the ends so the
+    // ends sit on top of them.
+    line(0, 0, 0, 1, touchline);
+    line(1, 0, 1, 1, touchline);
 
-    // Four lines rather than a rectangle, each fading out towards its own two
-    // ends. A rectangle closes, and anything that closes around a picture is a
-    // border; four lines that dissolve before they meet are a pitch that
-    // carries on past the frame.
-    canvas.drawLine(field.topLeft, field.bottomLeft, touchline);
-    canvas.drawLine(field.topRight, field.bottomRight, touchline);
-    canvas.drawLine(field.topLeft, field.topRight, goalLine);
-    canvas.drawLine(field.bottomLeft, field.bottomRight, goalLine);
-
-    // The halfway line and the centre circle, where the two teams meet — and
-    // the strongest line on the pitch, because the fade is at its full value
-    // there.
-    final middle = field.center.dy;
-    canvas.drawLine(
-      Offset(field.left, middle),
-      Offset(field.right, middle),
+    // The halfway line and the centre circle, flattened by the camera.
+    line(0, 0.5, 1, 0.5, marking);
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: at(0.5, 0.5),
+        width: camera.pitchWidthAt(0.5) * 0.27,
+        height: (camera.yAt(0.62) - camera.yAt(0.38)) * 0.62,
+      ),
       marking,
     );
-    canvas.drawCircle(Offset(field.center.dx, middle), w * 0.135, marking);
-    canvas.drawCircle(Offset(field.center.dx, middle), 6, dot);
+    canvas.drawCircle(at(0.5, 0.5), 5, Paint()..shader = fade(0.26));
 
-    // Both ends: penalty area, goal area, penalty spot, the arc off the box,
-    // and the goal itself outside the touchline.
-    final penaltyWidth = w * 0.59;
-    final penaltyDepth = h * 0.157;
-    final goalAreaWidth = w * 0.27;
-    final goalAreaDepth = h * 0.052;
-    final goalWidth = w * 0.108;
-    final spotFromLine = h * 0.105;
+    // Both ends: the goal line, the penalty area, the goal area, the spot and
+    // the goal itself, each at its own depth.
+    for (final (goalV, boxV, areaV, spotV, sign) in [
+      (0.0, 0.135, 0.045, 0.10, 1.0),
+      (1.0, 0.865, 0.955, 0.90, -1.0),
+    ]) {
+      line(0, goalV, 1, goalV, touchline);
 
-    for (final top in [true, false]) {
-      final edge = top ? field.top : field.bottom;
-      final sign = top ? 1.0 : -1.0;
+      void box(double halfWidth, double depthV) {
+        final path = Path()
+          ..moveTo(at(0.5 - halfWidth, goalV).dx, camera.yAt(goalV))
+          ..lineTo(at(0.5 - halfWidth, depthV).dx, camera.yAt(depthV))
+          ..lineTo(at(0.5 + halfWidth, depthV).dx, camera.yAt(depthV))
+          ..lineTo(at(0.5 + halfWidth, goalV).dx, camera.yAt(goalV));
+        canvas.drawPath(path, marking);
+      }
 
-      Rect box(double boxWidth, double depth) => Rect.fromLTWH(
-            field.center.dx - boxWidth / 2,
-            top ? edge : edge - depth,
-            boxWidth,
-            depth,
-          );
+      box(0.295, boxV);
+      box(0.135, areaV);
+      canvas.drawCircle(at(0.5, spotV), 4.5, Paint()..shader = fade(0.26));
 
-      canvas.drawRect(box(penaltyWidth, penaltyDepth), marking);
-      canvas.drawRect(box(goalAreaWidth, goalAreaDepth), marking);
-
-      final spot = Offset(field.center.dx, edge + sign * spotFromLine);
-      canvas.drawCircle(spot, 6, dot);
-
-      // The D: the part of the centre-circle-sized arc that falls outside the
-      // penalty area. Swept from the spot, clipped to beyond the box.
-      canvas.save();
-      canvas.clipRect(
-        Rect.fromLTWH(
-          field.left,
-          top ? edge + penaltyDepth : field.top,
-          w,
-          top ? h : h - penaltyDepth,
-        ),
-      );
-      canvas.drawArc(
-        Rect.fromCircle(center: spot, radius: w * 0.135),
-        0,
-        sign * math.pi,
-        false,
-        marking,
-      );
-      canvas.restore();
-
-      // The goal, standing outside the touchline.
-      canvas.drawRect(
-        Rect.fromLTWH(
-          field.center.dx - goalWidth / 2,
-          top ? edge - 15 : edge,
-          goalWidth,
-          15,
-        ),
-        touchline,
-      );
+      // The goal, standing off the line and away from the camera.
+      final left = at(0.446, goalV);
+      final right = at(0.554, goalV);
+      final height = 34 * camera.scaleAt(goalV) * sign;
+      final frame = Path()
+        ..moveTo(left.dx, left.dy)
+        ..lineTo(left.dx, left.dy - height)
+        ..lineTo(right.dx, right.dy - height)
+        ..lineTo(right.dx, right.dy);
+      canvas.drawPath(frame, touchline);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _PitchPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _PitchPainter oldDelegate) =>
+      oldDelegate.camera.size != camera.size;
 }
