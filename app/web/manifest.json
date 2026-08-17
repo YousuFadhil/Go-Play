@@ -1,11 +1,11 @@
 {
-    "name": "go_play",
-    "short_name": "go_play",
+    "name": "Go Play",
+    "short_name": "Go Play",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Go Play — community football: matches, teams and lineups.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
