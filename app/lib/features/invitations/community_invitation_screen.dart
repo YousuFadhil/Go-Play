@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/club_place.dart';
+import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../../core/tokens.dart';
 import '../communities/community_repository.dart';
 import 'invite_link.dart';
 
@@ -91,91 +93,203 @@ class _CommunityInvitationScreenState extends State<CommunityInvitationScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-
     return Scaffold(
-      appBar: AppHeader(title: Text(l10n.communityInvitationTitle)),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(l10n.communityInvitationHelp,
-                style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 24),
-
-            Text(l10n.joinCodeLabel, style: theme.textTheme.labelLarge),
-            const SizedBox(height: 8),
-            // The code is what people read aloud, so it is set large and
-            // left-to-right: it is not language, and it never reverses.
-            SelectableText(
-              _joinCode,
-              textDirection: TextDirection.ltr,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
-                letterSpacing: 2,
+      backgroundColor: GoColors.bgHero,
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: ClubHero(
+              bar: ClubHeroBar(
+                title: l10n.communityInvitationTitle,
+                onBack: () => Navigator.of(context).maybePop(),
               ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _busy
-                  ? null
-                  : () => _copy(
-                      value: _joinCode, confirmation: l10n.joinCodeCopied),
-              icon: const Icon(Icons.copy_outlined),
-              label: Text(l10n.copyJoinCodeButton),
-            ),
-
-            const Divider(height: 40),
-
-            Text(l10n.inviteLinkLabel, style: theme.textTheme.labelLarge),
-            const SizedBox(height: 8),
-            SelectableText(
-              _link,
-              textDirection: TextDirection.ltr,
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _busy
-                  ? null
-                  : () =>
-                      _copy(value: _link, confirmation: l10n.inviteLinkCopied),
-              icon: const Icon(Icons.link),
-              label: Text(l10n.copyLinkButton),
-            ),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _busy
-                  ? null
-                  : () => _copy(
-                        value: l10n.inviteShareCommunityBody(
-                            widget.communityName, _link),
-                        confirmation: l10n.inviteLinkCopied,
+              identity: Row(
+                children: [
+                  CommunityCrest(name: widget.communityName, onHero: true),
+                  const SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Text(
+                      widget.communityName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.7,
+                        color: Colors.white,
                       ),
-              icon: const Icon(Icons.ios_share),
-              label: Text(l10n.shareInvitation),
-            ),
-
-            const Divider(height: 40),
-
-            // Last, and outlined rather than filled: it is the destructive one.
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _regenerate,
-              icon: _busy
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.autorenew),
-              label: Text(l10n.regenerateJoinCodeButton),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          Expanded(
+            child: ClubSheet(
+              child: ListView(
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                  Layout.sheetGutter - 4,
+                  Gap.md,
+                  Layout.sheetGutter - 4,
+                  Gap.xl,
+                ),
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: GoColors.surfaceCard,
+                      borderRadius: BorderRadius.circular(Radii.card),
+                      boxShadow: Elevations.card,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        Layout.cardInner,
+                        Layout.cardInner + 2,
+                        Layout.cardInner,
+                        Layout.cardInner,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            l10n.joinCodeLabel,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: Gap.md),
+                          Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: SelectableText(
+                              _joinCode,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 34,
+                                height: 1,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 6,
+                                color: GoColors.primaryDeep,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: Gap.lg),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _copy(
+                                            value:
+                                                l10n.inviteShareCommunityBody(
+                                              widget.communityName,
+                                              _link,
+                                            ),
+                                            confirmation:
+                                                l10n.inviteLinkCopied,
+                                          ),
+                                  icon: const Icon(Icons.ios_share),
+                                  label: Text(l10n.shareInvitation),
+                                ),
+                              ),
+                              const SizedBox(width: Gap.sm),
+                              OutlinedButton.icon(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _copy(
+                                          value: _joinCode,
+                                          confirmation: l10n.joinCodeCopied,
+                                        ),
+                                icon: const Icon(Icons.copy_outlined),
+                                label: Text(l10n.copyJoinCodeButton),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Gap.md),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: GoColors.surfaceCard,
+                      borderRadius: BorderRadius.circular(Radii.card),
+                      boxShadow: Elevations.card,
+                    ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                            Layout.cardInner,
+                            Gap.md,
+                            Gap.sm,
+                            Gap.md,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.link, size: IconSize.action),
+                              const SizedBox(width: Gap.md),
+                              Expanded(
+                                child: Directionality(
+                                  textDirection: TextDirection.ltr,
+                                  child: Text(
+                                    _link,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.start,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _copy(
+                                          value: _link,
+                                          confirmation: l10n.inviteLinkCopied,
+                                        ),
+                                child: Text(l10n.copyLinkButton),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Divider(height: 1, color: GoColors.hairline),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                            Layout.cardInner,
+                            Gap.md,
+                            Layout.cardInner,
+                            Gap.md,
+                          ),
+                          child: Text(
+                            l10n.communityInvitationHelp,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: Gap.lg),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _regenerate,
+                    icon: _busy
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.autorenew),
+                    label: Text(l10n.regenerateJoinCodeButton),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

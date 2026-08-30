@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/club_place.dart';
+import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../../core/tokens.dart';
 import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../communities/community_details_screen.dart';
@@ -16,17 +19,27 @@ import 'invite_link.dart';
 /// Joining is all it does. Matches are browsed and registered for afterwards,
 /// by the player themselves.
 class InviteLandingScreen extends StatefulWidget {
-  const InviteLandingScreen({super.key, required this.code});
+  const InviteLandingScreen({
+    super.key,
+    required this.code,
+    this.communityRepository,
+    this.authService,
+  });
 
   final String code;
+
+  /// Supplied only by tests; production retains the existing repositories.
+  final CommunityRepository? communityRepository;
+  final AuthService? authService;
 
   @override
   State<InviteLandingScreen> createState() => _InviteLandingScreenState();
 }
 
 class _InviteLandingScreenState extends State<InviteLandingScreen> {
-  final _communities = CommunityRepository();
-  final _authService = AuthService();
+  late final CommunityRepository _communities =
+      widget.communityRepository ?? CommunityRepository();
+  late final AuthService _authService = widget.authService ?? AuthService();
   late Future<CommunityInvitePreview> _previewFuture;
   bool _isJoining = false;
 
@@ -111,87 +124,151 @@ class _InviteLandingScreenState extends State<InviteLandingScreen> {
     final theme = Theme.of(context);
     final isSignedIn = _authService.currentUserId != null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.inviteTitle),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: l10n.inviteTitle,
-          // Dismissing the invitation is all that is needed: this screen is not
-          // a pushed route, it is what the gate chose to show.
-          onPressed: PendingInvite.instance.clear,
-        ),
-      ),
-      body: FutureBuilder<CommunityInvitePreview>(
+    return FutureBuilder<CommunityInvitePreview>(
         future: _previewFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return _stateScaffold(
+              l10n,
+              const Center(child: CircularProgressIndicator()),
+            );
           }
           if (snapshot.hasError) {
-            return _Message(
-              icon: Icons.wifi_off,
-              text: l10n.inviteLoadError,
-              action: FilledButton(
-                onPressed: _reload,
-                child: Text(l10n.retryButton),
+            return _stateScaffold(
+              l10n,
+              _Message(
+                icon: Icons.wifi_off,
+                text: l10n.inviteLoadError,
+                action: FilledButton(
+                  onPressed: _reload,
+                  child: Text(l10n.retryButton),
+                ),
               ),
             );
           }
 
           final preview = snapshot.data!;
           if (!preview.isValid) {
-            return _Message(icon: Icons.link_off, text: l10n.inviteNotFound);
+            return _stateScaffold(
+              l10n,
+              _Message(icon: Icons.link_off, text: l10n.inviteNotFound),
+            );
           }
 
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(Icons.groups, size: 56, color: theme.colorScheme.primary),
-                  const SizedBox(height: 16),
-                  Text(
-                    preview.communityName ?? '',
-                    style: theme.textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
+          return Scaffold(
+            backgroundColor: GoColors.bgHero,
+            body: Column(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: ClubHero(
+                    bar: ClubHeroBar(
+                      title: l10n.inviteTitle,
+                      onBack: PendingInvite.instance.clear,
+                    ),
+                    identity: Column(
+                      children: [
+                        CommunityCrest(
+                          name: preview.communityName ?? '',
+                          size: 66,
+                          onHero: true,
+                        ),
+                        const SizedBox(height: Gap.md),
+                        Text(
+                          preview.communityName ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            height: 1.2,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.7,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  if (preview.isMember) ...[
-                    const SizedBox(height: 16),
-                    Text(l10n.inviteAlreadyMemberNote,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium),
-                  ],
-                  const SizedBox(height: 32),
-                  if (!isSignedIn) ...[
-                    Text(l10n.inviteSignInFirst,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium),
-                    const SizedBox(height: 12),
-                  ],
-                  FilledButton(
-                    onPressed: _isJoining
-                        ? null
-                        : (isSignedIn ? () => _join(preview) : _signIn),
-                    child: _isJoining
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(preview.isMember
-                            ? l10n.inviteOpenCommunity
-                            : l10n.inviteJoinCommunity),
+                ),
+                Expanded(
+                  child: ClubSheet(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        Layout.sheetGutter - 4,
+                        Gap.md,
+                        Layout.sheetGutter - 4,
+                        Gap.xl,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (preview.isMember) ...[
+                            Text(
+                              l10n.inviteAlreadyMemberNote,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: Gap.md),
+                          ],
+                          if (!isSignedIn) ...[
+                            Text(
+                              l10n.inviteSignInFirst,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: Gap.md),
+                          ],
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(
+                                Layout.buttonHeight,
+                              ),
+                            ),
+                            onPressed: _isJoining
+                                ? null
+                                : (isSignedIn
+                                    ? () => _join(preview)
+                                    : _signIn),
+                            child: _isJoining
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    preview.isMember
+                                        ? l10n.inviteOpenCommunity
+                                        : l10n.inviteJoinCommunity,
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
-      ),
     );
   }
+
+  Widget _stateScaffold(AppLocalizations l10n, Widget body) => Scaffold(
+        appBar: AppBar(
+          title: Text(l10n.inviteTitle),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: l10n.inviteTitle,
+            // Dismissing the invitation is all that is needed: this screen is
+            // not a pushed route, it is what the gate chose to show.
+            onPressed: PendingInvite.instance.clear,
+          ),
+        ),
+        body: body,
+      );
 }
 
 class _Message extends StatelessWidget {
