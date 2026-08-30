@@ -1,0 +1,248 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/core/club_place.dart';
+import 'package:go_play/core/l10n.dart';
+import 'package:go_play/core/states.dart';
+import 'package:go_play/core/theme.dart';
+import 'package:go_play/features/communities/communities_screen.dart';
+import 'package:go_play/features/communities/community_adapter.dart';
+import 'package:go_play/features/communities/community_details_screen.dart';
+import 'package:go_play/features/communities/community_models.dart';
+import 'package:go_play/features/communities/community_repository.dart';
+
+void main() {
+  const mine = Community(
+    id: 'mine',
+    ownerId: 'u1',
+    name: 'Al Amerat Friday Football',
+    description: 'Friday evening football.',
+    joinPolicy: JoinPolicy.open,
+    joinCode: 'MINE01',
+  );
+  const discover = Community(
+    id: 'discover',
+    ownerId: 'u2',
+    name: 'Muscat Open Football Club',
+    description: 'Open games every week.',
+    joinPolicy: JoinPolicy.codeRequired,
+    joinCode: 'OPEN01',
+  );
+
+  Future<void> pumpCommunities(
+    WidgetTester tester, {
+    required CommunityRepository repository,
+    Locale locale = const Locale('en'),
+    Size size = const Size(412, 900),
+    List<NavigatorObserver> observers = const [],
+  }) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(),
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        navigatorObservers: observers,
+        home: CommunitiesScreen(communityRepository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  CommunityRepository repository({
+    List<Community> my = const [mine],
+    List<Community> all = const [mine, discover],
+    Completer<List<Community>>? waitingForMyCommunities,
+    Object? error,
+  }) =>
+      CommunityRepository(
+        _FakeCommunityAdapter(
+          my: my,
+          all: all,
+          waitingForMyCommunities: waitingForMyCommunities,
+          error: error,
+        ),
+      );
+
+  testWidgets('renders the Club hero, sheet, and community cards',
+      (tester) async {
+    await pumpCommunities(tester, repository: repository());
+
+    expect(find.byType(ClubHero), findsOneWidget);
+    expect(find.byType(ClubSheet), findsOneWidget);
+    expect(find.byType(CommunityCrest), findsNWidgets(2));
+    expect(find.text(mine.name), findsOneWidget);
+    expect(find.text(discover.name), findsOneWidget);
+  });
+
+  testWidgets('community navigation remains available', (tester) async {
+    final observer = _RouteRecorder();
+    await pumpCommunities(
+      tester,
+      repository: repository(),
+      observers: [observer],
+    );
+
+    await tester.tap(find.text(mine.name));
+    await tester.pump();
+
+    expect(find.byType(CommunityDetailsScreen), findsOneWidget);
+    expect(observer.pushed, hasLength(1));
+  });
+
+  testWidgets('create, join, and invitation entry points remain available',
+      (tester) async {
+    await pumpCommunities(tester, repository: repository());
+
+    expect(find.byKey(const Key('communitiesCreate')), findsOneWidget);
+    expect(find.byKey(const Key('communitiesJoin')), findsOneWidget);
+    expect(find.byIcon(Icons.link), findsOneWidget);
+  });
+
+  testWidgets('keeps loading, empty, and error states', (tester) async {
+    final waiting = Completer<List<Community>>();
+    await pumpCommunities(
+      tester,
+      repository: repository(waitingForMyCommunities: waiting),
+    );
+    expect(find.byType(LoadingState), findsOneWidget);
+
+    waiting.complete(const []);
+    await tester.pumpAndSettle();
+    expect(find.byType(EmptyState), findsOneWidget);
+
+    await pumpCommunities(
+      tester,
+      repository: repository(error: StateError('offline')),
+    );
+    expect(find.byType(ErrorState), findsOneWidget);
+  });
+
+  testWidgets('long English names are safe at 320 pixels', (tester) async {
+    const longName =
+        'The Extremely Long Community Name Football Association Of Muscat';
+    const longCommunity = Community(
+      id: 'long',
+      ownerId: 'u1',
+      name: longName,
+      description: 'An intentionally long community description.',
+      joinPolicy: JoinPolicy.codeRequired,
+      joinCode: 'LONG01',
+    );
+    await pumpCommunities(
+      tester,
+      repository: repository(my: const [longCommunity], all: const [longCommunity]),
+      size: const Size(320, 900),
+    );
+
+    expect(tester.takeException(), isNull);
+    final title = tester.widget<Text>(find.text(longName));
+    expect(title.maxLines, 1);
+    expect(title.overflow, TextOverflow.ellipsis);
+  });
+
+  testWidgets('long Arabic names are safe at 320 pixels RTL', (tester) async {
+    const longName =
+        'نادي المجتمع الرياضي لكرة القدم في ولاية العامرات بمحافظة مسقط';
+    const longCommunity = Community(
+      id: 'arabic',
+      ownerId: 'u1',
+      name: longName,
+      description: 'مجتمع كرة قدم يلتقي كل يوم جمعة في ملعب العامرات الرئيسي.',
+      joinPolicy: JoinPolicy.open,
+      joinCode: 'ARABIC1',
+    );
+    await pumpCommunities(
+      tester,
+      repository: repository(my: const [longCommunity], all: const [longCommunity]),
+      locale: const Locale('ar'),
+      size: const Size(320, 900),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(
+      Directionality.of(tester.element(find.byType(ClubHero))),
+      TextDirection.rtl,
+    );
+    expect(
+      tester.widget<Text>(find.text(longName)).overflow,
+      TextOverflow.ellipsis,
+    );
+  });
+}
+
+class _RouteRecorder extends NavigatorObserver {
+  final pushed = <Route<dynamic>>[];
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    pushed.add(route);
+    super.didPush(route, previousRoute);
+  }
+}
+
+class _FakeCommunityAdapter implements CommunityAdapter {
+  _FakeCommunityAdapter({
+    required this.my,
+    required this.all,
+    this.waitingForMyCommunities,
+    this.error,
+  });
+
+  final List<Community> my;
+  final List<Community> all;
+  final Completer<List<Community>>? waitingForMyCommunities;
+  final Object? error;
+
+  @override
+  Future<List<Community>> fetchMyCommunities() async {
+    if (error != null) throw error!;
+    return waitingForMyCommunities?.future ?? my;
+  }
+
+  @override
+  Future<List<Community>> fetchAllCommunities() async => all;
+
+  @override
+  Future<Community> fetchCommunity(String communityId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> joinCommunity(String communityId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> joinCommunityByCode(String code) => throw UnimplementedError();
+
+  @override
+  Future<String> createCommunity({
+    required String name,
+    String? description,
+    required JoinPolicy joinPolicy,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> setJoinPolicy(
+    String communityId, {
+    required JoinPolicy joinPolicy,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CommunityInvitePreview> previewInvite(String code) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> regenerateJoinCode(String communityId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deleteCommunity(String communityId) =>
+      throw UnimplementedError();
+}

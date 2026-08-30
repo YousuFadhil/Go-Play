@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../../core/tokens.dart';
 import 'create_community_screen.dart';
 import 'community_details_screen.dart';
 import 'community_models.dart';
@@ -12,7 +13,11 @@ import 'community_repository.dart';
 import 'join_community_flow.dart';
 
 class CommunitiesScreen extends StatefulWidget {
-  const CommunitiesScreen({super.key});
+  const CommunitiesScreen({super.key, this.communityRepository});
+
+  /// Supplying the repository is only for the screen's widget tests; production
+  /// keeps using the same repository and overview read it always has.
+  final CommunityRepository? communityRepository;
 
   @override
   State<CommunitiesScreen> createState() => _CommunitiesScreenState();
@@ -24,7 +29,8 @@ typedef _CommunitiesOverview = ({
 });
 
 class _CommunitiesScreenState extends State<CommunitiesScreen> {
-  final _communityRepository = CommunityRepository();
+  late final _communityRepository =
+      widget.communityRepository ?? CommunityRepository();
   late Future<_CommunitiesOverview> _future;
   String? _joiningId;
 
@@ -96,127 +102,283 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppHeader(
-        title: Text(l10n.communitiesTitle),
-        actions: [
-          IconButton(
-            tooltip: l10n.inviteOpenAction,
-            icon: const Icon(Icons.link),
-            onPressed: _openInviteDialog,
+      backgroundColor: GoColors.bgHero,
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: ClubHero(
+              bar: ClubHeroBar(
+                title: l10n.communitiesTitle,
+                actions: [
+                  IconButton(
+                    tooltip: l10n.inviteOpenAction,
+                    icon: const Icon(Icons.link),
+                    color: Colors.white,
+                    onPressed: _openInviteDialog,
+                  ),
+                ],
+              ),
+              identity: Text(
+                l10n.myCommunitiesSection,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 23,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.7,
+                  color: Colors.white,
+                ),
+              ),
+              action: Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      key: const Key('communitiesCreate'),
+                      onPressed: _openCreateCommunity,
+                      icon: const Icon(Icons.add, size: IconSize.action),
+                      label: Text(l10n.createCommunityButton),
+                      style: ClubHeroButtons.filled,
+                    ),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const Key('communitiesJoin'),
+                      onPressed: _openJoinDialog,
+                      icon: const Icon(Icons.key, size: IconSize.action),
+                      label: Text(l10n.joinCommunityButton),
+                      style: ClubHeroButtons.ghost,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          IconButton(
-            tooltip: l10n.joinCommunityTitle,
-            icon: const Icon(Icons.key),
-            onPressed: _openJoinDialog,
+          Expanded(
+            child: ClubSheet(
+              child: FutureBuilder<_CommunitiesOverview>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const LoadingState();
+                  }
+                  if (snapshot.hasError) {
+                    return ErrorState(onRetry: _refresh);
+                  }
+
+                  final mine = snapshot.data?.mine ?? const [];
+                  final discover = snapshot.data?.discover ?? const [];
+
+                  if (mine.isEmpty && discover.isEmpty) {
+                    return EmptyState(
+                      icon: Icons.groups_outlined,
+                      message: l10n.communitiesEmpty,
+                      action: FilledButton.icon(
+                        key: const Key('communitiesEmptyCreate'),
+                        onPressed: _openCreateCommunity,
+                        icon: const Icon(Icons.add, size: IconSize.action),
+                        label: Text(l10n.createCommunityButton),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(200, kButtonHeight),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () async => _refresh(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        Layout.sheetGutter,
+                        Layout.sectionAbove,
+                        Layout.sheetGutter,
+                        Layout.listBottom,
+                      ),
+                      children: [
+                        if (mine.isNotEmpty) ...[
+                          _CommunitySection(
+                            title: l10n.myCommunitiesSection,
+                            count: mine.length,
+                          ),
+                          for (final community in mine) ...[
+                            _CommunityCard(
+                              community: community,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => CommunityDetailsScreen(
+                                    communityId: community.id,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: Layout.cardGap),
+                          ],
+                        ],
+                        if (discover.isNotEmpty) ...[
+                          _CommunitySection(
+                            title: l10n.publicCommunitiesSection,
+                            count: discover.length,
+                          ),
+                          for (final community in discover) ...[
+                            _CommunityCard(
+                              community: community,
+                              trailing: _joiningId == community.id
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : SizedBox(
+                                      width: 88,
+                                      child: FilledButton.tonal(
+                                        onPressed: _joiningId != null
+                                            ? null
+                                            : () => _join(community),
+                                        child: Text(l10n.joinCommunityButton),
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(height: Layout.cardGap),
+                          ],
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: l10n.createCommunityTitle,
-        onPressed: _openCreateCommunity,
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+class _CommunitySection extends StatelessWidget {
+  const _CommunitySection({required this.title, required this.count});
+
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(
+        bottom: Layout.sectionBelow,
       ),
-      body: FutureBuilder<_CommunitiesOverview>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingState();
-          }
-          if (snapshot.hasError) {
-            return ErrorState(onRetry: _refresh);
-          }
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text(
+              '$count',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: GoColors.outline,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-          final mine = snapshot.data?.mine ?? const [];
-          final discover = snapshot.data?.discover ?? const [];
+class _CommunityCard extends StatelessWidget {
+  const _CommunityCard({
+    required this.community,
+    this.onTap,
+    this.trailing,
+  });
 
-          if (mine.isEmpty && discover.isEmpty) {
-            return EmptyState(
-              icon: Icons.groups_outlined,
-              message: l10n.communitiesEmpty,
-              action: FilledButton.icon(
-                onPressed: _openCreateCommunity,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(l10n.createCommunityButton),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(200, kButtonHeight),
+  final Community community;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.card),
+        child: Ink(
+          padding: const EdgeInsetsDirectional.all(Layout.cardInner),
+          decoration: const BoxDecoration(
+            color: GoColors.surfaceCard,
+            borderRadius: BorderRadius.all(Radius.circular(Radii.card)),
+            boxShadow: Elevations.card,
+          ),
+          child: Row(
+            children: [
+              CommunityCrest(name: community.name, size: 46),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            community.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoType.cardTitle.copyWith(
+                              color: GoColors.onSurface,
+                            ),
+                          ),
+                        ),
+                        if (community.joinPolicy == JoinPolicy.codeRequired)
+                          const Padding(
+                            padding: EdgeInsetsDirectional.only(start: Gap.xs),
+                            child: Icon(
+                              Icons.password,
+                              size: IconSize.meta,
+                              color: GoColors.outline,
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (community.description != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        community.description!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: GoColors.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: Gap.xxl * 2),
-              children: [
-                if (mine.isNotEmpty) ...[
-                  SectionHeading(
-                    title: l10n.myCommunitiesSection,
-                    count: mine.length,
-                  ),
-                  for (final community in mine)
-                    ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.groups)),
-                      title: Text(community.name),
-                      subtitle: community.description == null
-                          ? null
-                          : Text(
-                              community.description!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                      trailing:
-                          community.joinPolicy == JoinPolicy.codeRequired
-                              ? const Icon(Icons.password)
-                              : null,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              CommunityDetailsScreen(communityId: community.id),
-                        ),
-                      ),
-                    ),
-                ],
-                if (discover.isNotEmpty) ...[
-                  SectionHeading(
-                    title: l10n.publicCommunitiesSection,
-                    count: discover.length,
-                  ),
-                  for (final community in discover)
-                    ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.public)),
-                      title: Text(community.name),
-                      subtitle: community.description == null
-                          ? null
-                          : Text(
-                              community.description!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                      // Trailing must be width-bounded, otherwise the button
-                      // consumes the whole tile and ListTile fails to lay out.
-                      trailing: _joiningId == community.id
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : SizedBox(
-                              width: 96,
-                              child: FilledButton.tonal(
-                                onPressed: _joiningId != null
-                                    ? null
-                                    : () => _join(community),
-                                child: Text(l10n.joinCommunityButton),
-                              ),
-                            ),
-                    ),
-                ],
+              if (trailing != null) ...[
+                const SizedBox(width: Gap.sm),
+                trailing!,
               ],
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
     );
   }
