@@ -1,13 +1,14 @@
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_task.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../../core/tokens.dart';
 import '../communities/community_models.dart';
 import '../matches/match_card.dart';
 import '../matches/match_models.dart';
@@ -215,30 +216,52 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Scaffold(
-      appBar: AppHeader(title: Text(l10n.matchResultTitle)),
-      body: FutureBuilder<_ResultView>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingState();
-          }
-          if (snapshot.hasError || !snapshot.hasData) {
-            return ErrorState(onRetry: _reload);
-          }
+    return FutureBuilder<_ResultView>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return _taskScaffold(const LoadingState());
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return _taskScaffold(ErrorState(onRetry: _reload));
+        }
 
-          final view = snapshot.data!;
-          if (!view.canRecord) {
-            return _notice(l10n.resultOrganizersOnly);
-          }
-          if (view.lineup.isEmpty) {
-            return _notice(l10n.errResultNeedsLineup);
-          }
-          return _form(l10n, view);
-        },
-      ),
+        final view = snapshot.data!;
+        if (!view.canRecord) {
+          return _taskScaffold(_notice(l10n.resultOrganizersOnly));
+        }
+        if (view.lineup.isEmpty) {
+          return _taskScaffold(_notice(l10n.errResultNeedsLineup));
+        }
+
+        final draft = _draft!;
+        return Scaffold(
+          appBar: ClubTaskBar(title: l10n.matchResultTitle),
+          body: ClubTaskBody(child: _form(l10n, view)),
+          bottomNavigationBar: ClubActionBar(
+            child: FilledButton(
+              onPressed: _busy || !draft.isComplete ? null : () => _save(view),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(Layout.buttonHeight),
+              ),
+              child: _busy
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(l10n.saveResultButton),
+            ),
+          ),
+        );
+      },
     );
   }
+
+  Widget _taskScaffold(Widget body) => Scaffold(
+        appBar: ClubTaskBar(title: context.l10n.matchResultTitle),
+        body: ClubTaskBody(child: body),
+      );
 
   Widget _notice(String message) => Center(
         child: Padding(
@@ -251,19 +274,21 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
     final draft = _draft!;
     final balanced = draft.recordedGoals == draft.totalScore;
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 4, Gap.sm),
           child: Text(
             view.match.displayName,
-            style: Theme.of(context).textTheme.headlineSmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
         _scoreRow(l10n, draft),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsetsDirectional.fromSTEB(4, Gap.sm, 4, 0),
           child: Text(
             l10n.goalsRecordedNote(draft.recordedGoals, draft.totalScore),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -273,12 +298,57 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
                 ),
           ),
         ),
-        const Divider(height: 24),
+        if (!balanced)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(top: Gap.sm),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(Radii.control),
+              ),
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                  Gap.md,
+                  Gap.sm + 3,
+                  Gap.md,
+                  Gap.sm + 3,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                    const SizedBox(width: Gap.sm + 1),
+                    Expanded(
+                      child: Text(
+                        l10n.goalsRecordedNote(
+                          draft.recordedGoals,
+                          draft.totalScore,
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         // Said once, above both sides. The star in each row is the control, and
         // without this the only way to learn it is optional is to try saving
         // without it.
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            4,
+            Layout.sectionAbove,
+            4,
+            Layout.sectionBelow,
+          ),
           child: Text(
             l10n.mvpOptionalNote,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -288,49 +358,61 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
         ),
         ..._teamSection(l10n, view, draft, l10n.teamAName, TeamId.a),
         ..._teamSection(l10n, view, draft, l10n.teamBName, TeamId.b),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: FilledButton(
-            onPressed: _busy || !draft.isComplete ? null : () => _save(view),
-            child: _busy
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(l10n.saveResultButton),
-          ),
-        ),
       ],
     );
   }
 
   /// The two scores, side by side. `A` and `B` distinguish the sides and carry
   /// nothing else (`KB-D6`), so neither is presented as the home team.
-  Widget _scoreRow(AppLocalizations l10n, _ResultDraft draft) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        child: Row(
-          children: [
-            Expanded(
-              child: _scoreField(
-                label: l10n.teamAName,
-                value: draft.teamAScore,
-                key: const Key('teamAScore'),
-                onChanged: (value) =>
-                    setState(() => draft.teamAScore = value),
+  Widget _scoreRow(AppLocalizations l10n, _ResultDraft draft) => Container(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          Layout.cardInner - 2,
+          Layout.cardInner,
+          Layout.cardInner - 2,
+          Layout.cardInner,
+        ),
+        decoration: BoxDecoration(
+          color: GoColors.primaryDeep,
+          borderRadius: BorderRadius.circular(Radii.card),
+        ),
+        child: Directionality(
+          // A score is a neutral-first run. It is always Team A, then Team B,
+          // regardless of the surrounding Arabic paragraph direction.
+          textDirection: TextDirection.ltr,
+          child: Row(
+            children: [
+              Expanded(
+                child: _scoreField(
+                  label: l10n.teamAName,
+                  value: draft.teamAScore,
+                  key: const Key('teamAScore'),
+                  onChanged: (value) =>
+                      setState(() => draft.teamAScore = value),
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _scoreField(
-                label: l10n.teamBName,
-                value: draft.teamBScore,
-                key: const Key('teamBScore'),
-                onChanged: (value) =>
-                    setState(() => draft.teamBScore = value),
+              const Padding(
+                padding: EdgeInsetsDirectional.symmetric(horizontal: Gap.sm),
+                child: Text(
+                  '–',
+                  style: TextStyle(
+                    fontSize: 20,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    color: Color.fromRGBO(255, 255, 255, 0.4),
+                  ),
+                ),
               ),
-            ),
-          ],
+              Expanded(
+                child: _scoreField(
+                  label: l10n.teamBName,
+                  value: draft.teamBScore,
+                  key: const Key('teamBScore'),
+                  onChanged: (value) =>
+                      setState(() => draft.teamBScore = value),
+                ),
+              ),
+            ],
+          ),
         ),
       );
 
@@ -348,11 +430,23 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
         initialValue: '$value',
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
+          labelStyle: const TextStyle(color: Color.fromRGBO(255, 255, 255, .8)),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
         ),
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+        style: const TextStyle(
+          fontSize: 38,
+          height: 1,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -1.6,
+          color: Colors.white,
+        ),
         onChanged: (text) => onChanged(int.tryParse(text) ?? 0),
       );
 
@@ -372,14 +466,28 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
 
     return [
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          4,
+          Layout.sectionAbove,
+          4,
+          Layout.sectionBelow,
+        ),
         child: Text(
           title,
           style: Theme.of(context).textTheme.titleMedium,
         ),
       ),
-      for (final assignment in assignments)
-        _playerRow(l10n, view, draft, assignment),
+      Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            for (final (index, assignment) in assignments.indexed) ...[
+              _playerRow(l10n, view, draft, assignment),
+              if (index < assignments.length - 1) const Divider(height: 1),
+            ],
+          ],
+        ),
+      ),
     ];
   }
 

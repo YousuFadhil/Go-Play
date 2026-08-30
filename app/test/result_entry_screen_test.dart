@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/core/club_task.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/communities/community_models.dart';
@@ -81,22 +82,23 @@ void main() {
     WidgetTester tester, {
     required FakeResultAdapter results,
     List<TeamAssignment>? lineup,
+    List<MatchRegistration>? registrations,
     CommunityRole? role = CommunityRole.admin,
     Future<void>? gate,
     void Function(bool? popped)? onPopped,
+    Locale locale = const Locale('en'),
+    Size size = const Size(800, 1600),
   }) async {
-    // Taller than the 800x600 default. The form is a ListView, so a widget
-    // below the fold is never built and `find` cannot see it at all — and the
-    // save button now sits below two team sections and the note saying the best
-    // player is optional. This is the viewport, not the assertions: every test
-    // below still looks for exactly what it looked for before.
-    tester.view.physicalSize = const Size(800, 1600);
+    // Taller than the 800x600 default so the form tests can see the player rows
+    // without affecting the layout asserted by the narrow-width cases.
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final navigator = GlobalKey<NavigatorState>();
     await tester.pumpWidget(MaterialApp(
+      locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       navigatorKey: navigator,
@@ -117,7 +119,7 @@ void main() {
                   TeamRepository(FakeTeamAdapter(lineup ?? storedLineup())),
               matchService: MatchService(FakeMatchAdapter(
                 match: match,
-                registrations: fourSeats(),
+                registrations: registrations ?? fourSeats(),
                 gate: gate,
               )),
               memberRepository:
@@ -145,8 +147,7 @@ void main() {
     await tester.pump();
   }
 
-  /// The save sits below the lineup, so a four-player match already puts it past
-  /// the bottom of the test viewport.
+  /// The save is pinned below the scrollable lineup.
   Future<void> tapSave(WidgetTester tester) async {
     await tester.ensureVisible(find.text('Save result').first);
     await tester.pumpAndSettle();
@@ -170,6 +171,84 @@ void main() {
       gate.complete();
       await tester.pumpAndSettle();
       expect(find.text('Sara Al Balushi'), findsOneWidget);
+    });
+  });
+
+  group('Club task presentation', () {
+    testWidgets('uses the task bar, scrollable body, and pinned action',
+        (tester) async {
+      await pumpResult(
+        tester,
+        results: FakeResultAdapter(),
+        size: const Size(412, 900),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ClubTaskBar), findsOneWidget);
+      expect(find.byType(ClubTaskBody), findsOneWidget);
+      expect(find.byType(ClubActionBar), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SingleChildScrollView),
+          matching: find.text('Save result'),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('back leaves the form without submitting', (tester) async {
+      final results = FakeResultAdapter();
+      await pumpResult(tester, results: results);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+
+      expect(results.writes, 0);
+      expect(find.byType(ResultEntryScreen), findsNothing);
+    });
+
+    testWidgets('long English and Arabic names are safe on narrow screens',
+        (tester) async {
+      final longEnglish =
+          'Alexanderson Montgomery-Wellington the Third of Al Amerat';
+      final longArabic = 'عبدالرحمن بن محمد بن عبدالله السالمي الطويل جداً';
+      await pumpResult(
+        tester,
+        results: FakeResultAdapter(),
+        size: const Size(320, 800),
+        locale: const Locale('ar'),
+        registrations: [
+          seat('u1', longArabic),
+          seat('u2', longEnglish),
+          seat('u3', longArabic),
+          seat('u4', longEnglish),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(longArabic), findsWidgets);
+      expect(find.text(longEnglish), findsWidgets);
+      expect(
+        tester.widget<TextFormField>(find.byKey(const Key('teamAScore')))
+            .textDirection,
+        TextDirection.ltr,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the pinned action remains usable at 480 pixels',
+        (tester) async {
+      await pumpResult(
+        tester,
+        results: FakeResultAdapter(),
+        size: const Size(480, 900),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save result'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 
@@ -252,6 +331,30 @@ void main() {
           tester.widgetList<PlayerAvatar>(find.byType(PlayerAvatar)).toList();
       expect(avatars, isNotEmpty);
       expect(avatars.every((a) => !a.isProfessionalGuest), isTrue);
+    });
+
+    testWidgets('a professional guest remains visible without result controls',
+        (tester) async {
+      await pumpResult(
+        tester,
+        results: FakeResultAdapter(),
+        lineup: [
+          at('u1', TeamId.a),
+          const TeamAssignment(
+            professionalGuestId: 'guest-1',
+            team: TeamId.a,
+            assignedPosition: null,
+            basis: null,
+          ),
+          at('u3', TeamId.b),
+          at('u4', TeamId.b),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('player_guest-1')), findsOneWidget);
+      expect(find.byKey(const Key('mvp_guest-1')), findsNothing);
+      expect(find.byKey(const Key('goalPlus_guest-1')), findsNothing);
     });
   });
 
@@ -370,6 +473,25 @@ void main() {
   });
 
   group('saving', () {
+    testWidgets('a busy save prevents duplicate submissions', (tester) async {
+      final gate = Completer<void>();
+      final results = FakeResultAdapter(gate: gate.future);
+      await pumpResult(tester, results: results);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save result'));
+      await tester.pump();
+
+      expect(results.writes, 1);
+      expect(saveButton(tester).onPressed, isNull);
+      await tester.tap(find.text('Save result'));
+      await tester.pump();
+      expect(results.writes, 1);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('the numbers on screen are the ones sent', (tester) async {
       final results = FakeResultAdapter();
       await pumpResult(tester, results: results);
@@ -592,10 +714,11 @@ FilledButton saveButton(WidgetTester tester) => tester.widget<FilledButton>(
 
 /// Answers from memory and records what it was handed.
 class FakeResultAdapter implements ResultAdapter {
-  FakeResultAdapter({this.result, this.thrown});
+  FakeResultAdapter({this.result, this.thrown, this.gate});
 
   final MatchResult? result;
   final Failure? thrown;
+  final Future<void>? gate;
 
   int writes = 0;
   int? lastTeamAScore;
@@ -616,6 +739,7 @@ class FakeResultAdapter implements ResultAdapter {
   }) async {
     if (thrown != null) throw thrown!;
     writes++;
+    if (gate != null) await gate;
     lastTeamAScore = teamAScore;
     lastTeamBScore = teamBScore;
     lastMvpUserId = mvpUserId;
