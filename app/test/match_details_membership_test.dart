@@ -67,6 +67,7 @@ void main() {
     FakeCommunityAdapter? communities,
     CommunityRole? role = CommunityRole.player,
     Locale locale = const Locale('en'),
+    bool signedIn = true,
   }) async {
     tester.view.physicalSize = const Size(900, 1800);
     tester.view.devicePixelRatio = 1;
@@ -82,7 +83,7 @@ void main() {
         memberRepository: MemberRepository(FakeMemberAdapter(role: role)),
         communityRepository:
             CommunityRepository(communities ?? FakeCommunityAdapter()),
-        authService: AuthService(_StubAuthAdapter()),
+        authService: AuthService(_StubAuthAdapter(signedIn: signedIn)),
       ),
     ));
     await tester.pumpAndSettle();
@@ -236,6 +237,143 @@ void main() {
           .toList();
       expect(tiles.first.onTap, isNotNull);
       expect(tiles.last.onTap, isNull);
+    });
+  });
+
+  group('whose registration is whose', () {
+    // The guard these cover is one line in Match Details:
+    //
+    //   r.userId != null && r.userId == currentUserId
+    //
+    // Both halves matter. A Professional Guest's seat carries no account, and
+    // so does a signed-out reader — without the null check the two would match
+    // each other and a visitor would be shown a guest's place as their own,
+    // with a Withdraw button for it. Extracting the registration card must not
+    // move this decision, so it is asserted through the screen.
+    const guestSeat = MatchRegistration(
+      registrationId: 'reg-g1',
+      professionalGuestId: 'g1',
+      fullName: 'Ahmed',
+      status: RegistrationStatus.confirmed,
+      registrationOrder: 1,
+    );
+
+    testWidgets('a signed-out reader is given no place of their own',
+        (tester) async {
+      final matches = FakeMatchAdapter(
+        match: match,
+        access: memberContext,
+        registrations: const [guestSeat],
+      );
+      await pumpDetails(tester, matches: matches, signedIn: false);
+
+      expect(find.text('You are registered in this match.'), findsNothing);
+      expect(find.text('Withdraw'), findsNothing);
+      expect(find.text('Join match'), findsOneWidget,
+          reason: 'holding no registration is what they hold');
+    });
+
+    testWidgets('a signed-in player is given their own place', (tester) async {
+      final matches = FakeMatchAdapter(
+        match: match,
+        access: memberContext,
+        registrations: const [
+          guestSeat,
+          MatchRegistration(
+            registrationId: 'reg-u1',
+            userId: 'u1',
+            fullName: 'Yousuf Al Amri',
+            position: 'MID',
+            status: RegistrationStatus.confirmed,
+            registrationOrder: 2,
+          ),
+        ],
+      );
+      await pumpDetails(tester, matches: matches);
+
+      expect(find.text('You are registered in this match.'), findsOneWidget);
+      expect(find.text('Withdraw'), findsOneWidget);
+      expect(find.text('Join match'), findsNothing);
+    });
+
+    testWidgets('a reserve place is reported as one', (tester) async {
+      final matches = FakeMatchAdapter(
+        match: match,
+        access: memberContext,
+        registrations: const [
+          MatchRegistration(
+            registrationId: 'reg-u1',
+            userId: 'u1',
+            fullName: 'Yousuf Al Amri',
+            position: 'MID',
+            status: RegistrationStatus.reserve,
+            registrationOrder: 11,
+          ),
+        ],
+      );
+      await pumpDetails(tester, matches: matches);
+
+      expect(find.text('You are on the reserve list.'), findsOneWidget);
+      expect(find.text('Withdraw'), findsOneWidget);
+    });
+
+    testWidgets('the cap closes registration for a reader holding no place',
+        (tester) async {
+      // `registrations.length >= match.maxRegistration` — the match takes 16
+      // and 16 are in it.
+      final matches = FakeMatchAdapter(
+        match: match,
+        access: memberContext,
+        registrations: [
+          for (var i = 0; i < 16; i++)
+            MatchRegistration(
+              registrationId: 'reg-$i',
+              userId: 'other-$i',
+              fullName: 'Player $i',
+              position: 'MID',
+              status: i < 10
+                  ? RegistrationStatus.confirmed
+                  : RegistrationStatus.reserve,
+              registrationOrder: i + 1,
+            ),
+        ],
+      );
+      await pumpDetails(tester, matches: matches);
+
+      expect(
+        find.text('Registration is closed; the match reached its maximum.'),
+        findsOneWidget,
+      );
+      expect(find.text('Join match'), findsNothing);
+    });
+
+    testWidgets('a full starting eleven still offers the reserve',
+        (tester) async {
+      // `confirmed.length >= match.startingPlayers`, but the cap is 16 and only
+      // 10 are in — so joining is still offered, with the warning above it.
+      final matches = FakeMatchAdapter(
+        match: match,
+        access: memberContext,
+        registrations: [
+          for (var i = 0; i < 10; i++)
+            MatchRegistration(
+              registrationId: 'reg-$i',
+              userId: 'other-$i',
+              fullName: 'Player $i',
+              position: 'MID',
+              status: RegistrationStatus.confirmed,
+              registrationOrder: i + 1,
+            ),
+        ],
+      );
+      await pumpDetails(tester, matches: matches);
+
+      expect(
+        find.text('The match is full. Joining now adds you to the reserve '
+            'list.'),
+        findsOneWidget,
+      );
+      expect(find.text('Join match'), findsOneWidget);
     });
   });
 
@@ -527,11 +665,15 @@ class FakeMemberAdapter implements MemberAdapter {
 /// A signed-in session, which is all this screen asks of identity: whose
 /// registration is whose.
 class _StubAuthAdapter implements AuthAdapter {
-  @override
-  bool get isSignedIn => true;
+  _StubAuthAdapter({this.signedIn = true});
+
+  final bool signedIn;
 
   @override
-  String? get currentUserId => 'u1';
+  bool get isSignedIn => signedIn;
+
+  @override
+  String? get currentUserId => signedIn ? 'u1' : null;
 
   @override
   String? get currentUserEmail => null;

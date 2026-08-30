@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design.dart';
+import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import '../../core/time_format.dart';
 import 'match_details_screen.dart';
@@ -162,7 +163,10 @@ class MatchCard extends StatelessWidget {
                 ),
                 if (showStatus) ...[
                   const SizedBox(width: Gap.sm),
-                  _StatusChip(label: matchStatusLabel(context, status)),
+                  GoStatusChip(
+                    label: matchStatusLabel(context, status),
+                    tone: status.chipTone,
+                  ),
                 ],
               ],
             ),
@@ -229,32 +233,6 @@ class _MatchLeading extends StatelessWidget {
                 ),
               ],
             ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 6),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: scheme.onSurfaceVariant,
-            ),
-      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_header.dart';
 import '../../core/design.dart';
 import '../../core/failures.dart';
+import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../communities/community_models.dart';
@@ -445,13 +446,22 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                 // thing they can do about it. First, above the roster: it is
                 // the only actionable thing on the screen for most readers.
                 if (isOpen)
-                  _RegistrationPanel(
+                  RegistrationStateView(
                     myRegistration: myRegistration,
                     registrationClosed: registrationClosed,
                     startingFull: startingFull,
                     busy: _isActionLoading,
                     onJoin: _join,
                     onWithdraw: _withdraw,
+                    // Counts, not rules. Every one of these was already worked
+                    // out above for the roster below; the capacity bar is a
+                    // second reading of the same numbers rather than a second
+                    // opinion about them.
+                    confirmedCount: confirmed.length,
+                    startingPlayers: match.startingPlayers,
+                    reserveAllowance:
+                        match.maxRegistration - match.startingPlayers,
+                    status: match.effectiveStatus,
                   ),
 
                 SectionCard(
@@ -603,9 +613,10 @@ class _MatchHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: Gap.sm),
-                  _StatusPill(
+                  GoStatusChip(
                     label: matchStatusLabel(context, match.effectiveStatus),
-                    locked: match.isLocked,
+                    tone: match.effectiveStatus.chipTone,
+                    icon: match.isLocked ? Icons.lock_outline : null,
                   ),
                 ],
               ),
@@ -700,161 +711,6 @@ class _Fact extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.locked});
-
-  final String label;
-  final bool locked;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 6),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (locked) ...[
-            Icon(Icons.lock_outline, size: 14, color: scheme.onSurfaceVariant),
-            const SizedBox(width: Gap.xs),
-          ],
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Where this player stands in this match, and the one action that follows.
-class _RegistrationPanel extends StatelessWidget {
-  const _RegistrationPanel({
-    required this.myRegistration,
-    required this.registrationClosed,
-    required this.startingFull,
-    required this.busy,
-    required this.onJoin,
-    required this.onWithdraw,
-  });
-
-  final MatchRegistration? myRegistration;
-  final bool registrationClosed;
-  final bool startingFull;
-  final bool busy;
-  final VoidCallback onJoin;
-  final VoidCallback onWithdraw;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final registration = myRegistration;
-
-    final children = <Widget>[];
-
-    if (registration != null) {
-      final isConfirmed = registration.status == RegistrationStatus.confirmed;
-      children.addAll([
-        Row(
-          children: [
-            Icon(
-              isConfirmed ? Icons.check_circle : Icons.hourglass_top,
-              // The scheme's own colours, not `Colors.green` and
-              // `Colors.orange`: a hard-coded hue ignores the theme and, on a
-              // tinted surface, lands somewhere the palette never goes.
-              color: isConfirmed ? scheme.primary : scheme.tertiary,
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Text(
-                isConfirmed ? l10n.youAreConfirmed : l10n.youAreReserve,
-                style: theme.textTheme.titleSmall,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: Gap.lg),
-        // Withdrawing is not the screen's purpose, so it is outlined rather
-        // than filled — but it is the only action here, so it spans the card.
-        OutlinedButton.icon(
-          onPressed: busy ? null : onWithdraw,
-          icon: const Icon(Icons.logout, size: 18),
-          label: Text(l10n.withdrawMatchButton),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(kButtonHeight),
-          ),
-        ),
-      ]);
-    } else if (registrationClosed) {
-      children.add(Row(
-        children: [
-          Icon(Icons.lock_outline, color: scheme.onSurfaceVariant),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Text(
-              l10n.errRegistrationClosed,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
-        ],
-      ));
-    } else {
-      if (startingFull) {
-        children.addAll([
-          Text(
-            l10n.matchFullNote,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: Gap.md),
-        ]);
-      }
-      children.add(FilledButton.icon(
-        onPressed: busy ? null : onJoin,
-        icon: busy
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.add, size: 18),
-        label: Text(l10n.joinMatchButton),
-      ));
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        kPageMargin,
-        Gap.sm,
-        kPageMargin,
-        Gap.sm,
-      ),
-      child: Card(
-        color: scheme.surfaceContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children,
-          ),
-        ),
       ),
     );
   }

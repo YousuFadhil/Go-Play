@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
 import '../../core/design.dart';
+import '../../core/football_components.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
@@ -248,7 +249,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     required String? myId,
   }) {
     if (member.role == CommunityRole.owner) {
-      return _RoleChip(label: l10n.roleOwner);
+      return GoRoleChip(label: l10n.roleOwner);
     }
     // An admin may only act on players; the role structure is the owner's.
     final canAct =
@@ -367,28 +368,3 @@ class _MenuRow extends StatelessWidget {
 }
 
 /// The role a member holds, where it is not the ordinary one.
-class _RoleChip extends StatelessWidget {
-  const _RoleChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: theme.colorScheme.onSecondaryContainer,
-        ),
-      ),
-    );
-  }
-}

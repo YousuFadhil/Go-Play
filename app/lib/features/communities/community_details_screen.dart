@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/app_header.dart';
 import '../../core/design.dart';
+import '../../core/football_components.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
@@ -557,7 +558,7 @@ class _MembersTab extends StatelessWidget {
                   onTap: () => openPlayerProfile(context, member.userId),
                   trailing: member.role == CommunityRole.player
                       ? null
-                      : _RoleChip(label: _roleLabel(l10n, member.role)),
+                      : GoRoleChip(label: _roleLabel(l10n, member.role)),
                 ),
             ],
           ),
@@ -632,32 +633,6 @@ class _JoinCodeCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleChip extends StatelessWidget {
-  const _RoleChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: theme.colorScheme.onSecondaryContainer,
         ),
       ),
     );
