@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_task.dart';
 import '../../core/design.dart';
 import '../../core/football_components.dart';
 import '../../core/failures.dart';
@@ -139,17 +139,15 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     final myId = _authService.currentUserId;
 
     return Scaffold(
-      appBar: AppHeader(
-        title: Text(l10n.manageMembersTitle),
-      ),
+      appBar: ClubTaskBar(title: l10n.manageMembersTitle),
       body: FutureBuilder<_Data>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingState();
+            return const ClubTaskBody(child: LoadingState());
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return ErrorState(onRetry: _refresh);
+            return ClubTaskBody(child: ErrorState(onRetry: _refresh));
           }
 
           final theme = Theme.of(context);
@@ -158,20 +156,24 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
           final isOrganizer = myRole?.atLeast(CommunityRole.admin) ?? false;
 
           if (members.isEmpty) {
-            return EmptyState(
-              icon: Icons.group_outlined,
-              message: l10n.membersEmpty,
+            return ClubTaskBody(
+              child: EmptyState(
+                icon: Icons.group_outlined,
+                message: l10n.membersEmpty,
+              ),
             );
           }
 
-          return ListView(
-            padding: const EdgeInsets.only(bottom: Gap.xxl),
-            children: [
+          return ClubTaskBody(
+            padding: EdgeInsetsDirectional.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               // A player sees the roster and no controls. Saying so once, at
               // the top, is what stops the screen reading as broken.
               if (!isOrganizer)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
                     kPageMargin,
                     Gap.lg,
                     kPageMargin,
@@ -200,7 +202,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
               SectionHeading(
                 title: l10n.membersTitle,
                 count: members.length,
-                padding: const EdgeInsets.fromLTRB(
+                padding: const EdgeInsetsDirectional.fromSTEB(
                   kPageMargin,
                   Gap.lg,
                   kPageMargin,
@@ -210,31 +212,34 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
               SectionCard(
                 padding: EdgeInsets.zero,
                 children: [
-                  for (final member in members)
-                    ListTile(
-                      leading: PlayerAvatar(
-                        avatarUrl: member.avatarUrl,
-                        fullName: member.fullName,
-                      ),
-                      title: Text(member.fullName),
-                      subtitle: Text(_roleLabel(l10n, member.role)),
-                      // A name in a roster is a player, and a player has a
-                      // record. Whether this viewer may read it is the server's
-                      // decision — sharing this community is one of the two
-                      // things that opens a profile, so from here it ordinarily
-                      // is — and the profile screen reports a refusal itself.
-                      onTap: () => _openProfile(member),
-                      trailing: _memberActions(
+                  for (final (index, member) in members.indexed) ...[
+                    _MemberRow(
+                      member: member,
+                      subtitle: member.role == CommunityRole.player
+                          ? '${_roleLabel(l10n, member.role)} · '
+                              '${member.position}'
+                          : member.position,
+                      roleMarker: member.role == CommunityRole.player
+                          ? null
+                          : GoRoleChip(
+                              label: _roleLabel(l10n, member.role),
+                            ),
+                      action: _memberActions(
                         l10n: l10n,
                         member: member,
                         isOwner: isOwner,
                         isOrganizer: isOrganizer,
                         myId: myId,
                       ),
+                      onTap: () => _openProfile(member),
                     ),
+                    if (index < members.length - 1)
+                      const Divider(height: 1),
+                  ],
                 ],
               ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -248,9 +253,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     required bool isOrganizer,
     required String? myId,
   }) {
-    if (member.role == CommunityRole.owner) {
-      return GoRoleChip(label: l10n.roleOwner);
-    }
+    if (member.role == CommunityRole.owner) return null;
     // An admin may only act on players; the role structure is the owner's.
     final canAct =
         isOwner || (isOrganizer && member.role == CommunityRole.player);
@@ -335,6 +338,81 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A roster row whose trailing controls keep their own width, so a long member
+/// name always shortens before it can displace a role marker or action menu.
+class _MemberRow extends StatelessWidget {
+  const _MemberRow({
+    required this.member,
+    required this.subtitle,
+    required this.onTap,
+    this.roleMarker,
+    this.action,
+  });
+
+  final CommunityMember member;
+  final String subtitle;
+  final VoidCallback onTap;
+  final Widget? roleMarker;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          Layout.cardInner,
+          Gap.md,
+          Gap.sm,
+          Gap.md,
+        ),
+        child: Row(
+          children: [
+            PlayerAvatar(
+              avatarUrl: member.avatarUrl,
+              fullName: member.fullName,
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    member.fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (roleMarker != null) ...[
+              const SizedBox(width: Gap.sm),
+              roleMarker!,
+            ],
+            if (action != null) ...[
+              const SizedBox(width: Gap.xs),
+              action!,
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
