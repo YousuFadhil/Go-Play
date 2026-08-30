@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/core/club_place.dart';
 import 'package:go_play/core/failures.dart';
+import 'package:go_play/core/football_components.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/states.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
@@ -68,8 +70,9 @@ void main() {
     CommunityRole? role = CommunityRole.player,
     Locale locale = const Locale('en'),
     bool signedIn = true,
+    Size size = const Size(900, 1800),
   }) async {
-    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -88,6 +91,139 @@ void main() {
     ));
     await tester.pumpAndSettle();
   }
+
+  group('Club Match Details presentation', () {
+    testWidgets('uses the Club hero and sheet for a long English title at 320px',
+        (tester) async {
+      const title =
+          'Friday Night Championship Match at Al Amerat Football Complex';
+      final longTitleMatch = Match(
+        id: 'm1',
+        communityId: 'c1',
+        createdBy: 'u9',
+        location: 'Al Amerat Pitch',
+        startAt: kickOff,
+        endAt: kickOff.add(const Duration(hours: 2)),
+        startingPlayers: 10,
+        maxRegistration: 16,
+        status: MatchStatus.open,
+        title: title,
+      );
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: longTitleMatch, access: memberContext),
+        size: const Size(320, 700),
+      );
+
+      expect(find.byType(ClubHero), findsOneWidget);
+      expect(find.byType(ClubSheet), findsOneWidget);
+      expect(
+        tester.widget<GoStatusChip>(find.byType(GoStatusChip)).tone,
+        GoChipTone.open,
+      );
+      final titleWidget = tester.widget<Text>(find.text(title));
+      expect(titleWidget.maxLines, 1);
+      expect(titleWidget.overflow, TextOverflow.ellipsis);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('keeps a long Arabic title bounded at 320px RTL', (tester) async {
+      const title =
+          'مباراة بطولة مساء الجمعة في مجمع العامرات لكرة القدم للمحترفين';
+      final arabicTitleMatch = Match(
+        id: 'm1',
+        communityId: 'c1',
+        createdBy: 'u9',
+        location: 'ملعب العامرات الرئيسي لكرة القدم',
+        startAt: kickOff,
+        endAt: kickOff.add(const Duration(hours: 2)),
+        startingPlayers: 10,
+        maxRegistration: 16,
+        status: MatchStatus.open,
+        title: title,
+      );
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: arabicTitleMatch, access: memberContext),
+        locale: const Locale('ar'),
+        size: const Size(320, 700),
+      );
+
+      final titleWidget = tester.widget<Text>(find.text(title));
+      expect(titleWidget.maxLines, 1);
+      expect(titleWidget.overflow, TextOverflow.ellipsis);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('maps full and completed matches through the Club status presentation',
+        (tester) async {
+      final fullMatch = Match(
+        id: 'm1',
+        communityId: 'c1',
+        createdBy: 'u9',
+        location: 'Al Amerat Pitch',
+        startAt: kickOff,
+        endAt: kickOff.add(const Duration(hours: 2)),
+        startingPlayers: 10,
+        maxRegistration: 16,
+        status: MatchStatus.full,
+        title: 'Full match',
+      );
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: fullMatch, access: memberContext),
+      );
+      expect(
+        tester.widget<GoStatusChip>(find.byType(GoStatusChip)).tone,
+        GoChipTone.full,
+      );
+
+      final completedMatch = Match(
+        id: 'm1',
+        communityId: 'c1',
+        createdBy: 'u9',
+        location: 'Al Amerat Pitch',
+        startAt: DateTime.now().subtract(const Duration(hours: 3)),
+        endAt: DateTime.now().subtract(const Duration(hours: 1)),
+        startingPlayers: 10,
+        maxRegistration: 16,
+        status: MatchStatus.open,
+        title: 'Completed match',
+      );
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: completedMatch, access: memberContext),
+      );
+      expect(
+        tester.widget<GoStatusChip>(find.byType(GoStatusChip)).tone,
+        GoChipTone.completed,
+      );
+    });
+
+    testWidgets('keeps organizer controls gated by the existing community role',
+        (tester) async {
+      final matches = FakeMatchAdapter(match: match, access: memberContext);
+      await pumpDetails(tester, matches: matches, role: CommunityRole.player);
+      expect(find.text('Match management'), findsNothing);
+      expect(
+        tester
+            .widget<ListTile>(find.widgetWithText(ListTile, 'Teams'))
+            .onTap,
+        isNotNull,
+      );
+
+      await pumpDetails(tester, matches: matches, role: CommunityRole.admin);
+      expect(find.text('Match management'), findsOneWidget);
+      expect(
+        tester
+            .widget<ListTile>(
+              find.widgetWithText(ListTile, 'Match management'),
+            )
+            .onTap,
+        isNotNull,
+      );
+    });
+  });
 
   group('a non-member opens the match', () {
     testWidgets('is told to join the community rather than shown an error',

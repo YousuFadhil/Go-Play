@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
+import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../../core/tokens.dart';
 import '../communities/community_models.dart';
 import '../communities/community_repository.dart';
 import '../communities/join_community_flow.dart';
@@ -371,25 +373,34 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     final l10n = context.l10n;
     final currentUserId = _authService.currentUserId;
 
-    return Scaffold(
-      appBar: AppHeader(title: Text(l10n.matchDetailsTitle)),
-      body: FutureBuilder<_MatchView>(
-        future: _dataFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingState();
-          }
-          if (snapshot.hasError || !snapshot.hasData) {
-            return ErrorState(onRetry: _refresh);
-          }
+    return FutureBuilder<_MatchView>(
+      future: _dataFuture,
+      builder: (context, snapshot) {
+        // These states have no match data from which to construct the Club
+        // hero. They retain the existing task header, including its visible
+        // way back, while the loaded state below is the approved Club place.
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Scaffold(
+            appBar: AppHeader(title: Text(l10n.matchDetailsTitle)),
+            body: const LoadingState(),
+          );
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Scaffold(
+            appBar: AppHeader(title: Text(l10n.matchDetailsTitle)),
+            body: ErrorState(onRetry: _refresh),
+          );
+        }
 
-          final view = snapshot.data!;
-          // Not a member of the community that holds this match. The match is
-          // still not shown — the database never sent it — but what is on
-          // screen is now the reason and the way past it rather than a failure
-          // the reader can do nothing about.
-          if (view is _MembershipRequired) {
-            return EmptyState(
+        final view = snapshot.data!;
+        // Not a member of the community that holds this match. The match is
+        // still not shown — the database never sent it — but what is on screen
+        // is now the reason and the way past it rather than a failure the reader
+        // can do nothing about.
+        if (view is _MembershipRequired) {
+          return Scaffold(
+            appBar: AppHeader(title: Text(l10n.matchDetailsTitle)),
+            body: EmptyState(
               icon: Icons.lock_outline,
               title: l10n.matchMembershipRequiredTitle,
               message: view.access.communityName == null
@@ -403,10 +414,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                 icon: const Icon(Icons.group_add_outlined, size: 18),
                 label: Text(l10n.joinCommunityButton),
               ),
-            );
-          }
+            ),
+          );
+        }
 
-          final loaded = view as _MatchLoaded;
+        final loaded = view as _MatchLoaded;
           final match = loaded.match;
           final registrations = loaded.registrations;
           final myRole = loaded.myRole;
@@ -434,182 +446,231 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
           // Starting places taken -> further sign-ups join the reserve.
           final startingFull = confirmed.length >= match.startingPlayers;
 
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: Gap.xxl),
-              children: [
-                _MatchHeader(match: match, registrations: registrations.length),
-
-                // What this player's own position in the match is, and the one
-                // thing they can do about it. First, above the roster: it is
-                // the only actionable thing on the screen for most readers.
-                if (isOpen)
-                  RegistrationStateView(
-                    myRegistration: myRegistration,
-                    registrationClosed: registrationClosed,
-                    startingFull: startingFull,
-                    busy: _isActionLoading,
-                    onJoin: _join,
-                    onWithdraw: _withdraw,
-                    // Counts, not rules. Every one of these was already worked
-                    // out above for the roster below; the capacity bar is a
-                    // second reading of the same numbers rather than a second
-                    // opinion about them.
-                    confirmedCount: confirmed.length,
-                    startingPlayers: match.startingPlayers,
-                    reserveAllowance:
-                        match.maxRegistration - match.startingPlayers,
-                    status: match.effectiveStatus,
+        return Scaffold(
+          // The sheet rides up over the same green ground as the hero. Keeping
+          // the scaffold green is what lets its rounded corners reveal the hero
+          // rather than a pale page behind it.
+          backgroundColor: GoColors.bgHero,
+          body: Column(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: ClubHero(
+                  bar: ClubHeroBar(
+                    title: l10n.matchDetailsTitle,
+                    onBack: () => Navigator.of(context).maybePop(),
                   ),
-
-                SectionCard(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.groups_2_outlined),
-                      title: Text(l10n.teamsTitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _openTeams,
-                    ),
-                    if (canManage && match.isCompleted)
-                      ListTile(
-                        leading: const Icon(Icons.scoreboard_outlined),
-                        title: Text(l10n.matchResultTitle),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: _openResult,
-                      ),
-                    if (canManage)
-                      ListTile(
-                        leading: const Icon(Icons.tune),
-                        title: Text(l10n.matchManagementTitle),
-                        subtitle: Text(l10n.matchManagementSubtitle),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: _openManagement,
-                      ),
-                  ],
+                  identity: _MatchHeroIdentity(match: match),
                 ),
+              ),
+              Expanded(
+                child: ClubSheet(
+                  child: RefreshIndicator(
+                    onRefresh: () async => _refresh(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: Gap.xxl),
+                      children: [
 
-                // Whoever created this match used to manage it. Say where the
-                // controls went instead of leaving a blank space (PD-07).
-                if (!canManage && match.createdBy == currentUserId)
-                  FootNote(
-                    l10n.matchManageOrganizersOnly,
-                    padding: const EdgeInsets.fromLTRB(
-                      kPageMargin,
-                      Gap.xs,
-                      kPageMargin,
-                      0,
+                        // What this player's own position in the match is, and
+                        // the one thing they can do about it. First, above the
+                        // roster: it is the only actionable thing on the screen
+                        // for most readers.
+                        if (isOpen)
+                          RegistrationStateView(
+                            myRegistration: myRegistration,
+                            registrationClosed: registrationClosed,
+                            startingFull: startingFull,
+                            busy: _isActionLoading,
+                            onJoin: _join,
+                            onWithdraw: _withdraw,
+                            // Counts, not rules. Every one of these was already
+                            // worked out above for the roster below; the capacity
+                            // bar is a second reading of the same numbers rather
+                            // than a second opinion about them.
+                            confirmedCount: confirmed.length,
+                            startingPlayers: match.startingPlayers,
+                            reserveAllowance:
+                                match.maxRegistration - match.startingPlayers,
+                            status: match.effectiveStatus,
+                          ),
+
+                        if ((match.description?.trim().isNotEmpty ?? false) ||
+                            match.isLocked)
+                          SectionCard(
+                            children: [
+                              if (match.description?.trim().isNotEmpty ?? false)
+                                ListTile(
+                                  leading: const Icon(Icons.notes_outlined),
+                                  title: Text(l10n.matchDescriptionLabel),
+                                  subtitle: Text(match.description!),
+                                ),
+                              if (match.isLocked)
+                                ListTile(
+                                  leading: const Icon(Icons.lock_outline),
+                                  title: Text(l10n.matchLockedNote),
+                                ),
+                            ],
+                          ),
+
+                        SectionCard(
+                          padding: EdgeInsets.zero,
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.groups_2_outlined),
+                              title: Text(l10n.teamsTitle),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: _openTeams,
+                            ),
+                            if (canManage && match.isCompleted)
+                              ListTile(
+                                leading: const Icon(Icons.scoreboard_outlined),
+                                title: Text(l10n.matchResultTitle),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: _openResult,
+                              ),
+                            if (canManage)
+                              ListTile(
+                                leading: const Icon(Icons.tune),
+                                title: Text(l10n.matchManagementTitle),
+                                subtitle: Text(l10n.matchManagementSubtitle),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: _openManagement,
+                              ),
+                          ],
+                        ),
+
+                        // Whoever created this match used to manage it. Say
+                        // where the controls went instead of leaving a blank
+                        // space (PD-07).
+                        if (!canManage && match.createdBy == currentUserId)
+                          FootNote(
+                            l10n.matchManageOrganizersOnly,
+                            padding: const EdgeInsets.fromLTRB(
+                              kPageMargin,
+                              Gap.xs,
+                              kPageMargin,
+                              0,
+                            ),
+                          ),
+
+                        SectionHeading(
+                          title: l10n.startingPlayersLabel,
+                          subtitle:
+                              '${confirmed.length}/${match.startingPlayers}',
+                        ),
+                        if (confirmed.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: kPageMargin,
+                            ),
+                            child: EmptyState(
+                              icon: Icons.person_outline,
+                              message: l10n.matchRosterEmpty,
+                            ),
+                          )
+                        else
+                          SectionCard(
+                            padding: EdgeInsets.zero,
+                            children: [
+                              for (final registration in confirmed)
+                                _PlayerRow(
+                                  name: participantLabel(l10n, registration),
+                                  position: participantSubtitle(
+                                    l10n,
+                                    registration,
+                                    (position) =>
+                                        _positionLabel(context, position),
+                                  ),
+                                  userId: registration.userId,
+                                  avatarUrl: registration.avatarUrl,
+                                  isProfessionalGuest:
+                                      registration.isProfessionalGuest,
+                                ),
+                            ],
+                          ),
+
+                        // Reserve queue, in promotion order.
+                        if (reserves.isNotEmpty) ...[
+                          SectionHeading(
+                            title: l10n.reserveListTitle,
+                            count: reserves.length,
+                          ),
+                          SectionCard(
+                            padding: EdgeInsets.zero,
+                            children: [
+                              for (final (index, registration) in reserves.indexed)
+                                _PlayerRow(
+                                  name: participantLabel(l10n, registration),
+                                  position: participantSubtitle(
+                                    l10n,
+                                    registration,
+                                    (position) =>
+                                        _positionLabel(context, position),
+                                  ),
+                                  userId: registration.userId,
+                                  avatarUrl: registration.avatarUrl,
+                                  queuePosition: index + 1,
+                                  isProfessionalGuest:
+                                      registration.isProfessionalGuest,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-
-                SectionHeading(
-                  title: l10n.startingPlayersLabel,
-                  subtitle: '${confirmed.length}/${match.startingPlayers}',
                 ),
-                if (confirmed.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: kPageMargin,
-                    ),
-                    child: EmptyState(
-                      icon: Icons.person_outline,
-                      message: l10n.matchRosterEmpty,
-                    ),
-                  )
-                else
-                  SectionCard(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      for (final registration in confirmed)
-                        _PlayerRow(
-                          name: participantLabel(l10n, registration),
-                          position: participantSubtitle(
-                            l10n,
-                            registration,
-                            (position) => _positionLabel(context, position),
-                          ),
-                          userId: registration.userId,
-                          avatarUrl: registration.avatarUrl,
-                          isProfessionalGuest:
-                              registration.isProfessionalGuest,
-                        ),
-                    ],
-                  ),
-
-                // Reserve queue, in promotion order.
-                if (reserves.isNotEmpty) ...[
-                  SectionHeading(
-                    title: l10n.reserveListTitle,
-                    count: reserves.length,
-                  ),
-                  SectionCard(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      for (final (index, registration) in reserves.indexed)
-                        _PlayerRow(
-                          name: participantLabel(l10n, registration),
-                          position: participantSubtitle(
-                            l10n,
-                            registration,
-                            (position) => _positionLabel(context, position),
-                          ),
-                          userId: registration.userId,
-                          avatarUrl: registration.avatarUrl,
-                          queuePosition: index + 1,
-                          isProfessionalGuest:
-                              registration.isProfessionalGuest,
-                        ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-/// The match itself: what it is called, where and when, and how full it is.
+/// The match's identity and facts inside the Club hero.
 ///
-/// One panel rather than five [ListTile]s. Location, time and status are not
-/// three separate subjects a reader navigates between — they are one answer to
-/// "what is this match", and a list of rows made the reader assemble it.
-class _MatchHeader extends StatelessWidget {
-  const _MatchHeader({required this.match, required this.registrations});
+/// This is a presentation of data Match Details already holds. It deliberately
+/// owns no status or registration decisions: [Match.effectiveStatus] and the
+/// screen's registration calculations remain the existing sources of truth.
+class _MatchHeroIdentity extends StatelessWidget {
+  const _MatchHeroIdentity({required this.match});
 
   final Match match;
-  final int registrations;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        kPageMargin,
-        Gap.lg,
-        kPageMargin,
-        Gap.sm,
-      ),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CommunityCrest(
+          name: match.communityName ?? match.displayName,
+          size: 54,
+          onHero: true,
+        ),
+        const SizedBox(width: Gap.md),
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
                       match.displayName,
-                      style: theme.textTheme.headlineSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.7,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const SizedBox(width: Gap.sm),
@@ -624,58 +685,40 @@ class _MatchHeader extends StatelessWidget {
                 const SizedBox(height: Gap.xs),
                 Text(
                   match.communityName!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w600,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    color: Colors.white.withValues(alpha: 0.75),
                   ),
                 ),
               ],
-              const SizedBox(height: Gap.md),
-              _Fact(
+              const SizedBox(height: Gap.sm),
+              _HeroFact(
                 icon: Icons.place_outlined,
                 label: l10n.locationLabel,
                 value: match.location,
               ),
-              const SizedBox(height: Gap.sm),
-              _Fact(
+              const SizedBox(height: Gap.xs),
+              _HeroFact(
                 icon: Icons.schedule_outlined,
                 label: l10n.dateLabel,
+                // The existing formatter isolates the time range, keeping its
+                // numeric order correct inside an Arabic fact line.
                 value: formatMatchTime(context, match),
               ),
-              const SizedBox(height: Gap.sm),
-              _Fact(
-                icon: Icons.groups_outlined,
-                label: l10n.startingPlayersLabel,
-                value: '$registrations/${match.maxRegistration}',
-              ),
-              if (match.description != null &&
-                  match.description!.trim().isNotEmpty) ...[
-                const SizedBox(height: Gap.sm),
-                _Fact(
-                  icon: Icons.notes_outlined,
-                  label: l10n.matchDescriptionLabel,
-                  value: match.description!,
-                ),
-              ],
-              if (match.isLocked) ...[
-                const SizedBox(height: Gap.md),
-                Text(
-                  l10n.matchLockedNote,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-/// One fact about the match: what it is, and what it says.
-class _Fact extends StatelessWidget {
-  const _Fact({required this.icon, required this.label, required this.value});
+/// One concise fact on the dark Match Details hero.
+class _HeroFact extends StatelessWidget {
+  const _HeroFact({required this.icon, required this.label, required this.value});
 
   final IconData icon;
   final String label;
@@ -683,31 +726,23 @@ class _Fact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
     return Semantics(
       label: '$label: $value',
       excludeSemantics: true,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(width: Gap.md),
+          Icon(icon, size: IconSize.chip, color: Colors.white.withValues(alpha: 0.7)),
+          const SizedBox(width: Gap.xs),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-                Text(value, style: theme.textTheme.bodyMedium),
-              ],
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.3,
+                color: Colors.white.withValues(alpha: 0.82),
+              ),
             ),
           ),
         ],
