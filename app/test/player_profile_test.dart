@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/core/club_place.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/core/skeleton.dart';
 import 'package:go_play/core/states.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
@@ -55,10 +58,11 @@ void main() {
   PlayerProfileView viewOf({
     DateTime? dateOfBirth,
     bool isSelf = false,
+    String fullName = 'Noor Al Kindi',
   }) =>
       PlayerProfileView(
         userId: 'u2',
-        fullName: 'Noor Al Kindi',
+        fullName: fullName,
         primaryPosition: PlayerPosition.mid,
         secondaryPosition: PlayerPosition.fwd,
         statistics: stats(),
@@ -86,8 +90,10 @@ void main() {
     required FakeProfileAdapter profiles,
     String? userId = 'u2',
     Locale locale = const Locale('en'),
+    Size size = const Size(900, 2000),
+    bool settle = true,
   }) async {
-    tester.view.physicalSize = const Size(900, 2000);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -103,21 +109,71 @@ void main() {
         authService: AuthService(_StubAuthAdapter()),
       ),
     ));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    if (settle) await tester.pumpAndSettle();
   }
 
   group('opening another player', () {
     testWidgets('shows their record, read through the one authorized path',
         (tester) async {
       final profiles = FakeProfileAdapter(player: viewOf());
-      await pumpPlayerProfile(tester, profiles: profiles);
+      await pumpPlayerProfile(
+        tester,
+        profiles: profiles,
+        size: const Size(412, 900),
+      );
 
       expect(profiles.requestedUserId, 'u2');
+      expect(find.byType(ClubHero), findsOneWidget);
+      expect(find.byType(ClubSheet), findsOneWidget);
       expect(find.text('Player profile'), findsOneWidget);
       expect(find.text('Noor Al Kindi'), findsOneWidget);
       expect(find.text('Midfielder'), findsOneWidget);
       expect(find.text('6.4'), findsOneWidget);
       expect(find.text('12'), findsOneWidget, reason: 'matches played');
+    });
+
+    testWidgets('long English names remain safe at 320 pixels',
+        (tester) async {
+      final name =
+          'Alexanderson Montgomery-Wellington the Third of Al Amerat';
+      await pumpPlayerProfile(
+        tester,
+        profiles: FakeProfileAdapter(player: viewOf(fullName: name)),
+        size: const Size(320, 800),
+      );
+
+      expect(find.text(name), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('long Arabic names remain safe at 320 pixels in RTL',
+        (tester) async {
+      final name = 'عبدالرحمن بن محمد بن عبدالله السالمي الطويل جداً';
+      await pumpPlayerProfile(
+        tester,
+        profiles: FakeProfileAdapter(player: viewOf(fullName: name)),
+        locale: const Locale('ar'),
+        size: const Size(320, 800),
+      );
+
+      expect(find.text(name), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the profile skeleton remains while data is loading',
+        (tester) async {
+      final gate = Completer<void>();
+      await pumpPlayerProfile(
+        tester,
+        profiles: FakeProfileAdapter(player: viewOf(), gate: gate.future),
+        settle: false,
+      );
+
+      expect(find.byType(SkeletonFade), findsOneWidget);
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(ClubHero), findsOneWidget);
     });
 
     testWidgets('carries no phone number, email or identifier', (tester) async {
@@ -225,12 +281,17 @@ void main() {
           ),
         ),
       );
-      await pumpPlayerProfile(tester, profiles: profiles, userId: null);
+      await pumpPlayerProfile(
+        tester,
+        profiles: profiles,
+        userId: null,
+        size: const Size(480, 900),
+      );
 
       expect(find.text('Profile'), findsOneWidget);
       expect(find.text('Salim Al Harthy'), findsOneWidget);
       expect(find.text('34 years old'), findsOneWidget);
-      expect(find.text('Edit profile'), findsOneWidget);
+      expect(find.byTooltip('Edit profile'), findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
     });
@@ -542,6 +603,7 @@ class FakeProfileAdapter implements ProfileAdapter {
     ),
     this.player,
     this.failure,
+    this.gate,
   });
 
   final PlayerProfile profile;
@@ -549,6 +611,7 @@ class FakeProfileAdapter implements ProfileAdapter {
 
   /// What the *other player's* read does.
   final Failure? failure;
+  final Future<void>? gate;
 
   /// What the privacy write does. Settable, so a test can let the load succeed
   /// and then refuse the save.
@@ -563,6 +626,7 @@ class FakeProfileAdapter implements ProfileAdapter {
   @override
   Future<PlayerProfileView> fetchPlayerProfile(String userId) async {
     requestedUserId = userId;
+    if (gate != null) await gate;
     if (failure != null) throw failure!;
     return player!;
   }

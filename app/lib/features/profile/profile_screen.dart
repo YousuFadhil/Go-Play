@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
+import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
 import '../../core/states.dart';
+import '../../core/tokens.dart';
 import '../auth/auth_models.dart';
 import '../auth/auth_service.dart';
 import '../communities/community_repository.dart';
@@ -183,16 +185,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Scaffold(
-      appBar: AppHeader(
-        title:
-            Text(_isOwnProfile ? l10n.profileTitle : l10n.playerProfileTitle),
-      ),
-      body: FutureBuilder<_ProfileView>(
+    return FutureBuilder<_ProfileView>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _ProfileSkeleton();
+            return Scaffold(
+              appBar: AppHeader(
+                title: Text(
+                  _isOwnProfile ? l10n.profileTitle : l10n.playerProfileTitle,
+                ),
+              ),
+              body: const _ProfileSkeleton(),
+            );
           }
           if (snapshot.hasError || !snapshot.hasData) {
             // A profile the player keeps to their community is not a failed
@@ -201,129 +205,157 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final error = snapshot.error;
             if (error is Failure &&
                 error.reason == FailureReason.profileNotVisible) {
-              return EmptyState(
-                icon: Icons.lock_outline,
-                title: l10n.profileNotVisibleTitle,
-                message: l10n.errProfileNotVisible,
+              return Scaffold(
+                appBar: AppHeader(
+                  title: Text(
+                    _isOwnProfile
+                        ? l10n.profileTitle
+                        : l10n.playerProfileTitle,
+                  ),
+                ),
+                body: EmptyState(
+                  icon: Icons.lock_outline,
+                  title: l10n.profileNotVisibleTitle,
+                  message: l10n.errProfileNotVisible,
+                ),
               );
             }
-            return ErrorState(onRetry: _refresh);
+            return Scaffold(
+              appBar: AppHeader(
+                title: Text(
+                  _isOwnProfile ? l10n.profileTitle : l10n.playerProfileTitle,
+                ),
+              ),
+              body: ErrorState(onRetry: _refresh),
+            );
           }
 
           final view = snapshot.data!;
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: Gap.xxl),
+          return Scaffold(
+            backgroundColor: GoColors.bgHero,
+            body: Column(
               children: [
-                _Identity(
-                  view: view,
-                  // Editing is the account's own action, so it is offered on
-                  // the player's own record and nowhere else.
-                  onEdit: _isOwnProfile ? _openEdit : null,
+                SafeArea(
+                  bottom: false,
+                  child: ClubHero(
+                    bar: ClubHeroBar(
+                      title: _isOwnProfile
+                          ? l10n.profileTitle
+                          : l10n.playerProfileTitle,
+                      actions: [
+                        if (_isOwnProfile)
+                          IconButton(
+                            tooltip: l10n.editProfileAction,
+                            color: Colors.white,
+                            iconSize: IconSize.bar,
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: _openEdit,
+                          ),
+                      ],
+                    ),
+                    identity: _HeroIdentity(view: view),
+                  ),
                 ),
-                _RatingPanel(rating: view.statistics.currentRating),
-                _Counters(
-                  statistics: view.statistics,
-                  communities: view.communities,
-                ),
-                if (view.statistics.matchesPlayed == 0)
-                  FootNote(
-                    l10n.statNoMatchesYet,
-                    textAlign: TextAlign.center,
-                    padding: const EdgeInsets.fromLTRB(
-                      kPageMargin,
-                      Gap.lg,
-                      kPageMargin,
-                      0,
+                Expanded(
+                  child: ClubSheet(
+                    child: RefreshIndicator(
+                      onRefresh: () async => _refresh(),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          0,
+                          Gap.sm,
+                          0,
+                          Gap.xxl,
+                        ),
+                        children: [
+                          _Counters(
+                            statistics: view.statistics,
+                            communities: view.communities,
+                          ),
+                          if (view.statistics.matchesPlayed == 0)
+                            FootNote(
+                              l10n.statNoMatchesYet,
+                              textAlign: TextAlign.center,
+                              padding: const EdgeInsetsDirectional.fromSTEB(
+                                kPageMargin,
+                                Gap.lg,
+                                kPageMargin,
+                                0,
+                              ),
+                            ),
+                          FootNote(
+                            l10n.statCareerNote,
+                            textAlign: TextAlign.center,
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              kPageMargin,
+                              Gap.xl,
+                              kPageMargin,
+                              Gap.sm,
+                            ),
+                          ),
+                          // The way into the same record by period, and the only
+                          // way there is. The counters above are the career; this
+                          // is that career broken into weeks and months — and the
+                          // screen it opens is where a card of it can be shared.
+                          if (_isOwnProfile)
+                            SectionCard(
+                              padding: EdgeInsets.zero,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.insights_outlined),
+                                  title: Text(l10n.playerStatisticsTitle),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const PlayerStatisticsScreen(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          // Settings and logout belong to the account, not to a
+                          // profile another player has opened.
+                          if (_isOwnProfile)
+                            SectionCard(
+                              padding: EdgeInsets.zero,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.settings_outlined),
+                                  title: Text(l10n.settingsTitle),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const SettingsScreen(),
+                                    ),
+                                  ),
+                                ),
+                                ListTile(
+                                  leading: Icon(
+                                    Icons.logout,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  title: Text(
+                                    l10n.logoutLabel,
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(context).colorScheme.error,
+                                    ),
+                                  ),
+                                  onTap: () => logOut(context),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                FootNote(
-                  l10n.statCareerNote,
-                  textAlign: TextAlign.center,
-                  padding: const EdgeInsets.fromLTRB(
-                    kPageMargin,
-                    Gap.xl,
-                    kPageMargin,
-                    Gap.sm,
-                  ),
                 ),
-                // The way into the same record by period, and the only way
-                // there is. The counters above are the career; this is that
-                // career broken into weeks and months — and the screen it opens
-                // is where a card of it can be shared from.
-                //
-                // Its own card rather than the one below: settings and logout
-                // are things done to the account, and this is more of the
-                // record it sits under.
-                //
-                // Offered on the player's own profile only, because the screen
-                // it opens is the signed-in player's — it resolves whose record
-                // to read from the session, exactly as this screen does when
-                // `userId` is null.
-                if (_isOwnProfile)
-                  SectionCard(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.insights_outlined),
-                        title: Text(l10n.playerStatisticsTitle),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            // No `userId`: null is the signed-in player, which
-                            // is what this branch already knows it is showing.
-                            // Passing one read here would be a second answer to
-                            // a question the session already settles.
-                            builder: (_) => const PlayerStatisticsScreen(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                // The account's own actions, apart from the record above them.
-                // The second place logout lives, the header menu being the
-                // first. It stays on the record rather than moving to the
-                // form: signing out is something a person does, not something
-                // they edit.
-                //
-                // Somebody else's record carries none of it: settings and
-                // logout belong to the account, not to the profile.
-                if (_isOwnProfile)
-                  SectionCard(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.settings_outlined),
-                        title: Text(l10n.settingsTitle),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SettingsScreen(),
-                          ),
-                        ),
-                      ),
-                      ListTile(
-                        leading: Icon(
-                          Icons.logout,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                        title: Text(
-                          l10n.logoutLabel,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                        onTap: () => logOut(context),
-                      ),
-                    ],
-                  ),
               ],
             ),
           );
         },
-      ),
     );
   }
 }
@@ -337,67 +369,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
 /// all. It is shown when there is one to show, which for another player means
 /// the server sent a date of birth — a hidden age arrives as no date and
 /// therefore as no line, rather than as a line this widget declines to draw.
-class _Identity extends StatelessWidget {
-  const _Identity({required this.view, this.onEdit});
+class _HeroIdentity extends StatelessWidget {
+  const _HeroIdentity({required this.view});
 
   final _ProfileView view;
-
-  /// Null on somebody else's record: there is nothing to edit there.
-  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final age = view.age;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        kPageMargin,
-        Gap.lg,
-        kPageMargin,
-        Gap.sm,
-      ),
-      child: Column(
-        children: [
-          UserAvatar(
-            avatarUrl: view.avatarUrl,
-            fullName: view.fullName,
-            radius: 44,
-          ),
-          const SizedBox(height: Gap.md),
-          Text(
-            view.fullName,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: Gap.xs),
-          Text(
-            _positionLabel(l10n, view.primaryPosition),
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.primary),
-          ),
-          if (age != null) ...[
-            const SizedBox(height: Gap.xs),
-            Text(
-              l10n.ageYears(age),
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-          if (onEdit != null) ...[
-            const SizedBox(height: Gap.lg),
-            FilledButton.tonalIcon(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: Text(l10n.editProfileAction),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(kButtonHeight),
+    return Row(
+      children: [
+        UserAvatar(
+          avatarUrl: view.avatarUrl,
+          fullName: view.fullName,
+          radius: 31,
+        ),
+        const SizedBox(width: Gap.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                view.fullName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 21,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.7,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
-        ],
-      ),
+              const SizedBox(height: Gap.sm),
+              Wrap(
+                spacing: Gap.sm - 2,
+                runSpacing: Gap.xs,
+                children: [
+                  _HeroChip(label: _positionLabel(l10n, view.primaryPosition)),
+                  if (view.age != null)
+                    _HeroChip(label: l10n.ageYears(view.age!)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: Gap.sm),
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                view.statistics.currentRating.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontSize: 30,
+                  height: 1,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -1.4,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: Gap.sm - 2),
+              Text(
+                l10n.statCurrentRating,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  height: 1,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.8,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -410,63 +460,34 @@ class _Identity extends StatelessWidget {
       };
 }
 
-/// The Global Rating, given the prominence it has in the product.
-///
-/// Shown to one decimal place because that is `OP-1`'s presentation rule. The
-/// stored value carries two — the engine moves a rating by 0.05 for a goal, and
-/// a scale that could not hold that would make corrections irreversible — so the
-/// second decimal is real and deliberately not shown here.
-class _RatingPanel extends StatelessWidget {
-  const _RatingPanel({required this.rating});
+class _HeroChip extends StatelessWidget {
+  const _HeroChip({required this.label});
 
-  final double rating;
+  final String label;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final l10n = context.l10n;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        kPageMargin,
-        Gap.lg,
-        kPageMargin,
-        Gap.xs,
-      ),
-      padding: const EdgeInsets.symmetric(vertical: Gap.lg),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: AlignmentDirectional.topStart,
-          end: AlignmentDirectional.bottomEnd,
-          colors: [
-            scheme.primary,
-            Color.lerp(scheme.primary, scheme.primaryContainer, 0.8)!,
-          ],
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsetsDirectional.symmetric(
+          horizontal: Gap.sm,
+          vertical: 4,
         ),
-        borderRadius: BorderRadius.circular(Radii.md),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.military_tech, size: 26, color: scheme.onPrimary),
-          const SizedBox(height: Gap.xs),
-          Text(
-            rating.toStringAsFixed(1),
-            style: theme.textTheme.displaySmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: scheme.onPrimary,
-            ),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(Radii.pill),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            height: 1,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
           ),
-          Text(
-            l10n.statCurrentRating,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: scheme.onPrimary.withValues(alpha: 0.85),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      );
 }
 
 /// The career counters, in the order the Product Owner asked for them.
