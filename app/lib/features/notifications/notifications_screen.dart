@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:intl/intl.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_task.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../../core/tokens.dart';
 import '../matches/match_details_screen.dart';
 import 'notification_display.dart';
 import 'notification_models.dart';
@@ -116,96 +117,161 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return (title == null || title.isEmpty) ? null : title;
   }
 
+  Widget _taskBody(Widget child) => ClubTaskBody(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: IconButton(
+                tooltip: context.l10n.pushSettingsTitle,
+                icon: const Icon(Icons.notifications_active_outlined),
+                onPressed: _openSettings,
+              ),
+            ),
+            child,
+          ],
+        ),
+      );
+
+  Widget _notificationRow(
+    AppLocalizations l10n,
+    AppNotification notification,
+    String locale,
+  ) {
+    final display = notificationDisplays[notification.type];
+    final (background, foreground) =
+        (display?.tone ?? NotificationTone.neutral)
+            .colours(Theme.of(context).colorScheme);
+    final theme = Theme.of(context);
+    final matchTitle = _context(notification);
+    final unread = !notification.isRead;
+
+    return Material(
+      key: Key('notification_surface_${notification.id}'),
+      color: unread ? GoColors.surfaceCard : GoColors.rowTintLight,
+      child: InkWell(
+        key: Key('notification_${notification.id}'),
+        onTap: _openFor(notification),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            Layout.cardInner,
+            Gap.md,
+            Gap.sm,
+            Gap.md,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: background,
+                foregroundColor: foreground,
+                child: Icon(display?.icon ?? Icons.notifications, size: 20),
+              ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _text(l10n, notification),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
+                    if (matchTitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        matchTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat.yMMMEd(locale)
+                          .add_Hm()
+                          .format(notification.createdAt),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (unread)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: Gap.sm,
+                    top: 7,
+                  ),
+                  child: DecoratedBox(
+                    key: Key('notification_unread_${notification.id}'),
+                    decoration: BoxDecoration(
+                      color: GoColors.alert,
+                      shape: BoxShape.circle,
+                    ),
+                    child: SizedBox(width: 8, height: 8),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final locale = Localizations.localeOf(context).toString();
 
     return Scaffold(
-      appBar: AppHeader(
-        title: Text(l10n.notificationsTitle),
-        actions: [
-          IconButton(
-            tooltip: l10n.pushSettingsTitle,
-            icon: const Icon(Icons.notifications_active_outlined),
-            onPressed: _openSettings,
-          ),
-        ],
-      ),
+      appBar: ClubTaskBar(title: l10n.notificationsTitle),
       body: FutureBuilder<List<AppNotification>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingState();
+            return _taskBody(const LoadingState());
           }
           if (snapshot.hasError) {
-            return ErrorState(onRetry: _refresh);
+            return _taskBody(ErrorState(onRetry: _refresh));
           }
 
           final items = snapshot.data ?? const [];
           if (items.isEmpty) {
-            return EmptyState(
+            return _taskBody(EmptyState(
               icon: Icons.notifications_none,
               message: l10n.notificationsEmpty,
-            );
+            ));
           }
 
           return RefreshIndicator(
             onRefresh: () async => _refresh(),
-            child: ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: Gap.xl),
-              itemCount: items.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, indent: Gap.xxl + Gap.xl),
-              itemBuilder: (context, index) {
-                final n = items[index];
-                final display = notificationDisplays[n.type];
-                // An unregistered type still renders — as a plain notice in
-                // whatever language it was stored in, which is what an
-                // unrecognised kind of thing honestly looks like.
-                final (background, foreground) =
-                    (display?.tone ?? NotificationTone.neutral)
-                        .colours(Theme.of(context).colorScheme);
-
-                final theme = Theme.of(context);
-
-                // Which match this is about. The event is the title above; this
-                // is the one thing a reader needed to tell two notices of the
-                // same kind apart, and until now it was nowhere on the screen.
-                final matchTitle = _context(n);
-
-                return ListTile(
-                  onTap: _openFor(n),
-                  isThreeLine: matchTitle != null,
-                  leading: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: background,
-                    foregroundColor: foreground,
-                    child: Icon(display?.icon ?? Icons.notifications, size: 20),
-                  ),
-                  title: Text(_text(l10n, n), style: theme.textTheme.bodyLarge),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (matchTitle != null)
-                        Text(
-                          matchTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      Text(
-                        DateFormat.yMMMEd(locale).add_Hm().format(n.createdAt),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+            child: _taskBody(
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: GoColors.surfaceCard,
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  boxShadow: Elevations.card,
+                ),
+                child: Column(
+                  children: [
+                    for (final (index, notification) in items.indexed) ...[
+                      _notificationRow(l10n, notification, locale),
+                      if (index < items.length - 1)
+                        Divider(height: 1, color: GoColors.hairline),
                     ],
-                  ),
-                );
-              },
+                  ],
+                ),
+              ),
             ),
           );
         },

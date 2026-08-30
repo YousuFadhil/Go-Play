@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/core/club_task.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/core/states.dart';
 import 'package:go_play/features/invitations/invite_link.dart';
 import 'package:go_play/features/matches/match_details_screen.dart';
 import 'package:go_play/features/notifications/notification_adapter.dart';
@@ -490,11 +494,17 @@ void main() {
   group('Notification Center rendering', () {
     Future<void> pumpCentre(
       WidgetTester tester,
-      FakeNotificationAdapter adapter,
+      FakeNotificationAdapter adapter, {
+      Locale locale = const Locale('en'),
+      Size size = const Size(412, 900),
     ) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
         MaterialApp(
-          locale: const Locale('en'),
+          locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: NotificationsScreen(service: NotificationService(adapter)),
@@ -502,6 +512,116 @@ void main() {
       );
       await tester.pumpAndSettle();
     }
+
+    testWidgets('uses the Club task bar and grouped notification list',
+        (tester) async {
+      await pumpCentre(
+        tester,
+        FakeNotificationAdapter(notifications: [
+          notice(type: 'match_created', message: 'x', id: 'one'),
+          notice(type: 'match_updated', message: 'x', id: 'two'),
+        ]),
+        size: const Size(412, 900),
+      );
+
+      expect(find.byType(ClubTaskBar), findsOneWidget);
+      expect(find.byType(ClubTaskBody), findsOneWidget);
+      expect(find.byKey(const Key('notification_one')), findsOneWidget);
+      expect(find.byKey(const Key('notification_two')), findsOneWidget);
+    });
+
+    testWidgets('unread and read rows keep distinct presentation',
+        (tester) async {
+      await pumpCentre(
+        tester,
+        FakeNotificationAdapter(notifications: [
+          notice(type: 'match_created', message: 'x', id: 'unread'),
+          notice(
+            type: 'match_updated',
+            message: 'x',
+            id: 'read',
+            isRead: true,
+          ),
+        ]),
+      );
+
+      expect(find.byKey(const Key('notification_unread_unread')), findsOneWidget);
+      expect(find.byKey(const Key('notification_unread_read')), findsNothing);
+      expect(
+        tester
+            .widget<Material>(
+              find.byKey(const Key('notification_surface_unread')),
+            )
+            .color,
+        isNot(
+          tester
+              .widget<Material>(
+                find.byKey(const Key('notification_surface_read')),
+              )
+              .color,
+        ),
+      );
+    });
+
+    testWidgets('long English text is safe at 320 pixels', (tester) async {
+      final message =
+          'This notification message is deliberately long so it must remain bounded on a narrow screen.';
+      await pumpCentre(
+        tester,
+        FakeNotificationAdapter(notifications: [
+          notice(type: 'something_new', message: message, id: 'long-en'),
+        ]),
+        size: const Size(320, 800),
+      );
+
+      expect(find.text(message), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('long Arabic text is safe at 320 pixels in RTL', (tester) async {
+      final message =
+          'هذه رسالة إشعار طويلة جداً للتحقق من بقاء النص ضمن صف الإشعار على الشاشة الضيقة بدون تجاوز.';
+      await pumpCentre(
+        tester,
+        FakeNotificationAdapter(notifications: [
+          notice(type: 'something_new', message: message, id: 'long-ar'),
+        ]),
+        locale: const Locale('ar'),
+        size: const Size(320, 800),
+      );
+
+      expect(find.text(message), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('empty, loading, and error states retain the task structure',
+        (tester) async {
+      final gate = Completer<void>();
+      final loading = FakeNotificationAdapter(fetchGate: gate.future);
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: NotificationsScreen(service: NotificationService(loading)),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(ClubTaskBar), findsOneWidget);
+      expect(find.byType(LoadingState), findsOneWidget);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(EmptyState), findsOneWidget);
+
+      await pumpCentre(
+        tester,
+        FakeNotificationAdapter(fetchError: const NetworkFailure()),
+        size: const Size(480, 900),
+      );
+      expect(find.byType(ErrorState), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
 
     test('every display entry carries an icon, a tone and a label', () {
       // The registry replaced three parallel switches. What it buys is that a
@@ -592,9 +712,10 @@ void main() {
         ]),
       );
 
-      final tile = tester.widget<ListTile>(find.byType(ListTile));
-      expect(tile.onTap, isNull);
-      expect(tile.isThreeLine, isFalse);
+      final row = tester.widget<InkWell>(
+        find.byKey(const Key('notification_match_deleted')),
+      );
+      expect(row.onTap, isNull);
       expect(find.text('The match was cancelled.'), findsOneWidget);
     });
 
@@ -624,7 +745,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(ListTile));
+      await tester.tap(find.byKey(const Key('notification_notice-1')));
       await tester.pumpAndSettle();
 
       // That one, by id — not the sweep the screen does on open.
@@ -663,7 +784,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(ListTile));
+      await tester.tap(find.byKey(const Key('notification_notice-1')));
       await tester.pumpAndSettle();
 
       expect(adapter.readIds, isEmpty);
@@ -682,7 +803,12 @@ void main() {
         ]),
       );
 
-      expect(tester.widget<ListTile>(find.byType(ListTile)).onTap, isNotNull);
+      expect(
+        tester
+            .widget<InkWell>(find.byKey(const Key('notification_match_created')))
+            .onTap,
+        isNotNull,
+      );
     });
 
     testWidgets('a notice about nothing is inert', (tester) async {
@@ -695,7 +821,14 @@ void main() {
         ]),
       );
 
-      expect(tester.widget<ListTile>(find.byType(ListTile)).onTap, isNull);
+      expect(
+        tester
+            .widget<InkWell>(
+              find.byKey(const Key('notification_community_invitation')),
+            )
+            .onTap,
+        isNull,
+      );
     });
 
     testWidgets('an unregistered type falls back to the stored message',
@@ -804,12 +937,13 @@ AppNotification notice({
   String? matchId,
   String? matchTitle,
   String? id,
+  bool isRead = false,
 }) =>
     AppNotification(
       id: id ?? type,
       type: type,
       message: message,
-      isRead: false,
+      isRead: isRead,
       createdAt: DateTime(2026, 8, 9, 18, 30),
       matchId: matchId,
       matchTitle: matchTitle,
@@ -821,12 +955,16 @@ class FakeNotificationAdapter implements NotificationAdapter {
     this.failSave = false,
     this.failMarkRead = false,
     this.notifications = const [],
+    this.fetchGate,
+    this.fetchError,
   });
 
   final PushPreferences stored;
   final bool failSave;
   final bool failMarkRead;
   final List<AppNotification> notifications;
+  final Future<void>? fetchGate;
+  final Failure? fetchError;
 
   final List<PushPreferences> saved = [];
   final List<String> registered = [];
@@ -854,7 +992,11 @@ class FakeNotificationAdapter implements NotificationAdapter {
   Future<void> removeDevice(String token) async => removed.add(token);
 
   @override
-  Future<List<AppNotification>> fetchAll() async => notifications;
+  Future<List<AppNotification>> fetchAll() async {
+    if (fetchGate != null) await fetchGate;
+    if (fetchError != null) throw fetchError!;
+    return notifications;
+  }
 
   @override
   Future<int> unreadCount() async =>
