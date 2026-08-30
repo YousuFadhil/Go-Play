@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
+import '../../core/tokens.dart';
 import '../auth/auth_prompt.dart';
 import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
@@ -161,63 +162,79 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: () async => _refresh(),
-          child: FutureBuilder<DiscoverOverview>(
-            future: _future,
-            builder: (context, snapshot) {
-              final loading = snapshot.connectionState != ConnectionState.done;
-              final overview = snapshot.hasError ? null : snapshot.data;
-
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                children: [
-                  DiscoverTopBar(signedIn: _signedIn),
-                  DiscoverHero(
-                    signedIn: _signedIn,
-                    overview: overview,
-                    onPrimaryAction:
-                        _signedIn ? _createCommunity : _openRegister,
-                    onLogIn: _openLogin,
-                  ),
-                  // One switcher for all three states, so arriving content
-                  // fades in over the placeholders rather than replacing them
-                  // in a single frame. 180ms: long enough to read as a
-                  // transition, short enough that nobody waits for it.
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: KeyedSubtree(
-                      key: ValueKey(
-                        loading ? 'loading' : (overview == null ? 'failed' : 'loaded'),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (loading)
-                            const _DiscoverSkeleton()
-                          else if (overview == null)
-                            _LoadFailed(onRetry: _refresh)
-                          else ...[
-                            ..._matchesSection(l10n, overview),
-                            ..._communitiesSection(l10n, overview),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  DiscoverCta(
-                    signedIn: _signedIn,
-                    onCreateAccount: _openRegister,
-                    onCreateCommunity: _createCommunity,
-                  ),
-                ],
-              );
-            },
+      backgroundColor: GoColors.bgHero,
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: FutureBuilder<DiscoverOverview>(
+              future: _future,
+              builder: (context, snapshot) => DiscoverHero(
+                signedIn: _signedIn,
+                overview: snapshot.hasError ? null : snapshot.data,
+                onPrimaryAction:
+                    _signedIn ? _createCommunity : _openRegister,
+                onLogIn: _openLogin,
+              ),
+            ),
           ),
-        ),
+          Expanded(
+            child: ClubSheet(
+              child: RefreshIndicator(
+                onRefresh: () async => _refresh(),
+                child: FutureBuilder<DiscoverOverview>(
+                  future: _future,
+                  builder: (context, snapshot) {
+                    final loading =
+                        snapshot.connectionState != ConnectionState.done;
+                    final overview = snapshot.hasError ? null : snapshot.data;
+
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsetsDirectional.only(
+                        bottom: Layout.listBottom,
+                      ),
+                      children: [
+                        // One switcher for all three states, so arriving content
+                        // fades in over the placeholders rather than replacing them
+                        // in a single frame. 180ms: long enough to read as a
+                        // transition, short enough that nobody waits for it.
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: KeyedSubtree(
+                            key: ValueKey(
+                              loading
+                                  ? 'loading'
+                                  : (overview == null ? 'failed' : 'loaded'),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (loading)
+                                  const _DiscoverSkeleton()
+                                else if (overview == null)
+                                  _LoadFailed(onRetry: _refresh)
+                                else ...[
+                                  ..._matchesSection(l10n, overview),
+                                  ..._communitiesSection(l10n, overview),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        DiscoverCta(
+                          signedIn: _signedIn,
+                          onCreateAccount: _openRegister,
+                          onCreateCommunity: _createCommunity,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -267,6 +284,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             community: community,
             onOpen: () => _openCommunity(community),
             onJoin: () => _join(community),
+            clubStyle: true,
           ),
     ];
   }

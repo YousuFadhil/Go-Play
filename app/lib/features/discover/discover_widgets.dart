@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/time_format.dart';
+import '../../core/tokens.dart';
 import '../profile/current_user.dart';
 import '../profile/profile_models.dart';
 import 'discover_models.dart';
@@ -110,85 +112,33 @@ class DiscoverHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: AlignmentDirectional.topStart,
-          end: AlignmentDirectional.bottomEnd,
-          colors: [
-            scheme.primary,
-            Color.lerp(scheme.primary, scheme.primaryContainer, 0.8)!,
-          ],
-        ),
-        borderRadius: const BorderRadiusDirectional.only(
-          bottomStart: Radius.circular(Radii.lg),
-          bottomEnd: Radius.circular(Radii.lg),
-        ),
+    return ClubHero(
+      bar: ClubHeroBar(
+        title: l10n.appName,
+        actions: signedIn ? const [CurrentUserMenu()] : const [],
       ),
-      child: Stack(
+      identity: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // A ball, most of it outside the banner. It reads as texture rather
-          // than as an icon somebody forgot to position, and it is what stops
-          // the panel being a flat rectangle of brand colour.
-          PositionedDirectional(
-            top: -48,
-            end: -40,
-            child: Icon(
-              Icons.sports_soccer,
-              size: 190,
-              color: scheme.onPrimary.withValues(alpha: 0.09),
-            ),
-          ),
-          Padding(
-            // Horizontally on the page margin, so the headline and the buttons
-            // share a left edge with every card underneath them.
-            padding: const EdgeInsets.fromLTRB(
-              kPageMargin,
-              Gap.lg,
-              kPageMargin,
-              Gap.xl,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: _AppLogo(),
+          const _AppLogo(),
+          const SizedBox(height: Gap.md),
+          _Headline(signedIn: signedIn),
+          const SizedBox(height: Gap.xs),
+          Text(
+            signedIn ? l10n.discoverHeroBodySignedIn : l10n.discoverHeroBody,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.85),
                 ),
-                const SizedBox(height: Gap.lg),
-                _Headline(signedIn: signedIn),
-                const SizedBox(height: Gap.sm),
-                Text(
-                  signedIn
-                      ? l10n.discoverHeroBodySignedIn
-                      : l10n.discoverHeroBody,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    // Not full-strength: the sentence supports the headline
-                    // rather than competing with it.
-                    color: scheme.onPrimary.withValues(alpha: 0.85),
-                  ),
-                ),
-                if (overview != null) ...[
-                  const SizedBox(height: Gap.md),
-                  _LivePulse(overview: overview!),
-                ],
-                const SizedBox(height: Gap.lg),
-                _HeroActions(
-                  signedIn: signedIn,
-                  onPrimaryAction: onPrimaryAction,
-                  onLogIn: onLogIn,
-                ),
-              ],
-            ),
           ),
         ],
+      ),
+      counts: overview == null ? null : _LivePulse(overview: overview!),
+      action: _HeroActions(
+        signedIn: signedIn,
+        onPrimaryAction: onPrimaryAction,
+        onLogIn: onLogIn,
       ),
     );
   }
@@ -214,16 +164,10 @@ class _HeroActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
 
     final primary = FilledButton(
       onPressed: onPrimaryAction,
-      style: FilledButton.styleFrom(
-        backgroundColor: scheme.onPrimary,
-        foregroundColor: scheme.primary,
-        minimumSize: const Size(0, kButtonHeight),
-        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-      ),
+      style: ClubHeroButtons.filled,
       child: Text(
         signedIn ? l10n.createCommunityTitle : l10n.registerButton,
         maxLines: 1,
@@ -241,12 +185,7 @@ class _HeroActions extends StatelessWidget {
           flex: 2,
           child: OutlinedButton(
             onPressed: onLogIn,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: scheme.onPrimary,
-              side: BorderSide(color: scheme.onPrimary.withValues(alpha: 0.55)),
-              minimumSize: const Size(0, kButtonHeight),
-              padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-            ),
+            style: ClubHeroButtons.ghost,
             child: Text(
               l10n.loginButton,
               maxLines: 1,
@@ -727,11 +666,16 @@ class PublicCommunityCard extends StatelessWidget {
     required this.community,
     required this.onOpen,
     required this.onJoin,
+    this.clubStyle = false,
   });
 
   final PublicCommunity community;
   final VoidCallback onOpen;
   final VoidCallback onJoin;
+
+  /// Discover uses the frozen Club card; the public community page retains its
+  /// existing presentation while sharing the same callbacks and data.
+  final bool clubStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -741,11 +685,12 @@ class PublicCommunityCard extends StatelessWidget {
     final description = community.description?.trim() ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kPageMargin,
+      padding: EdgeInsetsDirectional.symmetric(
+        horizontal: clubStyle ? Layout.sheetGutter : kPageMargin,
         vertical: Gap.xs + 2,
       ),
       child: Card(
+        color: clubStyle ? GoColors.surfaceCard : null,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onOpen,
@@ -757,7 +702,9 @@ class PublicCommunityCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CommunityLogo(community: community),
+                    clubStyle
+                        ? CommunityCrest(name: community.name, size: 46)
+                        : CommunityLogo(community: community),
                     const SizedBox(width: Gap.md),
                     Expanded(
                       child: Column(
@@ -767,7 +714,11 @@ class PublicCommunityCard extends StatelessWidget {
                             community.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium,
+                            style: clubStyle
+                                ? GoType.cardTitle.copyWith(
+                                    color: GoColors.onSurface,
+                                  )
+                                : theme.textTheme.titleMedium,
                           ),
                           if (description.isNotEmpty) ...[
                             const SizedBox(height: 2),

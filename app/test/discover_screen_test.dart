@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/app_header.dart';
+import 'package:go_play/core/club_place.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
@@ -73,6 +74,8 @@ void main() {
     Object? failure,
     bool signedIn = false,
     PlayerProfile? profile,
+    Locale locale = const Locale('en'),
+    Size size = const Size(800, 2400),
   }) async {
     // The greeting reads the profile the session holds. Left null nothing is
     // loaded, which is the case the headline has to fall back for.
@@ -81,7 +84,7 @@ void main() {
     );
     addTearDown(() => CurrentUser.instance.useRepository(null));
 
-    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -95,7 +98,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      locale: const Locale('en'),
+      locale: locale,
       home: DiscoverScreen(
         repository: DiscoverRepository(adapter),
         authService: AuthService(_StubAuthAdapter(signedIn: signedIn)),
@@ -105,6 +108,14 @@ void main() {
   }
 
   group('the app opens on something to look at', () {
+    testWidgets('uses the frozen Club place presentation', (tester) async {
+      await pumpDiscover(tester);
+
+      expect(find.byType(ClubHero), findsOneWidget);
+      expect(find.byType(ClubSheet), findsOneWidget);
+      expect(find.byType(CommunityCrest), findsOneWidget);
+    });
+
     testWidgets('the banner names the product and offers an account',
         (tester) async {
       await pumpDiscover(tester);
@@ -452,6 +463,59 @@ void main() {
       await pumpDiscover(tester, failure: StateError('offline'));
 
       expect(find.textContaining('communities'), findsNothing);
+    });
+  });
+
+  group('long content stays inside Club cards', () {
+    testWidgets('long English community, title, and location are safe at 320',
+        (tester) async {
+      const communityName =
+          'The Extremely Long Community Name Football Association Of Muscat';
+      const matchTitle =
+          'The Very Long Friday Evening Football Match Title For Every Player';
+      const location =
+          'The Extremely Long Al Amerat Football Ground Location Description';
+      await pumpDiscover(
+        tester,
+        communities: [community('c1', communityName)],
+        matches: [match('m1', title: matchTitle, location: location)],
+        size: const Size(320, 900),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(tester.widget<Text>(find.text(communityName)).overflow,
+          TextOverflow.ellipsis);
+      expect(tester.widget<Text>(find.text(matchTitle)).overflow,
+          TextOverflow.ellipsis);
+      expect(tester.widget<Text>(find.text(location)).overflow,
+          TextOverflow.ellipsis);
+    });
+
+    testWidgets('long Arabic content is safe at 320 RTL', (tester) async {
+      const communityName =
+          'نادي المجتمع الرياضي لكرة القدم في ولاية العامرات بمحافظة مسقط';
+      const matchTitle =
+          'مباراة كرة القدم المسائية الطويلة جداً لجميع لاعبي المجتمع';
+      const location = 'ملعب العامرات الرئيسي لكرة القدم في محافظة مسقط';
+      await pumpDiscover(
+        tester,
+        communities: [community('c1', communityName)],
+        matches: [match('m1', title: matchTitle, location: location)],
+        locale: const Locale('ar'),
+        size: const Size(320, 900),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        Directionality.of(tester.element(find.byType(ClubHero))),
+        TextDirection.rtl,
+      );
+      expect(tester.widget<Text>(find.text(communityName)).overflow,
+          TextOverflow.ellipsis);
+      expect(tester.widget<Text>(find.text(matchTitle)).overflow,
+          TextOverflow.ellipsis);
+      expect(tester.widget<Text>(find.text(location)).overflow,
+          TextOverflow.ellipsis);
     });
   });
 }
