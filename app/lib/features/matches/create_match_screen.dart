@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
 import 'package:intl/intl.dart';
 
 import 'app_settings.dart';
+import '../../core/club_task.dart';
+import '../../core/design.dart';
 import '../../core/failures.dart';
+import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import 'match_service.dart';
 
 class CreateMatchScreen extends StatefulWidget {
-  const CreateMatchScreen({super.key, required this.communityId});
+  const CreateMatchScreen({
+    super.key,
+    required this.communityId,
+    this.matchService,
+  });
 
   final String communityId;
+
+  /// Supplied by widget tests; production construction stays on [MatchService].
+  final MatchService? matchService;
 
   @override
   State<CreateMatchScreen> createState() => _CreateMatchScreenState();
@@ -22,7 +31,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
   final _startingPlayersController = TextEditingController(text: '14');
-  final _matchService = MatchService();
+  late final MatchService _matchService = widget.matchService ?? MatchService();
 
   DateTime? _date;
   TimeOfDay? _startTime;
@@ -68,6 +77,13 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         }
       });
     }
+  }
+
+  void _stepStartingPlayers(int delta) {
+    final current = int.tryParse(_startingPlayersController.text) ?? 14;
+    final next = (current + delta).clamp(4, 30);
+    _startingPlayersController.text = '$next';
+    setState(() {});
   }
 
   String? _validateSchedule() {
@@ -149,105 +165,161 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     final locale = Localizations.localeOf(context).toString();
 
     return Scaffold(
-      appBar: AppHeader(title: Text(l10n.createMatchTitle)),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  controller: _titleController,
-                  decoration: InputDecoration(labelText: l10n.matchTitleLabel),
-                  maxLength: 60,
-                  textInputAction: TextInputAction.next,
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? l10n.matchTitleRequired
-                      : null,
+      appBar: ClubTaskBar(title: l10n.createMatchTitle),
+      body: ClubTaskBody(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(Layout.cardInner),
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _titleController,
+                        decoration:
+                            InputDecoration(labelText: l10n.matchTitleLabel),
+                        maxLength: 60,
+                        textInputAction: TextInputAction.next,
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
+                                ? l10n.matchTitleRequired
+                                : null,
+                      ),
+                      TextFormField(
+                        controller: _locationController,
+                        decoration:
+                            InputDecoration(labelText: l10n.locationLabel),
+                        maxLength: 100,
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
+                                ? l10n.locationRequired
+                                : null,
+                      ),
+                    ],
+                  ),
                 ),
-                TextFormField(
-                  controller: _locationController,
-                  decoration: InputDecoration(labelText: l10n.locationLabel),
-                  maxLength: 100,
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? l10n.locationRequired
-                      : null,
-                ),
-                const SizedBox(height: 8),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.calendar_today),
-                  title: Text(l10n.dateLabel),
-                  subtitle: Text(_date == null
-                      ? '—'
-                      : DateFormat.yMMMEd(locale).format(_date!)),
-                  onTap: _pickDate,
-                ),
-                Row(
+              ),
+              const SizedBox(height: Layout.cardGap),
+              Card(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.schedule),
-                        title: Text(l10n.startTimeLabel),
-                        subtitle: Text(_startTime?.format(context) ?? '—'),
-                        onTap: () => _pickTime(isStart: true),
-                      ),
+                    ListTile(
+                      leading: const Icon(Icons.calendar_today_outlined),
+                      title: Text(l10n.dateLabel),
+                      subtitle: Text(_date == null
+                          ? '—'
+                          : DateFormat.yMMMEd(locale).format(_date!)),
+                      onTap: _pickDate,
                     ),
-                    Expanded(
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.schedule_outlined),
-                        title: Text(l10n.endTimeLabel),
-                        subtitle: Text(_endTime?.format(context) ?? '—'),
-                        onTap: () => _pickTime(isStart: false),
-                      ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.schedule_outlined),
+                      title: Text(l10n.startTimeLabel),
+                      subtitle: Text(_startTime?.format(context) ?? '—'),
+                      onTap: () => _pickTime(isStart: true),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.schedule_outlined),
+                      title: Text(l10n.endTimeLabel),
+                      subtitle: Text(_endTime?.format(context) ?? '—'),
+                      onTap: () => _pickTime(isStart: false),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _startingPlayersController,
-                  keyboardType: TextInputType.number,
-                  decoration:
-                      InputDecoration(labelText: l10n.startingPlayersLabel),
-                  onChanged: (_) => setState(() {}),
-                  validator: (value) {
-                    // 4 is the approved OP-2 minimum match size (2 v 2), the
-                    // same bound the database and update_match enforce.
-                    final parsed = int.tryParse(value ?? '');
-                    if (parsed == null || parsed < 4 || parsed > 30) {
-                      return l10n.startingPlayersInvalid;
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                // Maximum registration is derived, never entered.
-                Text(
-                  l10n.capacityAutoNote(
-                    AppSettings.reservePlayers,
-                    AppSettings.maxRegistrationFor(
-                        int.tryParse(_startingPlayersController.text) ?? 0),
+              ),
+              const SizedBox(height: Layout.cardGap),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(Layout.cardInner),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextFormField(
+                        controller: _startingPlayersController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: l10n.startingPlayersLabel,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (value) {
+                          // 4 is the approved OP-2 minimum match size (2 v 2),
+                          // the same bound the database and update_match enforce.
+                          final parsed = int.tryParse(value ?? '');
+                          if (parsed == null || parsed < 4 || parsed > 30) {
+                            return l10n.startingPlayersInvalid;
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: Gap.sm),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => _stepStartingPlayers(-2),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.square(Layout.tapMin),
+                              padding: EdgeInsets.zero,
+                            ),
+                            child: const Icon(Icons.remove, size: 19),
+                          ),
+                          const SizedBox(width: Gap.sm),
+                          FilledButton(
+                            onPressed: () => _stepStartingPlayers(2),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.square(Layout.tapMin),
+                              padding: EdgeInsets.zero,
+                            ),
+                            child: const Icon(Icons.add, size: 19),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: Gap.md),
+                      SegmentedCapacityIndicator(
+                        registered: 0,
+                        starting: int.tryParse(
+                              _startingPlayersController.text,
+                            ) ??
+                            0,
+                        reserve: AppSettings.reservePlayers,
+                        showLabel: false,
+                      ),
+                      const SizedBox(height: Gap.sm),
+                      // Maximum registration is derived, never entered.
+                      Text(
+                        l10n.capacityAutoNote(
+                          AppSettings.reservePlayers,
+                          AppSettings.maxRegistrationFor(
+                            int.tryParse(_startingPlayersController.text) ?? 0,
+                          ),
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
-                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _isLoading ? null : _submit,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(l10n.createMatchButton),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
+      ),
+      bottomNavigationBar: ClubActionBar(
+        child: FilledButton(
+          onPressed: _isLoading ? null : _submit,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(Layout.buttonHeight),
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(l10n.createMatchButton),
         ),
       ),
     );
