@@ -1,0 +1,37 @@
+/* Go Play shape.
+   Three radii, and they carry meaning (app/lib/core/design.dart):
+   sm is for something inside a card, md for the card itself, lg for a panel
+   that holds cards. pill is for badges and chips, where the radius is the
+   shape rather than a corner.
+
+   Cards carry no shadow. Material 3 separates surfaces by tint rather than by
+   lift, and a list of shadowed cards reads as a pile of receipts; the tinted
+   fill plus a hairline border is what makes these read as one surface with
+   divisions in it. The elevation tokens below exist for the three things that
+   genuinely float. */
+:root{
+  --radius-sm:12px;
+  --radius-md:18px;
+  --radius-lg:26px;
+  --radius-pill:999px;
+
+  /* Club direction. A card is rounder than a control, and a sheet is rounder
+     than a card, so the three never read as the same object. */
+  --radius-card:20px;
+  --radius-control:16px;
+  --radius-sheet:26px;
+  --radius-crest:34%;
+
+  --border-width:1px;
+  --focus-ring-width:2px;
+
+  --elevation-0:none;
+  /* the only shadow content carries: two stops, both nearly invisible alone —
+     a contact edge and a wide diffuse lift. Never darker than this. */
+  --elevation-card:0 1px 2px rgba(20,40,25,.06),0 6px 16px rgba(20,40,25,.04);
+  --elevation-nav:0 6px 20px rgba(18,61,36,.16);
+  --elevation-scrolled:0 1px 0 0 color-mix(in srgb,var(--gp-outline-variant) 60%,transparent);
+  --elevation-sheet:0 -2px 16px rgba(0,0,0,.08);
+  --elevation-snackbar:0 4px 12px rgba(0,0,0,.18);
+  --elevation-menu:0 2px 12px rgba(0,0,0,.14);
+}

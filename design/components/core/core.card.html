@@ -1,0 +1,19 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Core" subtitle="Buttons, icon buttons, status and role chips, avatars" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:var(--bg-page);font-family:var(--font-sans)}.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.col{display:flex;flex-direction:column;gap:12px}@keyframes gp-spin{to{transform:rotate(360deg)}}@keyframes gp-skeleton{0%,100%{opacity:.45}50%{opacity:.9}}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { Button, IconButton, Chip, CountPill, Avatar, Divider, Icon } = window.GoPlayDesignSystem_984b89;
+function Demo(){return(<div className="col" style={{gap:18}}>
+  <div className="row"><Button>Create match</Button><Button variant="tonal" size="compact">Join match</Button><Button variant="outlined" size="compact">Withdraw</Button><Button variant="text" size="small">Copy</Button><Button variant="danger" size="compact">Delete</Button><Button size="compact" disabled>Disabled</Button><Button size="compact" loading/></div>
+  <div style={{background:'var(--bg-hero)',borderRadius:16,padding:14}} className="row"><Button variant="onHero" size="compact" icon="add">Create match</Button><Button variant="ghost" size="compact" icon="person_add">Invite</Button><Chip tone="onHero" icon="groups">24 members</Chip><IconButton icon="more_vert" label="Actions" onHero/></div>
+  <Divider tight/>
+  <div className="row"><Chip tone="open">Open</Chip><Chip tone="full">Full</Chip><Chip tone="completed">Played</Chip><Chip tone="reserve">Next in</Chip><Chip tone="role" square>Owner</Chip><Chip tone="role" square>Admin</Chip><Chip tone="open" square>You</Chip><Chip tone="danger" icon="lock">Locked</Chip><CountPill count={24}/></div>
+  <Divider tight/>
+  <div className="row"><IconButton icon="notifications" label="Notifications" badge={3}/><IconButton icon="search" label="Search"/><IconButton icon="edit" label="Edit"/><Avatar name="Yousuf Fadhil" size={30}/><Avatar name="Talib Abu Fahd" size={38} tone="neutral"/><Icon name="sports_soccer" size={26} fill color="var(--gp-primary-mid)"/></div>
+</div>);}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

@@ -1,0 +1,32 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Layout" subtitle="Crest hero, sheet, section headings, list rows, floating nav" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:var(--bg-page);font-family:var(--font-sans)}.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.col{display:flex;flex-direction:column;gap:12px}@keyframes gp-spin{to{transform:rotate(360deg)}}@keyframes gp-skeleton{0%,100%{opacity:.45}50%{opacity:.9}}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { Hero, HeroBar, Sheet, IconButton, CommunityLogo, Chip, Button, SectionHeading, ListRow, BottomNav, Card, Divider, Avatar } = window.GoPlayDesignSystem_984b89;
+function Demo(){const [t,setT]=React.useState('communities');return(
+<div style={{position:'relative',width:412,height:560,margin:'0 auto',background:'var(--bg-hero)',borderRadius:22,overflow:'hidden',display:'flex',flexDirection:'column',boxShadow:'0 6px 28px rgba(0,0,0,.14)'}}>
+  <Hero>
+    <HeroBar onBack={()=>{}} right={<IconButton icon="more_vert" label="Actions" onHero/>}/>
+    <div style={{padding:'0 18px',color:'#fff',display:'flex',gap:14,alignItems:'center'}}>
+      <CommunityLogo name="Al Shamal" size={58} onHero/>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{font:'700 22px/1.2 var(--font-sans)',letterSpacing:'-.7px'}}>Al Shamal</span><Chip tone="onHero" square>Admin</Chip></div>
+        <div style={{font:'400 12.5px/1.4 var(--font-sans)',color:'rgba(255,255,255,.75)',marginTop:4}}>Thursday and Sunday games in the north</div></div></div>
+    <div style={{display:'flex',gap:8,padding:'14px 18px 0'}}><Button variant="onHero" size="compact" icon="add" style={{flex:1}}>Create match</Button><Button variant="ghost" size="compact" icon="person_add">Invite</Button></div>
+  </Hero>
+  <Sheet>
+    <SectionHeading title="Members" count={24} action="Manage"/>
+    <div style={{padding:'0 14px 92px'}}><Card padded={false}>
+      <ListRow leading={<Avatar name="Khalid Al Balushi"/>} title="Khalid Al Balushi" subtitle="Owner · Goalkeeper" trailing={<Chip tone="role" square>Owner</Chip>}/>
+      <Divider tight/>
+      <ListRow leading={<Avatar name="Yousuf Fadhil" tone="neutral"/>} title="Yousuf Fadhil" subtitle="Admin · Midfielder" chevron onClick={()=>{}}/>
+    </Card></div>
+  </Sheet>
+  <BottomNav value={t} onChange={setT} items={[{value:'discover',label:'Discover',icon:'explore'},{value:'home',label:'Home',icon:'home'},{value:'communities',label:'Communities',icon:'groups'}]}/>
+</div>);}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

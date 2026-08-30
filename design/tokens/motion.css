@@ -1,0 +1,18 @@
+/* Go Play motion.
+   Fast enough not to be waited on, which is the only thing an animation here
+   has to get right. Page transitions are the platform's own: fade-forwards on
+   Android, the Cupertino back-swipe on iOS. Nothing bounces. */
+:root{
+  --duration-instant:80ms; /* @kind other */
+  --duration-fast:150ms; /* @kind other */   /* press + hover state changes */
+  --duration-medium:250ms; /* @kind other */ /* expansion, sheets */
+  --duration-page:300ms; /* @kind other */   /* route transitions */
+  --easing-standard:cubic-bezier(.2,0,0,1); /* @kind other */
+  --easing-decelerate:cubic-bezier(0,0,0,1); /* @kind other */
+  --easing-accelerate:cubic-bezier(.3,0,1,1); /* @kind other */
+
+  /* interaction overlays — Material state layers, not custom colours */
+  --state-hover:.08; /* @kind other */
+  --state-focus:.10; /* @kind other */
+  --state-pressed:.12; /* @kind other */
+}

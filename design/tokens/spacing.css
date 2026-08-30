@@ -1,0 +1,19 @@
+/* Go Play spacing — the six-step scale in app/lib/core/design.dart.
+   These are the only gaps the app uses. Each step is meaningfully larger than
+   the one below it, so picking the wrong one is visible rather than merely
+   different. */
+:root{
+  --gap-xs:4px;   /* inside a line: an icon and its label */
+  --gap-sm:8px;   /* between related lines */
+  --gap-md:12px;  /* inside a card, between its parts */
+  --gap-lg:16px;  /* a card's own padding, and the page's side margin */
+  --gap-xl:24px;  /* between a heading and what it introduces */
+  --gap-xxl:32px; /* between one section and the next */
+
+  --page-margin:16px;   /* kPageMargin */
+  --button-height:52px; /* kButtonHeight */
+  --button-height-compact:44px; /* on-card actions */
+  --nav-height:68px;    /* NavigationBar */
+  --appbar-height:56px; /* kToolbarHeight */
+  --tap-min:44px;
+}

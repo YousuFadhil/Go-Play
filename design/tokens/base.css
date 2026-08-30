@@ -1,0 +1,8 @@
+/* Minimal element defaults so a page picks up the product's ground state. */
+body{background:var(--bg-page);color:var(--text-body);font:var(--type-body-medium);-webkit-font-smoothing:antialiased;margin:0}
+a{color:var(--gp-primary);text-decoration:none}
+a:hover{color:var(--gp-on-primary-container);text-decoration:underline}
+a:active{color:var(--gp-on-primary-container)}
+:where(h1,h2,h3,h4){margin:0;color:var(--text-title)}
+.gp-icon{font-family:var(--font-icon);font-weight:normal;font-style:normal;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;-webkit-font-feature-settings:"liga";font-feature-settings:"liga";-webkit-font-smoothing:antialiased;user-select:none;font-variation-settings:"FILL" 0,"wght" 400,"GRAD" 0,"opsz" 24}
+.gp-icon[data-fill="1"]{font-variation-settings:"FILL" 1,"wght" 400,"GRAD" 0,"opsz" 24}

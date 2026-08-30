@@ -1,0 +1,6 @@
+/* Go Play ships no bundled font. The Flutter app uses the platform default,
+   which is Roboto on Android and in the web build; Arabic falls back to the
+   platform Naskh face. Both are pulled from Google Fonts here so a recreation
+   matches the device. Substitution flagged in readme.md. */
+@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block");

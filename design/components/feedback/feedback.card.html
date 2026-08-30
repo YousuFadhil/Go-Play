@@ -1,0 +1,27 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Feedback" subtitle="Empty, error, loading, skeleton, snackbar, dialog, sheet" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:var(--bg-page);font:var(--type-body-medium)}.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.col{display:flex;flex-direction:column;gap:12px}.lbl{font:var(--type-label-small);letter-spacing:.5px;text-transform:uppercase;color:var(--text-faint)}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { EmptyState, ErrorState, LoadingState, Skeleton, Snackbar, Dialog, BottomSheet, ListRow, Divider } = window.GoPlayDesignSystem_984b89;
+function Demo(){return(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,alignItems:'start'}}>
+  <div style={{background:'var(--surface-card)',border:'1px solid var(--border-hairline)',borderRadius:'var(--radius-md)'}}>
+    <EmptyState icon="sports_soccer" tone="accent" message={"No upcoming matches.\nJoin a community to get started."}/>
+  </div>
+  <div style={{background:'var(--surface-card)',border:'1px solid var(--border-hairline)',borderRadius:'var(--radius-md)'}}>
+    <ErrorState/>
+  </div>
+  <div className="col">
+    <Snackbar>The match is full. You were added to the reserve list.</Snackbar>
+    <div style={{display:'flex',gap:12,alignItems:'center'}}><LoadingState style={{padding:12}}/><div className="col" style={{flex:1,gap:8}}><Skeleton width={180} height={22}/><Skeleton height={12}/><Skeleton width="60%" height={12}/></div></div>
+  </div>
+  <div className="col">
+    <Dialog destructive title="Delete this match?" body="All registrations will be removed and players notified. This cannot be undone." confirmLabel="Delete match"/>
+    <BottomSheet title="Al Shamal"><ListRow icon="ios_share" title="Share invitation" subtitle="Invitation"/><ListRow icon="group" title="Manage members"/><Divider tight/><ListRow icon="delete" title="Delete community" danger/></BottomSheet>
+  </div>
+</div>);}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

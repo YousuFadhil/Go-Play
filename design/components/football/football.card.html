@@ -1,0 +1,39 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Football" subtitle="Match card, community card, crests, capacity bar, roster rows, stats" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:var(--bg-page);font-family:var(--font-sans)}.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.col{display:flex;flex-direction:column;gap:12px}@keyframes gp-spin{to{transform:rotate(360deg)}}@keyframes gp-skeleton{0%,100%{opacity:.45}50%{opacity:.9}}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { MatchCard, CommunityCard, DateTile, CommunityLogo, CapacityBar, StatTile, RatingHero, ParticipantRow, MemberRow, Chip, Card, Button } = window.GoPlayDesignSystem_984b89;
+function Demo(){return(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,alignItems:'start'}}>
+  <div className="col">
+    <MatchCard weekday="Thu" day={13} month="Aug" title="Thursday practice" communityName="Al Shamal" location="Al Shamal 6-a-side" time="17:25 – 18:35" registered={6} starting={12} reserve={6} outlined/>
+    <MatchCard weekday="Fri" day={14} month="Aug" title="Friday five-a-side" communityName="Al Bahar" location="Marina courts" time="19:00 – 20:30" registered={10} starting={10} reserve={6} status="full"/>
+    <MatchCard weekday="Sun" day={7} month="Aug" title="Sunday league" location="Al Shamal 6-a-side" time="17:20 – 18:35" registered={14} starting={14} status="completed"/>
+  </div>
+  <div className="col">
+    <CommunityCard name="Al Shamal" description="Thursday and Sunday games in the north" memberCount={24} upcomingCount={2} role="Admin"/>
+    <RatingHero value="5.0" form={[3.8,4.1,4.0,4.6,4.4,5.0]}/>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:9}}>
+      <StatTile icon="sports_soccer" value={3} label="Played"/><StatTile icon="trophy" value={1} label="Wins"/><StatTile icon="scoreboard" value={2} label="Goals"/></div>
+  </div>
+  <div className="col">
+    <Card padded={false}>
+      <ParticipantRow name="Khalid Al Balushi" position="Goalkeeper"/>
+      <ParticipantRow name="Yousuf Fadhil" position="Midfielder" you/>
+      <ParticipantRow name="Faisal" guest/>
+      <ParticipantRow name="Nasser Al Kaabi" position="Forward" reserve index={1} trailing={<Chip tone="reserve">Next in</Chip>}/>
+    </Card>
+  </div>
+  <div className="col">
+    <Card><CapacityBar registered={6} starting={12} reserve={6}/>
+      <div style={{height:10}}/><CapacityBar registered={10} starting={10} reserve={6} status="full"/>
+      <div style={{height:10}}/><CapacityBar registered={14} starting={14} status="completed"/></Card>
+    <div className="row"><DateTile weekday="Thu" day={13} month="Aug"/><DateTile weekday="Fri" day={14} month="Aug" status="full"/><DateTile weekday="Sun" day={7} month="Aug" status="completed"/><CommunityLogo name="Al Shamal" size={50}/><CommunityLogo name="Al Bahar" size={38}/></div>
+    <Card padded={false}><MemberRow name="Khalid Al Balushi" role="Owner" position="Goalkeeper" trailing={<Chip tone="role" square>Owner</Chip>}/></Card>
+  </div>
+</div>);}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>
