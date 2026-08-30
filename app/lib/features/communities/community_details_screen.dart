@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/football_components.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../../core/tokens.dart';
 import '../matches/create_match_screen.dart';
 import '../matches/match_card.dart';
 import '../profile/player_identity.dart';
@@ -16,14 +17,32 @@ import '../invitations/community_invitation_screen.dart';
 import '../members/member_management_screen.dart';
 import '../statistics/community_dashboard_tab.dart';
 import '../statistics/community_leaderboards_tab.dart';
+import '../statistics/statistics_repository.dart';
 import 'community_models.dart';
 import '../members/member_repository.dart';
 import 'community_repository.dart';
 
 class CommunityDetailsScreen extends StatefulWidget {
-  const CommunityDetailsScreen({super.key, required this.communityId});
+  const CommunityDetailsScreen({
+    super.key,
+    required this.communityId,
+    this.communityRepository,
+    this.memberRepository,
+    this.matchService,
+    this.statisticsRepository,
+  });
 
   final String communityId;
+
+  /// Supplied only by tests, exactly as the repositories take an optional port.
+  /// Left null the screen builds the production ones, so nothing here knows
+  /// what a data provider is.
+  final CommunityRepository? communityRepository;
+  final MemberRepository? memberRepository;
+  final MatchService? matchService;
+
+  /// Handed to the two statistics tabs, which already take one of their own.
+  final StatisticsRepository? statisticsRepository;
 
   @override
   State<CommunityDetailsScreen> createState() => _CommunityDetailsScreenState();
@@ -44,9 +63,11 @@ typedef _Data = (
 enum _CommunityAction { invitation, joinPolicy, members, delete }
 
 class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
-  final _communityRepository = CommunityRepository();
-  final _memberRepository = MemberRepository();
-  final _matchService = MatchService();
+  late final CommunityRepository _communityRepository =
+      widget.communityRepository ?? CommunityRepository();
+  late final MemberRepository _memberRepository =
+      widget.memberRepository ?? MemberRepository();
+  late final MatchService _matchService = widget.matchService ?? MatchService();
   late Future<_Data> _dataFuture;
   bool _busy = false;
 
@@ -314,13 +335,13 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
-            appBar: AppHeader(),
+            appBar: _PlaceLoadingBar(),
             body: LoadingState(),
           );
         }
         if (snapshot.hasError || !snapshot.hasData) {
           return Scaffold(
-            appBar: const AppHeader(),
+            appBar: const _PlaceLoadingBar(),
             body: ErrorState(onRetry: _refresh),
           );
         }
@@ -331,71 +352,173 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
         // everything to do with the join code (see `_MembersTab`).
         final isOrganizer = myRole?.atLeast(CommunityRole.admin) ?? false;
 
+        // The counts on the hero. Every one of them is a list directly below
+        // it, already loaded — the hero reports what the screen is holding
+        // rather than asking anybody a second question about it.
+        final upcoming = matches.where((m) => !m.isCompleted).length;
+        final played = matches.length - upcoming;
+
         return DefaultTabController(
           length: 4,
           child: Scaffold(
-            appBar: AppHeader(
-              title: Text(community.name),
-              actions: [
-                IconButton(
-                  tooltip: l10n.moreActionsLabel,
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: _busy
-                      ? null
-                      : () => _openActions(
-                            community: community,
-                            isOwner: isOwner,
-                            isOrganizer: isOrganizer,
-                          ),
-                ),
-              ],
-              bottom: TabBar(
-                // Four tabs no longer fit side by side on a phone, so the bar
-                // scrolls rather than squeezing every label into a third of
-                // its width.
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                tabs: [
-                  Tab(text: l10n.matchesTitle),
-                  Tab(text: l10n.membersTitle),
-                  Tab(text: l10n.dashboardTab),
-                  Tab(text: l10n.leaderboardsTab),
-                ],
-              ),
-            ),
-            floatingActionButton: isOrganizer
-                ? FloatingActionButton.extended(
-                    tooltip: l10n.createMatchTitle,
-                    onPressed: _openCreateMatch,
-                    icon: const Icon(Icons.add),
-                    label: Text(l10n.createMatchButton),
-                  )
-                : null,
-            body: TabBarView(
+            // The ground behind the sheet's rounded top corners, and what makes
+            // the sheet read as riding up over the hero.
+            backgroundColor: GoColors.bgHero,
+            body: Column(
               children: [
-                _MatchesTab(
-                  matches: matches,
-                  onChanged: _refresh,
-                  // Players could create matches before; say why the button is
-                  // gone rather than leaving them to guess.
-                  permissionNote:
-                      isOrganizer ? null : l10n.matchCreateOrganizersOnly,
+                SafeArea(
+                  bottom: false,
+                  child: ClubHero(
+                    bar: ClubHeroBar(
+                      onBack: () => Navigator.of(context).maybePop(),
+                      actions: [
+                        IconButton(
+                          tooltip: l10n.moreActionsLabel,
+                          color: Colors.white,
+                          iconSize: IconSize.bar,
+                          icon: const Icon(Icons.more_vert),
+                          onPressed: _busy
+                              ? null
+                              : () => _openActions(
+                                    community: community,
+                                    isOwner: isOwner,
+                                    isOrganizer: isOrganizer,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    identity: _HeroIdentity(
+                      community: community,
+                      roleLabel: myRole == null || myRole == CommunityRole.player
+                          ? null
+                          : _roleLabel(l10n, myRole),
+                    ),
+                    counts: Row(
+                      children: [
+                        Flexible(
+                          child: ClubHeroCount(
+                            value: members.length,
+                            label: l10n.membersTitle,
+                          ),
+                        ),
+                        const SizedBox(width: Gap.lg + 2),
+                        Flexible(
+                          child: ClubHeroCount(
+                            value: upcoming,
+                            label: l10n.upcomingMatchesTitle,
+                          ),
+                        ),
+                        const SizedBox(width: Gap.lg + 2),
+                        Flexible(
+                          child: ClubHeroCount(
+                            value: played,
+                            label: l10n.completedMatchesTitle,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // The organizer's two actions, where the direction puts
+                    // them. Creating a match was a floating button and sharing
+                    // an invitation was inside the actions sheet; both still do
+                    // exactly what they did, and the sheet still offers the
+                    // invitation for anybody who looks there first.
+                    action: isOrganizer
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  key: const Key('heroCreateMatch'),
+                                  style: ClubHeroButtons.filled,
+                                  onPressed: _busy ? null : _openCreateMatch,
+                                  icon:
+                                      const Icon(Icons.add, size: IconSize.row),
+                                  label: Text(
+                                    l10n.createMatchButton,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: Gap.sm),
+                              Flexible(
+                                child: OutlinedButton.icon(
+                                  key: const Key('heroInvite'),
+                                  style: ClubHeroButtons.ghost,
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _openInvitation(community),
+                                  icon: const Icon(Icons.person_add_outlined,
+                                      size: IconSize.row),
+                                  label: Text(
+                                    l10n.shareInvitation,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : null,
+                  ),
                 ),
-                _MembersTab(
-                  community: community,
-                  members: members,
-                  isOrganizer: isOrganizer,
-                  positionLabel: _positionLabel,
-                  onCopyJoinCode: _copyJoinCode,
+                Expanded(
+                  child: ClubSheet(
+                    child: Column(
+                      children: [
+                        TabBar(
+                          // Four destinations still, and four labels do not fit
+                          // side by side on a phone — so the strip scrolls
+                          // rather than squeezing each into a quarter width.
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          tabs: [
+                            Tab(text: l10n.matchesTitle),
+                            Tab(text: l10n.membersTitle),
+                            Tab(text: l10n.dashboardTab),
+                            Tab(text: l10n.leaderboardsTab),
+                          ],
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              _MatchesTab(
+                                matches: matches,
+                                onChanged: _refresh,
+                                // Players could create matches before; say why
+                                // the button is gone rather than leaving them
+                                // to guess.
+                                permissionNote: isOrganizer
+                                    ? null
+                                    : l10n.matchCreateOrganizersOnly,
+                              ),
+                              _MembersTab(
+                                community: community,
+                                members: members,
+                                isOrganizer: isOrganizer,
+                                positionLabel: _positionLabel,
+                                onCopyJoinCode: _copyJoinCode,
+                              ),
+                              CommunityDashboardTab(
+                                communityId: widget.communityId,
+                                // Already loaded and already on this screen's
+                                // hero; the tab needs it for the card it can
+                                // share and reads nothing of its own to get it.
+                                communityName: community.name,
+                                repository: widget.statisticsRepository,
+                              ),
+                              CommunityLeaderboardsTab(
+                                communityId: widget.communityId,
+                                repository: widget.statisticsRepository,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                CommunityDashboardTab(
-                  communityId: widget.communityId,
-                  // Already loaded and already in this screen's title; the tab
-                  // needs it for the card it can share and reads nothing of its
-                  // own to get it.
-                  communityName: community.name,
-                ),
-                CommunityLeaderboardsTab(communityId: widget.communityId),
               ],
             ),
           ),
@@ -492,14 +615,6 @@ class _MembersTab extends StatelessWidget {
   final bool isOrganizer;
   final String Function(BuildContext, String) positionLabel;
   final Future<void> Function(String) onCopyJoinCode;
-
-  String _roleLabel(AppLocalizations l10n, CommunityRole role) {
-    return switch (role) {
-      CommunityRole.owner => l10n.roleOwner,
-      CommunityRole.admin => l10n.roleAdmin,
-      CommunityRole.player => l10n.rolePlayer,
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -634,6 +749,143 @@ class _JoinCodeCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// What to call a role.
+///
+/// One function rather than a method on the tab that used to own it: the hero
+/// and the members list now name the same role, and two places wording it
+/// separately is how they end up disagreeing.
+String _roleLabel(AppLocalizations l10n, CommunityRole role) => switch (role) {
+      CommunityRole.owner => l10n.roleOwner,
+      CommunityRole.admin => l10n.roleAdmin,
+      CommunityRole.player => l10n.rolePlayer,
+    };
+
+/// The bar a place shows while it has nothing to put on its hero.
+///
+/// Deep green and empty rather than the app header: the screen underneath is
+/// about to be a hero, and flashing a white bar first is a jump the reader has
+/// no reason to see. It keeps the back button, because a load that fails still
+/// has to be leaveable.
+class _PlaceLoadingBar extends StatelessWidget implements PreferredSizeWidget {
+  const _PlaceLoadingBar();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(Layout.heroBarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      toolbarHeight: Layout.heroBarHeight,
+      backgroundColor: GoColors.bgHero,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      iconTheme: const IconThemeData(
+        color: Colors.white,
+        size: IconSize.navBack,
+      ),
+    );
+  }
+}
+
+/// Whose place this is: the crest, the name, the reader's standing in it, and
+/// what the community says about itself.
+class _HeroIdentity extends StatelessWidget {
+  const _HeroIdentity({required this.community, required this.roleLabel});
+
+  final Community community;
+
+  /// Null for a player and for a visitor. A role marker that says "Player" on
+  /// every ordinary member is a badge for having done nothing.
+  final String? roleLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final description = community.description?.trim() ?? '';
+
+    return Row(
+      children: [
+        CommunityCrest(name: community.name, size: 58, onHero: true),
+        const SizedBox(width: Gap.sm + 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  // Bounded, so a long name shortens instead of pushing the
+                  // role marker off the edge of the hero.
+                  Flexible(
+                    child: Text(
+                      community.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.7,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  if (roleLabel != null) ...[
+                    const SizedBox(width: Gap.sm),
+                    _OnHeroRoleChip(label: roleLabel!),
+                  ],
+                ],
+              ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: Gap.xs),
+                Text(
+                  description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// [GoRoleChip] as it appears on a hero.
+///
+/// The same square, the same type, the same measurements — only the two colours
+/// differ, because the shared chip is drawn for a light card and this one sits
+/// on deep green. The shape is what carries the meaning and the shape is
+/// unchanged.
+class _OnHeroRoleChip extends StatelessWidget {
+  const _OnHeroRoleChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(Radii.roleChip),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        maxLines: 1,
+        softWrap: false,
+        style: GoType.roleChip.copyWith(color: Colors.white),
       ),
     );
   }
