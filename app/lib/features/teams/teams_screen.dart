@@ -1,7 +1,7 @@
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_task.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
@@ -325,38 +325,28 @@ class _TeamsScreenState extends State<TeamsScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppHeader(
-        title: Text(l10n.teamsTitle),
-        // In the header, where a screen's own action belongs. Disabled rather
-        // than hidden while the lineup loads or when none is stored: an action
-        // that comes and goes as teams are regenerated reads as a bug.
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.ios_share),
-            tooltip: l10n.shareTeamLineupAction,
-            onPressed: _canShare && !_busy ? _shareLineup : null,
-          ),
-        ],
-      ),
+      appBar: ClubTaskBar(title: l10n.teamsTitle),
       body: FutureBuilder<_TeamsView>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingState();
+            return const ClubTaskBody(child: LoadingState());
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return ErrorState(onRetry: _reload);
+            return ClubTaskBody(child: ErrorState(onRetry: _reload));
           }
 
           final view = snapshot.data!;
           return RefreshIndicator(
             onRefresh: () async => _reload(),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: view.lineup.isEmpty
-                  ? _emptyState(l10n, view)
-                  : _generatedTeams(l10n, view),
+            child: ClubTaskBody(
+              padding: const EdgeInsetsDirectional.fromSTEB(0, 8, 0, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: view.lineup.isEmpty
+                    ? _emptyState(l10n, view)
+                    : _generatedTeams(l10n, view),
+              ),
             ),
           );
         },
