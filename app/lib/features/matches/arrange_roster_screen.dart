@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_task.dart';
 import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
@@ -229,36 +229,36 @@ class _ArrangeRosterScreenState extends State<ArrangeRosterScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppHeader(
-        title: Text(l10n.arrangeRosterTitle),
-        leading: BackButton(
-          onPressed: () => Navigator.of(context).pop(_changed),
-        ),
+      appBar: ClubTaskBar(
+        title: l10n.arrangeRosterTitle,
+        onBack: () => Navigator.of(context).pop(_changed),
       ),
       body: FutureBuilder<(Match, List<MatchRegistration>)>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingState();
+            return const ClubTaskBody(child: LoadingState());
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return ErrorState(onRetry: () {
+            return ClubTaskBody(child: ErrorState(onRetry: () {
               setState(() {
                 _future = _load();
               });
-            });
+            }));
           }
 
           final (match, roster) = snapshot.data!;
           if (roster.isEmpty) {
-            return EmptyState(
+            return ClubTaskBody(child: EmptyState(
               icon: Icons.person_outline,
               message: l10n.rosterEmpty,
-            );
+            ));
           }
 
-          return ListView(
-            padding: const EdgeInsets.only(bottom: Gap.xxl),
+          return ClubTaskBody(
+            padding: const EdgeInsetsDirectional.only(bottom: Gap.xxl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ModeCard(match: match),
               Padding(
@@ -284,6 +284,7 @@ class _ArrangeRosterScreenState extends State<ArrangeRosterScreen> {
               ),
               _list(_reserve, starting: false, emptyMessage: l10n.arrangeReserveEmpty),
             ],
+            ),
           );
         },
       ),
