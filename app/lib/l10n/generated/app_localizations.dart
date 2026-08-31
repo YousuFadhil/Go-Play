@@ -536,6 +536,54 @@ abstract class AppLocalizations {
   /// **'Match must start in the future'**
   String get startInPastError;
 
+  /// No description provided for @historicalMatchToggleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a match already played'**
+  String get historicalMatchToggleLabel;
+
+  /// No description provided for @historicalMatchToggleNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a fixture that has already happened. Nobody can register for it — you pick who played, then record the teams and the result.'**
+  String get historicalMatchToggleNote;
+
+  /// No description provided for @historicalMatchDateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the date and times the match was actually played.'**
+  String get historicalMatchDateNote;
+
+  /// No description provided for @historicalNotPastError.
+  ///
+  /// In en, this message translates to:
+  /// **'A match already played must have finished before now'**
+  String get historicalNotPastError;
+
+  /// No description provided for @recordHistoricalMatchButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Record match'**
+  String get recordHistoricalMatchButton;
+
+  /// No description provided for @historicalMatchBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Already played'**
+  String get historicalMatchBadge;
+
+  /// No description provided for @historicalMatchRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Match recorded. Add who played from the Teams screen, then record the result.'**
+  String get historicalMatchRecorded;
+
+  /// No description provided for @errMatchHistorical.
+  ///
+  /// In en, this message translates to:
+  /// **'This match was recorded after it was played, so nobody can register for it.'**
+  String get errMatchHistorical;
+
   /// No description provided for @startingPlayersLabel.
   ///
   /// In en, this message translates to:
@@ -2329,6 +2377,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Share the lineup'**
   String get shareTeamLineupAction;
+
+  /// No description provided for @shareMatchResultAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share the result'**
+  String get shareMatchResultAction;
+
+  /// No description provided for @shareCardDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Image saved to your downloads.'**
+  String get shareCardDownloaded;
+
+  /// No description provided for @matchResultScorersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scorers'**
+  String get matchResultScorersLabel;
+
+  /// No description provided for @matchResultDrawLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw'**
+  String get matchResultDrawLabel;
+
+  /// No description provided for @matchResultWinnerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Winner'**
+  String get matchResultWinnerLabel;
+
+  /// No description provided for @matchResultNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'No result has been recorded for this match yet.'**
+  String get matchResultNotRecorded;
 
   /// No description provided for @statPeriodLabel.
   ///

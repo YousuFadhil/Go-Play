@@ -94,6 +94,17 @@ enum FailureReason {
   // seen from the creating end, not a new one.
   startInPast,
 
+  // The other half of the same rule (migration `0054`). A historical match is
+  // the record of a fixture that has been played, so its end must have passed;
+  // asking to record one that has not is the mirror of scheduling one into the
+  // past, and it is refused from the same branch.
+  historicalNotPast,
+
+  // Registration was asked for on a match that has already been played and was
+  // entered as a record of itself. Not "closed" and not "locked": there was
+  // never anything to register for.
+  matchHistorical,
+
   // Membership
   cannotChangeOwnRole,
   cannotRemoveSelf,

@@ -123,6 +123,12 @@ class SupabaseFailureMapper {
     // a match cannot be created into the state `update_match` then treats as
     // locked forever.
     'START_IN_PAST': ValidationFailure(FailureReason.startInPast),
+    // The historical path's own temporal refusal (migration `0054`): a match
+    // being recorded as played must actually have finished.
+    'HISTORICAL_NOT_PAST': ValidationFailure(FailureReason.historicalNotPast),
+    // `register_player_in_match` refusing a recorded match, for both the player
+    // registering themselves and the admin adding somebody.
+    'MATCH_HISTORICAL': ValidationFailure(FailureReason.matchHistorical),
     'MATCH_NOT_FOUND': NotFoundFailure(FailureReason.matchNotFound),
 
     // Membership

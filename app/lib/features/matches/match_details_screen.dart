@@ -1,3 +1,7 @@
+// `TeamId` only: which side won is the result's own vocabulary, and `KB-D6`
+// already says what A and B mean. A second enum for the same two sides is what
+// OP-3 forbids.
+import 'package:btge/btge.dart' show TeamId;
 import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
@@ -14,7 +18,15 @@ import '../communities/join_community_flow.dart';
 import '../auth/auth_service.dart';
 import '../members/member_repository.dart';
 import '../notifications/push_service.dart';
+import '../results/match_result_card.dart';
 import '../results/result_entry_screen.dart';
+import '../results/result_models.dart';
+import '../results/result_repository.dart';
+import '../sharing/share_card_flow.dart';
+import '../sharing/share_card_renderer.dart';
+import '../sharing/share_service.dart';
+import '../teams/team_models.dart';
+import '../teams/team_repository.dart';
 import '../teams/teams_screen.dart';
 import '../profile/player_identity.dart';
 import 'match_card.dart';
@@ -82,11 +94,38 @@ sealed class _MatchView {
 }
 
 class _MatchLoaded extends _MatchView {
-  const _MatchLoaded(this.match, this.registrations, this.myRole);
+  const _MatchLoaded(
+    this.match,
+    this.registrations,
+    this.myRole, {
+    this.result,
+    this.lineup = const [],
+  });
 
   final Match match;
   final List<MatchRegistration> registrations;
   final CommunityRole? myRole;
+
+  /// What the match finished as, or null when it has not been played or nobody
+  /// has recorded it yet.
+  ///
+  /// Read for every reader, not only an organizer: a recorded result is the
+  /// community's, and `match_results_select_members` has always let any member
+  /// of it read the row. What stays with the owner and the admins is *writing*
+  /// one, which is `record_match_result`'s own check and unaffected by this.
+  final MatchResult? result;
+
+  /// The stored lineup behind that result — who played and on which side.
+  /// Empty for a match with none, which is also a match with no result.
+  final List<TeamAssignment> lineup;
+
+  /// Whether there is a completed match with a recorded result to picture.
+  ///
+  /// Both halves are required. A result with no lineup cannot be drawn — there
+  /// would be no teams on the card — and `record_match_result` refuses to store
+  /// one, so this is a guard against a partial read rather than against a state
+  /// the database allows.
+  bool get isShareable => result != null && lineup.isNotEmpty;
 }
 
 class _MembershipRequired extends _MatchView {
@@ -103,6 +142,11 @@ class MatchDetailsScreen extends StatefulWidget {
     this.memberRepository,
     this.communityRepository,
     this.authService,
+    this.resultRepository,
+    this.teamRepository,
+    this.renderer,
+    this.shareService,
+    this.downloader,
   });
 
   final String matchId;
@@ -112,6 +156,17 @@ class MatchDetailsScreen extends StatefulWidget {
   final MemberRepository? memberRepository;
   final CommunityRepository? communityRepository;
   final AuthService? authService;
+
+  /// The result and the lineup behind the completed-match card. Optional for
+  /// the same reason every other port here is: production builds its own.
+  final ResultRepository? resultRepository;
+  final TeamRepository? teamRepository;
+
+  /// The share card engine's two seams, forwarded to [presentShareCard].
+  /// Supplied only by tests; this screen composes no card of its own.
+  final ShareCardRenderer? renderer;
+  final ShareService? shareService;
+  final ShareCardDownloader? downloader;
 
   @override
   State<MatchDetailsScreen> createState() => _MatchDetailsScreenState();
@@ -124,6 +179,10 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   late final CommunityRepository _communityRepository =
       widget.communityRepository ?? CommunityRepository();
   late final AuthService _authService = widget.authService ?? AuthService();
+  late final ResultRepository _resultRepository =
+      widget.resultRepository ?? ResultRepository();
+  late final TeamRepository _teamRepository =
+      widget.teamRepository ?? TeamRepository();
   late Future<_MatchView> _dataFuture;
   bool _isActionLoading = false;
 
@@ -162,10 +221,36 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       _matchService.fetchRegistrations(widget.matchId),
       _memberRepository.fetchMyRole(match.communityId),
     ]);
+    final registrations = results[0] as List<MatchRegistration>;
+    final role = results[1] as CommunityRole?;
+
+    // A match still to come has no result and no lineup worth the round trip,
+    // so the two extra reads are made only once there is something to have
+    // recorded. `isCompleted` is the derived answer rather than the stored
+    // status, which is the same rule `v_completed_matches` applies.
+    if (!match.isCompleted) {
+      return _MatchLoaded(match, registrations, role);
+    }
+
+    // Issued together because they are independent, and tolerated separately
+    // because neither is the match. A recorded result the reader cannot see is
+    // a card they do not get; it is not a reason to fail a screen that has
+    // already loaded the fixture and the roster.
+    final played = await Future.wait([
+      _resultRepository.fetchResult(widget.matchId).catchError(
+            (Object _) => null,
+          ),
+      _teamRepository.fetchLineup(widget.matchId).catchError(
+            (Object _) => const <TeamAssignment>[],
+          ),
+    ]);
+
     return _MatchLoaded(
       match,
-      results[0] as List<MatchRegistration>,
-      results[1] as CommunityRole?,
+      registrations,
+      role,
+      result: played[0] as MatchResult?,
+      lineup: played[1] as List<TeamAssignment>,
     );
   }
 
@@ -357,6 +442,76 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     }
   }
 
+  /// What to call each participant of the stored lineup.
+  ///
+  /// The roster's own rule, applied once and shared by the summary on screen and
+  /// the card that leaves it, so the two can never name the same player
+  /// differently. A participant with no seat left on the roster is a dash rather
+  /// than an invented name: `KB-017` makes the lineup the record that somebody
+  /// played, and it outlives their registration.
+  Map<String, String> _resolveNames(
+    AppLocalizations l10n,
+    _MatchLoaded loaded,
+  ) {
+    final byParticipant = {
+      for (final registration in loaded.registrations)
+        registration.participantId: registration,
+    };
+    return {
+      for (final assignment in loaded.lineup)
+        assignment.participantId: switch (
+            byParticipant[assignment.participantId]) {
+          final MatchRegistration registration =>
+            participantLabel(l10n, registration),
+          _ => '—',
+        },
+    };
+  }
+
+  /// Composes the completed-match card for what is on screen and hands it to
+  /// the engine.
+  ///
+  /// **Offered to every reader who can see the match, and it changes nothing.**
+  /// A card is a picture of what the community already agreed happened; making
+  /// one is not an edit, and the reader who takes it has no more authority
+  /// afterwards than before. Recording or correcting the result stays behind
+  /// `canManage` and behind `record_match_result`'s own check, which this does
+  /// not touch.
+  ///
+  /// **Every value is already resolved before this runs.** Nothing here reads a
+  /// repository: the result and the lineup arrived with the screen's own load,
+  /// and the names are the ones the roster above is already showing — the same
+  /// [participantLabel] rule, applied once and handed over rather than
+  /// re-derived inside a card that could then disagree with the list behind it.
+  Future<void> _shareResult(_MatchLoaded loaded) async {
+    final result = loaded.result;
+    if (result == null || loaded.lineup.isEmpty) return;
+    final l10n = context.l10n;
+
+    final data = MatchResultCardData(
+      teamAScore: result.teamAScore,
+      teamBScore: result.teamBScore,
+      lineup: loaded.lineup,
+      names: _resolveNames(l10n, loaded),
+      goals: {
+        for (final tally in result.goals) tally.userId: tally.goals,
+      },
+      mvpParticipantId: result.mvpUserId,
+      communityName: loaded.match.communityName,
+      // The day it was played, which for every match — recorded or scheduled —
+      // is when it started.
+      playedAt: loaded.match.startAt,
+    );
+
+    await presentShareCard(
+      context,
+      template: (context) => MatchResultCard(data: data),
+      renderer: widget.renderer,
+      shareService: widget.shareService,
+      downloader: widget.downloader,
+    );
+  }
+
   String _positionLabel(BuildContext context, String position) {
     final l10n = context.l10n;
     return switch (position) {
@@ -495,8 +650,21 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                             status: match.effectiveStatus,
                           ),
 
+                        // What the match finished as, for every reader who can
+                        // see the match. Above the roster, because on a played
+                        // match the result is what the reader came for.
+                        if (match.isCompleted)
+                          _ResultSummary(
+                            result: loaded.result,
+                            names: _resolveNames(l10n, loaded),
+                            onShare: loaded.isShareable
+                                ? () => _shareResult(loaded)
+                                : null,
+                          ),
+
                         if ((match.description?.trim().isNotEmpty ?? false) ||
-                            match.isLocked)
+                            match.isLocked ||
+                            match.isHistorical)
                           SectionCard(
                             children: [
                               if (match.description?.trim().isNotEmpty ?? false)
@@ -504,6 +672,16 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                                   leading: const Icon(Icons.notes_outlined),
                                   title: Text(l10n.matchDescriptionLabel),
                                   subtitle: Text(match.description!),
+                                ),
+                              // A match nobody could have joined says so.
+                              // Without it a recorded fixture reads as an
+                              // ordinary one whose roster nobody filled.
+                              if (match.isHistorical)
+                                ListTile(
+                                  leading: const Icon(Icons.history),
+                                  title: Text(l10n.historicalMatchBadge),
+                                  subtitle:
+                                      Text(l10n.historicalMatchToggleNote),
                                 ),
                               if (match.isLocked)
                                 ListTile(
@@ -626,6 +804,168 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// What a played match finished as: the score, who scored, who was best on the
+/// pitch, and the way to send it.
+///
+/// **A report, not a form.** Everything here is read-only for every reader.
+/// Correcting any of it is the Result screen's job and stays behind the
+/// organizer's role; this is the same information offered to the people it
+/// happened to.
+///
+/// A completed match with nothing recorded says so rather than showing an empty
+/// scoreboard — the match is over and the result simply has not been entered
+/// yet, which is a state the reader can understand and, if they run the
+/// community, act on from the row below.
+class _ResultSummary extends StatelessWidget {
+  const _ResultSummary({
+    required this.result,
+    required this.names,
+    required this.onShare,
+  });
+
+  final MatchResult? result;
+
+  /// Participant id to the name the roster above is showing for them. Handed in
+  /// rather than derived, so the summary and the list below it agree.
+  final Map<String, String> names;
+
+  /// Null when there is nothing to picture, which disables the action rather
+  /// than hiding it behind a second rule.
+  final VoidCallback? onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final result = this.result;
+
+    if (result == null) {
+      return SectionCard(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.scoreboard_outlined),
+            title: Text(l10n.matchResultTitle),
+            subtitle: Text(l10n.matchResultNotRecorded),
+          ),
+        ],
+      );
+    }
+
+    final scorers = [
+      for (final tally in result.goals)
+        if (names.containsKey(tally.userId)) tally,
+    ]..sort((a, b) => b.goals.compareTo(a.goals));
+
+    return SectionCard(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(Layout.cardInner),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The score, pinned left to right. Two numbers in a fixed order
+              // either side of a dash is exactly the run a bidirectional
+              // paragraph will reverse, and a reversed score is a wrong result
+              // rather than an untidy line.
+              Row(
+                textDirection: TextDirection.ltr,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _ScoreHalf(
+                    label: l10n.teamAName,
+                    score: result.teamAScore,
+                    won: result.winner == TeamId.a,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                    child: Text(
+                      '–',
+                      textDirection: TextDirection.ltr,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                  _ScoreHalf(
+                    label: l10n.teamBName,
+                    score: result.teamBScore,
+                    won: result.winner == TeamId.b,
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.sm),
+              Text(
+                result.isDraw
+                    ? l10n.matchResultDrawLabel
+                    : l10n.matchResultWinnerLabel,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        if (scorers.isNotEmpty)
+          ListTile(
+            leading: const Icon(Icons.sports_soccer),
+            title: Text(l10n.matchResultScorersLabel),
+            subtitle: Text(
+              [
+                for (final tally in scorers)
+                  '${names[tally.userId] ?? '—'} (${tally.goals})',
+              ].join('، '),
+            ),
+          ),
+        if (result.mvpUserId != null)
+          ListTile(
+            leading: const Icon(Icons.star_rounded),
+            title: Text(l10n.mvpLabel),
+            subtitle: Text(names[result.mvpUserId] ?? '—'),
+          ),
+        // Offered to everyone who reached this screen. Membership is what the
+        // database already required to read the match at all, so there is no
+        // second permission to ask about here.
+        ListTile(
+          leading: const Icon(Icons.ios_share),
+          enabled: onShare != null,
+          title: Text(l10n.shareMatchResultAction),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: onShare,
+        ),
+      ],
+    );
+  }
+}
+
+/// One side of the score line.
+class _ScoreHalf extends StatelessWidget {
+  const _ScoreHalf({
+    required this.label,
+    required this.score,
+    required this.won,
+  });
+
+  final String label;
+  final int score;
+  final bool won;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$score',
+          textDirection: TextDirection.ltr,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: won ? GoColors.primaryDeep : GoColors.onSurface,
+          ),
+        ),
+        Text(label, style: theme.textTheme.bodySmall),
+      ],
     );
   }
 }

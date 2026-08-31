@@ -213,6 +213,7 @@ class CreateMatchAdapter implements MatchAdapter {
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
+    bool isHistorical = false,
   }) async {
     writes++;
     if (gate != null) await gate;

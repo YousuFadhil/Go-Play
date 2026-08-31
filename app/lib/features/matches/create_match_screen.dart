@@ -39,6 +39,15 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   TimeOfDay? _endTime;
   bool _isLoading = false;
 
+  /// Whether the organizer is recording a fixture the community has already
+  /// played rather than scheduling one (migration `0054`).
+  ///
+  /// One screen and two temporal rules, not two screens: everything else about
+  /// creating a match — the name, the venue, the squad size, who is allowed to
+  /// do it — is the same question in both cases, and a second form would be the
+  /// same form with one line changed.
+  bool _isHistorical = false;
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -52,15 +61,46 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
+  /// The window the date picker offers, which is the whole of what the two
+  /// modes change about picking a day: a fixture still to come is somewhere in
+  /// the next year, one already played is somewhere in the last one.
+  ///
+  /// The bounds are the picker's manners rather than the rule. What decides
+  /// whether a schedule is acceptable is [_validateSchedule], and after that
+  /// `create_match` — a day inside the window can still carry times that are
+  /// not, which is exactly what happens when today is picked in either mode.
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final first = _isHistorical ? now.subtract(const Duration(days: 365)) : now;
+    final last = _isHistorical ? now : now.add(const Duration(days: 365));
+    final initial = _date ?? now;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date ?? now,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
+      // Clamped rather than trusted: a day chosen in one mode can sit outside
+      // the other's window, and `showDatePicker` asserts on an initial date it
+      // was not given room for.
+      initialDate: initial.isBefore(first)
+          ? first
+          : (initial.isAfter(last) ? last : initial),
+      firstDate: first,
+      lastDate: last,
     );
     if (picked != null) setState(() => _date = picked);
+  }
+
+  /// Switches between scheduling a match and recording one that was played.
+  ///
+  /// The day is cleared, because it is the one field whose acceptable range the
+  /// two modes disagree about: a date picked for next Friday is not a date a
+  /// match was played on, and carrying it across would leave the organizer
+  /// looking at a schedule the form is about to refuse. The times are kept —
+  /// matches kick off at the same hour whenever they are entered.
+  void _setHistorical(bool value) {
+    if (value == _isHistorical) return;
+    setState(() {
+      _isHistorical = value;
+      _date = null;
+    });
   }
 
   Future<void> _pickTime({required bool isStart}) async {
@@ -97,7 +137,16 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     if (end.difference(start) > const Duration(hours: 12)) {
       return l10n.endAfterStartError;
     }
-    if (!start.isAfter(DateTime.now())) return l10n.startInPastError;
+    // The one question the two modes answer differently, and the same branch
+    // `create_match` takes: an ordinary match is entirely ahead of now, a
+    // recorded one entirely behind it. Everything above this line — both ends
+    // present, the end after the start, the twelve-hour bound — is asked of
+    // both, because none of it is about when the match is.
+    if (_isHistorical) {
+      if (!end.isBefore(DateTime.now())) return l10n.historicalNotPastError;
+    } else {
+      if (!start.isAfter(DateTime.now())) return l10n.startInPastError;
+    }
     return null;
   }
 
@@ -116,6 +165,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         FailureReason.invalidTitle => l10n.errInvalidTitle,
         FailureReason.invalidLocation => l10n.errInvalidLocation,
         FailureReason.startInPast => l10n.startInPastError,
+        FailureReason.historicalNotPast => l10n.historicalNotPastError,
         FailureReason.invalidTimeRange => l10n.endAfterStartError,
         FailureReason.invalidStartingPlayers => l10n.startingPlayersInvalid,
         FailureReason.communityInactive => l10n.errCommunityInactive,
@@ -148,8 +198,20 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         startAt: start,
         endAt: end,
         startingPlayers: int.parse(_startingPlayersController.text),
+        isHistorical: _isHistorical,
       );
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) {
+        // A recorded match is only half entered when it is created: nobody is
+        // registered for it and nobody can be, so the organizer is told where
+        // the rest of it is done rather than left on a match with an empty
+        // roster and no way to fill it.
+        if (_isHistorical) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.historicalMatchRecorded)),
+          );
+        }
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,6 +266,36 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 ),
               ),
               const SizedBox(height: Layout.cardGap),
+              // What kind of match this is, above the schedule it governs. It
+              // sits here and not at the foot of the form because it changes
+              // which dates the picker below will even offer.
+              Card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SwitchListTile(
+                      value: _isHistorical,
+                      onChanged: _isLoading ? null : _setHistorical,
+                      secondary: const Icon(Icons.history),
+                      title: Text(l10n.historicalMatchToggleLabel),
+                    ),
+                    if (_isHistorical)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          Layout.cardInner,
+                          0,
+                          Layout.cardInner,
+                          Layout.cardInner,
+                        ),
+                        child: Text(
+                          l10n.historicalMatchToggleNote,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Layout.cardGap),
               Card(
                 child: Column(
                   children: [
@@ -229,6 +321,16 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       subtitle: Text(_endTime?.format(context) ?? '—'),
                       onTap: () => _pickTime(isStart: false),
                     ),
+                    if (_isHistorical) ...[
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.all(Layout.cardInner),
+                        child: Text(
+                          l10n.historicalMatchDateNote,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -320,7 +422,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(l10n.createMatchButton),
+              : Text(_isHistorical
+                  ? l10n.recordHistoricalMatchButton
+                  : l10n.createMatchButton),
         ),
       ),
     );

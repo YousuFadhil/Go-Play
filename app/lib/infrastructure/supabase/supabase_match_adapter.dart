@@ -19,7 +19,7 @@ class SupabaseMatchAdapter implements MatchAdapter {
   static const _columns =
       'id, community_id, created_by, location, start_at, end_at, '
       'starting_players, max_registration, status, title, description, '
-      'roster_order_mode';
+      'roster_order_mode, is_historical';
 
   @override
   Future<List<Match>> fetchCommunityMatches(String communityId) =>
@@ -112,6 +112,7 @@ class SupabaseMatchAdapter implements MatchAdapter {
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
+    bool isHistorical = false,
   }) =>
       guarded(() async {
         await _client.rpc('create_match', params: {
@@ -122,6 +123,10 @@ class SupabaseMatchAdapter implements MatchAdapter {
           'p_end_at': endAt.toUtc().toIso8601String(),
           'p_starting_players': startingPlayers,
           'p_description': null,
+          // Always sent, never omitted. The parameter has a default server-side
+          // so an older client still works, but this one knows which of the two
+          // temporal rules it is asking for and says so either way.
+          'p_is_historical': isHistorical,
         });
       });
 

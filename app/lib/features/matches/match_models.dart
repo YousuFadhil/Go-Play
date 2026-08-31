@@ -153,6 +153,7 @@ class Match {
     this.description,
     this.communityName,
     this.rosterOrderMode = RosterOrderMode.registration,
+    this.isHistorical = false,
   });
 
   final String id;
@@ -178,6 +179,16 @@ class Match {
   /// governs no behaviour here, because the ordering it selects is applied
   /// server-side.
   final RosterOrderMode rosterOrderMode;
+
+  /// Whether this match is the record of a fixture that had already been played
+  /// when it was created (migration `0054`).
+  ///
+  /// It is the only kind of match whose times may be in the past, and it never
+  /// takes a registration — `register_player_in_match` refuses one outright, so
+  /// this governs no permission here. What it governs is what the reader is
+  /// told: a match nobody could have joined should say so rather than look like
+  /// an ordinary fixture whose roster stayed empty.
+  final bool isHistorical;
 
   /// What to show as the match's headline: the title if set, else location.
   String get displayName =>

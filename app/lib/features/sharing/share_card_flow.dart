@@ -33,6 +33,7 @@ Future<void> presentShareCard(
   double pixelRatio = 1.0,
   ShareCardRenderer? renderer,
   ShareService? shareService,
+  ShareCardDownloader? downloader,
 }) async {
   final l10n = context.l10n;
   final navigator = Navigator.of(context);
@@ -81,6 +82,7 @@ Future<void> presentShareCard(
       builder: (_) => ShareCardPreviewScreen(
         image: image!,
         shareService: shareService,
+        downloader: downloader,
       ),
     ),
   );

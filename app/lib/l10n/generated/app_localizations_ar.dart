@@ -231,6 +231,35 @@ class AppLocalizationsAr extends AppLocalizations {
   String get startInPastError => 'يجب أن تبدأ المباراة في المستقبل';
 
   @override
+  String get historicalMatchToggleLabel => 'تسجيل مباراة سابقة';
+
+  @override
+  String get historicalMatchToggleNote =>
+      'سجّل مباراة لُعبت بالفعل. لا يستطيع أحد التسجيل فيها — أنت تختار من شارك، ثم تسجّل الفرق والنتيجة.';
+
+  @override
+  String get historicalMatchDateNote =>
+      'اختر التاريخ والأوقات التي لُعبت فيها المباراة فعلاً.';
+
+  @override
+  String get historicalNotPastError =>
+      'المباراة السابقة يجب أن تكون قد انتهت قبل الآن';
+
+  @override
+  String get recordHistoricalMatchButton => 'تسجيل المباراة';
+
+  @override
+  String get historicalMatchBadge => 'مباراة سابقة';
+
+  @override
+  String get historicalMatchRecorded =>
+      'سُجّلت المباراة. أضف من شارك من شاشة الفرق، ثم سجّل النتيجة.';
+
+  @override
+  String get errMatchHistorical =>
+      'هذه المباراة سُجّلت بعد أن لُعبت، فلا يمكن لأحد التسجيل فيها.';
+
+  @override
   String get startingPlayersLabel => 'اللاعبون الأساسيون';
 
   @override
@@ -1255,6 +1284,24 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get shareTeamLineupAction => 'مشاركة التشكيلة';
+
+  @override
+  String get shareMatchResultAction => 'مشاركة النتيجة';
+
+  @override
+  String get shareCardDownloaded => 'حُفظت الصورة في تنزيلاتك.';
+
+  @override
+  String get matchResultScorersLabel => 'الهدّافون';
+
+  @override
+  String get matchResultDrawLabel => 'تعادل';
+
+  @override
+  String get matchResultWinnerLabel => 'الفائز';
+
+  @override
+  String get matchResultNotRecorded => 'لم تُسجَّل نتيجة لهذه المباراة بعد.';
 
   @override
   String get statPeriodLabel => 'الفترة';

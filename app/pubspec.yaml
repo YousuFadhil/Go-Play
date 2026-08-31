@@ -37,6 +37,15 @@ dependencies:
   # that need a path. So the app writes nothing itself, which is what keeps
   # `dart:io` out of this feature and the web build compiling.
   share_plus: ^13.3.0
+  # The browser, for the one thing the share sheet cannot do everywhere: hand
+  # the reader the picture to keep. Desktop Chrome and Firefox implement no file
+  # sharing, so a card composed there has nowhere to go without a download, and
+  # a download needs a Blob and an anchor.
+  #
+  # Already in the graph beneath share_plus, declared here only because
+  # `image_downloader_web.dart` names it directly. No version moves: this is the
+  # version already locked, and the same reason `http` is declared above.
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

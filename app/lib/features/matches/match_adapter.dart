@@ -25,6 +25,9 @@ abstract interface class MatchAdapter {
 
   /// Creates a match. Maximum registration is derived by the database from the
   /// starting players plus the global reserve setting.
+  /// [isHistorical] records a fixture that has already been played, and is what
+  /// selects the temporal rule the database applies: an ordinary match must
+  /// start in the future, a historical one must already have ended.
   Future<void> createMatch({
     required String communityId,
     required String title,
@@ -32,6 +35,7 @@ abstract interface class MatchAdapter {
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
+    bool isHistorical,
   });
 
   Future<void> updateMatch({

@@ -208,6 +208,7 @@ class FakeMatchAdapter implements MatchAdapter {
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
+    bool isHistorical = false,
   }) =>
       throw UnimplementedError();
 

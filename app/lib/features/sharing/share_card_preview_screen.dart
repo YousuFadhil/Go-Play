@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../../infrastructure/platform/image_downloader.dart';
 import '../../infrastructure/platform/native_share_service.dart';
 import 'share_card_canvas.dart';
 import 'share_card_renderer.dart';
@@ -23,6 +24,7 @@ class ShareCardPreviewScreen extends StatefulWidget {
     super.key,
     required this.image,
     this.shareService,
+    this.downloader,
   });
 
   final ShareCardImage image;
@@ -30,12 +32,19 @@ class ShareCardPreviewScreen extends StatefulWidget {
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final ShareService? shareService;
 
+  /// How the card is saved where it cannot be shared. Supplied only by tests;
+  /// left null the screen uses the platform's own, which is a download in a
+  /// browser and nothing at all anywhere else.
+  final ShareCardDownloader? downloader;
+
   @override
   State<ShareCardPreviewScreen> createState() => _ShareCardPreviewScreenState();
 }
 
 class _ShareCardPreviewScreenState extends State<ShareCardPreviewScreen> {
   late final ShareService _share = widget.shareService ?? NativeShareService();
+  late final ShareCardDownloader _download =
+      widget.downloader ?? downloadShareCardImage;
 
   /// Guards against a second sheet being asked for while the first is opening.
   /// The share sheet is the operating system's and takes a moment to appear,
@@ -73,10 +82,42 @@ class _ShareCardPreviewScreenState extends State<ShareCardPreviewScreen> {
       // sheet themselves — neither is news, and a confirmation of something
       // the reader just watched happen is noise.
     } on Failure catch (failure) {
+      // The sheet could not be shown at all. On a desktop browser that is not a
+      // fault but a fact about the platform — it implements no file sharing —
+      // and the reader is owed the picture anyway, so it is offered as a
+      // download before anything is reported as having gone wrong.
+      //
+      // Only after the download has also come to nothing does the original
+      // failure stand. Reported as the share failure it was, never as a
+      // download failure the reader never asked for.
+      if (await _saved()) return;
       _report(failure);
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
+  }
+
+  /// Hands the card to the platform's own download, and says whether it took
+  /// it.
+  ///
+  /// A saved picture is confirmed, unlike a shared one: sharing ends in an app
+  /// the reader chose and watched open, and a download ends in a folder they
+  /// cannot see from here.
+  Future<bool> _saved() async {
+    try {
+      if (!await _download(widget.image)) return false;
+    } catch (_) {
+      // Whatever the browser threw stays here, as a platform exception stays in
+      // an adapter. To the reader this is simply a download that did not
+      // happen, and the share failure they already had is the truer report.
+      return false;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.shareCardDownloaded)),
+      );
+    }
+    return true;
   }
 
   void _report(Failure failure) {

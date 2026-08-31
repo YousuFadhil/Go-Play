@@ -370,6 +370,19 @@ class _TeamsScreenState extends State<TeamsScreen> {
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
           child: Text(l10n.teamsEmpty, textAlign: TextAlign.center),
         ),
+        // Adding somebody who played, on a match that has no lineup yet.
+        //
+        // This used to appear only once a lineup existed, which was right while
+        // every completed match had arrived here through registration: there was
+        // always a roster to generate from, and adding a player was a correction
+        // to teams that already existed. A match recorded after the fact starts
+        // with nobody in it, so that arrangement left the organizer on an empty
+        // screen whose only control was a generation they had no players for.
+        //
+        // The rule is unchanged and so is the database's: `canEditPlayed` is
+        // still an organizer on a match that is over, and
+        // `set_completed_match_player` still refuses it on any other.
+        if (view.canEditPlayed) ..._addPlayerAction(l10n, view),
         if (view.canGenerate) ..._generateAction(l10n, view),
       ];
 

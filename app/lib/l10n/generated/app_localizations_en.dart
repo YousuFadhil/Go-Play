@@ -234,6 +234,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startInPastError => 'Match must start in the future';
 
   @override
+  String get historicalMatchToggleLabel => 'Record a match already played';
+
+  @override
+  String get historicalMatchToggleNote =>
+      'Enter a fixture that has already happened. Nobody can register for it — you pick who played, then record the teams and the result.';
+
+  @override
+  String get historicalMatchDateNote =>
+      'Pick the date and times the match was actually played.';
+
+  @override
+  String get historicalNotPastError =>
+      'A match already played must have finished before now';
+
+  @override
+  String get recordHistoricalMatchButton => 'Record match';
+
+  @override
+  String get historicalMatchBadge => 'Already played';
+
+  @override
+  String get historicalMatchRecorded =>
+      'Match recorded. Add who played from the Teams screen, then record the result.';
+
+  @override
+  String get errMatchHistorical =>
+      'This match was recorded after it was played, so nobody can register for it.';
+
+  @override
   String get startingPlayersLabel => 'Starting players';
 
   @override
@@ -1273,6 +1302,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareTeamLineupAction => 'Share the lineup';
+
+  @override
+  String get shareMatchResultAction => 'Share the result';
+
+  @override
+  String get shareCardDownloaded => 'Image saved to your downloads.';
+
+  @override
+  String get matchResultScorersLabel => 'Scorers';
+
+  @override
+  String get matchResultDrawLabel => 'Draw';
+
+  @override
+  String get matchResultWinnerLabel => 'Winner';
+
+  @override
+  String get matchResultNotRecorded =>
+      'No result has been recorded for this match yet.';
 
   @override
   String get statPeriodLabel => 'Period';

@@ -26,6 +26,21 @@ enum ShareOutcome {
   unknown,
 }
 
+/// Saving a card to wherever the platform keeps downloads, returning whether it
+/// could.
+///
+/// **The fallback half of the sharing decision.** A share sheet is the primary
+/// path on every platform that has one; this is what the reader gets where
+/// there is none — desktop browsers, which implement no file sharing — so that a
+/// composed card is never a picture with nowhere to go.
+///
+/// A function rather than an interface: it has one operation, no state and no
+/// configuration, and the implementation is selected by a conditional import
+/// rather than by construction. False means "this platform has no download",
+/// which is an answer and not a failure; a platform that has one and could not
+/// complete it raises a [Failure] like everything else.
+typedef ShareCardDownloader = Future<bool> Function(ShareCardImage image);
+
 /// The application's one way of handing a picture to the operating system.
 ///
 /// **One operation, and no destinations.** The product decision is that Go Play

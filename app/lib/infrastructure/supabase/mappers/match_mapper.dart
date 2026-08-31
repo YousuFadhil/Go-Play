@@ -49,6 +49,10 @@ Match matchFromRow(Map<String, dynamic> row) => Match(
       communityName: (row['community'] as Map<String, dynamic>?)?['name']
           as String?,
       rosterOrderMode: rosterOrderModeFromDb(row['roster_order_mode'] as String?),
+      // Absent from a row read by a build that predates migration `0054`, and
+      // false is what such a row means: before the column existed no match
+      // could be created in the past.
+      isHistorical: row['is_historical'] as bool? ?? false,
     );
 
 /// Reads one row of `match_membership_context` (migration `0042`).

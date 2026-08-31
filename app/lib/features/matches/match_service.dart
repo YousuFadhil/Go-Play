@@ -32,6 +32,13 @@ class MatchService {
 
   /// Creates a match. Maximum registration is derived by the database from
   /// the starting players plus the global reserve setting.
+  ///
+  /// [isHistorical] records a fixture the community has already played rather
+  /// than scheduling one (migration `0054`). It changes exactly one thing here —
+  /// which temporal rule `create_match` applies — and nothing about what
+  /// follows: the participants, the two sides and the result of a recorded match
+  /// are entered through the same screens and the same functions as any other
+  /// match that has been played.
   Future<void> createMatch({
     required String communityId,
     required String title,
@@ -39,6 +46,7 @@ class MatchService {
     required DateTime startAt,
     required DateTime endAt,
     required int startingPlayers,
+    bool isHistorical = false,
   }) =>
       _adapter.createMatch(
         communityId: communityId,
@@ -47,6 +55,7 @@ class MatchService {
         startAt: startAt,
         endAt: endAt,
         startingPlayers: startingPlayers,
+        isHistorical: isHistorical,
       );
 
   /// Edits match details. Changing the starting-player count re-sorts the
