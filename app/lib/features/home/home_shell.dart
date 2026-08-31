@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import '../communities/communities_screen.dart';
