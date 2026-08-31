@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design.dart';
 import '../../core/l10n.dart';
-import '../../core/tokens.dart';
+import 'match_stage.dart';
 import 'formation.dart';
 import 'team_models.dart';
 
@@ -29,6 +29,7 @@ class PitchView extends StatelessWidget {
     this.onTapPlayer,
     this.goalsOf,
     this.isMvpOf,
+    this.scale = 1,
   });
 
   /// This team's stored assignments, in any order.
@@ -65,6 +66,14 @@ class PitchView extends StatelessWidget {
   /// this widget has no business learning what a `MatchResult` is.
   final int Function(String participantId)? goalsOf;
   final bool Function(String participantId)? isMvpOf;
+
+  /// How much larger than the phone this pitch is drawn.
+  ///
+  /// **One pitch, two sizes.** The screen draws it at 1; the picture that leaves
+  /// the screen draws the same widget on a 1080-wide canvas and needs every
+  /// measurement multiplied, not re-chosen — a second set of numbers is how the
+  /// two would come to disagree.
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
@@ -131,11 +140,16 @@ class _PitchPainter extends CustomPainter {
     required this.grass,
     required this.stripe,
     required this.lines,
+    this.scale = 1,
   });
 
   final Color grass;
   final Color stripe;
   final Color lines;
+
+  /// The markings are absolute numbers at phone size; this turns them into the
+  /// same markings at whatever size the pitch is drawn.
+  final double scale;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -157,9 +171,9 @@ class _PitchPainter extends CustomPainter {
     final line = Paint()
       ..color = lines
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 2 * scale;
 
-    final inset = rect.deflate(10);
+    final inset = rect.deflate(10 * scale);
     canvas.drawRect(inset, line);
 
     // Halfway line and centre circle.
@@ -178,7 +192,7 @@ class _PitchPainter extends CustomPainter {
     // A penalty area at each end, scaled to the pitch so it holds its
     // proportions whatever height the team needs.
     final boxWidth = inset.width * 0.44;
-    final boxHeight = (inset.height * 0.16).clamp(18.0, 64.0);
+    final boxHeight = (inset.height * 0.16).clamp(18.0 * scale, 64.0 * scale);
     final boxLeft = inset.left + (inset.width - boxWidth) / 2;
     canvas.drawRect(
       Rect.fromLTWH(boxLeft, inset.top, boxWidth, boxHeight),
@@ -350,6 +364,7 @@ class PlayerCard extends StatelessWidget {
     this.onTap,
     this.goals = 0,
     this.isMvp = false,
+    this.scale = 1,
   });
 
   final TeamAssignment assignment;
@@ -380,6 +395,9 @@ class PlayerCard extends StatelessWidget {
   final int goals;
   final bool isMvp;
 
+  /// How much larger than the phone this card is drawn. See [PitchView.scale].
+  final double scale;
+
   final VoidCallback? onTap;
 
   @override
@@ -389,13 +407,19 @@ class PlayerCard extends StatelessWidget {
     final avatarUrl = player?.avatarUrl;
     final isGuest = assignment.isProfessionalGuest;
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 82),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(Radii.sm),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Gap.xs, horizontal: 2),
+    // Wider than it was: the approved direction puts the player first, and a
+    // recognisable face needs the room. Every measurement below is a multiple of
+    // the same avatar radius, so the card holds its proportions at any scale.
+    final radius = 27.0 * scale;
+
+    // The ink is there only where there is something to tap. A card with no
+    // `onTap` is a card in a picture, and an `InkWell` there wants a `Material`
+    // ancestor a share card has no reason to carry.
+    final body = Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: Gap.xs * scale,
+        horizontal: 2 * scale,
+      ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -404,7 +428,7 @@ class PlayerCard extends StatelessWidget {
               // this they shared the plain white disc with a player who had left
               // the match, which said the same thing about two different people.
               CircleAvatar(
-                radius: 21,
+                radius: radius,
                 backgroundColor: isGuest
                     ? theme.colorScheme.tertiaryContainer
                     : Colors.white,
@@ -422,38 +446,68 @@ class PlayerCard extends StatelessWidget {
                     avatarUrl == null || isGuest ? null : (_, __) {},
                 child: Icon(
                   isGuest ? Icons.workspace_premium_outlined : Icons.person,
-                  size: 21,
+                  size: radius,
                 ),
               ),
-              const SizedBox(height: Gap.xs),
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  // A hard shadow, so a pale name stays readable over a pale
-                  // stripe without darkening the pitch for everyone.
-                  shadows: const [
-                    Shadow(blurRadius: 2, color: Color(0x99000000)),
+              SizedBox(height: Gap.xs * scale),
+              // The name, and the star beside it.
+              //
+              // **Inline, because the star belongs to the player and not to a
+              // badge.** The approved direction puts it immediately after the
+              // name, where a reader takes the two in together; the goal tally
+              // sits below with the rating, where a number belongs among
+              // numbers.
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5 * scale,
+                        height: 1.25,
+                        // A hard shadow, so a pale name stays readable over a
+                        // pale stripe without darkening the pitch for everyone.
+                        shadows: const [
+                          Shadow(blurRadius: 2, color: Color(0x99000000)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (isMvp) ...[
+                    SizedBox(width: 3 * scale),
+                    Icon(
+                      Icons.star_rounded,
+                      size: 14 * scale,
+                      color: MatchStage.star,
+                      shadows: const [
+                        Shadow(blurRadius: 2, color: Color(0x99000000)),
+                      ],
+                    ),
                   ],
-                ),
+                ],
               ),
-              // What this player did in the match, immediately under their
-              // name. Above the rating on purpose: a rating is standing across
-              // every match, and what happened in *this* one belongs closer to
-              // the name it belongs to.
-              if (isMvp || goals > 0) _ResultMarks(goals: goals, isMvp: isMvp),
               if (player != null)
                 Text(
                   // One decimal, which is `OP-1`'s presentation scale.
                   player!.overallRating.toStringAsFixed(1),
-                  style: theme.textTheme.labelSmall?.copyWith(
+                  textDirection: TextDirection.ltr,
+                  style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 10.5 * scale,
+                    height: 1.3,
                   ),
                 ),
+              // What this player scored, under the rating: a number among
+              // numbers. Drawn only where there is one — a tally of zero is the
+              // absence of a badge, not a badge of none.
+              if (goals > 0) _GoalBadge(goals: goals, scale: scale),
               // What this player's position actually is, when the drawing has
               // put them somewhere else. The card carries no position text
               // otherwise — the row it sits in is what says it — so without
@@ -483,78 +537,71 @@ class PlayerCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-            ],
-          ),
-        ),
+        ],
       ),
+    );
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: 96 * scale),
+      child: onTap == null
+          ? body
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(Radii.sm * scale),
+              child: body,
+            ),
     );
   }
 }
 
-/// What a player did in the match, on their card: a star if they were best on
-/// the pitch, a ball and a count if they scored.
+/// What a player scored, under their rating.
 ///
-/// **One pill, both marks.** A player who was best on the pitch *and* scored
-/// twice reads as one statement rather than two competing badges, and the row is
-/// pinned left to right so the ball never lands on the far side of its own
-/// count.
+/// **The count first, then the ball**, which is the approved direction's own
+/// order and reads as a tally rather than as a sentence. The row is pinned left
+/// to right so it lands the same way in both languages, and the badge sits on
+/// its own dark ground because a number on grass has nothing to hold its edge.
 ///
-/// The pill is near-white for the same reason the moved-position badge is: a
-/// gold star and a dark numeral both need something other than grass behind them
-/// to hold their shape at 82 logical pixels wide.
-///
-/// Compact by necessity, so it carries the marks and nothing else. The whole
-/// sentence is on the [Semantics] node for anybody not reading it by eye.
-class _ResultMarks extends StatelessWidget {
-  const _ResultMarks({required this.goals, required this.isMvp});
+/// The star is not here — it sits beside the name, where the player is.
+class _GoalBadge extends StatelessWidget {
+  const _GoalBadge({required this.goals, required this.scale});
 
   final int goals;
-  final bool isMvp;
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = context.l10n;
 
     return Semantics(
-      label: [
-        if (isMvp) l10n.mvpLabel,
-        if (goals > 0) l10n.goalsScoredLabel(goals),
-      ].join('، '),
+      label: l10n.goalsScoredLabel(goals),
       excludeSemantics: true,
       child: Container(
-        margin: const EdgeInsets.only(top: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        margin: EdgeInsets.only(top: 3 * scale),
+        padding: EdgeInsets.symmetric(
+          horizontal: 7 * scale,
+          vertical: 1.5 * scale,
+        ),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.95),
+          color: MatchStage.badge,
           borderRadius: BorderRadius.circular(Radii.pill),
+          border: Border.all(color: MatchStage.badgeEdge, width: 1),
         ),
         child: Row(
-          // A run of marks, not a sentence: a reader scanning a pitch should
-          // find them in the same place on every player, in either language.
           textDirection: TextDirection.ltr,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isMvp)
-              const Icon(Icons.star_rounded, size: 13, color: GoColors.warn),
-            if (isMvp && goals > 0) const SizedBox(width: 3),
-            if (goals > 0) ...[
-              Icon(
-                Icons.sports_soccer,
-                size: 11,
-                color: theme.colorScheme.primary,
+            Text(
+              '$goals',
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11 * scale,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
               ),
-              const SizedBox(width: 2),
-              Text(
-                '$goals',
-                textDirection: TextDirection.ltr,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                ),
-              ),
-            ],
+            ),
+            SizedBox(width: 4 * scale),
+            Icon(Icons.sports_soccer, size: 11 * scale, color: Colors.white),
           ],
         ),
       ),

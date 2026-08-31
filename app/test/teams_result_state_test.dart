@@ -18,7 +18,6 @@ import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/features/teams/pitch_view.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
-import 'package:go_play/features/teams/team_lineup_card.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/team_repository.dart';
 import 'package:go_play/features/teams/teams_screen.dart';
@@ -168,7 +167,7 @@ void main() {
       await pumpTeams(tester, match: upcomingMatch());
 
       expect(find.text('Winner'), findsNothing);
-      expect(find.byIcon(Icons.sports_soccer), findsNothing);
+      expect(_goalBadges(), findsNothing);
       expect(find.byIcon(Icons.star_rounded), findsNothing);
     });
 
@@ -177,7 +176,7 @@ void main() {
       // The match being over is not the switch. A recorded result is.
       await pumpTeams(tester, match: playedMatch());
 
-      expect(find.byIcon(Icons.sports_soccer), findsNothing);
+      expect(_goalBadges(), findsNothing);
       expect(find.text('Winner'), findsNothing);
     });
 
@@ -201,8 +200,12 @@ void main() {
       await tester.tap(find.byIcon(Icons.ios_share));
       await tester.pumpAndSettle();
 
+      // One card, in both states - so what is asserted is not which class was
+      // built but what it was built with: a picture of a lineup that has no
+      // result carries no score.
       expect(renderer.templates, hasLength(1));
-      expect(renderer.lastBuilt, isA<TeamLineupCard>());
+      expect(renderer.lastBuilt, isA<MatchResultCard>());
+      expect((renderer.lastBuilt! as MatchResultCard).data.hasResult, isFalse);
     });
   });
 
@@ -251,7 +254,7 @@ void main() {
         ),
       );
 
-      expect(find.byIcon(Icons.sports_soccer), findsOneWidget);
+      expect(_goalBadges(), findsOneWidget);
       expect(find.text('2'), findsWidgets);
     });
 
@@ -266,7 +269,7 @@ void main() {
       );
 
       // Four players on the pitch, one ball between them.
-      expect(find.byIcon(Icons.sports_soccer), findsOneWidget);
+      expect(_goalBadges(), findsOneWidget);
     });
 
     testWidgets('the best player carries a star', (tester) async {
@@ -291,7 +294,7 @@ void main() {
       );
 
       expect(find.byIcon(Icons.star_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.sports_soccer), findsOneWidget);
+      expect(_goalBadges(), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -322,6 +325,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(renderer.lastBuilt, isA<MatchResultCard>());
+      final data = (renderer.lastBuilt! as MatchResultCard).data;
+      expect(data.hasResult, isTrue);
+      expect(data.winner, TeamId.a);
+      expect(data.goalsOf('u3'), 2);
+      expect(data.isMvp('u3'), isTrue);
     });
 
     testWidgets('an ordinary member gets the action too', (tester) async {
@@ -344,6 +352,13 @@ void main() {
     });
   });
 }
+
+/// Goal badges, scoped to the pitch so the screen's own football watermark is
+/// not counted as somebody's goal.
+Finder _goalBadges() => find.descendant(
+      of: find.byType(PitchView),
+      matching: find.byIcon(Icons.sports_soccer),
+    );
 
 class _Matches implements MatchAdapter {
   _Matches(this.match);

@@ -22,7 +22,8 @@ import 'package:go_play/features/sharing/share_card_canvas.dart';
 import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
-import 'package:go_play/features/teams/team_lineup_card.dart';
+import 'package:go_play/features/teams/match_stage.dart';
+import 'package:go_play/features/teams/pitch_view.dart';
 import 'package:go_play/features/teams/team_models.dart';
 
 /// The Completed Match share card, and the way into it from Match Details.
@@ -56,23 +57,33 @@ void main() {
       ];
 
   MatchResultCardData cardData({
-    int teamAScore = 3,
-    int teamBScore = 1,
+    int? teamAScore = 3,
+    int? teamBScore = 1,
     Map<String, int> goals = const {'u3': 2, 'u1': 1, 'u2': 1},
     String? mvp = 'u3',
     List<TeamAssignment>? assignments,
   }) {
-    final players = assignments ?? lineup();
+    final squad = assignments ?? lineup();
     return MatchResultCardData(
       teamAScore: teamAScore,
       teamBScore: teamBScore,
-      lineup: players,
+      lineup: squad,
+      players: {
+        for (final x in squad)
+          x.participantId: PlayerCoreInputs(
+            userId: x.userId!,
+            fullName: names[x.participantId] ?? '—',
+            overallRating: 6,
+            primaryPosition: x.assignedPosition!,
+          ),
+      },
       names: {
-        for (final a in players) a.participantId: names[a.participantId] ?? '—',
+        for (final x in squad) x.participantId: names[x.participantId] ?? '—',
       },
       goals: goals,
       mvpParticipantId: mvp,
       communityName: 'Al Amerat FC',
+      matchTitle: 'Friday Night',
       playedAt: DateTime(2026, 8, 21, 20),
     );
   }
@@ -162,11 +173,11 @@ void main() {
       // The same painter the lineup card and `PitchView` use. Two of them, one
       // per side, which is what makes this the Teams screen rather than a
       // second layout that happens to list the same players.
-      final pitches = tester
-          .widgetList<CustomPaint>(find.byType(CustomPaint))
-          .where((paint) => paint.painter is TeamLineupPitchPainter)
-          .length;
-      expect(pitches, 2);
+      // The Teams screen's own pitch, twice - one per side. That is what makes
+      // this a picture of the screen rather than a second layout that happens
+      // to list the same players.
+      expect(find.byType(PitchView), findsNWidgets(2));
+      expect(find.byType(MatchStageSection), findsNWidgets(2));
     });
 
     testWidgets('every player of both lineups is on it', (tester) async {
@@ -193,7 +204,7 @@ void main() {
     testWidgets('the players are drawn with the lineup marks', (tester) async {
       await pumpCard(tester, cardData());
 
-      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
+      expect(find.byType(PlayerCard), findsNWidgets(4));
     });
   });
 
@@ -201,8 +212,8 @@ void main() {
     testWidgets('a scorer carries a ball and their count', (tester) async {
       await pumpCard(tester, cardData(goals: {'u3': 2}, mvp: null));
 
-      expect(find.byIcon(Icons.sports_soccer), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
+      expect(_goalBadges(), findsOneWidget);
+      expect(find.text('2'), findsWidgets);
     });
 
     testWidgets('one ball for each scorer, and nobody else', (tester) async {
@@ -211,7 +222,7 @@ void main() {
         cardData(goals: {'u3': 2, 'u1': 1, 'u2': 1}, mvp: null),
       );
 
-      expect(find.byIcon(Icons.sports_soccer), findsNWidgets(3));
+      expect(_goalBadges(), findsNWidgets(3));
     });
 
     testWidgets('the best player carries a star', (tester) async {
@@ -226,8 +237,8 @@ void main() {
 
       // Both, on one player, in one pill: star, ball, 2.
       expect(find.byIcon(Icons.star_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.sports_soccer), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
+      expect(_goalBadges(), findsOneWidget);
+      expect(find.text('2'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
@@ -238,20 +249,19 @@ void main() {
         cardData(teamAScore: 0, teamBScore: 0, goals: const {}, mvp: null),
       );
 
-      expect(find.byIcon(Icons.sports_soccer), findsNothing);
+      expect(_goalBadges(), findsNothing);
       expect(find.byIcon(Icons.star_rounded), findsNothing);
       // No placeholder, no empty pill, and no overflow from room reserved for
       // badges nobody needed.
       expect(tester.takeException(), isNull);
     });
 
-    test('the card knows whether anybody carries a mark', () {
-      expect(cardData(goals: {'u3': 1}, mvp: null).hasMarks, isTrue);
-      expect(cardData(goals: const {}, mvp: 'u3').hasMarks, isTrue);
-      expect(cardData(goals: const {}, mvp: null).hasMarks, isFalse);
+    test('the card knows whether it carries a result at all', () {
+      expect(cardData().hasResult, isTrue);
+      expect(cardData(teamAScore: null, teamBScore: null).hasResult, isFalse);
       // A tally of zero is not a mark. Nobody scoring nothing is the absence of
       // a tally, not a tally of none.
-      expect(cardData(goals: {'u3': 0}, mvp: null).hasMarks, isFalse);
+      expect(cardData(goals: {'u3': 0}).goalsOf('u3'), 0);
     });
   });
 
@@ -319,9 +329,8 @@ void main() {
     test('a match with nobody in the lineup is not a card', () {
       expect(
         const MatchResultCardData(
-          teamAScore: 0,
-          teamBScore: 0,
           lineup: [],
+          players: {},
           names: {},
         ).isShareable,
         isFalse,
@@ -452,10 +461,22 @@ const _scoreSize = 64.0;
 /// makes the score the score rather than a goal tally that happens to read the
 /// same.
 List<String> _scoreNumerals(WidgetTester tester) => tester
-    .widgetList<Text>(find.byType(Text))
-    .where((text) => text.style?.fontSize == _scoreSize)
+    .widgetList<Text>(find.descendant(
+      of: find.byType(MatchStageHeader),
+      matching: find.byType(Text),
+    ))
+    .where((text) =>
+        text.style?.fontWeight == FontWeight.w800 &&
+        int.tryParse(text.data ?? '') != null)
     .map((text) => text.data ?? '')
     .toList();
+
+/// Goal badges, scoped to the pitch so the card's own football watermark is not
+/// counted as somebody's goal.
+Finder _goalBadges() => find.descendant(
+      of: find.byType(PitchView),
+      matching: find.byIcon(Icons.sports_soccer),
+    );
 
 /// A one-pixel PNG. The preview decodes whatever it is handed, so the bytes
 /// have to be a real picture even though nothing looks at it.
@@ -473,10 +494,13 @@ final _png = Uint8List.fromList(const [
 /// One on a win, none on a draw. Counted rather than described, because the
 /// colour is the whole of the emphasis on the numerals themselves.
 int _emphasisedNumerals(WidgetTester tester) => tester
-    .widgetList<Text>(find.byType(Text))
+    .widgetList<Text>(find.descendant(
+      of: find.byType(MatchStageHeader),
+      matching: find.byType(Text),
+    ))
     .where((text) =>
-        text.style?.fontSize == _scoreSize &&
-        text.style?.color == const Color(0xFF123D24))
+        int.tryParse(text.data ?? '') != null &&
+        text.style?.color == MatchStage.accent)
     .length;
 
 /// A lineup dense enough to squeeze the badges: five a side, which is where the
@@ -509,6 +533,15 @@ MatchResultCardData _crowded() {
     teamAScore: 4,
     teamBScore: 3,
     lineup: players,
+    players: {
+      for (final player in players)
+        player.participantId: PlayerCoreInputs(
+          userId: player.userId!,
+          fullName: 'عبدالرحمن',
+          overallRating: 6,
+          primaryPosition: player.assignedPosition!,
+        ),
+    },
     names: {
       // Deliberately long, and Arabic: the widest name is what decides whether
       // a card buys a second line, and a second line is what the badges then

@@ -19,8 +19,8 @@ import '../results/result_repository.dart';
 import '../sharing/share_card_flow.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
+import 'match_stage.dart';
 import 'pitch_view.dart';
-import 'team_lineup_card.dart';
 import 'team_generation_settings.dart';
 import 'team_models.dart';
 import 'team_repository.dart';
@@ -300,50 +300,30 @@ class _TeamsScreenState extends State<TeamsScreen> {
     await _precacheFaces(view);
     if (!mounted) return;
 
-    final ShareCardTemplate template;
-    if (view.result case final MatchResult result) {
-      final data = MatchResultCardData(
-        teamAScore: result.teamAScore,
-        teamBScore: result.teamBScore,
-        lineup: view.lineup,
-        names: names,
-        avatars: {
-          for (final assignment in view.lineup)
-            if (view.players[assignment.participantId]?.avatarUrl
-                case final String url)
-              assignment.participantId: url,
-        },
-        goals: {
-          for (final tally in result.goals) tally.userId: tally.goals,
-        },
-        mvpParticipantId: result.mvpUserId,
-        communityName: view.match.communityName,
-        matchTitle: view.match.title,
-        playedAt: view.match.startAt,
-      );
-      template = (context) => MatchResultCard(data: data);
-    } else {
-      // The community is the card's subject; the fixture is one line of context
-      // under it. Both are already on the loaded view — `fetchMatch` joins the
-      // community for its name — so this is plumbing, not a second read. Every
-      // one of these may be absent, and the card draws nothing where they are
-      // rather than standing something in.
-      final data = TeamLineupCardData(
-        communityName: view.match.communityName,
-        startAt: view.match.startAt,
-        endAt: view.match.endAt,
-        location: view.match.location,
-        lineup: view.lineup,
-        players: view.players,
-        names: names,
-        hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
-      );
-      template = (context) => TeamLineupCard(data: data);
-    }
+    // **One card for both states.** It is the screen itself, so the state the
+    // screen is in is the state the picture is in: a score strip and player
+    // marks where there is a result, and neither where there is not. There is
+    // no second template and nothing for the reader to choose.
+    final data = MatchResultCardData(
+      lineup: view.lineup,
+      players: view.players,
+      names: names,
+      teamAScore: view.result?.teamAScore,
+      teamBScore: view.result?.teamBScore,
+      goals: {
+        for (final tally in view.result?.goals ?? const <GoalTally>[])
+          tally.userId: tally.goals,
+      },
+      mvpParticipantId: view.result?.mvpUserId,
+      communityName: view.match.communityName,
+      matchTitle: view.match.displayName,
+      playedAt: view.match.startAt,
+      hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
+    );
 
     await presentShareCard(
       context,
-      template: template,
+      template: (context) => MatchResultCard(data: data),
       renderer: widget.renderer,
       shareService: widget.shareService,
     );
@@ -379,9 +359,39 @@ class _TeamsScreenState extends State<TeamsScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
+    // **This screen is dark, and it is the only one that is.** A lineup is a
+    // pitch, and a pitch on the app's pale page reads as a picture pasted onto a
+    // document rather than as the thing the screen is about. So the Club task
+    // shell is not used here: the bar, the ground and the sections are the Teams
+    // feature's own, and nothing about the other five task screens changes.
     return Scaffold(
-      appBar: ClubTaskBar(
-        title: l10n.teamsTitle,
+      backgroundColor: MatchStage.ground,
+      appBar: AppBar(
+        backgroundColor: MatchStage.ground,
+        foregroundColor: MatchStage.ink,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        titleSpacing: 0,
+        title: Text(
+          l10n.teamsTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 17,
+            height: 1.25,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+            color: MatchStage.ink,
+          ),
+        ),
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const BackButtonIcon(),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+        ),
+        // The one share control in the product. There is no second one at the
+        // foot of this screen and none on Match Details.
         actions: [
           IconButton(
             icon: const Icon(Icons.ios_share),
@@ -394,23 +404,37 @@ class _TeamsScreenState extends State<TeamsScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const ClubTaskBody(child: LoadingState());
+            return const LoadingState();
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return ClubTaskBody(child: ErrorState(onRetry: _reload));
+            return ErrorState(onRetry: _reload);
           }
 
           final view = snapshot.data!;
           return RefreshIndicator(
             onRefresh: () async => _reload(),
-            child: ClubTaskBody(
-              padding: const EdgeInsetsDirectional.fromSTEB(0, 8, 0, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: view.lineup.isEmpty
-                    ? _emptyState(l10n, view)
-                    : _generatedTeams(l10n, view),
-              ),
+            // The watermark is the one decoration on the ground: a ball, large,
+            // cropped by the corner and barely lighter than what it sits on. It
+            // says "football" without competing with a single player.
+            child: Stack(
+              children: [
+                Positioned(
+                  top: -70,
+                  right: -60,
+                  child: Icon(
+                    Icons.sports_soccer,
+                    size: 260,
+                    color: Colors.white.withValues(alpha: 0.028),
+                  ),
+                ),
+                ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 6, 0, 28),
+                  children: view.lineup.isEmpty
+                      ? _emptyState(l10n, view)
+                      : _generatedTeams(l10n, view),
+                ),
+              ],
             ),
           );
         },
@@ -442,11 +466,24 @@ class _TeamsScreenState extends State<TeamsScreen> {
       ];
 
   List<Widget> _generatedTeams(AppLocalizations l10n, _TeamsView view) => [
-        // State B: the match has been played and somebody recorded it. The
-        // same screen, with a compact line of result above the teams it came
-        // from — never a scoreboard, because the players are still the subject.
-        if (view.result case final MatchResult result)
-          _MatchSummary(match: view.match, result: result),
+        // The one header, in both states. Before a result it is the community,
+        // the match and the date; after one it grows the score strip, and
+        // nothing else about the screen changes.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            kPageMargin,
+            Gap.md,
+            kPageMargin,
+            Gap.lg,
+          ),
+          child: MatchStageHeader(
+            community: view.match.communityName,
+            title: view.match.displayName,
+            playedAt: view.match.startAt,
+            teamAScore: view.result?.teamAScore,
+            teamBScore: view.result?.teamBScore,
+          ),
+        ),
         ..._teamSection(l10n, view, l10n.teamAName, TeamId.a),
         ..._teamSection(l10n, view, l10n.teamBName, TeamId.b),
         if (view.canEditPlayed) ...[
@@ -552,33 +589,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
     final won = view.result?.winner == team;
 
+    // One section per side: heading, winner mark and pitch inside a single dark
+    // block, so a team reads as one thing rather than as a title floating over
+    // a detached pitch.
     return [
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Flexible(
-              child: Text(
-                '$title (${assignments.length})',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: won ? GoColors.primaryDeep : null,
-                      fontWeight: won ? FontWeight.w800 : null,
-                    ),
-              ),
-            ),
-            // Subtle, and said once. The summary above has already carried the
-            // score; this is what tells a reader scrolling past which pitch
-            // they are looking at.
-            if (won) ...[
-              const SizedBox(width: Gap.sm),
-              _WinnerChip(label: l10n.matchResultWinnerLabel),
-            ],
-          ],
-        ),
-      ),
-      PitchView(
+        padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.md),
+        child: MatchStageSection(
+          title: '$title (${assignments.length})',
+          won: won,
+          child: PitchView(
         assignments: assignments,
         players: view.players,
         hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
@@ -610,6 +630,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
                 final userId = assignment.userId;
                 if (userId != null) openPlayerProfile(context, userId);
               },
+          ),
+        ),
       ),
     ];
   }
@@ -1072,160 +1094,4 @@ class _TeamsView {
   bool get hasGeneratableRoster =>
       confirmedPlayers >= approvedTeamGeneration.minPlayers &&
       confirmedPlayers <= maxSupportedPlayers;
-}
-
-/// The match's result, compactly, above the two pitches it came from.
-///
-/// **Deliberately not a scoreboard.** An earlier version of this gave the score
-/// its own card and 130-point numerals, and it was rejected: the subject of this
-/// screen is the players, and a result that dominates them is answering a
-/// different question. So this is one line of context and one line of score, set
-/// at heading size rather than display size — clear at a glance, and quieter
-/// than the two teams below it.
-///
-/// The winning side is picked out here in the app's own deep green and named
-/// beside its own pitch heading further down. Once, in each place, and nowhere
-/// else.
-class _MatchSummary extends StatelessWidget {
-  const _MatchSummary({required this.match, required this.result});
-
-  final Match match;
-  final MatchResult result;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final winner = result.winner;
-
-    final context_ = [
-      if (match.communityName case final String name) name,
-      match.displayName,
-      formatMatchDay(context, match.startAt),
-    ].join(' · ');
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(kPageMargin, Gap.sm, kPageMargin, 0),
-      child: SectionCard(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(Layout.cardInner),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  context_,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall,
-                ),
-                const SizedBox(height: Gap.sm),
-                // Team, score, dash, score, team — as one row that follows the
-                // reader's direction, so Team A's name and Team A's number stay
-                // on the same side of the line in both languages. Each numeral
-                // states its own direction, because digits must never reorder.
-                Row(
-                  textDirection: Directionality.of(context),
-                  children: [
-                    Expanded(
-                      child: _SummarySide(
-                        label: l10n.teamAName,
-                        score: result.teamAScore,
-                        won: winner == TeamId.a,
-                      ),
-                    ),
-                    Text(
-                      '–',
-                      textDirection: TextDirection.ltr,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: GoColors.onSurfaceVariant,
-                      ),
-                    ),
-                    Expanded(
-                      child: _SummarySide(
-                        label: l10n.teamBName,
-                        score: result.teamBScore,
-                        won: winner == TeamId.b,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One side of the compact score: the team, and what they scored.
-class _SummarySide extends StatelessWidget {
-  const _SummarySide({
-    required this.label,
-    required this.score,
-    required this.won,
-  });
-
-  final String label;
-  final int score;
-
-  /// False on both sides of a drawn match, which is the whole of the neutral
-  /// treatment: there is no third state to draw.
-  final bool won;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall,
-        ),
-        Text(
-          '$score',
-          textDirection: TextDirection.ltr,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: won ? GoColors.primaryDeep : GoColors.onSurface,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// The winner's marker, beside its own pitch heading. Small on purpose.
-class _WinnerChip extends StatelessWidget {
-  const _WinnerChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
-      decoration: BoxDecoration(
-        color: GoColors.primaryDeep,
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          height: 1.35,
-        ),
-      ),
-    );
-  }
 }
