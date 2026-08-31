@@ -230,9 +230,11 @@ void main() {
 
       expect(find.text(longArabic), findsWidgets);
       expect(find.text(longEnglish), findsWidgets);
+      // The score row is laid out left-to-right by a `Directionality` above
+      // the fields, not by a property on any one of them, so the ambient
+      // direction at the field is what the screen actually guarantees.
       expect(
-        tester.widget<TextFormField>(find.byKey(const Key('teamAScore')))
-            .textDirection,
+        Directionality.of(tester.element(find.byKey(const Key('teamAScore')))),
         TextDirection.ltr,
       );
       expect(tester.takeException(), isNull);

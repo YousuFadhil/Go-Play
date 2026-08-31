@@ -497,7 +497,7 @@ void main() {
       FakeNotificationAdapter adapter, {
       Locale locale = const Locale('en'),
       Size size = const Size(412, 900),
-    ) async {
+    }) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
