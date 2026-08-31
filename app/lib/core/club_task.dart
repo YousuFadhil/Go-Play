@@ -6,10 +6,22 @@ import 'tokens.dart';
 /// The plain bar for a task: one way back and one bounded title, without the
 /// signed-in account menu that belongs to the app's place screens.
 class ClubTaskBar extends StatelessWidget implements PreferredSizeWidget {
-  const ClubTaskBar({super.key, required this.title, this.onBack});
+  const ClubTaskBar({
+    super.key,
+    required this.title,
+    this.onBack,
+    this.actions,
+  });
 
   final String title;
   final VoidCallback? onBack;
+
+  /// The task's own actions, at the trailing edge of the bar.
+  ///
+  /// A task screen usually has none — its action is the pinned button at the
+  /// foot. This is for the exception: an action that belongs to the whole
+  /// screen rather than to a step in it, such as sharing what is on it.
+  final List<Widget>? actions;
 
   @override
   Size get preferredSize => const Size.fromHeight(Layout.taskBarHeight + 1);
@@ -33,6 +45,7 @@ class ClubTaskBar extends StatelessWidget implements PreferredSizeWidget {
         icon: const BackButtonIcon(),
         tooltip: MaterialLocalizations.of(context).backButtonTooltip,
       ),
+      actions: actions,
       title: Text(
         title,
         maxLines: 1,

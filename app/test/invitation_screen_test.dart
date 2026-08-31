@@ -71,7 +71,7 @@ void main() {
       expect(find.text(InviteLink.format(code)), findsOneWidget);
       expect(find.text('Share invitation'), findsOneWidget);
       expect(find.text('Copy code'), findsOneWidget);
-      expect(find.text('Copy link'), findsOneWidget);
+      expect(find.text('Copy'), findsOneWidget);
       expect(find.text('Regenerate code'), findsOneWidget);
       expect(
         tester
@@ -97,10 +97,12 @@ void main() {
       );
 
       expect(find.text(name), findsOneWidget);
-      expect(
-        tester.widget<SelectableText>(find.text(code)).textDirection,
-        TextDirection.ltr,
-      );
+      // The code is set left-to-right by a `Directionality` above the
+      // `SelectableText`, not by a property on it — the same way the link
+      // below is — so the ambient direction is what the screen guarantees.
+      final codeFinder = find.text(code);
+      expect(codeFinder, findsOneWidget);
+      expect(Directionality.of(tester.element(codeFinder)), TextDirection.ltr);
       final link = find.text(InviteLink.format(code));
       expect(link, findsOneWidget);
       expect(Directionality.of(tester.element(link)), TextDirection.ltr);
@@ -141,7 +143,7 @@ void main() {
       expect(find.byType(ClubHero), findsOneWidget);
       expect(find.byType(ClubSheet), findsOneWidget);
       observer.pushed.clear();
-      await tester.tap(find.text('Join community'));
+      await tester.tap(find.text('Join Community'));
       await tester.pump();
 
       final route = observer.pushed.single;
@@ -166,7 +168,7 @@ void main() {
       );
 
       observer.pushed.clear();
-      await tester.tap(find.text('Join community'));
+      await tester.tap(find.text('Join Community'));
       await tester.pump();
 
       expect(adapter.joinedCodes, [code]);

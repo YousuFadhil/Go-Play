@@ -486,7 +486,7 @@ void main() {
 
       expect(results.writes, 1);
       expect(saveButton(tester).onPressed, isNull);
-      await tester.tap(find.text('Save result'));
+      await tester.tap(saveButtonFinder());
       await tester.pump();
       expect(results.writes, 1);
 
@@ -707,12 +707,18 @@ void main() {
   });
 }
 
-FilledButton saveButton(WidgetTester tester) => tester.widget<FilledButton>(
-      find.ancestor(
-        of: find.text('Save result'),
-        matching: find.byType(FilledButton),
-      ),
+/// The pinned action, found by where it sits rather than by what it says.
+///
+/// While a save is in flight the button swaps its label for a spinner, so a
+/// finder that goes by the text cannot see the button in the one state this
+/// suite most needs to inspect.
+Finder saveButtonFinder() => find.descendant(
+      of: find.byType(ClubActionBar),
+      matching: find.byType(FilledButton),
     );
+
+FilledButton saveButton(WidgetTester tester) =>
+    tester.widget<FilledButton>(saveButtonFinder());
 
 /// Answers from memory and records what it was handed.
 class FakeResultAdapter implements ResultAdapter {

@@ -325,7 +325,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: ClubTaskBar(title: l10n.teamsTitle),
+      appBar: ClubTaskBar(
+        title: l10n.teamsTitle,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.ios_share),
+            tooltip: l10n.shareTeamLineupAction,
+            onPressed: _canShare && !_busy ? _shareLineup : null,
+          ),
+        ],
+      ),
       body: FutureBuilder<_TeamsView>(
         future: _future,
         builder: (context, snapshot) {

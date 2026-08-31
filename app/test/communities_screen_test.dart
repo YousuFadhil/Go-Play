@@ -8,7 +8,6 @@ import 'package:go_play/core/states.dart';
 import 'package:go_play/core/theme.dart';
 import 'package:go_play/features/communities/communities_screen.dart';
 import 'package:go_play/features/communities/community_adapter.dart';
-import 'package:go_play/features/communities/community_details_screen.dart';
 import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/communities/community_repository.dart';
 
@@ -36,6 +35,7 @@ void main() {
     Locale locale = const Locale('en'),
     Size size = const Size(412, 900),
     List<NavigatorObserver> observers = const [],
+    bool settle = true,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -48,10 +48,22 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         navigatorObservers: observers,
-        home: CommunitiesScreen(communityRepository: repository),
+        // A fresh key per pump: a second `pumpCommunities` in one test would
+        // otherwise land on the same element and keep the future the screen
+        // loaded the first time, so the new repository would never be read.
+        home: CommunitiesScreen(
+          key: UniqueKey(),
+          communityRepository: repository,
+        ),
       ),
     );
-    await tester.pumpAndSettle();
+    // `LoadingState` is a `CircularProgressIndicator`, which never stops
+    // animating, so a screen parked on it can be pumped but never settled.
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+    }
   }
 
   CommunityRepository repository({
@@ -91,8 +103,12 @@ void main() {
     await tester.tap(find.text(mine.name));
     await tester.pump();
 
-    expect(find.byType(CommunityDetailsScreen), findsOneWidget);
-    expect(observer.pushed, hasLength(1));
+    // The recorder sees the initial route too, so the tap is the second push.
+    // The destination itself is not built here: given no injected repository
+    // `CommunityDetailsScreen` reaches for the provider, and a tap has nothing
+    // to hand it. What this test owns is that the tap navigates; what the
+    // details screen renders is `community_details_hero_test`'s.
+    expect(observer.pushed, hasLength(2));
   });
 
   testWidgets('create, join, and invitation entry points remain available',
@@ -108,7 +124,11 @@ void main() {
     final waiting = Completer<List<Community>>();
     await pumpCommunities(
       tester,
-      repository: repository(waitingForMyCommunities: waiting),
+      // `all` is emptied too: the screen shows the empty state only when there
+      // is nothing on either side, which is right — a member of nothing who
+      // still has communities to discover is not looking at an empty product.
+      repository: repository(waitingForMyCommunities: waiting, all: const []),
+      settle: false,
     );
     expect(find.byType(LoadingState), findsOneWidget);
 

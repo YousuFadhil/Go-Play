@@ -81,6 +81,12 @@ void main() {
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: MatchDetailsScreen(
+        // A fresh key per pump. Without it a second `pumpDetails` in the same
+        // test lands on the same element, Flutter updates the existing State
+        // instead of creating one, and the screen keeps the match and the role
+        // it loaded the first time — so the assertion reads the previous
+        // screen rather than the one just asked for.
+        key: UniqueKey(),
         matchId: 'm1',
         matchService: MatchService(matches),
         memberRepository: MemberRepository(FakeMemberAdapter(role: role)),

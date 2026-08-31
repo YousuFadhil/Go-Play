@@ -115,12 +115,16 @@ void main() {
     await tester.pump();
 
     expect(adapter.writes, 1);
-    final button = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Create match'),
+    // Found by where it sits, not by what it says: while the submission is in
+    // flight the button swaps its label for a spinner, so a finder that goes
+    // by the text cannot see it in the one state this test is about.
+    final pinned = find.descendant(
+      of: find.byType(ClubActionBar),
+      matching: find.byType(FilledButton),
     );
-    expect(button.onPressed, isNull);
+    expect(tester.widget<FilledButton>(pinned).onPressed, isNull);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Create match'));
+    await tester.tap(pinned);
     await tester.pump();
     expect(adapter.writes, 1);
 
@@ -170,10 +174,27 @@ Future<void> fillValidForm(WidgetTester tester) async {
   await tester.tap(find.text('OK'));
   await tester.pumpAndSettle();
 
+  // Through the picker's text-input mode rather than its dial. The dial's
+  // numbers are painted by a `CustomPainter`, not built as `Text`, so there is
+  // no '9' on the clock face for a finder to tap — the keyboard toggle is the
+  // only way in from a test.
   await tester.tap(find.widgetWithText(ListTile, 'End time'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('9').last);
-  await tester.tap(find.text('00').last);
+  await tester.tap(find.byTooltip('Switch to text input mode'));
+  await tester.pumpAndSettle();
+
+  // Scoped to the dialog: the form's own fields are still in the tree behind
+  // it, so an unscoped `byType(TextField)` picks one of those instead.
+  final fields = find.descendant(
+    of: find.byType(TimePickerDialog),
+    matching: find.byType(TextField),
+  );
+  final hour = fields.at(0);
+  final minute = fields.at(1);
+  await tester.enterText(hour, '9');
+  await tester.enterText(minute, '00');
+  await tester.tap(find.text('PM'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('OK'));
   await tester.pumpAndSettle();
 }

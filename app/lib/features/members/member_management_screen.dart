@@ -56,7 +56,15 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
     return (members, role);
   }
 
-  void _refresh() => setState(() => _future = _load());
+  // Block-bodied on purpose. `setState(() => _future = ...)` hands the
+  // framework a closure whose value is the assigned Future, which trips
+  // `setState() callback argument returned a Future` in debug. The assignment
+  // is the intent; returning it was never meant.
+  void _refresh() {
+    setState(() {
+      _future = _load();
+    });
+  }
 
   void _say(String message) {
     if (!mounted) return;

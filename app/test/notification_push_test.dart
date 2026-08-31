@@ -507,7 +507,13 @@ void main() {
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: NotificationsScreen(service: NotificationService(adapter)),
+          // A fresh key per pump: a test that pumps the Centre twice would
+          // otherwise land on the same element and keep the future the screen
+          // loaded first, so the new adapter would never be read.
+          home: NotificationsScreen(
+            key: UniqueKey(),
+            service: NotificationService(adapter),
+          ),
         ),
       );
       await tester.pumpAndSettle();

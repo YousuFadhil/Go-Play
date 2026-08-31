@@ -202,6 +202,7 @@ void main() {
     );
 
     await tester.tap(find.byIcon(Icons.more_vert).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Make admin'));
     await tester.pumpAndSettle();
 
@@ -209,6 +210,7 @@ void main() {
     expect(members.memberReads, greaterThanOrEqualTo(2));
 
     await tester.tap(find.byIcon(Icons.more_vert).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Remove from community'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove from community').last);

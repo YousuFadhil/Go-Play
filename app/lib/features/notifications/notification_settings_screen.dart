@@ -88,7 +88,9 @@ class _NotificationSettingsScreenState
           }
           if (snapshot.hasError || _current == null) {
             return ErrorState(
-              onRetry: () => setState(() => _future = _load()),
+              onRetry: () => setState(() {
+                _future = _load();
+              }),
             );
           }
 

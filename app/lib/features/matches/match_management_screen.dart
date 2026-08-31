@@ -55,7 +55,15 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
     return (results[0] as Match, results[1] as List<MatchRegistration>);
   }
 
-  void _reload() => setState(() => _future = _load());
+  // Block-bodied on purpose. `setState(() => _future = ...)` hands the
+  // framework a closure whose value is the assigned Future, which trips
+  // `setState() callback argument returned a Future` in debug. The assignment
+  // is the intent; returning it was never meant.
+  void _reload() {
+    setState(() {
+      _future = _load();
+    });
+  }
 
   /// The sentence a refused management action gets.
   ///

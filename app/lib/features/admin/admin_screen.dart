@@ -128,7 +128,11 @@ class _AdminListState extends State<_AdminList> {
   }
 
   void _search() {
-    setState(() => _future = widget.load(_searchController.text));
+    setState(() {
+      // Block-bodied: an arrow here returns the assigned Future, which trips
+      // `setState() callback argument returned a Future` in debug.
+      _future = widget.load(_searchController.text);
+    });
   }
 
   Future<void> _delete(_Row row) async {

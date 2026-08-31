@@ -287,17 +287,18 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
           ),
         ),
         _scoreRow(l10n, draft),
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(4, Gap.sm, 4, 0),
-          child: Text(
-            l10n.goalsRecordedNote(draft.recordedGoals, draft.totalScore),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: balanced
-                      ? null
-                      : Theme.of(context).colorScheme.error,
-                ),
+        // Only while the goals add up. When they do not, the banner below says
+        // this same sentence in the same words, and printing it twice — once
+        // in red here and once in the banner — states the fault twice without
+        // making it any clearer.
+        if (balanced)
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(4, Gap.sm, 4, 0),
+            child: Text(
+              l10n.goalsRecordedNote(draft.recordedGoals, draft.totalScore),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
-        ),
         if (!balanced)
           Padding(
             padding: const EdgeInsetsDirectional.only(top: Gap.sm),

@@ -114,8 +114,10 @@ class DiscoverHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return ClubHero(
+      // No title: the logo lockup in the identity row below already names the
+      // product, and `ClubHeroBar.title` documents itself as the thing not to
+      // repeat there. The bar is here for the account menu.
       bar: ClubHeroBar(
-        title: l10n.appName,
         actions: signedIn ? const [CurrentUserMenu()] : const [],
       ),
       identity: Column(
@@ -505,7 +507,11 @@ class PublicMatchCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: Gap.sm),
-                    _SeatsBadge(match: match),
+                    // Flexible, so that a narrow phone spends its width on the
+                    // fixture rather than on the seat count. The badge is the
+                    // secondary fact here; when the two cannot both have what
+                    // they want, it is the one that gives.
+                    Flexible(child: _SeatsBadge(match: match)),
                   ],
                 ),
                 const SizedBox(height: Gap.lg),
@@ -602,6 +608,8 @@ class _SeatsBadge extends StatelessWidget {
       ),
       child: Text(
         full ? l10n.matchStatusFull : l10n.discoverSeatsLeft(match.openSlots),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w700,
               color:
@@ -839,7 +847,17 @@ class _Count extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: style?.color),
         const SizedBox(width: Gap.xs),
-        Text(label, style: style),
+        // Flexible, because the `Wrap` above offers the line's full width and
+        // nothing narrower: a count whose label does not fit on one line has
+        // to give, and a shortened count still counts.
+        Flexible(
+          child: Text(
+            label,
+            style: style,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }

@@ -22,11 +22,15 @@ class CommunityInvitationScreen extends StatefulWidget {
     required this.communityId,
     required this.communityName,
     required this.joinCode,
+    this.communityRepository,
   });
 
   final String communityId;
   final String communityName;
   final String joinCode;
+
+  /// Supplied only by tests. Every sibling screen carries the same seam.
+  final CommunityRepository? communityRepository;
 
   @override
   State<CommunityInvitationScreen> createState() =>
@@ -34,7 +38,11 @@ class CommunityInvitationScreen extends StatefulWidget {
 }
 
 class _CommunityInvitationScreenState extends State<CommunityInvitationScreen> {
-  final _communities = CommunityRepository();
+  // Late, so that a screen which is only being looked at never reaches for the
+  // provider. Regenerating is the one action here that needs it, and it builds
+  // the repository when it is asked for rather than when the screen is.
+  late final CommunityRepository _communities =
+      widget.communityRepository ?? CommunityRepository();
   late String _joinCode = widget.joinCode;
   bool _busy = false;
 
