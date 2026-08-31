@@ -35,6 +35,7 @@ class MatchResultCardData {
     this.goals = const {},
     this.mvpParticipantId,
     this.communityName,
+    this.matchTitle,
     this.playedAt,
   });
 
@@ -63,8 +64,11 @@ class MatchResultCardData {
   /// complete result, so no star is drawn on anybody.
   final String? mvpParticipantId;
 
-  /// Whose match this is.
+  /// Whose match this is, and what it was called. Both sit on the one line of
+  /// context above the score; either may be absent, and an absent one is a piece
+  /// the line simply does not carry.
   final String? communityName;
+  final String? matchTitle;
 
   /// When it was played. Absent means the line is not drawn rather than filled
   /// with something invented.
@@ -191,11 +195,12 @@ class MatchResultCard extends StatelessWidget {
               padding: _page,
               child: _Head(
                 community: data.communityName,
+                title: data.matchTitle,
                 day: _day(context),
                 data: data,
               ),
             ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 20),
             // The two sides take everything that is left. They are the card.
             Expanded(
               child: Padding(padding: _page, child: _Sheet(data: data)),
@@ -220,145 +225,196 @@ class MatchResultCard extends StatelessWidget {
 
 // --- the head -----------------------------------------------------------------
 
-/// Whose match this was, when, and how it finished.
+/// The match, compactly, above the two pitches.
 ///
-/// The community and the date are one quiet line; the score is the largest thing
-/// on the card. That ranking is the difference between this card and the lineup
-/// card, where the community is the subject and takes the largest type.
+/// **Not a scoreboard, and that is the point.** An earlier version of this card
+/// gave the score its own panel and 130-point numerals, and it was rejected: the
+/// subject is the players, and a header that dominates them takes its room
+/// straight out of the pitches below — every point of height spent here is a
+/// point the solver cannot spend on making a face recognisable.
+///
+/// So it is two lines. One of context — community, match, date — and one of
+/// score, with each side named beside its own number and the winner marked once
+/// with a small chip. The score is set at a size that reads at a glance on a
+/// phone and no larger.
 class _Head extends StatelessWidget {
   const _Head({
     required this.community,
+    required this.title,
     required this.day,
     required this.data,
   });
 
   final String? community;
+  final String? title;
   final String? day;
   final MatchResultCardData data;
 
   @override
   Widget build(BuildContext context) {
-    final community = this.community;
-    final day = this.day;
+    final l10n = context.l10n;
+    final winner = data.winner;
+
+    final context_ = [
+      if (community case final String name) name,
+      if (title case final String name) name,
+      if (day case final String value) value,
+    ].join('  ·  ');
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (community != null)
+        if (context_.isNotEmpty)
           SizedBox(
-            height: 46,
+            height: 40,
             child: Align(
-              alignment: AlignmentDirectional.centerStart,
+              alignment: Alignment.center,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
                 child: Text(
-                  community,
+                  context_,
                   maxLines: 1,
-                  // No tracking: the name is Arabic as often as not, and
+                  // No tracking: the community is Arabic as often as not, and
                   // tracking breaks the cursive joins.
                   style: const TextStyle(
-                    color: MatchResultCard._ink,
-                    fontSize: 38,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
+                    color: MatchResultCard._inkMuted,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
                   ),
                 ),
               ),
             ),
           ),
-        if (day != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            day,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: MatchResultCard._inkMuted,
-              fontSize: 25,
-              fontWeight: FontWeight.w500,
-              height: 1.3,
+        const SizedBox(height: 10),
+        // Team, score, dash, score, team — one row that follows the reader's
+        // direction, so a side's name and its number stay together in both
+        // languages. Each numeral states its own direction, because digits must
+        // never reorder however the paragraph around them resolves.
+        Row(
+          textDirection: Directionality.of(context),
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: _ScoreSide(
+                label: l10n.teamAName,
+                score: data.teamAScore,
+                won: winner == TeamId.a,
+                winnerLabel: l10n.matchResultWinnerLabel,
+              ),
             ),
-          ),
-        ],
-        const SizedBox(height: 14),
-        _Scoreline(data: data),
-      ],
-    );
-  }
-}
-
-/// The score, and nothing else on its line.
-///
-/// **Each numeral keeps its own direction; the pair follows the reader's.**
-/// Those are two different problems and they need opposite answers. Inside a
-/// numeral, digits must never be reordered — so every one is a `Text` with an
-/// explicit left-to-right direction. Between the two numerals, the order has to
-/// agree with the headings below: in Arabic "الفريق أ" is on the right, so
-/// Team A's score belongs on the right too. A card that put the winning team's
-/// name on one side and its score on the other would make the reader check.
-///
-/// This is safe from the reordering that made the lineup card pin its clock,
-/// because nothing here is one run of text: the three pieces are three widgets
-/// and the row places them, so no bidirectional algorithm gets a say.
-class _Scoreline extends StatelessWidget {
-  const _Scoreline({required this.data});
-
-  final MatchResultCardData data;
-
-  @override
-  Widget build(BuildContext context) {
-    final winner = data.winner;
-
-    return Row(
-      textDirection: Directionality.of(context),
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _Numeral(score: data.teamAScore, won: winner == TeamId.a),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 22),
-          child: Text(
-            '–',
-            textDirection: TextDirection.ltr,
-            style: TextStyle(
-              color: MatchResultCard._inkMuted,
-              fontSize: 76,
-              fontWeight: FontWeight.w300,
-              height: 1,
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                '–',
+                textDirection: TextDirection.ltr,
+                style: TextStyle(
+                  color: MatchResultCard._inkMuted,
+                  fontSize: 44,
+                  fontWeight: FontWeight.w300,
+                  height: 1,
+                ),
+              ),
             ),
-          ),
+            Expanded(
+              child: _ScoreSide(
+                label: l10n.teamBName,
+                score: data.teamBScore,
+                won: winner == TeamId.b,
+                winnerLabel: l10n.matchResultWinnerLabel,
+              ),
+            ),
+          ],
         ),
-        _Numeral(score: data.teamBScore, won: winner == TeamId.b),
       ],
     );
   }
 }
 
-/// One half of the score.
+/// One side of the compact score: the team, its number, and — for the winner
+/// only — the word.
 ///
-/// The winner's numeral is the deep green the app uses for everything decisive;
-/// the other is the ordinary ink. On a draw both are ink, which is the whole of
-/// the neutral treatment — there is no third colour to invent, because "nobody
-/// won" is exactly "neither numeral is picked out".
-class _Numeral extends StatelessWidget {
-  const _Numeral({required this.score, required this.won});
+/// The winner's number is the deep green the app uses for everything decisive;
+/// the other is the ordinary ink. On a draw both are ink and neither carries the
+/// chip, which is the whole of the neutral treatment: there is no third colour
+/// to invent, because "nobody won" is exactly "neither side is picked out".
+class _ScoreSide extends StatelessWidget {
+  const _ScoreSide({
+    required this.label,
+    required this.score,
+    required this.won,
+    required this.winnerLabel,
+  });
 
+  final String label;
   final int score;
   final bool won;
+  final String winnerLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      '$score',
-      textDirection: TextDirection.ltr,
-      style: TextStyle(
-        color: won ? MatchResultCard._primaryDeep : MatchResultCard._ink,
-        fontSize: 112,
-        fontWeight: FontWeight.w800,
-        height: 1,
-        letterSpacing: -4,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: won
+                ? MatchResultCard._primaryDeep
+                : MatchResultCard._inkMuted,
+            fontSize: 27,
+            fontWeight: won ? FontWeight.w800 : FontWeight.w600,
+            height: 1.2,
+          ),
+        ),
+        Text(
+          '$score',
+          textDirection: TextDirection.ltr,
+          style: TextStyle(
+            color: won ? MatchResultCard._primaryDeep : MatchResultCard._ink,
+            fontSize: 64,
+            fontWeight: FontWeight.w800,
+            height: 1.05,
+            letterSpacing: -2,
+          ),
+        ),
+        if (won) ...[
+          const SizedBox(height: 4),
+          _WinnerChip(label: winnerLabel),
+        ],
+      ],
+    );
+  }
+}
+
+/// The winner's marker. One small pill, and no celebration graphics.
+class _WinnerChip extends StatelessWidget {
+  const _WinnerChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+      decoration: BoxDecoration(
+        color: MatchResultCard._primaryDeep,
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          height: 1.3,
+        ),
       ),
     );
   }
@@ -378,7 +434,7 @@ class _Sheet extends StatelessWidget {
   final MatchResultCardData data;
 
   /// The room a side's heading is given, and the gap under it.
-  static const _headingHeight = 46.0;
+  static const _headingHeight = 40.0;
   static const _headingGap = 10.0;
 
   /// Between one side and the next. Wider than the gap under a heading, so the
@@ -510,7 +566,6 @@ class _Side extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final count = rows.rows.fold(0, (total, row) => total + row.length);
 
     return Column(
@@ -530,16 +585,12 @@ class _Side extends StatelessWidget {
                     color: won
                         ? MatchResultCard._primaryDeep
                         : MatchResultCard._ink,
-                    fontSize: 36,
+                    fontSize: 31,
                     fontWeight: won ? FontWeight.w800 : FontWeight.w600,
                     height: 1.2,
                   ),
                 ),
               ),
-              if (won) ...[
-                const SizedBox(width: 14),
-                _WinnerTag(label: l10n.matchResultWinnerLabel),
-              ],
             ],
           ),
         ),
@@ -593,39 +644,6 @@ class _Side extends StatelessWidget {
       goals: data.goalsOf(id),
       isMvp: data.isMvp(id),
       metrics: metrics,
-    );
-  }
-}
-
-/// The word, beside the winning side's heading.
-///
-/// A small filled pill rather than a banner across the card: the score above has
-/// already said who won, and this names it for a reader scanning the two
-/// headings. Tasteful is the requirement, and one pill is the whole of it.
-class _WinnerTag extends StatelessWidget {
-  const _WinnerTag({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-      decoration: BoxDecoration(
-        color: MatchResultCard._primaryDeep,
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.w700,
-          height: 1.2,
-        ),
-      ),
     );
   }
 }

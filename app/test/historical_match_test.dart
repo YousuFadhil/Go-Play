@@ -182,7 +182,6 @@ void main() {
         (tester) async {
       final adapter = _CreateAdapter();
       await pumpCreate(tester, adapter);
-      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
       await fillForm(
           tester, dayOffset: 3, start: '8:00 PM', end: '10:00 PM');
@@ -232,7 +231,6 @@ void main() {
         (tester) async {
       final adapter = _CreateAdapter();
       await pumpCreate(tester, adapter);
-      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
       await tester.tap(find.byType(SwitchListTile));
       await tester.pumpAndSettle();
@@ -320,7 +318,6 @@ void main() {
         (tester) async {
       await _pumpDetails(tester, match: historicalMatch());
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-
       // `RegistrationStateView` is the whole of joining, withdrawing and the
       // reserve queue on this screen. A played match does not have it, so
       // there is no control to press and no reserve position to be offered.
@@ -409,6 +406,9 @@ void main() {
           memberRepository:
               MemberRepository(_RoleAdapter(CommunityRole.admin)),
           teamRepository: TeamRepository(_LineupAdapter(const [])),
+          // A completed match reads its result here now, so the port is
+          // supplied for the same reason every other one is.
+          resultRepository: ResultRepository(_NoResultAdapter()),
           // No lineup: a recorded match starts with nobody in it, which is
           // exactly the state the organizer has to be able to act from.
         ),
@@ -453,8 +453,6 @@ void main() {
 Future<void> _pumpDetails(
   WidgetTester tester, {
   required Match match,
-  MatchResult? result,
-  List<TeamAssignment> lineup = const [],
   CommunityRole? role = CommunityRole.player,
 }) async {
   tester.view.physicalSize = const Size(900, 2400);
@@ -472,8 +470,6 @@ Future<void> _pumpDetails(
       memberRepository: MemberRepository(_RoleAdapter(role)),
       communityRepository: CommunityRepository(_CommunityAdapter()),
       authService: AuthService(_AuthAdapter()),
-      resultRepository: ResultRepository(_ResultAdapter(result)),
-      teamRepository: TeamRepository(_LineupAdapter(lineup)),
     ),
   ));
   await tester.pumpAndSettle();
@@ -541,19 +537,6 @@ class _RoleAdapter implements MemberAdapter {
       throw UnimplementedError('no other member data is read here');
 }
 
-class _ResultAdapter implements ResultAdapter {
-  _ResultAdapter(this.result);
-
-  final MatchResult? result;
-
-  @override
-  Future<MatchResult?> fetchResult(String matchId) async => result;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('no other result data is read here');
-}
-
 class _LineupAdapter implements TeamAdapter {
   _LineupAdapter(this.lineup);
 
@@ -589,4 +572,14 @@ class _AuthAdapter implements AuthAdapter {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('no other auth data is read here');
+}
+
+/// A match nobody has recorded a result for.
+class _NoResultAdapter implements ResultAdapter {
+  @override
+  Future<MatchResult?> fetchResult(String matchId) async => null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('no other result data is read here');
 }

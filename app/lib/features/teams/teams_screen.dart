@@ -2,14 +2,20 @@ import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/club_task.dart';
+import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../../core/time_format.dart';
+import '../../core/tokens.dart';
 import '../communities/community_models.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../members/member_repository.dart';
 import '../profile/player_identity.dart';
+import '../results/match_result_card.dart';
+import '../results/result_models.dart';
+import '../results/result_repository.dart';
 import '../sharing/share_card_flow.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
@@ -39,6 +45,7 @@ class TeamsScreen extends StatefulWidget {
     this.teamRepository,
     this.matchService,
     this.memberRepository,
+    this.resultRepository,
     this.renderer,
     this.shareService,
   });
@@ -51,6 +58,11 @@ class TeamsScreen extends StatefulWidget {
   final TeamRepository? teamRepository;
   final MatchService? matchService;
   final MemberRepository? memberRepository;
+
+  /// What the match finished as, when it has. This screen is the one place the
+  /// product presents a result alongside the lineup it came from, so it is the
+  /// one place that reads it.
+  final ResultRepository? resultRepository;
 
   /// The Share Card Engine's two ports, passed straight through to
   /// [presentShareCard]. Supplied only by tests; this screen composes no card
@@ -67,6 +79,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
   late final MatchService _matches = widget.matchService ?? MatchService();
   late final MemberRepository _members =
       widget.memberRepository ?? MemberRepository();
+  late final ResultRepository _results =
+      widget.resultRepository ?? ResultRepository();
 
   late Future<_TeamsView> _future;
 
@@ -115,12 +129,19 @@ class _TeamsScreenState extends State<TeamsScreen> {
       _members.fetchMyRole(match.communityId),
       _teams.fetchLineup(widget.matchId),
       _teams.fetchConfirmedPlayers(widget.matchId),
+      // A match still to come has no result to read, so the round trip is not
+      // made. Tolerated on its own when it is: a result the reader cannot see is
+      // a summary they do not get, and not a reason to fail a screen that has
+      // already loaded the two teams.
+      if (match.isCompleted)
+        _results.fetchResult(widget.matchId).catchError((Object _) => null),
     ]);
     final registrations = results[0] as List<MatchRegistration>;
     return _TeamsView(
       match: match,
       role: results[1] as CommunityRole?,
       lineup: results[2] as List<TeamAssignment>,
+      result: results.length > 4 ? results[4] as MatchResult? : null,
       registrations: {for (final r in registrations) r.participantId: r},
       players: {
         for (final player in results[3] as List<PlayerCoreInputs>)
@@ -250,7 +271,14 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// it to send, so the action is offered only once there is one.
   bool get _canShare => _shown?.lineup.isNotEmpty ?? false;
 
-  /// Composes the lineup card for what is on screen and hands it to the engine.
+  /// Composes the card for what is on screen and hands it to the engine.
+  ///
+  /// **One button, and the picture follows the screen.** There is no "share
+  /// lineup" and no "share result" to choose between: the reader shares what
+  /// they are looking at, and what they are looking at already depends on
+  /// whether a result exists. Before one, the card is the lineup; after one, it
+  /// is the same lineup with the score, the winner and each player's marks on
+  /// it. The reader makes no decision the screen has not already made.
   ///
   /// **Every value is already resolved before this runs.** Nothing here reads a
   /// repository, and the names are the ones the pitch is already showing —
@@ -260,24 +288,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
     final view = _shown;
     if (view == null || view.lineup.isEmpty) return;
 
-    // The community is the card's subject; the fixture is one line of context
-    // under it. Both are already on the loaded view — `fetchMatch` joins the
-    // community for its name — so this is plumbing, not a second read. Every
-    // one of these may be absent, and the card draws nothing where they are
-    // rather than standing something in.
-    final data = TeamLineupCardData(
-      communityName: view.match.communityName,
-      startAt: view.match.startAt,
-      endAt: view.match.endAt,
-      location: view.match.location,
-      lineup: view.lineup,
-      players: view.players,
-      names: {
-        for (final assignment in view.lineup)
-          assignment.participantId: _nameOf(view, assignment.participantId),
-      },
-      hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
-    );
+    final names = {
+      for (final assignment in view.lineup)
+        assignment.participantId: _nameOf(view, assignment.participantId),
+    };
 
     // The faces are fetched before the card is composed, not while it is. The
     // engine gives a template two frames to settle, which is ample for layout
@@ -286,9 +300,50 @@ class _TeamsScreenState extends State<TeamsScreen> {
     await _precacheFaces(view);
     if (!mounted) return;
 
+    final ShareCardTemplate template;
+    if (view.result case final MatchResult result) {
+      final data = MatchResultCardData(
+        teamAScore: result.teamAScore,
+        teamBScore: result.teamBScore,
+        lineup: view.lineup,
+        names: names,
+        avatars: {
+          for (final assignment in view.lineup)
+            if (view.players[assignment.participantId]?.avatarUrl
+                case final String url)
+              assignment.participantId: url,
+        },
+        goals: {
+          for (final tally in result.goals) tally.userId: tally.goals,
+        },
+        mvpParticipantId: result.mvpUserId,
+        communityName: view.match.communityName,
+        matchTitle: view.match.title,
+        playedAt: view.match.startAt,
+      );
+      template = (context) => MatchResultCard(data: data);
+    } else {
+      // The community is the card's subject; the fixture is one line of context
+      // under it. Both are already on the loaded view — `fetchMatch` joins the
+      // community for its name — so this is plumbing, not a second read. Every
+      // one of these may be absent, and the card draws nothing where they are
+      // rather than standing something in.
+      final data = TeamLineupCardData(
+        communityName: view.match.communityName,
+        startAt: view.match.startAt,
+        endAt: view.match.endAt,
+        location: view.match.location,
+        lineup: view.lineup,
+        players: view.players,
+        names: names,
+        hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
+      );
+      template = (context) => TeamLineupCard(data: data);
+    }
+
     await presentShareCard(
       context,
-      template: (context) => TeamLineupCard(data: data),
+      template: template,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );
@@ -387,6 +442,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
       ];
 
   List<Widget> _generatedTeams(AppLocalizations l10n, _TeamsView view) => [
+        // State B: the match has been played and somebody recorded it. The
+        // same screen, with a compact line of result above the teams it came
+        // from — never a scoreboard, because the players are still the subject.
+        if (view.result case final MatchResult result)
+          _MatchSummary(match: view.match, result: result),
         ..._teamSection(l10n, view, l10n.teamAName, TeamId.a),
         ..._teamSection(l10n, view, l10n.teamBName, TeamId.b),
         if (view.canEditPlayed) ...[
@@ -490,12 +550,32 @@ class _TeamsScreenState extends State<TeamsScreen> {
         if (assignment.team == team) assignment,
     ];
 
+    final won = view.result?.winner == team;
+
     return [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Text(
-          '$title (${assignments.length})',
-          style: Theme.of(context).textTheme.titleMedium,
+        child: Row(
+          children: [
+            Flexible(
+              child: Text(
+                '$title (${assignments.length})',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: won ? GoColors.primaryDeep : null,
+                      fontWeight: won ? FontWeight.w800 : null,
+                    ),
+              ),
+            ),
+            // Subtle, and said once. The summary above has already carried the
+            // score; this is what tells a reader scrolling past which pitch
+            // they are looking at.
+            if (won) ...[
+              const SizedBox(width: Gap.sm),
+              _WinnerChip(label: l10n.matchResultWinnerLabel),
+            ],
+          ],
         ),
       ),
       PitchView(
@@ -503,6 +583,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
         players: view.players,
         hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
         nameOf: (userId) => _nameOf(view, userId),
+        // Null before a result exists, which leaves every card exactly what it
+        // was. The same pitch, drawn after the match, carries what each player
+        // did on the player.
+        goalsOf: view.hasResult ? view.goalsOf : null,
+        isMvpOf: view.hasResult ? view.isMvpOf : null,
         // Who a card belongs to decides what tapping it does, and the
         // management action wins where there is one.
         //
@@ -908,6 +993,7 @@ enum _PlayerAction { move, swap, position, remove }
 class _TeamsView {
   const _TeamsView({
     required this.match,
+    this.result,
     required this.role,
     required this.lineup,
     required this.registrations,
@@ -916,6 +1002,16 @@ class _TeamsView {
   });
 
   final Match match;
+
+  /// What the match finished as, or null when it has not been played or nobody
+  /// has recorded it yet.
+  ///
+  /// **The one thing that decides which of this screen's two states is drawn.**
+  /// Null is the lineup as it stands; present upgrades the same screen with a
+  /// compact summary above the teams and a mark on each player who did
+  /// something. Reading it is a member's business — `match_results_select_
+  /// members` has always allowed it — and recording one remains the organizer's.
+  final MatchResult? result;
 
   /// The viewer's role in the match's community, or null when they hold none.
   final CommunityRole? role;
@@ -958,8 +1054,178 @@ class _TeamsView {
   bool get hasNaturalGoalkeeper =>
       players.values.any((player) => player.isNaturalGoalkeeper);
 
+  /// How many [participantId] scored, and whether they were named best on the
+  /// pitch. Both are the absence of a mark before a result exists.
+  int goalsOf(String participantId) {
+    final result = this.result;
+    if (result == null) return 0;
+    return result.goalsBy(participantId);
+  }
+
+  bool isMvpOf(String participantId) =>
+      result?.mvpUserId != null && result!.mvpUserId == participantId;
+
+  /// Whether the picture that leaves this screen carries a result.
+  bool get hasResult => result != null;
+
   /// Whether the confirmed roster is one the engine accepts (`BTGE-PF-2`).
   bool get hasGeneratableRoster =>
       confirmedPlayers >= approvedTeamGeneration.minPlayers &&
       confirmedPlayers <= maxSupportedPlayers;
+}
+
+/// The match's result, compactly, above the two pitches it came from.
+///
+/// **Deliberately not a scoreboard.** An earlier version of this gave the score
+/// its own card and 130-point numerals, and it was rejected: the subject of this
+/// screen is the players, and a result that dominates them is answering a
+/// different question. So this is one line of context and one line of score, set
+/// at heading size rather than display size — clear at a glance, and quieter
+/// than the two teams below it.
+///
+/// The winning side is picked out here in the app's own deep green and named
+/// beside its own pitch heading further down. Once, in each place, and nowhere
+/// else.
+class _MatchSummary extends StatelessWidget {
+  const _MatchSummary({required this.match, required this.result});
+
+  final Match match;
+  final MatchResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final winner = result.winner;
+
+    final context_ = [
+      if (match.communityName case final String name) name,
+      match.displayName,
+      formatMatchDay(context, match.startAt),
+    ].join(' · ');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kPageMargin, Gap.sm, kPageMargin, 0),
+      child: SectionCard(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(Layout.cardInner),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  context_,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: Gap.sm),
+                // Team, score, dash, score, team — as one row that follows the
+                // reader's direction, so Team A's name and Team A's number stay
+                // on the same side of the line in both languages. Each numeral
+                // states its own direction, because digits must never reorder.
+                Row(
+                  textDirection: Directionality.of(context),
+                  children: [
+                    Expanded(
+                      child: _SummarySide(
+                        label: l10n.teamAName,
+                        score: result.teamAScore,
+                        won: winner == TeamId.a,
+                      ),
+                    ),
+                    Text(
+                      '–',
+                      textDirection: TextDirection.ltr,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: GoColors.onSurfaceVariant,
+                      ),
+                    ),
+                    Expanded(
+                      child: _SummarySide(
+                        label: l10n.teamBName,
+                        score: result.teamBScore,
+                        won: winner == TeamId.b,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One side of the compact score: the team, and what they scored.
+class _SummarySide extends StatelessWidget {
+  const _SummarySide({
+    required this.label,
+    required this.score,
+    required this.won,
+  });
+
+  final String label;
+  final int score;
+
+  /// False on both sides of a drawn match, which is the whole of the neutral
+  /// treatment: there is no third state to draw.
+  final bool won;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall,
+        ),
+        Text(
+          '$score',
+          textDirection: TextDirection.ltr,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: won ? GoColors.primaryDeep : GoColors.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The winner's marker, beside its own pitch heading. Small on purpose.
+class _WinnerChip extends StatelessWidget {
+  const _WinnerChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 2),
+      decoration: BoxDecoration(
+        color: GoColors.primaryDeep,
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          height: 1.35,
+        ),
+      ),
+    );
+  }
 }

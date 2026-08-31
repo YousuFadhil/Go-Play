@@ -18,12 +18,6 @@ import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
-import 'package:go_play/features/results/result_adapter.dart';
-import 'package:go_play/features/results/result_models.dart';
-import 'package:go_play/features/results/result_repository.dart';
-import 'package:go_play/features/teams/team_adapter.dart';
-import 'package:go_play/features/teams/team_models.dart';
-import 'package:go_play/features/teams/team_repository.dart';
 
 /// Opening a match you are not a member of.
 ///
@@ -77,13 +71,6 @@ void main() {
     Locale locale = const Locale('en'),
     bool signedIn = true,
     Size size = const Size(900, 1800),
-    // A completed match reads its result and its lineup as well (migration
-    // `0054`'s companion feature), so both ports are supplied here for the same
-    // reason every other one is: nothing in a widget test may reach a provider.
-    // The defaults are a match with nothing recorded, which is what every test
-    // in this file was implicitly asserting before either read existed.
-    MatchResult? result,
-    List<TeamAssignment> lineup = const [],
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -106,8 +93,6 @@ void main() {
         communityRepository:
             CommunityRepository(communities ?? FakeCommunityAdapter()),
         authService: AuthService(_StubAuthAdapter(signedIn: signedIn)),
-        resultRepository: ResultRepository(_StubResultAdapter(result)),
-        teamRepository: TeamRepository(_StubTeamAdapter(lineup)),
       ),
     ));
     await tester.pumpAndSettle();
@@ -927,36 +912,4 @@ class FakeCommunityAdapter implements CommunityAdapter {
   @override
   Future<void> deleteCommunity(String communityId) =>
       throw UnimplementedError();
-}
-
-/// A match's recorded result, or the absence of one.
-///
-/// Match Details reads exactly one thing from this port, so everything else
-/// fails loudly: reaching it from this screen would be a defect rather than a
-/// case to stub.
-class _StubResultAdapter implements ResultAdapter {
-  _StubResultAdapter(this.result);
-
-  final MatchResult? result;
-
-  @override
-  Future<MatchResult?> fetchResult(String matchId) async => result;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('match details reads no other result data');
-}
-
-/// The stored lineup behind that result.
-class _StubTeamAdapter implements TeamAdapter {
-  _StubTeamAdapter(this.lineup);
-
-  final List<TeamAssignment> lineup;
-
-  @override
-  Future<List<TeamAssignment>> fetchLineup(String matchId) async => lineup;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('match details reads no other team data');
 }

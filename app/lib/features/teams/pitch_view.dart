@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design.dart';
 import '../../core/l10n.dart';
+import '../../core/tokens.dart';
 import 'formation.dart';
 import 'team_models.dart';
 
@@ -26,6 +27,8 @@ class PitchView extends StatelessWidget {
     required this.hasNaturalGoalkeeper,
     required this.nameOf,
     this.onTapPlayer,
+    this.goalsOf,
+    this.isMvpOf,
   });
 
   /// This team's stored assignments, in any order.
@@ -49,6 +52,19 @@ class PitchView extends StatelessWidget {
   final String Function(String userId) nameOf;
 
   final void Function(TeamAssignment assignment)? onTapPlayer;
+
+  /// What each player did, once a result has been recorded.
+  ///
+  /// **Both null until there is one, which is what makes this screen adapt.**
+  /// A lineup drawn before the match has nothing to say about goals or a best
+  /// player; the same pitch drawn afterwards has both, on the players
+  /// themselves. Left null the cards are exactly what they were, so nothing
+  /// about the pre-match pitch changes.
+  ///
+  /// Functions rather than maps because the caller already holds the result and
+  /// this widget has no business learning what a `MatchResult` is.
+  final int Function(String participantId)? goalsOf;
+  final bool Function(String participantId)? isMvpOf;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +107,8 @@ class PitchView extends StatelessWidget {
                     nameOf: nameOf,
                     movedFrom: formation.movedFrom,
                     onTapPlayer: onTapPlayer,
+                    goalsOf: goalsOf,
+                    isMvpOf: isMvpOf,
                   ),
               ],
             ),
@@ -193,6 +211,8 @@ class _PitchRow extends StatelessWidget {
     required this.nameOf,
     required this.movedFrom,
     required this.onTapPlayer,
+    this.goalsOf,
+    this.isMvpOf,
   });
 
   final List<TeamAssignment> line;
@@ -204,6 +224,9 @@ class _PitchRow extends StatelessWidget {
   final Map<String, Position> movedFrom;
 
   final void Function(TeamAssignment assignment)? onTapPlayer;
+
+  final int Function(String participantId)? goalsOf;
+  final bool Function(String participantId)? isMvpOf;
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +243,8 @@ class _PitchRow extends StatelessWidget {
                 player: players[assignment.participantId],
                 name: nameOf(assignment.participantId),
                 movedFrom: movedFrom[assignment.participantId],
+                goals: goalsOf?.call(assignment.participantId) ?? 0,
+                isMvp: isMvpOf?.call(assignment.participantId) ?? false,
                 onTap:
                     onTapPlayer == null ? null : () => onTapPlayer!(assignment),
               ),
@@ -323,6 +348,8 @@ class PlayerCard extends StatelessWidget {
     required this.name,
     this.movedFrom,
     this.onTap,
+    this.goals = 0,
+    this.isMvp = false,
   });
 
   final TeamAssignment assignment;
@@ -345,6 +372,13 @@ class PlayerCard extends StatelessWidget {
   /// still `FWD` for a forward drawn here, and the badge below is the card
   /// saying so out loud.
   final Position? movedFrom;
+
+  /// How many this player scored, and whether they were named best on the
+  /// pitch. Zero and false before a result exists, which is every card on a
+  /// pre-match pitch — so the marks below are drawn only once there is a result
+  /// to draw them from.
+  final int goals;
+  final bool isMvp;
 
   final VoidCallback? onTap;
 
@@ -407,6 +441,11 @@ class PlayerCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // What this player did in the match, immediately under their
+              // name. Above the rating on purpose: a rating is standing across
+              // every match, and what happened in *this* one belongs closer to
+              // the name it belongs to.
+              if (isMvp || goals > 0) _ResultMarks(goals: goals, isMvp: isMvp),
               if (player != null)
                 Text(
                   // One decimal, which is `OP-1`'s presentation scale.
@@ -446,6 +485,77 @@ class PlayerCard extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// What a player did in the match, on their card: a star if they were best on
+/// the pitch, a ball and a count if they scored.
+///
+/// **One pill, both marks.** A player who was best on the pitch *and* scored
+/// twice reads as one statement rather than two competing badges, and the row is
+/// pinned left to right so the ball never lands on the far side of its own
+/// count.
+///
+/// The pill is near-white for the same reason the moved-position badge is: a
+/// gold star and a dark numeral both need something other than grass behind them
+/// to hold their shape at 82 logical pixels wide.
+///
+/// Compact by necessity, so it carries the marks and nothing else. The whole
+/// sentence is on the [Semantics] node for anybody not reading it by eye.
+class _ResultMarks extends StatelessWidget {
+  const _ResultMarks({required this.goals, required this.isMvp});
+
+  final int goals;
+  final bool isMvp;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+
+    return Semantics(
+      label: [
+        if (isMvp) l10n.mvpLabel,
+        if (goals > 0) l10n.goalsScoredLabel(goals),
+      ].join('، '),
+      excludeSemantics: true,
+      child: Container(
+        margin: const EdgeInsets.only(top: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(Radii.pill),
+        ),
+        child: Row(
+          // A run of marks, not a sentence: a reader scanning a pitch should
+          // find them in the same place on every player, in either language.
+          textDirection: TextDirection.ltr,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isMvp)
+              const Icon(Icons.star_rounded, size: 13, color: GoColors.warn),
+            if (isMvp && goals > 0) const SizedBox(width: 3),
+            if (goals > 0) ...[
+              Icon(
+                Icons.sports_soccer,
+                size: 11,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '$goals',
+                textDirection: TextDirection.ltr,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

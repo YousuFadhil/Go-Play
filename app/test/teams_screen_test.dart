@@ -13,6 +13,9 @@ import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
 import 'package:go_play/features/teams/formation.dart';
+import 'package:go_play/features/results/result_adapter.dart';
+import 'package:go_play/features/results/result_models.dart';
+import 'package:go_play/features/results/result_repository.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/pitch_view.dart';
@@ -156,6 +159,12 @@ void main() {
         matchService: MatchService(matches),
         memberRepository:
             MemberRepository(members ?? FakeMemberAdapter(role: role)),
+        // A completed match now reads its result here too, so the port is
+        // supplied for the same reason every other one is: nothing in a widget
+        // test may reach a provider. None of these tests is about a recorded
+        // result, so it is always absent — which is the state they were all
+        // implicitly written against.
+        resultRepository: ResultRepository(_NoResult()),
       ),
     ));
   }
@@ -1720,4 +1729,14 @@ class FakeMemberAdapter implements MemberAdapter {
   @override
   Future<void> removeMember(String communityId, String userId) =>
       throw UnimplementedError();
+}
+
+/// A match with no recorded result, which is every match in this file.
+class _NoResult implements ResultAdapter {
+  @override
+  Future<MatchResult?> fetchResult(String matchId) async => null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('the teams screen reads no other result data');
 }

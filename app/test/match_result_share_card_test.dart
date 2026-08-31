@@ -18,17 +18,12 @@ import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
 import 'package:go_play/features/results/match_result_card.dart';
-import 'package:go_play/features/results/result_adapter.dart';
-import 'package:go_play/features/results/result_models.dart';
-import 'package:go_play/features/results/result_repository.dart';
 import 'package:go_play/features/sharing/share_card_canvas.dart';
 import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
-import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_lineup_card.dart';
 import 'package:go_play/features/teams/team_models.dart';
-import 'package:go_play/features/teams/team_repository.dart';
 
 /// The Completed Match share card, and the way into it from Match Details.
 ///
@@ -265,8 +260,16 @@ void main() {
       await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
 
       expect(_scoreNumerals(tester), ['3', '1']);
-      expect(find.text('Al Amerat FC'), findsOneWidget);
-      expect(find.text('August 21, 2026'), findsOneWidget);
+      // Compact, not a scoreboard. Asserted as a ceiling rather than as an
+      // exact value so the design can breathe, but not back to 112.
+      expect(_scoreSize, lessThan(80));
+      // Community, match and date share one compact line of context above the
+      // score, so they are asserted as parts of it rather than as three
+      // separate headings.
+      expect(find.textContaining('Al Amerat FC'), findsOneWidget);
+      expect(find.textContaining('August 21, 2026'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
+      expect(find.text('Team B'), findsOneWidget);
     });
 
     testWidgets('it signs itself, once', (tester) async {
@@ -278,7 +281,7 @@ void main() {
     testWidgets('it holds together in Arabic', (tester) async {
       await pumpCard(tester, cardData(), locale: const Locale('ar'));
 
-      expect(find.text('الفريق أ (2)'), findsOneWidget);
+      expect(find.text('الفريق أ (2)'), findsWidgets);
       expect(find.text('الفائز'), findsOneWidget);
       // The score keeps its own order whatever the paragraph does around it.
       expect(_scoreNumerals(tester), ['3', '1']);
@@ -374,94 +377,74 @@ void main() {
       expect(find.text('Sharing is not available right now.'), findsOneWidget);
     });
   });
-
-  group('who is offered the action', () {
-    testWidgets('an ordinary member of a played match can send the card',
+  group('Match Details no longer presents the result', () {
+    // The result, the winner, the scorers and the best player all moved to the
+    // Teams screen, which is now the single surface for the lineup and what
+    // became of it. Match Details is match information, the roster, and the way
+    // to the screens that hold the rest.
+    testWidgets('a completed match shows no score, no scorers and no best player',
         (tester) async {
       await _pumpDetails(
         tester,
         match: _playedMatch(),
         role: CommunityRole.player,
-        result: _recorded(),
-        lineup: lineup(),
+        registrations: _roster(),
       );
 
-      expect(find.text('Share the result'), findsOneWidget);
-      // And still cannot record one: that row is the organizer's.
-      expect(find.text('Match result'), findsNothing);
+      expect(find.text('Scorers'), findsNothing);
+      expect(find.text('Best player'), findsNothing);
+      expect(find.text('Winner'), findsNothing);
+      // The score would have been the only bare numerals on the screen.
+      expect(find.text('3'), findsNothing);
+      expect(find.text('1'), findsNothing);
     });
 
-    testWidgets('so can an organizer, who also keeps the way to edit it',
+    testWidgets('and offers no share action of its own', (tester) async {
+      await _pumpDetails(
+        tester,
+        match: _playedMatch(),
+        role: CommunityRole.player,
+        registrations: _roster(),
+      );
+
+      // One share control in the product, and it is the Teams screen's.
+      expect(find.text('Share the result'), findsNothing);
+      expect(find.byIcon(Icons.ios_share), findsNothing);
+    });
+
+    testWidgets('an organizer still reaches Result Entry from here',
         (tester) async {
       await _pumpDetails(
         tester,
         match: _playedMatch(),
         role: CommunityRole.admin,
-        result: _recorded(),
-        lineup: lineup(),
-      );
-
-      expect(find.text('Share the result'), findsOneWidget);
-      expect(find.text('Match result'), findsWidgets);
-    });
-
-    testWidgets('a match still to come offers no completed-match card',
-        (tester) async {
-      final start = DateTime.now().add(const Duration(days: 2));
-      await _pumpDetails(
-        tester,
-        match: Match(
-          id: 'm1',
-          communityId: 'c1',
-          createdBy: 'u9',
-          location: 'Al Amerat Pitch',
-          startAt: start,
-          endAt: start.add(const Duration(hours: 2)),
-          startingPlayers: 4,
-          maxRegistration: 10,
-          status: MatchStatus.open,
-          title: 'Friday Night',
-        ),
-        role: CommunityRole.player,
-      );
-
-      expect(find.text('Share the result'), findsNothing);
-    });
-
-    testWidgets('a played match with nothing recorded says so and offers no card',
-        (tester) async {
-      await _pumpDetails(
-        tester,
-        match: _playedMatch(),
-        role: CommunityRole.player,
-      );
-
-      expect(
-        find.text('No result has been recorded for this match yet.'),
-        findsOneWidget,
-      );
-      expect(find.text('Share the result'), findsNothing);
-    });
-
-    testWidgets('the summary shows the score, the scorers and the best player',
-        (tester) async {
-      await _pumpDetails(
-        tester,
-        match: _playedMatch(),
-        role: CommunityRole.player,
-        result: _recorded(),
-        lineup: lineup(),
         registrations: _roster(),
       );
 
-      expect(find.text('3'), findsWidgets);
-      expect(find.text('1'), findsWidgets);
-      expect(find.text('Scorers'), findsOneWidget);
-      expect(find.text('Best player'), findsOneWidget);
-      expect(find.textContaining('Noor Al Kindi'), findsWidgets);
+      // Removing the presentation must not remove the way in to recording one.
+      expect(find.text('Match result'), findsOneWidget);
+    });
+
+    testWidgets('and everybody still reaches the Teams screen', (tester) async {
+      await _pumpDetails(
+        tester,
+        match: _playedMatch(),
+        role: CommunityRole.player,
+        registrations: _roster(),
+      );
+
+      expect(find.text('Teams'), findsOneWidget);
     });
   });
 }
+
+/// The size the score is set at.
+///
+/// **Named, and asserted as a bound as well as a selector.** The first version
+/// of this card set it at 132 and the second at 112, and both were rejected for
+/// the same reason: every point spent on the score is a point the solver cannot
+/// spend on making a face recognisable. The card's subject is the players.
+const _scoreSize = 64.0;
 
 /// The two numerals of the scoreboard, in the order they are drawn.
 ///
@@ -470,7 +453,7 @@ void main() {
 /// same.
 List<String> _scoreNumerals(WidgetTester tester) => tester
     .widgetList<Text>(find.byType(Text))
-    .where((text) => text.style?.fontSize == 112)
+    .where((text) => text.style?.fontSize == _scoreSize)
     .map((text) => text.data ?? '')
     .toList();
 
@@ -492,7 +475,7 @@ final _png = Uint8List.fromList(const [
 int _emphasisedNumerals(WidgetTester tester) => tester
     .widgetList<Text>(find.byType(Text))
     .where((text) =>
-        text.style?.fontSize == 112 &&
+        text.style?.fontSize == _scoreSize &&
         text.style?.color == const Color(0xFF123D24))
     .length;
 
@@ -557,18 +540,6 @@ Match _playedMatch() {
   );
 }
 
-MatchResult _recorded() => const MatchResult(
-      matchId: 'm1',
-      teamAScore: 3,
-      teamBScore: 1,
-      mvpUserId: 'u3',
-      goals: [
-        GoalTally(userId: 'u3', goals: 2),
-        GoalTally(userId: 'u1', goals: 1),
-        GoalTally(userId: 'u2', goals: 1),
-      ],
-    );
-
 List<MatchRegistration> _roster() => const [
       MatchRegistration(
         registrationId: 'r1',
@@ -629,8 +600,6 @@ Future<void> _pumpDetails(
   WidgetTester tester, {
   required Match match,
   CommunityRole? role,
-  MatchResult? result,
-  List<TeamAssignment> lineup = const [],
   List<MatchRegistration> registrations = const [],
 }) async {
   tester.view.physicalSize = const Size(900, 2600);
@@ -648,8 +617,6 @@ Future<void> _pumpDetails(
       memberRepository: MemberRepository(_MemberAdapter(role)),
       communityRepository: CommunityRepository(_CommunityAdapter()),
       authService: AuthService(_AuthAdapter()),
-      resultRepository: ResultRepository(_ResultAdapter(result)),
-      teamRepository: TeamRepository(_TeamAdapter(lineup)),
     ),
   ));
   await tester.pumpAndSettle();
@@ -702,32 +669,6 @@ class _MemberAdapter implements MemberAdapter {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('no other member data is read here');
-}
-
-class _ResultAdapter implements ResultAdapter {
-  _ResultAdapter(this.result);
-
-  final MatchResult? result;
-
-  @override
-  Future<MatchResult?> fetchResult(String matchId) async => result;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('no other result data is read here');
-}
-
-class _TeamAdapter implements TeamAdapter {
-  _TeamAdapter(this.lineup);
-
-  final List<TeamAssignment> lineup;
-
-  @override
-  Future<List<TeamAssignment>> fetchLineup(String matchId) async => lineup;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('no other team data is read here');
 }
 
 class _CommunityAdapter implements CommunityAdapter {
