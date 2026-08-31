@@ -300,6 +300,20 @@ void main() {
   });
 
   group('the picture itself', () {
+    testWidgets('both share pitches use the dedicated 1.9 geometry',
+        (tester) async {
+      await pumpCard(tester, cardData());
+
+      final pitchFinders = find.byKey(const ValueKey('match-pitch'));
+      expect(pitchFinders, findsNWidgets(2));
+      for (final element in pitchFinders.evaluate()) {
+        final size = tester.getSize(find.byWidget(element.widget));
+        expect(size.width, closeTo(MatchResultCard.sharePitchWidth, 0.01));
+        expect(size.height, closeTo(MatchResultCard.sharePitchHeight, 0.01));
+        expect(size.width / size.height, closeTo(PitchView.aspectRatio, 0.001));
+      }
+    });
+
     testWidgets('composes at the format the engine promises', (tester) async {
       final key = GlobalKey();
       await pumpCard(tester, cardData(), boundaryKey: key);
@@ -391,7 +405,8 @@ void main() {
     // Teams screen, which is now the single surface for the lineup and what
     // became of it. Match Details is match information, the roster, and the way
     // to the screens that hold the rest.
-    testWidgets('a completed match shows no score, no scorers and no best player',
+    testWidgets(
+        'a completed match shows no score, no scorers and no best player',
         (tester) async {
       await _pumpDetails(
         tester,
@@ -481,12 +496,73 @@ Finder _goalBadges() => find.descendant(
 /// A one-pixel PNG. The preview decodes whatever it is handed, so the bytes
 /// have to be a real picture even though nothing looks at it.
 final _png = Uint8List.fromList(const [
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
-  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
-  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
-  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
-  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+  0x00,
+  0x00,
+  0x00,
+  0x0D,
+  0x49,
+  0x48,
+  0x44,
+  0x52,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x08,
+  0x06,
+  0x00,
+  0x00,
+  0x00,
+  0x1F,
+  0x15,
+  0xC4,
+  0x89,
+  0x00,
+  0x00,
+  0x00,
+  0x0A,
+  0x49,
+  0x44,
+  0x41,
+  0x54,
+  0x78,
+  0x9C,
+  0x63,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x05,
+  0x00,
+  0x01,
+  0x0D,
+  0x0A,
+  0x2D,
+  0xB4,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x49,
+  0x45,
+  0x4E,
+  0x44,
+  0xAE,
+  0x42,
+  0x60,
+  0x82,
 ]);
 
 /// How many of the two score numerals are picked out in the winner's green.

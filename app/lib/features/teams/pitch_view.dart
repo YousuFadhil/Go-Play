@@ -29,8 +29,14 @@ class PitchView extends StatelessWidget {
     this.onTapPlayer,
     this.goalsOf,
     this.isMvpOf,
-    this.scale = 1,
   });
+
+  /// Fixed approved geometry. The page scrolls; the pitch never stretches to
+  /// absorb formation rows.
+  static const aspectRatio = 1.9;
+  static const avatarDiameterFraction = 0.09;
+  static const minAvatarDiameter = 32.0;
+  static const maxAvatarDiameter = 70.0;
 
   /// This team's stored assignments, in any order.
   final List<TeamAssignment> assignments;
@@ -67,14 +73,6 @@ class PitchView extends StatelessWidget {
   final int Function(String participantId)? goalsOf;
   final bool Function(String participantId)? isMvpOf;
 
-  /// How much larger than the phone this pitch is drawn.
-  ///
-  /// **One pitch, two sizes.** The screen draws it at 1; the picture that leaves
-  /// the screen draws the same widget on a 1080-wide canvas and needs every
-  /// measurement multiplied, not re-chosen — a second set of numbers is how the
-  /// two would come to disagree.
-  final double scale;
-
   @override
   Widget build(BuildContext context) {
     final formation = buildFormation(
@@ -92,36 +90,54 @@ class PitchView extends StatelessWidget {
         formation.goalkeepers,
     ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kPageMargin,
-        vertical: Gap.sm,
-      ),
+    return AspectRatio(
+      key: const ValueKey('match-pitch'),
+      aspectRatio: aspectRatio,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(Radii.md),
-        child: CustomPaint(
-          painter: _PitchPainter(
-            grass: const Color(0xFF2E7D4F),
-            stripe: const Color(0xFF35895A),
-            lines: Colors.white.withValues(alpha: 0.28),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: Gap.lg),
-            child: Column(
-              children: [
-                for (final row in rows)
-                  _PitchRow(
-                    line: row,
-                    players: players,
-                    nameOf: nameOf,
-                    movedFrom: formation.movedFrom,
-                    onTapPlayer: onTapPlayer,
-                    goalsOf: goalsOf,
-                    isMvpOf: isMvpOf,
-                  ),
-              ],
-            ),
-          ),
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final avatarDiameter =
+                (box.maxWidth * avatarDiameterFraction).clamp(
+              minAvatarDiameter,
+              maxAvatarDiameter,
+            );
+            final playerScale = avatarDiameter / 36;
+
+            return CustomPaint(
+              painter: const _PitchPainter(
+                grass: MatchStage.grass,
+                stripe: MatchStage.grassBand,
+                lines: MatchStage.grassLine,
+              ),
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  for (var index = 0; index < rows.length; index++)
+                    Positioned.fill(
+                      child: Align(
+                        alignment: Alignment(
+                          0,
+                          rows.length == 1
+                              ? 0
+                              : -1 + (2 * index / (rows.length - 1)),
+                        ),
+                        child: _PitchRow(
+                          line: rows[index],
+                          players: players,
+                          nameOf: nameOf,
+                          movedFrom: formation.movedFrom,
+                          onTapPlayer: onTapPlayer,
+                          goalsOf: goalsOf,
+                          isMvpOf: isMvpOf,
+                          scale: playerScale,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -140,16 +156,11 @@ class _PitchPainter extends CustomPainter {
     required this.grass,
     required this.stripe,
     required this.lines,
-    this.scale = 1,
   });
 
   final Color grass;
   final Color stripe;
   final Color lines;
-
-  /// The markings are absolute numbers at phone size; this turns them into the
-  /// same markings at whatever size the pitch is drawn.
-  final double scale;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -171,9 +182,9 @@ class _PitchPainter extends CustomPainter {
     final line = Paint()
       ..color = lines
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2 * scale;
+      ..strokeWidth = 2;
 
-    final inset = rect.deflate(10 * scale);
+    final inset = rect.deflate(10);
     canvas.drawRect(inset, line);
 
     // Halfway line and centre circle.
@@ -192,7 +203,7 @@ class _PitchPainter extends CustomPainter {
     // A penalty area at each end, scaled to the pitch so it holds its
     // proportions whatever height the team needs.
     final boxWidth = inset.width * 0.44;
-    final boxHeight = (inset.height * 0.16).clamp(18.0 * scale, 64.0 * scale);
+    final boxHeight = (inset.height * 0.16).clamp(18.0, 64.0);
     final boxLeft = inset.left + (inset.width - boxWidth) / 2;
     canvas.drawRect(
       Rect.fromLTWH(boxLeft, inset.top, boxWidth, boxHeight),
@@ -227,6 +238,7 @@ class _PitchRow extends StatelessWidget {
     required this.onTapPlayer,
     this.goalsOf,
     this.isMvpOf,
+    required this.scale,
   });
 
   final List<TeamAssignment> line;
@@ -241,11 +253,12 @@ class _PitchRow extends StatelessWidget {
 
   final int Function(String participantId)? goalsOf;
   final bool Function(String participantId)? isMvpOf;
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: Gap.sm),
+      padding: EdgeInsets.symmetric(horizontal: 5 * scale),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,6 +272,7 @@ class _PitchRow extends StatelessWidget {
                 movedFrom: movedFrom[assignment.participantId],
                 goals: goalsOf?.call(assignment.participantId) ?? 0,
                 isMvp: isMvpOf?.call(assignment.participantId) ?? false,
+                scale: scale,
                 onTap:
                     onTapPlayer == null ? null : () => onTapPlayer!(assignment),
               ),
@@ -281,73 +295,6 @@ class _PitchRow extends StatelessWidget {
 /// Compact by necessity — the card is 82 logical pixels wide — so the pill
 /// carries the position and nothing else, and the whole sentence is on the
 /// [Semantics] node for anybody who is not reading it by eye.
-class _MovedFromBadge extends StatelessWidget {
-  const _MovedFromBadge({required this.position});
-
-  final Position position;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = context.l10n;
-    final label = positionLabelOf(l10n, position);
-
-    return Semantics(
-      label: l10n.teamsShownOutOfLine(label),
-      excludeSemantics: true,
-      child: Container(
-        margin: const EdgeInsets.only(top: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-        decoration: BoxDecoration(
-          // Opaque enough to hold its own over both mown stripes, and white
-          // rather than a scheme colour so it cannot be mistaken for the
-          // error-toned out-of-position marker under it.
-          color: Colors.white.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(Radii.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.north,
-              size: 9,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: 2),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 9,
-                  height: 1.2,
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The four position names, in the reader's language.
-///
-/// Here rather than borrowed from a screen: the pitch is a widget of its own and
-/// two callers already keep their own copy of this switch, so a third that lives
-/// beside the thing that needs it is the same amount of code and no new
-/// dependency between screens.
-String positionLabelOf(AppLocalizations l10n, Position position) =>
-    switch (position) {
-      Position.gk => l10n.positionGk,
-      Position.def => l10n.positionDef,
-      Position.mid => l10n.positionMid,
-      Position.fwd => l10n.positionFwd,
-    };
-
 /// A player on the pitch: their face, their name and their rating.
 ///
 /// Set light-on-dark, because it now sits on grass rather than on the app's
@@ -403,14 +350,13 @@ class PlayerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = context.l10n;
     final avatarUrl = player?.avatarUrl;
     final isGuest = assignment.isProfessionalGuest;
 
     // Wider than it was: the approved direction puts the player first, and a
     // recognisable face needs the room. Every measurement below is a multiple of
     // the same avatar radius, so the card holds its proportions at any scale.
-    final radius = 27.0 * scale;
+    final radius = 18.0 * scale;
 
     // The ink is there only where there is something to tap. A card with no
     // `onTap` is a card in a picture, and an `InkWell` there wants a `Material`
@@ -420,129 +366,107 @@ class PlayerCard extends StatelessWidget {
         vertical: Gap.xs * scale,
         horizontal: 2 * scale,
       ),
-          child: Column(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // A Professional Guest is marked on the pitch as they are on every
+          // roster: the tertiary disc and the badge, never a picture. Before
+          // this they shared the plain white disc with a player who had left
+          // the match, which said the same thing about two different people.
+          CircleAvatar(
+            radius: radius,
+            backgroundColor:
+                isGuest ? theme.colorScheme.tertiaryContainer : Colors.white,
+            foregroundColor: isGuest
+                ? theme.colorScheme.onTertiaryContainer
+                : theme.colorScheme.primary,
+            // A guest holds no account, so there is no picture of theirs to
+            // load and no chance of loading somebody else's.
+            foregroundImage:
+                avatarUrl == null || isGuest ? null : NetworkImage(avatarUrl),
+            // Swallowed: a picture that will not load is not worth an error,
+            // and the child shows through instead of a broken image.
+            onForegroundImageError:
+                avatarUrl == null || isGuest ? null : (_, __) {},
+            child: Icon(
+              isGuest ? Icons.workspace_premium_outlined : Icons.person,
+              size: radius,
+            ),
+          ),
+          SizedBox(height: Gap.xs * scale),
+          // The name, and the star beside it.
+          //
+          // **Inline, because the star belongs to the player and not to a
+          // badge.** The approved direction puts it immediately after the
+          // name, where a reader takes the two in together; the goal tally
+          // sits below with the rating, where a number belongs among
+          // numbers.
+          Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // A Professional Guest is marked on the pitch as they are on every
-              // roster: the tertiary disc and the badge, never a picture. Before
-              // this they shared the plain white disc with a player who had left
-              // the match, which said the same thing about two different people.
-              CircleAvatar(
-                radius: radius,
-                backgroundColor: isGuest
-                    ? theme.colorScheme.tertiaryContainer
-                    : Colors.white,
-                foregroundColor: isGuest
-                    ? theme.colorScheme.onTertiaryContainer
-                    : theme.colorScheme.primary,
-                // A guest holds no account, so there is no picture of theirs to
-                // load and no chance of loading somebody else's.
-                foregroundImage: avatarUrl == null || isGuest
-                    ? null
-                    : NetworkImage(avatarUrl),
-                // Swallowed: a picture that will not load is not worth an error,
-                // and the child shows through instead of a broken image.
-                onForegroundImageError:
-                    avatarUrl == null || isGuest ? null : (_, __) {},
-                child: Icon(
-                  isGuest ? Icons.workspace_premium_outlined : Icons.person,
-                  size: radius,
-                ),
-              ),
-              SizedBox(height: Gap.xs * scale),
-              // The name, and the star beside it.
-              //
-              // **Inline, because the star belongs to the player and not to a
-              // badge.** The approved direction puts it immediately after the
-              // name, where a reader takes the two in together; the goal tally
-              // sits below with the rating, where a number belongs among
-              // numbers.
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11.5 * scale,
-                        height: 1.25,
-                        // A hard shadow, so a pale name stays readable over a
-                        // pale stripe without darkening the pitch for everyone.
-                        shadows: const [
-                          Shadow(blurRadius: 2, color: Color(0x99000000)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (isMvp) ...[
-                    SizedBox(width: 3 * scale),
-                    Icon(
-                      Icons.star_rounded,
-                      size: 14 * scale,
-                      color: MatchStage.star,
-                      shadows: const [
-                        Shadow(blurRadius: 2, color: Color(0x99000000)),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-              if (player != null)
-                Text(
-                  // One decimal, which is `OP-1`'s presentation scale.
-                  player!.overallRating.toStringAsFixed(1),
-                  textDirection: TextDirection.ltr,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 10.5 * scale,
-                    height: 1.3,
-                  ),
-                ),
-              // What this player scored, under the rating: a number among
-              // numbers. Drawn only where there is one — a tally of zero is the
-              // absence of a badge, not a badge of none.
-              if (goals > 0) _GoalBadge(goals: goals, scale: scale),
-              // What this player's position actually is, when the drawing has
-              // put them somewhere else. The card carries no position text
-              // otherwise — the row it sits in is what says it — so without
-              // this badge a forward moved down to keep the attack smaller than
-              // the midfield would read as a midfielder and nothing on screen
-              // would disagree.
-              if (movedFrom != null) _MovedFromBadge(position: movedFrom!),
-              // §5.1's out-of-position marker, kept from the list this replaced:
-              // it is the one thing about an assignment a reader cannot infer
-              // from where the card sits — and now that the rows above are a
-              // drawing rather than the stored positions, it is the only thing
-              // on the pitch that still reports one.
-              //
-              // Deliberately separate from the badge above, and deliberately
-              // not merged with it: this says the *engine* played somebody out
-              // of their own position, and that is true or false regardless of
-              // which row the drawing chose. A forward drawn in midfield is
-              // marked above and not here; a midfielder the engine put at the
-              // back is marked here and not above.
-              if (assignment.outOfPosition)
-                Text(
-                  l10n.teamsOutOfPosition,
+              Flexible(
+                child: Text(
+                  name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.errorContainer,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.w700,
+                    fontSize: 11.5 * scale,
+                    height: 1.25,
+                    // A hard shadow, so a pale name stays readable over a
+                    // pale stripe without darkening the pitch for everyone.
+                    shadows: const [
+                      Shadow(blurRadius: 2, color: Color(0x99000000)),
+                    ],
                   ),
                 ),
+              ),
+              if (isMvp) ...[
+                SizedBox(width: 3 * scale),
+                Icon(
+                  Icons.star_rounded,
+                  size: 14 * scale,
+                  color: MatchStage.star,
+                  shadows: const [
+                    Shadow(blurRadius: 2, color: Color(0x99000000)),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          if (player != null)
+            Text(
+              // One decimal, which is `OP-1`'s presentation scale.
+              player!.overallRating.toStringAsFixed(1),
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 10.5 * scale,
+                height: 1.3,
+              ),
+            ),
+          // What this player scored, under the rating: a number among
+          // numbers. Drawn only where there is one — a tally of zero is the
+          // absence of a badge, not a badge of none.
+          if (goals > 0) _GoalBadge(goals: goals, scale: scale),
+          // What this player's position actually is, when the drawing has
+          // put them somewhere else. The card carries no position text
+          // otherwise — the row it sits in is what says it — so without
+          // this badge a forward moved down to keep the attack smaller than
+          // the midfield would read as a midfielder and nothing on screen
+          // would disagree.
+          // Formation corrections remain data, not presentation chrome.
+          // The approved Teams view shows face, name, rating and result
+          // markers only.
         ],
       ),
     );
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 96 * scale),
+      constraints: BoxConstraints(maxWidth: 86 * scale),
       child: onTap == null
           ? body
           : InkWell(

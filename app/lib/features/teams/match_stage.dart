@@ -53,8 +53,8 @@ abstract final class MatchStage {
   static const star = Color(0xFFF0C43C);
 
   /// The badge a goal tally sits on, over grass.
-  static const badge = Color(0xFF0C2A1C);
-  static const badgeEdge = Color(0x3DFFFFFF);
+  static const badge = Color(0x1FFFFFFF);
+  static const badgeEdge = Color(0x8AFFFFFF);
 }
 
 /// The match, above the two sides: whose it is, what it was called, when it was
@@ -212,11 +212,17 @@ class _ScoreStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14 * scale),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14 * scale),
+        border: Border.all(color: MatchStage.sectionEdge, width: scale),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: IntrinsicHeight(
         child: Row(
-          textDirection: Directionality.of(context),
+          // The approved Arabic composition keeps Team A physically left and
+          // Team B physically right. Each Arabic label still shapes RTL.
+          textDirection: TextDirection.ltr,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
@@ -349,9 +355,7 @@ class _StripScore extends StatelessWidget {
         ),
         child: Center(
           child: Row(
-            // The two numerals keep the reader's order, matching the names
-            // either side of them.
-            textDirection: Directionality.of(context),
+            textDirection: TextDirection.ltr,
             mainAxisSize: MainAxisSize.min,
             children: [
               numeral(scoreA, winner == TeamId.a),
@@ -446,7 +450,8 @@ class MatchStageSection extends StatelessWidget {
         color: MatchStage.section,
         borderRadius: BorderRadius.circular(18 * scale),
         border: Border.all(
-          color: won ? MatchStage.accent.withValues(alpha: 0.35)
+          color: won
+              ? MatchStage.accent.withValues(alpha: 0.35)
               : MatchStage.sectionEdge,
           width: 1 * scale,
         ),
@@ -457,7 +462,8 @@ class MatchStageSection extends StatelessWidget {
         mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(4 * scale, 2 * scale, 4 * scale, 8 * scale),
+            padding:
+                EdgeInsets.fromLTRB(4 * scale, 2 * scale, 4 * scale, 8 * scale),
             child: Row(
               children: [
                 Container(
@@ -469,7 +475,7 @@ class MatchStageSection extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: 8 * scale),
-                Flexible(
+                Expanded(
                   child: Text(
                     title,
                     maxLines: 1,

@@ -198,7 +198,7 @@ void main() {
       expect(yOf(tester, 'Player m0'), greaterThan(top));
     });
 
-    testWidgets('a forward drawn in midfield is still marked as it was',
+    testWidgets('a forward drawn in midfield keeps its data without a badge',
         (tester) async {
       // The drawing moved a card between rows. It did not change what the
       // assignment says, which is what the out-of-position marker reports.
@@ -218,7 +218,7 @@ void main() {
       );
 
       expect(find.byType(PlayerCard), findsNWidgets(6));
-      expect(find.text('Out of position'), findsNWidgets(3));
+      expect(find.text('Out of position'), findsNothing);
     });
   });
 
@@ -237,7 +237,7 @@ void main() {
           for (var i = 0; i < 2; i++) player('f$i', Position.fwd),
         ];
 
-    testWidgets('a forward drawn in midfield says what it actually is',
+    testWidgets('a forward drawn in midfield shows no transition badge',
         (tester) async {
       await pumpPitch(
         tester,
@@ -246,9 +246,8 @@ void main() {
         hasNaturalGoalkeeper: false,
       );
 
-      // One badge, naming the position the stored lineup holds.
-      expect(find.text('Forward'), findsOneWidget);
-      expect(find.byIcon(Icons.north), findsOneWidget);
+      expect(find.text('Forward'), findsNothing);
+      expect(find.byIcon(Icons.north), findsNothing);
       // Everybody is still on the pitch.
       expect(find.byType(PlayerCard), findsNWidgets(7));
     });
@@ -316,7 +315,8 @@ void main() {
       expect(find.text('Forward'), findsNothing);
     });
 
-    testWidgets('the badge is not the out-of-position marker', (tester) async {
+    testWidgets('neither transition marker is presentation chrome',
+        (tester) async {
       // The two mean different things and are drawn separately. Here the engine
       // played every player in their own position, so the §5.1 marker stays
       // silent while the drawing's own marker speaks.
@@ -328,10 +328,11 @@ void main() {
       );
 
       expect(find.text('Out of position'), findsNothing);
-      expect(find.byIcon(Icons.north), findsOneWidget);
+      expect(find.byIcon(Icons.north), findsNothing);
     });
 
-    testWidgets('a transition keeps its own marker alongside', (tester) async {
+    testWidgets('a transition keeps no visible position marker',
+        (tester) async {
       // A forward the engine placed out of their own position, then moved down
       // a line by the drawing: both markers apply and both are shown, because
       // they answer different questions.
@@ -348,12 +349,11 @@ void main() {
         hasNaturalGoalkeeper: false,
       );
 
-      expect(find.text('Out of position'), findsNWidgets(2));
-      expect(find.byIcon(Icons.north), findsOneWidget,
-          reason: 'only one of the two forwards was moved by the drawing');
+      expect(find.text('Out of position'), findsNothing);
+      expect(find.byIcon(Icons.north), findsNothing);
     });
 
-    testWidgets('the badge reads the same way in Arabic', (tester) async {
+    testWidgets('the badge is absent in Arabic too', (tester) async {
       await pumpPitch(
         tester,
         assignments: liveShape(),
@@ -362,11 +362,11 @@ void main() {
         locale: const Locale('ar'),
       );
 
-      expect(find.text('مهاجم'), findsOneWidget);
-      expect(find.byIcon(Icons.north), findsOneWidget);
+      expect(find.text('مهاجم'), findsNothing);
+      expect(find.byIcon(Icons.north), findsNothing);
     });
 
-    testWidgets('the whole sentence is there for a screen reader',
+    testWidgets('the removed badge adds no screen-reader sentence',
         (tester) async {
       // The pill itself is an arrow and a word, which is all a card 82 pixels
       // wide has room for. Anybody not reading it by eye gets the sentence.
@@ -383,10 +383,12 @@ void main() {
           .whereType<String>()
           .toList();
 
-      expect(labels, contains('Drawn in another line. Position: Forward.'));
+      expect(
+          labels, isNot(contains('Drawn in another line. Position: Forward.')));
     });
 
-    testWidgets('a row full of badged cards still fits', (tester) async {
+    testWidgets('a crowded corrected row still fits without badges',
+        (tester) async {
       // The badge sits inside the card's 82-pixel constraint. A midfield row of
       // four badged forwards is the widest this gets, and it must not overflow.
       final squad = [
@@ -404,8 +406,7 @@ void main() {
       );
 
       expect(find.byType(PlayerCard), findsNWidgets(11));
-      expect(find.text('Forward'), findsNWidgets(4),
-          reason: 'the four forwards drawn in midfield each say so');
+      expect(find.text('Forward'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -524,7 +525,7 @@ void main() {
       expect(find.byIcon(Icons.person), findsOneWidget);
     });
 
-    testWidgets('the out-of-position marker, which the row cannot show',
+    testWidgets('the out-of-position marker is omitted in presentation mode',
         (tester) async {
       await pumpPitch(
         tester,
@@ -535,7 +536,7 @@ void main() {
         hasNaturalGoalkeeper: false,
       );
 
-      expect(find.text('Out of position'), findsOneWidget);
+      expect(find.text('Out of position'), findsNothing);
     });
 
     testWidgets('a secondary placement is not marked (BTGE-PT-2)',
@@ -554,6 +555,24 @@ void main() {
   });
 
   group('the sizes the engine supports', () {
+    testWidgets('the pitch is 1.9 landscape with a recognisable avatar',
+        (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: [at('m1', Position.mid)],
+        squad: [player('m1', Position.mid)],
+        hasNaturalGoalkeeper: false,
+      );
+
+      final pitch = tester.getSize(find.byKey(const ValueKey('match-pitch')));
+      expect(pitch.width / pitch.height, closeTo(PitchView.aspectRatio, 0.001));
+      expect(PitchView.aspectRatio, inInclusiveRange(1.85, 1.95));
+
+      final avatar = tester.getSize(find.byType(CircleAvatar));
+      expect(avatar.width, inInclusiveRange(56, 70));
+      expect(avatar.height, avatar.width);
+    });
+
     testWidgets('a 2 v 2 side draws without a goalkeeper row', (tester) async {
       // `OP-2`'s minimum, from one side's point of view.
       await pumpPitch(

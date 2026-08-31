@@ -1,11 +1,7 @@
-import 'dart:math' as math;
-
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/design.dart';
 import '../../core/l10n.dart';
-import '../teams/formation.dart';
 import '../teams/match_stage.dart';
 import '../teams/pitch_view.dart';
 import '../teams/team_models.dart';
@@ -122,8 +118,10 @@ class MatchResultCard extends StatelessWidget {
 
   final MatchResultCardData data;
 
-  /// The margin around the whole card, at card scale.
-  static const _margin = kPageMargin * 2.5;
+  static const shareMargin = 40.0;
+  static const shareScale = 1.55;
+  static const sharePitchWidth = 1080.0 - (shareMargin * 2) - (22 * shareScale);
+  static const sharePitchHeight = sharePitchWidth / PitchView.aspectRatio;
 
   @override
   Widget build(BuildContext context) {
@@ -147,35 +145,32 @@ class MatchResultCard extends StatelessWidget {
             // Deeper at the ends than the sides: this picture is looked at in a
             // Story, where the app showing it puts its own furniture across the
             // top and bottom of the frame.
-            padding: const EdgeInsets.fromLTRB(_margin, 62, _margin, 44),
-            child: LayoutBuilder(
-              builder: (context, box) {
-                final a = data.of(TeamId.a);
-                final b = data.of(TeamId.b);
-                final scale = _solveScale(box.biggest, a, b);
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  // Whatever the solve leaves over is spread between the blocks
-                  // rather than pooled under the last one, which is what an
-                  // earlier version did and why it ended with a band of empty
-                  // ground above the signature.
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    MatchStageHeader(
-                      community: data.communityName,
-                      title: data.matchTitle,
-                      playedAt: data.playedAt,
-                      teamAScore: data.teamAScore,
-                      teamBScore: data.teamBScore,
-                      scale: scale,
-                    ),
-                    _side(l10n.teamAName, TeamId.a, a, scale),
-                    _side(l10n.teamBName, TeamId.b, b, scale),
-                    _Signature(label: l10n.appName, scale: scale),
-                  ],
-                );
-              },
+            padding: const EdgeInsets.fromLTRB(
+              shareMargin,
+              62,
+              shareMargin,
+              44,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              // Whatever the solve leaves over is spread between the blocks
+              // rather than pooled under the last one, which is what an
+              // earlier version did and why it ended with a band of empty
+              // ground above the signature.
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                MatchStageHeader(
+                  community: data.communityName,
+                  title: data.matchTitle,
+                  playedAt: data.playedAt,
+                  teamAScore: data.teamAScore,
+                  teamBScore: data.teamBScore,
+                  scale: shareScale,
+                ),
+                _side(l10n.teamAName, TeamId.a, data.of(TeamId.a)),
+                _side(l10n.teamBName, TeamId.b, data.of(TeamId.b)),
+                _Signature(label: l10n.appName, scale: shareScale),
+              ],
             ),
           ),
         ],
@@ -187,12 +182,11 @@ class MatchResultCard extends StatelessWidget {
     String title,
     TeamId team,
     List<TeamAssignment> assignments,
-    double scale,
   ) =>
       MatchStageSection(
         title: '$title (${assignments.length})',
         won: data.winner == team,
-        scale: scale,
+        scale: shareScale,
         child: PitchView(
           assignments: assignments,
           players: data.players,
@@ -204,97 +198,8 @@ class MatchResultCard extends StatelessWidget {
           nameOf: (id) => data.names[id] ?? '—',
           goalsOf: data.hasResult ? data.goalsOf : null,
           isMvpOf: data.hasResult ? data.isMvp : null,
-          scale: scale,
         ),
       );
-
-  /// How much larger than the phone this card draws everything.
-  ///
-  /// **Solved from the room, in both directions, and the tighter one wins.** A
-  /// picture cannot scroll, which is the one way it differs from the screen it
-  /// is a picture of: the screen can let two pitches run past the fold, and this
-  /// has 1920 points and no more. So the width answer — how large a player may
-  /// be drawn before a row runs off the side — is taken together with the height
-  /// answer, and the smaller of the two is used.
-  ///
-  /// Bounded at both ends. The ceiling stops a three-a-side being enlarged for
-  /// drama, which is what an earlier version of this card did; the floor is the
-  /// smallest a face may be drawn.
-  static double _solveScale(
-    Size room,
-    List<TeamAssignment> a,
-    List<TeamAssignment> b,
-  ) {
-    final shapeA = _shape(a);
-    final shapeB = _shape(b);
-
-    // Width: the widest row of either side decides how many cards must fit
-    // across, and both sides are drawn at one answer — a player larger on one
-    // pitch than the other would read as meaning something.
-    final columns = math.max(shapeA.columns, shapeB.columns);
-    final byWidth = (room.width - _sectionChrome) / (columns * _cell);
-
-    // Height: everything stacked, at scale 1, then divided into the room.
-    final stacked = _headerHeight +
-        shapeA.height +
-        shapeB.height +
-        _signatureHeight +
-        _gaps;
-    // A little slack, because these are measurements of a layout rather than
-    // the layout itself: a card that overflowed by two points would be a
-    // picture with a striped bar across it.
-    final byHeight = room.height / (stacked * 1.04);
-
-    return math.min(byWidth, byHeight).clamp(1.0, 3.0);
-  }
-
-  /// What one side costs: how wide its widest row is, and how tall the whole
-  /// section is at scale 1.
-  ///
-  /// **Row by row, because the rows differ.** A player the drawing moved out of
-  /// their own line carries a pill under their rating, and a row holding one is
-  /// a line taller than a row that does not. Counting the badged rows rather
-  /// than assuming all or none is what makes the estimate hold for a
-  /// three-a-side and an eleven-a-side alike — a blanket flag over-estimated the
-  /// large lineup into illegibility and under-estimated the small one into an
-  /// overflow.
-  static ({int columns, double height}) _shape(List<TeamAssignment> side) {
-    if (side.isEmpty) return (columns: 1, height: _sectionChromeHeight + _row);
-
-    final formation = buildFormation(side);
-    final rows = <List<TeamAssignment>>[
-      if (formation.attack.isNotEmpty) formation.attack,
-      ...formation.midfieldRows,
-      if (formation.defence.isNotEmpty) formation.defence,
-      if (formation.goalkeepers.isNotEmpty) formation.goalkeepers,
-    ];
-
-    var height = _sectionChromeHeight;
-    var columns = 1;
-    for (final row in rows) {
-      columns = math.max(columns, row.length);
-      final badged = row.any((assignment) =>
-          formation.movedFrom.containsKey(assignment.participantId) ||
-          assignment.outOfPosition);
-      height += badged ? _badgedRow : _row;
-    }
-    return (columns: columns, height: height);
-  }
-
-  // The layout's own measurements at scale 1, which is what makes the solve
-  // arithmetic rather than a search. Each is the sum of the paddings and
-  // heights the widgets actually use.
-  static const _cell = 96.0;
-  static const _sectionChrome = 44.0;
-  static const _headerHeight = 140.0;
-  static const _signatureHeight = 30.0;
-  static const _gaps = 58.0;
-
-  /// A section's own padding and heading, and what one row of players costs
-  /// with and without a position badge under them.
-  static const _sectionChromeHeight = 82.0;
-  static const _row = 116.0;
-  static const _badgedRow = 140.0;
 }
 
 /// The product's signature: a hairline, then a play mark and the name, once, at

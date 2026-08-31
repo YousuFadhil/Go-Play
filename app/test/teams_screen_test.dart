@@ -470,7 +470,7 @@ void main() {
       expect(find.text('6.0'), findsNWidgets(3));
     });
 
-    testWidgets('a transition is marked out of position (§5.1)',
+    testWidgets('a transition has no presentation badge',
         (tester) async {
       final lineup = storedLineup()
         ..[1] = assignment('u3', TeamId.a, Position.def,
@@ -482,7 +482,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Out of position'), findsOneWidget);
+      expect(find.text('Out of position'), findsNothing);
+      expect(find.byIcon(Icons.north), findsNothing);
     });
 
     testWidgets('no quality metric is displayed (§5.2)', (tester) async {
@@ -924,8 +925,8 @@ void main() {
       final changed = teams.savedLineup!.singleWhere((a) => a.userId == 'u1');
       expect(changed.assignedPosition, Position.fwd);
       expect(changed.team, TeamId.a, reason: 'only the position changes');
-      expect(find.text('Out of position'), findsOneWidget,
-          reason: 'a keeper up front is playing out of position (§5.1)');
+      expect(find.text('Out of position'), findsNothing,
+          reason: 'the stored transition is not presentation chrome');
     });
 
     testWidgets('choosing the position already held changes nothing',
