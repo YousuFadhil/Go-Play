@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
+import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
 import '../../core/states.dart';
+import '../../core/tokens.dart';
 import '../admin/admin_repository.dart';
 import '../admin/admin_screen.dart';
 import '../auth/auth_service.dart';
@@ -82,10 +83,24 @@ class _HomeTabState extends State<HomeTab> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Scaffold(
-      appBar: AppHeader(
-        title: Text(l10n.homeTitle),
-        actions: [
+    return FutureBuilder<_HomeData>(
+      future: _future,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        final greeting = data?.firstName.isNotEmpty == true
+            ? l10n.homeGreeting(data!.firstName)
+            : l10n.homeTitle;
+
+        return Scaffold(
+          backgroundColor: GoColors.bgHero,
+          body: Column(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: ClubHero(
+                  bar: ClubHeroBar(
+                    title: l10n.homeTitle,
+                    actions: [
           // Only a System Admin ever sees this. Hiding it is a convenience:
           // every admin RPC checks is_system_admin() server-side regardless.
           FutureBuilder<bool>(
@@ -95,6 +110,7 @@ class _HomeTabState extends State<HomeTab> {
               return IconButton(
                 tooltip: l10n.adminTitle,
                 icon: const Icon(Icons.shield_outlined),
+                color: Colors.white,
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const AdminScreen()),
                 ),
@@ -111,19 +127,44 @@ class _HomeTabState extends State<HomeTab> {
                 icon: Badge(
                   isLabelVisible: unread > 0,
                   label: Text('$unread'),
-                  child: const Icon(Icons.notifications_outlined),
+                  child: const Icon(Icons.notifications_outlined, color: Colors.white),
                 ),
               );
             },
           ),
-          // The profile and logging out are the player's own actions rather
-          // than Home's, and they now live in the header's identity menu —
-          // where they are on every screen instead of only this one.
-        ],
-      ),
-      body: FutureBuilder<_HomeData>(
-        future: _future,
-        builder: (context, snapshot) {
+                    ],
+                  ),
+                  identity: Text(
+                    greeting,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 23,
+                      height: 1.2,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.7,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ClubSheet(
+                  child: _homeBody(context, snapshot),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _homeBody(
+    BuildContext context,
+    AsyncSnapshot<_HomeData> snapshot,
+  ) {
+    final l10n = context.l10n;
           if (snapshot.connectionState != ConnectionState.done) {
             return const SkeletonFade(
               child: Padding(
@@ -150,29 +191,14 @@ class _HomeTabState extends State<HomeTab> {
             return ErrorState(onRetry: _refresh);
           }
 
-          final data = snapshot.data!;
-          final matches = data.matches;
+          final matches = snapshot.data!.matches;
 
           return RefreshIndicator(
             onRefresh: () async => _refresh(),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: Gap.xl),
+              padding: const EdgeInsetsDirectional.only(bottom: Layout.listBottom),
               children: [
-                // Formal greeting near the top, before the main content.
-                if (data.firstName.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      kPageMargin,
-                      Gap.lg,
-                      kPageMargin,
-                      0,
-                    ),
-                    child: Text(
-                      l10n.homeGreeting(data.firstName),
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
                 if (matches.isEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -201,8 +227,5 @@ class _HomeTabState extends State<HomeTab> {
               ],
             ),
           );
-        },
-      ),
-    );
   }
 }
