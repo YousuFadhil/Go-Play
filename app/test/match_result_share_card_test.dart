@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:ui' show Rect;
 
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +26,7 @@ import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
+import 'package:go_play/features/teams/team_lineup_card.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/team_repository.dart';
 
@@ -126,106 +126,147 @@ void main() {
       expect(data.isDraw, isTrue);
     });
 
-    testWidgets('the winning side is the one that is filled', (tester) async {
+    testWidgets('the winning side is named, once', (tester) async {
       await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
 
-      // The fill is the whole of the emphasis, so it is counted rather than
-      // described: exactly one of the two panels carries it.
-      expect(_filledPanels(tester), 1);
+      // One tag, beside one heading. The score above has already said who won;
+      // this names it for a reader scanning the two sides, and saying it twice
+      // would be saying it worse.
+      expect(find.text('Winner'), findsOneWidget);
     });
 
-    testWidgets('a draw fills neither, so neither reads as the winner',
+    testWidgets('a win the other way is named just the same', (tester) async {
+      await pumpCard(tester, cardData(teamAScore: 0, teamBScore: 2));
+
+      expect(find.text('Winner'), findsOneWidget);
+    });
+
+    testWidgets('a draw names nobody and picks out neither score',
         (tester) async {
       await pumpCard(tester, cardData(teamAScore: 2, teamBScore: 2));
 
-      expect(_filledPanels(tester), 0);
+      expect(find.text('Winner'), findsNothing);
+      // Neither numeral is in the winner's green: on a level score the two are
+      // drawn identically, so the card cannot be misread at a glance as a
+      // narrow win for whichever side happens to be drawn first.
+      expect(_emphasisedNumerals(tester), 0);
     });
 
-    testWidgets('a win the other way still fills exactly one', (tester) async {
-      await pumpCard(tester, cardData(teamAScore: 0, teamBScore: 2));
+    testWidgets('a win picks out exactly one numeral', (tester) async {
+      await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
 
-      expect(_filledPanels(tester), 1);
+      expect(_emphasisedNumerals(tester), 1);
     });
   });
 
-  group('what the card says', () {
-    testWidgets('the score is on it, and so is the community and the date',
+  group('it is the Teams screen, with the result on it', () {
+    testWidgets('both sides are drawn on the pitch the Teams screen uses',
         (tester) async {
-      await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
+      await pumpCard(tester, cardData());
 
-      // The scoreboard's own numerals, not every digit on the card: a goal
-      // tally of one is also the text "1", and the score is the thing being
-      // asserted here.
-      expect(_scoreNumerals(tester), ['3', '1']);
-      expect(find.text('Al Amerat FC'), findsOneWidget);
-      expect(find.text('August 21, 2026'), findsOneWidget);
+      // The same painter the lineup card and `PitchView` use. Two of them, one
+      // per side, which is what makes this the Teams screen rather than a
+      // second layout that happens to list the same players.
+      final pitches = tester
+          .widgetList<CustomPaint>(find.byType(CustomPaint))
+          .where((paint) => paint.painter is TeamLineupPitchPainter)
+          .length;
+      expect(pitches, 2);
     });
 
-    testWidgets('every player of both lineups is drawn', (tester) async {
+    testWidgets('every player of both lineups is on it', (tester) async {
       await pumpCard(tester, cardData());
 
       for (final name in names.values) {
-        expect(find.text(name), findsWidgets, reason: '$name played');
+        expect(find.text(name), findsOneWidget, reason: '$name played');
       }
-      // Each side is headed with its own count, so a missing player is visible
-      // as well as absent.
+      // Each side keeps the screen's own heading, down to the count.
       expect(find.text('Team A (2)'), findsOneWidget);
       expect(find.text('Team B (2)'), findsOneWidget);
     });
 
-    testWidgets('a scorer carries their goal count', (tester) async {
-      await pumpCard(tester, cardData(goals: {'u3': 2, 'u1': 1, 'u2': 1}));
-
-      // Noor scored two and appears twice — once in her own lineup row and once
-      // in the scorer run — so the tally is asserted through the data as well as
-      // on screen.
-      expect(find.text('2'), findsWidgets);
-      expect(find.text('Scorers'), findsOneWidget);
-    });
-
-    test('scorers come back most goals first, and are named', () {
-      final rows = cardData(goals: {'u1': 1, 'u3': 2, 'u2': 1}).scorers;
-
-      expect(rows.map((r) => r.name).toList(), [
-        'Noor Al Kindi', // 2
-        'Ahmed Al Harthy', // 1, alphabetically before Sara
-        'Sara Al Balushi', // 1
-      ]);
-      expect(rows.first.goals, 2);
-    });
-
-    test('somebody who did not play is not a scorer of this match', () {
-      // A tally naming a participant absent from the lineup is dropped rather
-      // than drawn against a name the card cannot resolve.
-      final rows = cardData(goals: {'u3': 2, 'nobody': 4}).scorers;
-
-      expect(rows.map((r) => r.participantId), isNot(contains('nobody')));
-    });
-
-    testWidgets('the best player is named where there is one', (tester) async {
-      await pumpCard(tester, cardData(mvp: 'u3'));
-
-      expect(find.text('Best player'), findsOneWidget);
-      expect(find.text('Noor Al Kindi'), findsWidgets);
-    });
-
-    testWidgets('and the line is simply absent where there is not',
+    testWidgets('a goalkeeper is drawn even when nobody keeps goal naturally',
         (tester) async {
-      await pumpCard(tester, cardData(mvp: null));
+      // The lineup card leaves keepers out in that case, because it pictures a
+      // formation still to be played. This is the record of a match, and
+      // everybody who was on the pitch belongs on the picture of it.
+      await pumpCard(tester, cardData());
 
-      expect(find.text('Best player'), findsNothing);
-      // No placeholder, no dash standing in for a name nobody gave.
+      expect(find.text(names['u1']!), findsOneWidget);
+    });
+
+    testWidgets('the players are drawn with the lineup marks', (tester) async {
+      await pumpCard(tester, cardData());
+
+      expect(find.byType(TeamLineupPlayerMark), findsNWidgets(4));
+    });
+  });
+
+  group('what each player did', () {
+    testWidgets('a scorer carries a ball and their count', (tester) async {
+      await pumpCard(tester, cardData(goals: {'u3': 2}, mvp: null));
+
+      expect(find.byIcon(Icons.sports_soccer), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+    });
+
+    testWidgets('one ball for each scorer, and nobody else', (tester) async {
+      await pumpCard(
+        tester,
+        cardData(goals: {'u3': 2, 'u1': 1, 'u2': 1}, mvp: null),
+      );
+
+      expect(find.byIcon(Icons.sports_soccer), findsNWidgets(3));
+    });
+
+    testWidgets('the best player carries a star', (tester) async {
+      await pumpCard(tester, cardData(goals: const {}, mvp: 'u3'));
+
+      expect(find.byIcon(Icons.star_rounded), findsOneWidget);
+    });
+
+    testWidgets('a scorer who was also best on the pitch carries both',
+        (tester) async {
+      await pumpCard(tester, cardData(goals: {'u3': 2}, mvp: 'u3'));
+
+      // Both, on one player, in one pill: star, ball, 2.
+      expect(find.byIcon(Icons.star_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.sports_soccer), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a goalless draw draws no scorer run at all', (tester) async {
+    testWidgets('a goalless match with nobody named carries no marks at all',
+        (tester) async {
       await pumpCard(
         tester,
         cardData(teamAScore: 0, teamBScore: 0, goals: const {}, mvp: null),
       );
 
-      expect(find.text('Scorers'), findsNothing);
+      expect(find.byIcon(Icons.sports_soccer), findsNothing);
+      expect(find.byIcon(Icons.star_rounded), findsNothing);
+      // No placeholder, no empty pill, and no overflow from room reserved for
+      // badges nobody needed.
       expect(tester.takeException(), isNull);
+    });
+
+    test('the card knows whether anybody carries a mark', () {
+      expect(cardData(goals: {'u3': 1}, mvp: null).hasMarks, isTrue);
+      expect(cardData(goals: const {}, mvp: 'u3').hasMarks, isTrue);
+      expect(cardData(goals: const {}, mvp: null).hasMarks, isFalse);
+      // A tally of zero is not a mark. Nobody scoring nothing is the absence of
+      // a tally, not a tally of none.
+      expect(cardData(goals: {'u3': 0}, mvp: null).hasMarks, isFalse);
+    });
+  });
+
+  group('what the card says at the top', () {
+    testWidgets('the score, the community and the date', (tester) async {
+      await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
+
+      expect(_scoreNumerals(tester), ['3', '1']);
+      expect(find.text('Al Amerat FC'), findsOneWidget);
+      expect(find.text('August 21, 2026'), findsOneWidget);
     });
 
     testWidgets('it signs itself, once', (tester) async {
@@ -238,7 +279,9 @@ void main() {
       await pumpCard(tester, cardData(), locale: const Locale('ar'));
 
       expect(find.text('الفريق أ (2)'), findsOneWidget);
-      expect(find.text('الهدّافون'), findsOneWidget);
+      expect(find.text('الفائز'), findsOneWidget);
+      // The score keeps its own order whatever the paragraph does around it.
+      expect(_scoreNumerals(tester), ['3', '1']);
       expect(tester.takeException(), isNull);
     });
   });
@@ -261,13 +304,22 @@ void main() {
       expect(image.mimeType, 'image/png');
     });
 
+    testWidgets('a crowded lineup composes without overflowing',
+        (tester) async {
+      // The badges buy room under every name, and the densest lineup the
+      // product supports is where that room is tightest.
+      await pumpCard(tester, _crowded());
+
+      expect(tester.takeException(), isNull);
+    });
+
     test('a match with nobody in the lineup is not a card', () {
       expect(
-        MatchResultCardData(
+        const MatchResultCardData(
           teamAScore: 0,
           teamBScore: 0,
-          lineup: const [],
-          names: const {},
+          lineup: [],
+          names: {},
         ).isShareable,
         isFalse,
       );
@@ -414,10 +466,11 @@ void main() {
 /// The two numerals of the scoreboard, in the order they are drawn.
 ///
 /// Identified by the one size nothing else on the card is set at, which is what
-/// makes the score the score rather than any other digit.
+/// makes the score the score rather than a goal tally that happens to read the
+/// same.
 List<String> _scoreNumerals(WidgetTester tester) => tester
     .widgetList<Text>(find.byType(Text))
-    .where((text) => text.style?.fontSize == 132)
+    .where((text) => text.style?.fontSize == 112)
     .map((text) => text.data ?? '')
     .toList();
 
@@ -432,15 +485,60 @@ final _png = Uint8List.fromList(const [
   0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 ]);
 
-/// How many of the card's two score panels carry the winner's fill.
-int _filledPanels(WidgetTester tester) => tester
-    .widgetList<DecoratedBox>(find.byType(DecoratedBox))
-    .where((box) {
-      final decoration = box.decoration;
-      return decoration is BoxDecoration &&
-          decoration.color == const Color(0xFF123D24);
-    })
+/// How many of the two score numerals are picked out in the winner's green.
+///
+/// One on a win, none on a draw. Counted rather than described, because the
+/// colour is the whole of the emphasis on the numerals themselves.
+int _emphasisedNumerals(WidgetTester tester) => tester
+    .widgetList<Text>(find.byType(Text))
+    .where((text) =>
+        text.style?.fontSize == 112 &&
+        text.style?.color == const Color(0xFF123D24))
     .length;
+
+/// A lineup dense enough to squeeze the badges: five a side, which is where the
+/// solver has least room under each name.
+MatchResultCardData _crowded() {
+  final players = <TeamAssignment>[
+    for (final (index, position) in [
+      Position.gk,
+      Position.def,
+      Position.def,
+      Position.mid,
+      Position.fwd,
+    ].indexed) ...[
+      TeamAssignment(
+        userId: 'a$index',
+        team: TeamId.a,
+        assignedPosition: position,
+        basis: AssignmentBasis.primary,
+      ),
+      TeamAssignment(
+        userId: 'b$index',
+        team: TeamId.b,
+        assignedPosition: position,
+        basis: AssignmentBasis.primary,
+      ),
+    ],
+  ];
+
+  return MatchResultCardData(
+    teamAScore: 4,
+    teamBScore: 3,
+    lineup: players,
+    names: {
+      // Deliberately long, and Arabic: the widest name is what decides whether
+      // a card buys a second line, and a second line is what the badges then
+      // have to fit under.
+      for (final player in players)
+        player.participantId: 'عبدالرحمن بن سليمان الحارثي',
+    },
+    goals: {for (final player in players) player.participantId: 1},
+    mvpParticipantId: players.first.participantId,
+    communityName: 'Al Amerat FC',
+    playedAt: DateTime(2026, 8, 21, 20),
+  );
+}
 
 Match _playedMatch() {
   final start = DateTime.now().subtract(const Duration(days: 3));

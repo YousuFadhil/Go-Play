@@ -381,6 +381,7 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
           // regardless of the surrounding Arabic paragraph direction.
           textDirection: TextDirection.ltr,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: _scoreField(
@@ -392,14 +393,18 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
                 ),
               ),
               const Padding(
-                padding: EdgeInsetsDirectional.symmetric(horizontal: Gap.sm),
+                padding: EdgeInsetsDirectional.symmetric(horizontal: Gap.md),
                 child: Text(
                   '–',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 24,
                     height: 1,
                     fontWeight: FontWeight.w700,
-                    color: Color.fromRGBO(255, 255, 255, 0.4),
+                    // Was white at 40%, which on this ground is a grey smudge
+                    // between two numbers. It is punctuation, so it stays
+                    // quieter than the scores — but it has to be legible to
+                    // read as a dash rather than as an artefact.
+                    color: Color.fromRGBO(255, 255, 255, 0.75),
                   ),
                 ),
               ),
@@ -417,38 +422,96 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
         ),
       );
 
-  /// A score field that cannot express a negative number: the keyboard is
-  /// digits only and the formatter drops everything else, so "scores cannot be
-  /// negative" is not a refusal the organizer has to read about.
+  /// One side's score: a tile the number sits in, with the team named above it.
+  ///
+  /// **The field is opted out of the app's own input decoration, deliberately.**
+  /// `buildAppTheme` fills every text field with `surfaceContainerLow` — a
+  /// near-white — which is right everywhere a field sits on a page and wrong
+  /// here, where the row's ground is `primaryDeep`. This field only ever
+  /// overrode the *borders*, so the fill stayed, and a white numeral was being
+  /// drawn on a near-white box: the score was there, at 38 points, and could not
+  /// be read. That is the defect this fixes.
+  ///
+  /// The tile is kept rather than removed. A score wants a container — it is
+  /// what says these two numbers belong together and are the thing being
+  /// entered — so the fill is stated explicitly as white and the numeral is set
+  /// in the app's own ink on it. Dark on white is the strongest pair the palette
+  /// has, and it reads at a glance on the deep-green slab that frames it.
+  ///
+  /// The team's name moves out of the decoration and above the tile. As a
+  /// floating `labelText` it would sit inside the white box in the white it was
+  /// styled with, which is the same defect one layer down.
+  ///
+  /// Unchanged: a score still cannot express a negative number, because the
+  /// keyboard is digits only and the formatter drops everything else.
   Widget _scoreField({
     required Key key,
     required String label,
     required int value,
     required ValueChanged<int> onChanged,
   }) =>
-      TextFormField(
-        key: key,
-        initialValue: '$value',
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: Color.fromRGBO(255, 255, 255, .8)),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-        ),
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-        style: const TextStyle(
-          fontSize: 38,
-          height: 1,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.6,
-          color: Colors.white,
-        ),
-        onChanged: (text) => onChanged(int.tryParse(text) ?? 0),
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              color: Color.fromRGBO(255, 255, 255, 0.92),
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          TextFormField(
+            key: key,
+            initialValue: '$value',
+            decoration: InputDecoration(
+              // Stated in full, so none of it is inherited from a theme built
+              // for fields on a pale page.
+              filled: true,
+              fillColor: GoColors.surfaceContainerLowest,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: Gap.md),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(Radii.sm),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(Radii.sm),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(Radii.sm),
+                // The one place a border earns its keep: which of the two
+                // numbers is being edited.
+                borderSide: const BorderSide(
+                  color: GoColors.primaryMid,
+                  width: 3,
+                ),
+              ),
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.ltr,
+            // The caret and the selection are the theme's `primary` otherwise,
+            // which on white is legible but reads as a different green from
+            // everything else on this row.
+            cursorColor: GoColors.primaryDeep,
+            style: const TextStyle(
+              fontSize: 40,
+              height: 1,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.6,
+              color: GoColors.onSurface,
+            ),
+            onChanged: (text) => onChanged(int.tryParse(text) ?? 0),
+          ),
+        ],
       );
 
   /// One side of the lineup: every player on it, with their goals and the

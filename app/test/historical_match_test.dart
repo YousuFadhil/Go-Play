@@ -350,7 +350,10 @@ void main() {
       // the client understands it as a rule rather than as an unknown fault.
       expect(
         SupabaseFailureMapper.from(
-          PostgrestException(message: 'error: MATCH_HISTORICAL', code: 'P0001'),
+          const PostgrestException(
+            message: 'error: MATCH_HISTORICAL',
+            code: 'P0001',
+          ),
         ),
         isA<ValidationFailure>().having(
           (f) => f.reason,
@@ -363,7 +366,7 @@ void main() {
     test('so does the refusal to record a match that has not happened', () {
       expect(
         SupabaseFailureMapper.from(
-          PostgrestException(
+          const PostgrestException(
             message: 'error: HISTORICAL_NOT_PAST',
             code: 'P0001',
           ),

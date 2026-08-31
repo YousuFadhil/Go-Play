@@ -714,7 +714,7 @@ class _Side extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(Radii.md * metrics.scale),
             child: CustomPaint(
-              painter: _PitchPainter(scale: metrics.scale),
+              painter: TeamLineupPitchPainter(scale: metrics.scale),
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   vertical: Gap.lg * metrics.scale,
@@ -854,6 +854,11 @@ class TeamLineupMetrics {
   /// The hint under a moved player, against the name beside it.
   static const double _hintShare = 0.82;
 
+  /// The room a goal tally and a best-player star take under a name, against
+  /// that name's own size. Generous by a little: a badge that overflowed its
+  /// block would be a layout error in a picture somebody was about to send.
+  static const double _marksShare = 1.75;
+
   static TeamLineupMetrics solve(
     BuildContext context, {
     required double width,
@@ -862,6 +867,11 @@ class TeamLineupMetrics {
     required int rows,
     required Iterable<String> names,
     required bool hasHint,
+    // Whether any player on this card carries a goal tally or a best-player
+    // star. Reserved the same way the hint is, and for the same reason: the
+    // block under a face is one fixed height on every mark, so room that is not
+    // asked for here is room the badges would overflow.
+    bool hasMarks = false,
   }) {
     // What the pitch keeps for itself, in the screen's own proportions: the
     // Gap.lg above and below the rows, the Gap.sm at each end of one. Taken at
@@ -888,13 +898,17 @@ class TeamLineupMetrics {
       final line = (name * lineHeight).ceilToDouble();
       final hint =
           hasHint ? (name * _hintShare * lineHeight).ceilToDouble() * 1.3 : 0.0;
+      // The badge pill: a glyph a little larger than the type, its own padding,
+      // and the gap that attaches it to the name. Measured against the name
+      // size rather than the line, because that is what it is drawn from.
+      final marks = hasMarks ? (name * _marksShare).ceilToDouble() : 0.0;
       return TeamLineupMetrics(
         radius: radius,
         cellWidth: cell,
         nameWidth: cell * _nameShare,
         nameSize: name,
         nameHeight: line * lines,
-        blockHeight: line * lines + line + hint,
+        blockHeight: line * lines + line + hint + marks,
         nameLines: lines,
         hintSize: hasHint ? name * _hintShare : 0,
       );
@@ -967,6 +981,8 @@ class TeamLineupPlayerMark extends StatelessWidget {
     this.rating,
     this.isProfessionalGuest = false,
     this.movedFrom,
+    this.goals = 0,
+    this.isMvp = false,
   });
 
   /// Which side this player is on. Nothing about the mark is drawn from it —
@@ -984,6 +1000,17 @@ class TeamLineupPlayerMark extends StatelessWidget {
 
   /// Set where the drawing put a player in a line their position does not name.
   final Position? movedFrom;
+
+  /// How many this player scored, and whether they were named best on the
+  /// pitch.
+  ///
+  /// **Both are zero and false on a lineup card, which is why they have those
+  /// defaults.** A lineup is drawn before the match; there is nothing to say
+  /// about goals or a best player yet, and `TeamLineupCard` passes neither. The
+  /// Completed Match card is the same picture taken afterwards, so it passes
+  /// both and the mark grows the two small badges below.
+  final int goals;
+  final bool isMvp;
 
   /// The sizes the card solved once, for every player on it.
   final TeamLineupMetrics metrics;
@@ -1019,6 +1046,21 @@ class TeamLineupPlayerMark extends StatelessWidget {
                   size: metrics.nameSize,
                   lines: metrics.nameLines,
                 ),
+                // What this player did, attached to the name rather than placed
+                // near it: the two badges sit directly under the last line of
+                // the name and share its centre, so a star and a tally read as
+                // belonging to that player and not to the one beside them.
+                //
+                // Under rather than inline because a cell is as wide as the
+                // densest row allows and a name is Arabic as often as Latin —
+                // an inline star would take its room out of the name, and the
+                // name is what identifies the player.
+                if (isMvp || goals > 0)
+                  _PlayerMarks(
+                    goals: goals,
+                    isMvp: isMvp,
+                    size: metrics.nameSize,
+                  ),
                 if (rating != null)
                   Text(
                     // One decimal, which is `OP-1`'s presentation scale.
@@ -1047,6 +1089,84 @@ class TeamLineupPlayerMark extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What a player did in the match, under their name: a star if they were best
+/// on the pitch, a ball and a number if they scored.
+///
+/// **Small, and on their own ground.** Both badges sit on the same near-white
+/// pill the pitch already uses for a moved-position hint, because a gold star
+/// and a dark numeral both need something other than grass behind them to hold
+/// their shape at this size. The pill is what makes them legible in a picture
+/// that will be looked at on a phone, at a third of the size it was drawn.
+///
+/// **Both, cleanly, when both apply.** They are one row in one pill — a player
+/// who was best on the pitch *and* scored twice reads as "⭐ ⚽2" rather than as
+/// two competing marks. The row is pinned left to right so the ball never lands
+/// on the far side of its own count.
+class _PlayerMarks extends StatelessWidget {
+  const _PlayerMarks({
+    required this.goals,
+    required this.isMvp,
+    required this.size,
+  });
+
+  final int goals;
+  final bool isMvp;
+
+  /// The name's size, which everything here is a proportion of, so the badges
+  /// stay in step with the type on a dense card and on a sparse one.
+  final double size;
+
+  /// The amber the app reserves for a figure worth noticing.
+  static const _mvp = Color(0xFFC9A227);
+
+  @override
+  Widget build(BuildContext context) {
+    final glyph = size * 1.15;
+
+    return Container(
+      margin: EdgeInsets.only(top: size * 0.22),
+      padding: EdgeInsets.symmetric(
+        horizontal: size * 0.42,
+        vertical: size * 0.1,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xF2FFFFFF),
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
+      child: Row(
+        // The star comes first and the tally second in both languages: this is
+        // a run of marks, not a sentence, and a reader scanning a pitch should
+        // find them in the same place on every player.
+        textDirection: TextDirection.ltr,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isMvp)
+            Icon(Icons.star_rounded, size: glyph * 1.15, color: _mvp),
+          if (isMvp && goals > 0) SizedBox(width: size * 0.3),
+          if (goals > 0) ...[
+            Icon(
+              Icons.sports_soccer,
+              size: glyph,
+              color: TeamLineupCard._primary,
+            ),
+            SizedBox(width: size * 0.16),
+            Text(
+              '$goals',
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                color: TeamLineupCard._primary,
+                fontSize: size,
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1362,8 +1482,13 @@ class _PlayerName extends StatelessWidget {
 ///
 /// The markings are faint on purpose: they are there to say "this is a pitch",
 /// and anything stronger competes with the names sitting on top of them.
-class _PitchPainter extends CustomPainter {
-  const _PitchPainter({required this.scale});
+///
+/// **Public because two cards are drawn on this grass.** The Completed Match
+/// card is the Teams screen after the result is in, so it stands on the same
+/// pitch as the lineup card rather than on a second one that would drift from
+/// it. Painting is all it does — it knows nothing about either card.
+class TeamLineupPitchPainter extends CustomPainter {
+  const TeamLineupPitchPainter({required this.scale});
 
   final double scale;
 
@@ -1423,6 +1548,6 @@ class _PitchPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _PitchPainter oldDelegate) =>
+  bool shouldRepaint(covariant TeamLineupPitchPainter oldDelegate) =>
       oldDelegate.scale != scale;
 }

@@ -10,5 +10,7 @@
 /// build and the mobile answer out of the web one — the same arrangement
 /// `firebase_web_config.dart` uses, and the reason nothing here imports
 /// `dart:io`.
+library;
+
 export 'image_downloader_stub.dart'
     if (dart.library.js_interop) 'image_downloader_web.dart';

@@ -488,11 +488,18 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     if (result == null || loaded.lineup.isEmpty) return;
     final l10n = context.l10n;
 
+    final avatars = {
+      for (final registration in loaded.registrations)
+        if (registration.avatarUrl case final String url)
+          registration.participantId: url,
+    };
+
     final data = MatchResultCardData(
       teamAScore: result.teamAScore,
       teamBScore: result.teamBScore,
       lineup: loaded.lineup,
       names: _resolveNames(l10n, loaded),
+      avatars: avatars,
       goals: {
         for (final tally in result.goals) tally.userId: tally.goals,
       },
@@ -503,6 +510,15 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       playedAt: loaded.match.startAt,
     );
 
+    // The faces are fetched before the card is composed, not while it is. The
+    // engine gives a template two frames to settle, which is ample for layout
+    // and nowhere near enough for a network image — so a card composed without
+    // this would show a blank disc for every player who has a picture. The
+    // Teams screen does the same thing before its own card, for the same
+    // reason.
+    await _precacheFaces(avatars.values);
+    if (!mounted) return;
+
     await presentShareCard(
       context,
       template: (context) => MatchResultCard(data: data),
@@ -510,6 +526,22 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       shareService: widget.shareService,
       downloader: widget.downloader,
     );
+  }
+
+  /// Loads the lineup's pictures into the image cache.
+  ///
+  /// Best effort, and issued together because they are independent. A picture
+  /// that will not load is not an error anywhere else in the app either, and the
+  /// mark already falls back to a plain disc. `onError` is what keeps that true:
+  /// without a handler `precacheImage` reports the failure to `FlutterError`,
+  /// turning a missing photograph into an app-level error.
+  Future<void> _precacheFaces(Iterable<String> urls) async {
+    final unique = urls.toSet();
+    if (unique.isEmpty) return;
+    await Future.wait([
+      for (final url in unique)
+        precacheImage(NetworkImage(url), context, onError: (_, __) {}),
+    ]);
   }
 
   String _positionLabel(BuildContext context, String position) {

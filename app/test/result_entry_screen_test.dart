@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/club_task.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/core/tokens.dart';
 import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/matches/match_adapter.dart';
 import 'package:go_play/features/matches/match_models.dart';
@@ -251,6 +252,83 @@ void main() {
 
       expect(find.text('Save result'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the score is legible', () {
+    // The defect this guards against: `buildAppTheme` fills every text field
+    // with `surfaceContainerLow`, a near-white. The score fields overrode only
+    // the *borders*, so the fill stayed and a white numeral was drawn on a
+    // near-white box — the score was there, at 38 points, and could not be
+    // read. Nothing in the suite noticed, because every assertion about the
+    // score reads its text and text has no colour.
+    /// The `TextField` the `TextFormField` builds, which is where the
+    /// decoration and the text style actually live.
+    TextField fieldOf(WidgetTester tester, Key key) => tester.widget<TextField>(
+          find.descendant(of: find.byKey(key), matching: find.byType(TextField)),
+        );
+
+    Color? fillOf(WidgetTester tester, Key key) {
+      final decoration = fieldOf(tester, key).decoration;
+      return decoration?.filled == true ? decoration?.fillColor : null;
+    }
+
+    Color? inkOf(WidgetTester tester, Key key) =>
+        fieldOf(tester, key).style?.color;
+
+    /// WCAG relative luminance, which is what "these two are far enough apart"
+    /// actually means. Asserting the exact pair would pin the palette; asserting
+    /// the distance pins the property the reader cares about.
+    double luminance(Color c) => c.computeLuminance();
+
+    double contrast(Color a, Color b) {
+      final l1 = luminance(a);
+      final l2 = luminance(b);
+      final hi = l1 > l2 ? l1 : l2;
+      final lo = l1 > l2 ? l2 : l1;
+      return (hi + 0.05) / (lo + 0.05);
+    }
+
+    testWidgets('each numeral stands clear of the tile behind it',
+        (tester) async {
+      await pumpResult(tester, results: FakeResultAdapter());
+      await tester.pumpAndSettle();
+
+      for (final key in [const Key('teamAScore'), const Key('teamBScore')]) {
+        final fill = fillOf(tester, key);
+        final ink = inkOf(tester, key);
+        expect(fill, isNotNull, reason: 'the tile is stated, not inherited');
+        expect(ink, isNotNull);
+        expect(
+          contrast(ink!, fill!),
+          greaterThan(7),
+          reason: 'a score has to be readable at a glance, not merely present',
+        );
+      }
+    });
+
+    testWidgets('the tile is not the one the theme would have given it',
+        (tester) async {
+      await pumpResult(tester, results: FakeResultAdapter());
+      await tester.pumpAndSettle();
+
+      // The field opts out of the app's own input decoration deliberately: that
+      // fill is right on a pale page and wrong on this deep-green row.
+      expect(
+        fillOf(tester, const Key('teamAScore')),
+        isNot(GoColors.surfaceContainerLow),
+      );
+    });
+
+    testWidgets('the team each score belongs to is still named',
+        (tester) async {
+      await pumpResult(tester, results: FakeResultAdapter());
+      await tester.pumpAndSettle();
+
+      // Moved out of the field's own decoration, where it would have been a
+      // white label floating inside a white tile.
+      expect(find.text('Team A'), findsWidgets);
+      expect(find.text('Team B'), findsWidgets);
     });
   });
 
