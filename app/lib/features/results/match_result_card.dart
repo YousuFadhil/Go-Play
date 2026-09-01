@@ -118,9 +118,8 @@ class MatchResultCard extends StatelessWidget {
 
   final MatchResultCardData data;
 
-  static const shareMargin = 40.0;
-  static const shareScale = 1.55;
-  static const sharePitchWidth = 1080.0 - (shareMargin * 2) - (18 * shareScale);
+  static const shareMargin = 42.0;
+  static const sharePitchWidth = 1080.0 - (shareMargin * 2) - 28;
   static const sharePitchHeight = sharePitchWidth / PitchView.aspectRatio;
 
   @override
@@ -142,17 +141,10 @@ class MatchResultCard extends StatelessWidget {
             ),
           ),
           Padding(
-            // Deeper at the ends than the sides: this picture is looked at in a
-            // Story, where the app showing it puts its own furniture across the
-            // top and bottom of the frame.
-            padding: const EdgeInsets.symmetric(horizontal: shareMargin),
+            padding:
+                const EdgeInsets.fromLTRB(shareMargin, 52, shareMargin, 36),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              // Whatever the solve leaves over is spread between the blocks
-              // rather than pooled under the last one, which is what an
-              // earlier version did and why it ended with a band of empty
-              // ground above the signature.
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 MatchStageHeader(
                   community: data.communityName,
@@ -160,11 +152,32 @@ class MatchResultCard extends StatelessWidget {
                   playedAt: data.playedAt,
                   teamAScore: data.teamAScore,
                   teamBScore: data.teamBScore,
-                  scale: shareScale,
+                  share: true,
                 ),
-                _side(l10n.teamAName, TeamId.a, data.of(TeamId.a)),
-                _side(l10n.teamBName, TeamId.b, data.of(TeamId.b)),
-                _Signature(label: l10n.appName, scale: shareScale),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: _side(
+                    l10n.teamAName,
+                    TeamId.a,
+                    data.of(TeamId.a),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: _side(
+                    l10n.teamBName,
+                    TeamId.b,
+                    data.of(TeamId.b),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 60,
+                  child: Align(
+                    alignment: AlignmentDirectional.bottomStart,
+                    child: _Signature(label: l10n.appName),
+                  ),
+                ),
               ],
             ),
           ),
@@ -181,7 +194,8 @@ class MatchResultCard extends StatelessWidget {
       MatchStageSection(
         title: title,
         won: data.winner == team,
-        scale: shareScale,
+        share: true,
+        fill: true,
         child: PitchView(
           assignments: assignments,
           players: data.players,
@@ -193,6 +207,7 @@ class MatchResultCard extends StatelessWidget {
           nameOf: (id) => data.names[id] ?? '—',
           goalsOf: data.hasResult ? data.goalsOf : null,
           isMvpOf: data.hasResult ? data.isMvp : null,
+          presentation: PitchPresentation.share,
         ),
       );
 }
@@ -203,10 +218,9 @@ class MatchResultCard extends StatelessWidget {
 /// On the dark ground the mark and the name are the accent green rather than the
 /// app's `primary`, which does not carry here.
 class _Signature extends StatelessWidget {
-  const _Signature({required this.label, required this.scale});
+  const _Signature({required this.label});
 
   final String label;
-  final double scale;
 
   @override
   Widget build(BuildContext context) {
@@ -215,7 +229,7 @@ class _Signature extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const Divider(height: 1, thickness: 1, color: MatchStage.sectionEdge),
-        SizedBox(height: 14 * scale),
+        const SizedBox(height: 14),
         // The mark and the name are one thing and it reads left to right, so
         // the row is pinned rather than inherited: an Arabic card would
         // otherwise put the triangle after the name and point it backwards.
@@ -223,23 +237,23 @@ class _Signature extends StatelessWidget {
           textDirection: TextDirection.ltr,
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 7 * scale,
-              height: 8 * scale,
-              child: const CustomPaint(painter: _PlayMarkPainter()),
+            const SizedBox(
+              width: 11,
+              height: 12,
+              child: CustomPaint(painter: _PlayMarkPainter()),
             ),
-            SizedBox(width: 6 * scale),
+            const SizedBox(width: 9),
             Text(
               label.toUpperCase(),
               // A name, not a sentence: it reads left to right in both
               // languages, and Latin capitals are the one place tracking is
               // safe.
               textDirection: TextDirection.ltr,
-              style: TextStyle(
+              style: const TextStyle(
                 color: MatchStage.accent,
-                fontSize: 11 * scale,
+                fontSize: 17,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 3 * scale,
+                letterSpacing: 4.5,
                 height: 1.1,
               ),
             ),

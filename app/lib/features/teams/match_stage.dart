@@ -71,7 +71,7 @@ class MatchStageHeader extends StatelessWidget {
     required this.playedAt,
     this.teamAScore,
     this.teamBScore,
-    this.scale = 1,
+    this.share = false,
   });
 
   final String? community;
@@ -84,7 +84,8 @@ class MatchStageHeader extends StatelessWidget {
   final int? teamAScore;
   final int? teamBScore;
 
-  final double scale;
+  /// Uses the fixed 1080 × 1920 export typography instead of phone metrics.
+  final bool share;
 
   bool get _hasResult => teamAScore != null && teamBScore != null;
 
@@ -113,13 +114,13 @@ class MatchStageHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: MatchStage.inkMuted,
-              fontSize: 12 * scale,
+              fontSize: share ? 28 : 11,
               fontWeight: FontWeight.w600,
               height: 1.2,
             ),
           ),
         if (title != null) ...[
-          SizedBox(height: 1 * scale),
+          SizedBox(height: share ? 2 : 0),
           Text(
             title,
             maxLines: 1,
@@ -129,23 +130,23 @@ class MatchStageHeader extends StatelessWidget {
             // breaks the cursive joins.
             style: TextStyle(
               color: MatchStage.ink,
-              fontSize: 20 * scale,
+              fontSize: share ? 52 : 18,
               fontWeight: FontWeight.w800,
               height: 1.1,
             ),
           ),
         ],
         if (playedAt != null) ...[
-          SizedBox(height: 2 * scale),
+          SizedBox(height: share ? 4 : 1),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.calendar_today_outlined,
-                size: 11.5 * scale,
+                size: share ? 23 : 11,
                 color: MatchStage.inkMuted,
               ),
-              SizedBox(width: 5 * scale),
+              SizedBox(width: share ? 10 : 5),
               Flexible(
                 child: Text(
                   DateFormat.yMMMMEEEEd(locale).format(playedAt),
@@ -153,7 +154,7 @@ class MatchStageHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: MatchStage.inkMuted,
-                    fontSize: 12 * scale,
+                    fontSize: share ? 24 : 11,
                     fontWeight: FontWeight.w500,
                     height: 1.2,
                   ),
@@ -163,7 +164,7 @@ class MatchStageHeader extends StatelessWidget {
           ),
         ],
         if (_hasResult) ...[
-          SizedBox(height: 8 * scale),
+          SizedBox(height: share ? 18 : 12),
           _ScoreStrip(
             teamA: l10n.teamAName,
             teamB: l10n.teamBName,
@@ -171,7 +172,7 @@ class MatchStageHeader extends StatelessWidget {
             scoreB: teamBScore!,
             winner: _winner,
             winnerLabel: l10n.matchResultWinnerLabel,
-            scale: scale,
+            share: share,
           ),
         ],
       ],
@@ -198,7 +199,7 @@ class _ScoreStrip extends StatelessWidget {
     required this.scoreB,
     required this.winner,
     required this.winnerLabel,
-    required this.scale,
+    required this.share,
   });
 
   final String teamA;
@@ -207,46 +208,52 @@ class _ScoreStrip extends StatelessWidget {
   final int scoreB;
   final TeamId? winner;
   final String winnerLabel;
-  final double scale;
+  final bool share;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12 * scale),
-        border: Border.all(color: MatchStage.sectionEdge, width: scale),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(
-          // The approved Arabic composition keeps Team A physically left and
-          // Team B physically right. Each Arabic label still shapes RTL.
-          textDirection: TextDirection.ltr,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _StripSide(
-                label: teamA,
-                won: winner == TeamId.a,
-                winnerLabel: winnerLabel,
-                scale: scale,
+    return SizedBox(
+      height: share ? 92 : 72,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(share ? 22 : 14),
+          border: Border.all(
+            color: MatchStage.sectionEdge,
+            width: share ? 2 : 1,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: IntrinsicHeight(
+          child: Row(
+            // The approved Arabic composition keeps Team A physically left and
+            // Team B physically right. Each Arabic label still shapes RTL.
+            textDirection: TextDirection.ltr,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StripSide(
+                  label: teamA,
+                  won: winner == TeamId.a,
+                  winnerLabel: winnerLabel,
+                  share: share,
+                ),
               ),
-            ),
-            _StripScore(
-              scoreA: scoreA,
-              scoreB: scoreB,
-              winner: winner,
-              scale: scale,
-            ),
-            Expanded(
-              child: _StripSide(
-                label: teamB,
-                won: winner == TeamId.b,
-                winnerLabel: winnerLabel,
-                scale: scale,
+              _StripScore(
+                scoreA: scoreA,
+                scoreB: scoreB,
+                winner: winner,
+                share: share,
               ),
-            ),
-          ],
+              Expanded(
+                child: _StripSide(
+                  label: teamB,
+                  won: winner == TeamId.b,
+                  winnerLabel: winnerLabel,
+                  share: share,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -259,13 +266,13 @@ class _StripSide extends StatelessWidget {
     required this.label,
     required this.won,
     required this.winnerLabel,
-    required this.scale,
+    required this.share,
   });
 
   final String label;
   final bool won;
   final String winnerLabel;
-  final double scale;
+  final bool share;
 
   @override
   Widget build(BuildContext context) {
@@ -273,27 +280,27 @@ class _StripSide extends StatelessWidget {
       color: won ? MatchStage.wonFill : MatchStage.restFill,
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 10 * scale,
-          vertical: 7.5 * scale,
+          horizontal: share ? 18 : 10,
+          vertical: share ? 10 : 7,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (won) ...[
-              _WinnerChip(label: winnerLabel, scale: scale),
-              SizedBox(height: 3 * scale),
+              _WinnerChip(label: winnerLabel, share: share),
+              SizedBox(height: share ? 5 : 3),
             ],
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.shield,
-                  size: 17 * scale,
+                  size: share ? 28 : 17,
                   color:
                       MatchStage.inkMuted.withValues(alpha: won ? 0.75 : 0.55),
                 ),
-                SizedBox(width: 7 * scale),
+                SizedBox(width: share ? 12 : 7),
                 Flexible(
                   child: Text(
                     label,
@@ -301,7 +308,7 @@ class _StripSide extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: MatchStage.ink,
-                      fontSize: 12.5 * scale,
+                      fontSize: share ? 24 : 12.5,
                       fontWeight: won ? FontWeight.w700 : FontWeight.w600,
                       height: 1.25,
                     ),
@@ -322,13 +329,13 @@ class _StripScore extends StatelessWidget {
     required this.scoreA,
     required this.scoreB,
     required this.winner,
-    required this.scale,
+    required this.share,
   });
 
   final int scoreA;
   final int scoreB;
   final TeamId? winner;
-  final double scale;
+  final bool share;
 
   @override
   Widget build(BuildContext context) {
@@ -337,10 +344,10 @@ class _StripScore extends StatelessWidget {
           textDirection: TextDirection.ltr,
           style: TextStyle(
             color: won ? MatchStage.accent : MatchStage.ink,
-            fontSize: 26 * scale,
+            fontSize: share ? 62 : 28,
             fontWeight: FontWeight.w800,
             height: 1,
-            letterSpacing: -1 * scale,
+            letterSpacing: share ? -2 : -1,
           ),
         );
 
@@ -348,8 +355,8 @@ class _StripScore extends StatelessWidget {
       color: MatchStage.restFill,
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 14 * scale,
-          vertical: 8 * scale,
+          horizontal: share ? 28 : 14,
+          vertical: share ? 10 : 8,
         ),
         child: Center(
           child: Row(
@@ -358,13 +365,13 @@ class _StripScore extends StatelessWidget {
             children: [
               numeral(scoreA, winner == TeamId.a),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+                padding: EdgeInsets.symmetric(horizontal: share ? 16 : 8),
                 child: Text(
                   '–',
                   textDirection: TextDirection.ltr,
                   style: TextStyle(
                     color: MatchStage.inkMuted,
-                    fontSize: 20 * scale,
+                    fontSize: share ? 46 : 20,
                     fontWeight: FontWeight.w300,
                     height: 1,
                   ),
@@ -381,24 +388,24 @@ class _StripScore extends StatelessWidget {
 
 /// The winner's word. One small pill and nothing else.
 class _WinnerChip extends StatelessWidget {
-  const _WinnerChip({required this.label, required this.scale});
+  const _WinnerChip({required this.label, required this.share});
 
   final String label;
-  final double scale;
+  final bool share;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: 7 * scale,
-        vertical: 1 * scale,
+        horizontal: share ? 14 : 7,
+        vertical: share ? 2 : 1,
       ),
       decoration: BoxDecoration(
         color: MatchStage.accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(Radii.pill),
         border: Border.all(
           color: MatchStage.accent.withValues(alpha: 0.28),
-          width: scale,
+          width: share ? 2 : 1,
         ),
       ),
       child: Text(
@@ -406,7 +413,7 @@ class _WinnerChip extends StatelessWidget {
         maxLines: 1,
         style: TextStyle(
           color: MatchStage.accent,
-          fontSize: 8.5 * scale,
+          fontSize: share ? 18 : 8.5,
           fontWeight: FontWeight.w800,
           height: 1.4,
         ),
@@ -428,14 +435,14 @@ class MatchStageSection extends StatelessWidget {
     required this.title,
     required this.won,
     required this.child,
-    this.scale = 1,
+    this.share = false,
     this.fill = false,
   });
 
   final String title;
   final bool won;
   final Widget child;
-  final double scale;
+  final bool share;
 
   /// Whether the pitch should take whatever height the section is given.
   ///
@@ -450,33 +457,37 @@ class MatchStageSection extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: MatchStage.section,
-        borderRadius: BorderRadius.circular(18 * scale),
+        borderRadius: BorderRadius.circular(share ? 28 : 18),
         border: Border.all(
           color: won
               ? MatchStage.accent.withValues(alpha: 0.24)
               : MatchStage.sectionEdge,
-          width: 1 * scale,
+          width: share ? 2 : 1,
         ),
       ),
-      padding: EdgeInsets.all(8 * scale),
+      padding: EdgeInsets.all(share ? 12 : 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
         children: [
           Padding(
-            padding:
-                EdgeInsets.fromLTRB(4 * scale, 1 * scale, 4 * scale, 6 * scale),
+            padding: EdgeInsets.fromLTRB(
+              share ? 8 : 4,
+              share ? 3 : 1,
+              share ? 8 : 4,
+              share ? 10 : 6,
+            ),
             child: Row(
               children: [
                 Container(
-                  width: 3 * scale,
-                  height: 14 * scale,
+                  width: share ? 6 : 3,
+                  height: share ? 30 : 14,
                   decoration: BoxDecoration(
                     color: won ? MatchStage.accent : MatchStage.inkMuted,
                     borderRadius: BorderRadius.circular(Radii.pill),
                   ),
                 ),
-                SizedBox(width: 8 * scale),
+                SizedBox(width: share ? 14 : 8),
                 Expanded(
                   child: Text(
                     title,
@@ -484,7 +495,7 @@ class MatchStageSection extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: MatchStage.ink,
-                      fontSize: 14.5 * scale,
+                      fontSize: share ? 36 : 14,
                       fontWeight: FontWeight.w800,
                       height: 1.25,
                     ),
@@ -492,22 +503,22 @@ class MatchStageSection extends StatelessWidget {
                 ),
                 if (won)
                   Container(
-                    width: 22 * scale,
-                    height: 22 * scale,
+                    width: share ? 42 : 22,
+                    height: share ? 42 : 22,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: MatchStage.accent.withValues(alpha: 0.10),
                     ),
                     child: Icon(
                       Icons.emoji_events,
-                      size: 13 * scale,
+                      size: share ? 25 : 13,
                       color: MatchStage.accent,
                     ),
                   ),
               ],
             ),
           ),
-          if (fill) Expanded(child: child) else child,
+          if (fill) Expanded(child: Center(child: child)) else child,
         ],
       ),
     );

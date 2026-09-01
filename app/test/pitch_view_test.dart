@@ -569,9 +569,16 @@ void main() {
       expect(PitchView.aspectRatio, inInclusiveRange(1.85, 1.95));
 
       final avatar = tester.getSize(find.byType(CircleAvatar));
-      expect(avatar.width, inInclusiveRange(72, 76));
+      expect(avatar.width, inInclusiveRange(54, 58));
       expect(avatar.height, avatar.width);
-      expect(PitchView.avatarDiameterFraction, 0.10);
+      expect(PitchView.screenAvatarDiameter, 56);
+
+      final name = tester.widget<Text>(find.text('Player m1'));
+      final rating = tester.widget<Text>(find.text('6.0'));
+      expect(name.style!.fontSize, 14);
+      expect(name.maxLines, 1);
+      expect(name.overflow, TextOverflow.ellipsis);
+      expect(rating.style!.fontSize, 11);
     });
 
     testWidgets('a 2 v 2 side draws without a goalkeeper row', (tester) async {

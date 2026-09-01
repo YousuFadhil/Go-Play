@@ -316,6 +316,10 @@ void main() {
         expect(size.height, closeTo(MatchResultCard.sharePitchHeight, 0.01));
         expect(size.width / size.height, closeTo(PitchView.aspectRatio, 0.001));
       }
+
+      for (final avatar in find.byType(CircleAvatar).evaluate()) {
+        expect(tester.getSize(find.byWidget(avatar.widget)).width, 82);
+      }
     });
 
     testWidgets('composes at the format the engine promises', (tester) async {

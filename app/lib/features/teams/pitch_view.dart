@@ -7,6 +7,8 @@ import 'match_stage.dart';
 import 'formation.dart';
 import 'team_models.dart';
 
+enum PitchPresentation { screen, share }
+
 /// One team drawn on a pitch rather than listed.
 ///
 /// The rows run the way a team sheet is read: attack at the top, midfield in the
@@ -29,14 +31,15 @@ class PitchView extends StatelessWidget {
     this.onTapPlayer,
     this.goalsOf,
     this.isMvpOf,
+    this.presentation = PitchPresentation.screen,
   });
 
   /// Fixed approved geometry. The page scrolls; the pitch never stretches to
   /// absorb formation rows.
   static const aspectRatio = 1.9;
-  static const avatarDiameterFraction = 0.10;
-  static const minAvatarDiameter = 34.0;
-  static const maxAvatarDiameter = 76.0;
+  static const screenAvatarDiameter = 56.0;
+  static const narrowScreenAvatarDiameter = 54.0;
+  static const shareAvatarDiameter = 82.0;
 
   /// This team's stored assignments, in any order.
   final List<TeamAssignment> assignments;
@@ -72,6 +75,7 @@ class PitchView extends StatelessWidget {
   /// this widget has no business learning what a `MatchResult` is.
   final int Function(String participantId)? goalsOf;
   final bool Function(String participantId)? isMvpOf;
+  final PitchPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
@@ -97,12 +101,11 @@ class PitchView extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.md),
         child: LayoutBuilder(
           builder: (context, box) {
-            final avatarDiameter =
-                (box.maxWidth * avatarDiameterFraction).clamp(
-              minAvatarDiameter,
-              maxAvatarDiameter,
-            );
-            final playerScale = avatarDiameter / 36;
+            final avatarDiameter = presentation == PitchPresentation.share
+                ? shareAvatarDiameter
+                : box.maxWidth < 360
+                    ? narrowScreenAvatarDiameter
+                    : screenAvatarDiameter;
 
             return CustomPaint(
               painter: const _PitchPainter(
@@ -130,7 +133,8 @@ class PitchView extends StatelessWidget {
                           onTapPlayer: onTapPlayer,
                           goalsOf: goalsOf,
                           isMvpOf: isMvpOf,
-                          scale: playerScale,
+                          avatarDiameter: avatarDiameter,
+                          presentation: presentation,
                         ),
                       ),
                     ),
@@ -238,7 +242,8 @@ class _PitchRow extends StatelessWidget {
     required this.onTapPlayer,
     this.goalsOf,
     this.isMvpOf,
-    required this.scale,
+    required this.avatarDiameter,
+    required this.presentation,
   });
 
   final List<TeamAssignment> line;
@@ -253,12 +258,15 @@ class _PitchRow extends StatelessWidget {
 
   final int Function(String participantId)? goalsOf;
   final bool Function(String participantId)? isMvpOf;
-  final double scale;
+  final double avatarDiameter;
+  final PitchPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 5 * scale),
+      padding: EdgeInsets.symmetric(
+        horizontal: presentation == PitchPresentation.share ? 10 : 4,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +280,8 @@ class _PitchRow extends StatelessWidget {
                 movedFrom: movedFrom[assignment.participantId],
                 goals: goalsOf?.call(assignment.participantId) ?? 0,
                 isMvp: isMvpOf?.call(assignment.participantId) ?? false,
-                scale: scale,
+                avatarDiameter: avatarDiameter,
+                presentation: presentation,
                 onTap:
                     onTapPlayer == null ? null : () => onTapPlayer!(assignment),
               ),
@@ -311,7 +320,8 @@ class PlayerCard extends StatelessWidget {
     this.onTap,
     this.goals = 0,
     this.isMvp = false,
-    this.scale = 1,
+    required this.avatarDiameter,
+    required this.presentation,
   });
 
   final TeamAssignment assignment;
@@ -342,8 +352,8 @@ class PlayerCard extends StatelessWidget {
   final int goals;
   final bool isMvp;
 
-  /// How much larger than the phone this card is drawn. See [PitchView.scale].
-  final double scale;
+  final double avatarDiameter;
+  final PitchPresentation presentation;
 
   final VoidCallback? onTap;
 
@@ -353,18 +363,16 @@ class PlayerCard extends StatelessWidget {
     final avatarUrl = player?.avatarUrl;
     final isGuest = assignment.isProfessionalGuest;
 
-    // Wider than it was: the approved direction puts the player first, and a
-    // recognisable face needs the room. Every measurement below is a multiple of
-    // the same avatar radius, so the card holds its proportions at any scale.
-    final radius = 18.0 * scale;
+    final isShare = presentation == PitchPresentation.share;
+    final radius = avatarDiameter / 2;
 
     // The ink is there only where there is something to tap. A card with no
     // `onTap` is a card in a picture, and an `InkWell` there wants a `Material`
     // ancestor a share card has no reason to carry.
     final body = Padding(
       padding: EdgeInsets.symmetric(
-        vertical: 2 * scale,
-        horizontal: 2 * scale,
+        vertical: isShare ? 2 : 1,
+        horizontal: isShare ? 4 : 2,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -393,7 +401,7 @@ class PlayerCard extends StatelessWidget {
               size: radius,
             ),
           ),
-          SizedBox(height: 3 * scale),
+          SizedBox(height: isShare ? 4 : 2),
           // The name, and the star beside it.
           //
           // **Inline, because the star belongs to the player and not to a
@@ -414,7 +422,7 @@ class PlayerCard extends StatelessWidget {
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
-                    fontSize: 11.5 * scale,
+                    fontSize: isShare ? 28 : 14,
                     height: 1.25,
                     // A hard shadow, so a pale name stays readable over a
                     // pale stripe without darkening the pitch for everyone.
@@ -425,10 +433,10 @@ class PlayerCard extends StatelessWidget {
                 ),
               ),
               if (isMvp) ...[
-                SizedBox(width: 3 * scale),
+                SizedBox(width: isShare ? 6 : 3),
                 Icon(
                   Icons.star_rounded,
-                  size: 14 * scale,
+                  size: isShare ? 30 : 16,
                   color: MatchStage.star,
                   shadows: const [
                     Shadow(blurRadius: 2, color: Color(0x99000000)),
@@ -444,14 +452,14 @@ class PlayerCard extends StatelessWidget {
               textDirection: TextDirection.ltr,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.85),
-                fontSize: 10.5 * scale,
-                height: 1.3,
+                fontSize: isShare ? 22 : 11,
+                height: 1.15,
               ),
             ),
           // What this player scored, under the rating: a number among
           // numbers. Drawn only where there is one — a tally of zero is the
           // absence of a badge, not a badge of none.
-          if (goals > 0) _GoalBadge(goals: goals, scale: scale),
+          if (goals > 0) _GoalBadge(goals: goals, presentation: presentation),
           // What this player's position actually is, when the drawing has
           // put them somewhere else. The card carries no position text
           // otherwise — the row it sits in is what says it — so without
@@ -466,12 +474,12 @@ class PlayerCard extends StatelessWidget {
     );
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 86 * scale),
+      constraints: BoxConstraints(maxWidth: isShare ? 190 : 92),
       child: onTap == null
           ? body
           : InkWell(
               onTap: onTap,
-              borderRadius: BorderRadius.circular(Radii.sm * scale),
+              borderRadius: BorderRadius.circular(isShare ? 16 : Radii.sm),
               child: body,
             ),
     );
@@ -487,28 +495,32 @@ class PlayerCard extends StatelessWidget {
 ///
 /// The star is not here — it sits beside the name, where the player is.
 class _GoalBadge extends StatelessWidget {
-  const _GoalBadge({required this.goals, required this.scale});
+  const _GoalBadge({required this.goals, required this.presentation});
 
   final int goals;
-  final double scale;
+  final PitchPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final isShare = presentation == PitchPresentation.share;
 
     return Semantics(
       label: l10n.goalsScoredLabel(goals),
       excludeSemantics: true,
       child: Container(
-        margin: EdgeInsets.only(top: 2 * scale),
+        height: isShare ? 34 : 20,
+        margin: EdgeInsets.only(top: isShare ? 4 : 2),
         padding: EdgeInsets.symmetric(
-          horizontal: 5.5 * scale,
-          vertical: 0.75 * scale,
+          horizontal: isShare ? 12 : 6,
         ),
         decoration: BoxDecoration(
           color: MatchStage.badge,
           borderRadius: BorderRadius.circular(Radii.pill),
-          border: Border.all(color: MatchStage.badgeEdge, width: 1),
+          border: Border.all(
+            color: MatchStage.badgeEdge,
+            width: isShare ? 2 : 1,
+          ),
         ),
         child: Row(
           textDirection: TextDirection.ltr,
@@ -519,15 +531,15 @@ class _GoalBadge extends StatelessWidget {
               textDirection: TextDirection.ltr,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 10 * scale,
+                fontSize: isShare ? 22 : 11,
                 fontWeight: FontWeight.w800,
                 height: 1.3,
               ),
             ),
-            SizedBox(width: 3 * scale),
+            SizedBox(width: isShare ? 6 : 3),
             Icon(
               Icons.sports_soccer,
-              size: 9.5 * scale,
+              size: isShare ? 20 : 10,
               color: Colors.white.withValues(alpha: 0.88),
             ),
           ],

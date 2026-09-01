@@ -470,10 +470,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // nothing else about the screen changes.
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            kPageMargin,
+            20,
             Gap.sm,
-            kPageMargin,
-            12,
+            20,
+            14,
           ),
           child: MatchStageHeader(
             community: view.match.communityName,
@@ -483,8 +483,20 @@ class _TeamsScreenState extends State<TeamsScreen> {
             teamBScore: view.result?.teamBScore,
           ),
         ),
-        ..._teamSection(l10n, view, l10n.teamAName, TeamId.a),
-        ..._teamSection(l10n, view, l10n.teamBName, TeamId.b),
+        ..._teamSection(
+          l10n,
+          view,
+          l10n.teamAName,
+          TeamId.a,
+          bottomGap: 16,
+        ),
+        ..._teamSection(
+          l10n,
+          view,
+          l10n.teamBName,
+          TeamId.b,
+          bottomGap: 20,
+        ),
         if (view.canEditPlayed) ...[
           const Divider(height: 32),
           ..._addPlayerAction(l10n, view),
@@ -578,8 +590,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
     AppLocalizations l10n,
     _TeamsView view,
     String title,
-    TeamId team,
-  ) {
+    TeamId team, {
+    required double bottomGap,
+  }) {
     final assignments = [
       for (final assignment in view.lineup)
         if (assignment.team == team) assignment,
@@ -592,7 +605,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // a detached pitch.
     return [
       Padding(
-        padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, 10),
+        padding: EdgeInsets.fromLTRB(20, 0, 20, bottomGap),
         child: MatchStageSection(
           title: title,
           won: won,
