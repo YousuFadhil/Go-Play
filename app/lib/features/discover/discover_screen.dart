@@ -11,7 +11,6 @@ import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
 import '../communities/community_details_screen.dart';
-import '../communities/community_models.dart';
 import '../communities/community_repository.dart';
 import '../communities/create_community_screen.dart';
 import '../communities/join_community_flow.dart';
@@ -135,7 +134,19 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   /// history views at all — Cycle 2 granted them to `authenticated` and to
   /// nobody else — so for a signed-out reader there is no future here to fail,
   /// and no repository constructed to fail it with.
-  Future<_SignedInFeed>? _signedInFuture;
+  /// Which communities the reader has joined. Null for a guest.
+  ///
+  /// **Separate from the football read, and that separation is the point.**
+  /// The two used to travel in one `Future.wait`, which meant a failure in
+  /// Latest Results resolved to a feed with no memberships in it -- and a real
+  /// member was then routed as a non-member, into the football view, because
+  /// the history of somebody else's matches had not loaded. Membership is a
+  /// fact about the reader; whether a list of results arrived is not, and the
+  /// one must not be able to overwrite the other.
+  Future<Set<String>>? _membershipFuture;
+
+  /// What has just been played. Null for a guest.
+  Future<_LatestResults>? _resultsFuture;
 
   @override
   void initState() {
@@ -147,42 +158,44 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   void _load() {
     _future = _repository.fetchOverview();
-    _signedInFuture = _signedIn ? _loadSignedIn() : null;
+    // A guest calls neither. There is no membership to have and no football
+    // history they may read, so nothing is constructed to ask with.
+    _membershipFuture = _signedIn ? _loadMembership() : null;
+    _resultsFuture = _signedIn ? _loadResults() : null;
   }
 
-  /// The two reads a signed-in reader adds: what has just been played, and
-  /// which communities they are already in.
+  /// The reader's joined communities, once per screen load.
   ///
-  /// Joined communities are fetched **once per screen load**, not once per card.
-  /// Membership decides where a card navigates, and asking that question per
-  /// card would be one round trip per row for an answer that does not change
-  /// while the list is on screen. `fetchMyCommunities` already answers it in a
-  /// single read, so no database object was added to support this.
-  Future<_SignedInFeed> _loadSignedIn() async {
+  /// One read for the whole list, not one per card: membership decides where a
+  /// card navigates and does not change while the list is on screen, and
+  /// `fetchMyCommunities` already answers it in a single request. No database
+  /// object was added to support this.
+  ///
+  /// A failure here falls back to the empty set, which routes every card as a
+  /// non-member. That is the conservative direction -- it sends nobody into a
+  /// screen that would refuse them -- and it is the *only* thing that may
+  /// produce it.
+  Future<Set<String>> _loadMembership() async {
+    try {
+      final communities = widget.communityRepository ??
+          (_communities ??= CommunityRepository());
+      return {for (final c in await communities.fetchMyCommunities()) c.id};
+    } catch (_) {
+      return const <String>{};
+    }
+  }
+
+  /// The football half, failing alone.
+  Future<_LatestResults> _loadResults() async {
     try {
       final football = widget.footballRepository ?? FootballRepository();
-      final communities =
-          widget.communityRepository ?? (_communities ??= CommunityRepository());
-      final results = await Future.wait([
-        football.fetchCompletedMatches(limit: 5),
-        communities.fetchMyCommunities(),
-      ]);
-      return _SignedInFeed(
-        results: results[0] as List<CompletedMatch>,
-        joinedCommunityIds: {
-          for (final c in results[1] as List<Community>) c.id,
-        },
-      );
+      return _LatestResults(await football.fetchCompletedMatches(limit: 5));
     } catch (_) {
-      // A failure here is a value, not a rejection, and that is deliberate.
-      //
-      // This future is created in `initState`, before any `FutureBuilder` has
-      // attached to it, so a rejection would escape as an unhandled async error
-      // before anything could render it. Returning a failed *feed* keeps the
-      // section's failure inside the section: the two builders below read it,
-      // Latest Results shows its own error state, and the public content on
-      // either side of it is untouched.
-      return const _SignedInFeed.failed();
+      // A failure here is a value rather than a rejection: this future is
+      // created in `initState`, before any `FutureBuilder` has attached, so a
+      // rejection would escape as an unhandled async error before anything
+      // could render it.
+      return const _LatestResults.failed();
     }
   }
 
@@ -389,9 +402,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                                   // and below it has already arrived and must
                                   // not disappear because authenticated
                                   // history did not.
-                                  if (_signedInFuture != null)
+                                  if (_resultsFuture != null)
                                     _FootballFeed(
-                                      future: _signedInFuture!,
+                                      future: _resultsFuture!,
                                       onOpen: _openCompletedMatch,
                                     ),
                                   ..._communitiesSection(l10n, overview),
@@ -434,7 +447,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       else
         for (final match in overview.matches)
           _MembershipAware(
-            future: _signedInFuture,
+            future: _membershipFuture,
             communityId: match.communityId,
             builder: (isMember) => PublicMatchCard(
               match: match,
@@ -463,7 +476,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       else
         for (final community in overview.communities)
           _MembershipAware(
-            future: _signedInFuture,
+            future: _membershipFuture,
             communityId: community.id,
             builder: (isMember) => PublicCommunityCard(
               community: community,
@@ -476,35 +489,21 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 }
 
-/// What a signed-in reader's Discover adds to the public page.
+/// The football half of a signed-in reader's Discover.
 ///
-/// Two facts from one load: what has just been played, and which communities
-/// this reader is already in. They travel together because both are needed
-/// before a single card can decide where it navigates, and splitting them would
-/// mean two loading states for one section of the page.
-class _SignedInFeed {
-  const _SignedInFeed({
-    required this.results,
-    required this.joinedCommunityIds,
-  }) : failed = false;
+/// Deliberately carries results and nothing else. It used to carry membership
+/// too, and that coupling was the defect: a failed football read produced an
+/// empty membership set, and a member was routed as a stranger to their own
+/// community.
+class _LatestResults {
+  const _LatestResults(this.matches) : failed = false;
 
-  /// The football read did not come back.
-  ///
-  /// Membership is unknown in this state, so every card is built as a
-  /// non-member — the reading that sends nobody into a screen that would
-  /// refuse them.
-  const _SignedInFeed.failed()
-      : results = const [],
-        joinedCommunityIds = const {},
+  const _LatestResults.failed()
+      : matches = const [],
         failed = true;
 
+  final List<CompletedMatch> matches;
   final bool failed;
-
-  final List<CompletedMatch> results;
-
-  /// Read once per screen load. Membership decides where a card goes, and the
-  /// answer does not change while the list is on screen.
-  final Set<String> joinedCommunityIds;
 }
 
 /// Latest Results: the signed-in section, and its own failure.
@@ -519,14 +518,14 @@ class _SignedInFeed {
 class _FootballFeed extends StatelessWidget {
   const _FootballFeed({required this.future, required this.onOpen});
 
-  final Future<_SignedInFeed> future;
+  final Future<_LatestResults> future;
   final void Function(CompletedMatch) onOpen;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return FutureBuilder<_SignedInFeed>(
+    return FutureBuilder<_LatestResults>(
       future: future,
       builder: (context, snapshot) {
         final header = DiscoverSectionHeader(
@@ -570,7 +569,7 @@ class _FootballFeed extends StatelessWidget {
           );
         }
 
-        final results = snapshot.data!.results;
+        final results = snapshot.data!.matches;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -608,7 +607,12 @@ class _MembershipAware extends StatelessWidget {
     required this.builder,
   });
 
-  final Future<_SignedInFeed>? future;
+  /// The reader's joined communities. Null for a guest.
+  ///
+  /// This is the *only* input to the decision. Whether Latest Results loaded
+  /// cannot reach it, which is what stops a football failure from demoting a
+  /// member.
+  final Future<Set<String>>? future;
   final String communityId;
   final Widget Function(bool isMember) builder;
 
@@ -617,11 +621,10 @@ class _MembershipAware extends StatelessWidget {
     final pending = future;
     if (pending == null) return builder(false);
 
-    return FutureBuilder<_SignedInFeed>(
+    return FutureBuilder<Set<String>>(
       future: pending,
-      builder: (context, snapshot) => builder(
-        snapshot.data?.joinedCommunityIds.contains(communityId) ?? false,
-      ),
+      builder: (context, snapshot) =>
+          builder(snapshot.data?.contains(communityId) ?? false),
     );
   }
 }

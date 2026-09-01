@@ -6,11 +6,11 @@ import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../../core/tokens.dart';
 import '../communities/community_repository.dart';
+import '../communities/community_details_screen.dart';
 import '../communities/join_community_flow.dart';
 import '../discover/discover_models.dart';
 import '../discover/discover_repository.dart';
 import '../discover/discover_widgets.dart';
-import '../matches/match_details_screen.dart';
 import '../profile/player_identity.dart';
 import 'football_match_screen.dart';
 import 'football_models.dart';
@@ -129,13 +129,28 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
   /// Joining is the one write this screen offers, and it is not this screen's
   /// to define: the shared flow asks for the code when the server says one is
   /// needed, which is how a CODE_REQUIRED community stays code-required.
+  ///
+  /// On success the reader is a member, and this screen is the wrong one for
+  /// them: it is the non-member view, and it would go on offering a Join button
+  /// for a community they have just joined. So it is **replaced** rather than
+  /// refreshed — replaced rather than pushed, so Back does not return to a
+  /// stale page that describes a membership state that has ended.
+  ///
+  /// A cancelled or failed join changes nothing and leaves the reader here.
   Future<void> _join() async {
+    final navigator = Navigator.of(context);
     final joined = await runJoinCommunity(
       context,
       repository: _communities,
       communityId: widget.communityId,
     );
-    if (joined && mounted) _refresh();
+    if (!joined || !mounted) return;
+
+    await navigator.pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => CommunityDetailsScreen(communityId: widget.communityId),
+      ),
+    );
   }
 
   Future<void> _openMatch(String matchId) => Navigator.of(context).push(
@@ -143,17 +158,6 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
           builder: (_) => FootballMatchScreen(matchId: matchId),
         ),
       );
-
-  /// An upcoming match still belongs to a community this reader is not in, so
-  /// the member screen would refuse it. It explains that refusal and offers the
-  /// way in, which is the right destination for somebody looking at a fixture
-  /// they cannot yet join.
-  Future<void> _openUpcoming(PublicMatch match) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => MatchDetailsScreen(matchId: match.id)),
-    );
-    if (mounted) _refresh();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -262,11 +266,18 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
           )
         else
           for (final match in details.matches)
+            // The card shows what a fixture is; the action is the way in.
+            //
+            // It used to push `MatchDetailsScreen`, which is membership-gated
+            // and would have refused this reader — sending somebody from a
+            // read-only screen into a wall. There is no public upcoming-match
+            // detail screen and this cycle does not add one, so the useful
+            // offer is the one thing that would change the answer: joining.
             PublicMatchCard(
               match: match,
               showCommunityName: false,
-              actionLabel: l10n.viewMatchAction,
-              onAction: () => _openUpcoming(match),
+              actionLabel: l10n.joinCommunityButton,
+              onAction: _join,
             ),
       ];
 

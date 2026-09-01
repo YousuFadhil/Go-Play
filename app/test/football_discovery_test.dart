@@ -5,6 +5,7 @@ import 'package:go_play/features/communities/community_adapter.dart';
 import 'package:go_play/features/communities/community_details_screen.dart';
 import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/communities/community_repository.dart';
+import 'package:go_play/core/failures.dart';
 import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
@@ -15,6 +16,7 @@ import 'package:go_play/features/football/football_community_screen.dart';
 import 'package:go_play/features/football/football_match_screen.dart';
 import 'package:go_play/features/football/football_models.dart';
 import 'package:go_play/features/football/football_repository.dart';
+import 'package:go_play/features/matches/match_details_screen.dart';
 import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/teams/match_stage.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
@@ -108,7 +110,8 @@ void main() {
         home: home,
       );
 
-  Future<_FakeFootballAdapter> pumpDiscover(
+  Future<({_FakeFootballAdapter football, _JoinedAdapter communities})>
+      pumpDiscover(
     WidgetTester tester, {
     required bool signedIn,
     List<CompletedMatch> results = const [],
@@ -116,6 +119,7 @@ void main() {
     List<PublicCommunity> communities = const [],
     List<String> joined = const [],
     Object? footballFailure,
+    Object? membershipFailure,
     Object? publicFailure,
     List<NavigatorObserver> observers = const [],
   }) async {
@@ -128,7 +132,8 @@ void main() {
       results: results,
       failure: footballFailure,
     );
-    final communitiesPort = _JoinedAdapter(joined);
+    final communitiesPort =
+        _JoinedAdapter(joined, failure: membershipFailure);
 
     await tester.pumpWidget(wrap(DiscoverScreen(
       repository: DiscoverRepository(_FakeDiscoverAdapter(
@@ -141,14 +146,14 @@ void main() {
       communityRepository: CommunityRepository(communitiesPort),
     ), observers: observers));
     await tester.pumpAndSettle();
-    return football;
+    return (football: football, communities: communitiesPort);
   }
 
   // --------------------------------------------------------------------------
   group('a guest never reaches authenticated football', () {
     testWidgets('Discover does not call the football repository',
         (tester) async {
-      final football = await pumpDiscover(
+      final ports = await pumpDiscover(
         tester,
         signedIn: false,
         matches: [upcoming('m1')],
@@ -156,9 +161,11 @@ void main() {
         results: [completed('p1')],
       );
 
-      expect(football.completedCalls, 0,
+      expect(ports.football.completedCalls, 0,
           reason: 'Cycle 2 granted football history to authenticated only; a '
               'guest must not ask for it at all');
+      expect(ports.communities.myCommunitiesCalls, 0,
+          reason: 'a guest has no membership to have, so nothing asks');
     });
 
     testWidgets('and still gets Upcoming and Communities', (tester) async {
@@ -302,7 +309,7 @@ void main() {
       );
 
       await tester.tap(target);
-      await tester.pump();
+      await tester.idle();
       return routes.lastPushedWidget(tester);
     }
 
@@ -397,9 +404,96 @@ void main() {
       );
 
       await tester.tap(find.text('Friday night'));
-      await tester.pump();
+      await tester.idle();
 
       expect(routes.lastPushedWidget(tester), isA<FootballMatchScreen>());
+    });
+  });
+
+
+  // ==========================================================================
+  // The defect this correction exists for: membership and football history are
+  // two different facts, loaded independently. A failed football read used to
+  // resolve to a feed with no memberships in it, and a member was then routed
+  // as a stranger to their own community.
+  // ==========================================================================
+  group('membership survives a football failure', () {
+    testWidgets('a member is still a member when Latest Results fails',
+        (tester) async {
+      final routes = _RouteRecorder();
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        communities: [community('c1', 'Muscat United')],
+        joined: const ['c1'],
+        footballFailure: StateError('football offline'),
+        observers: [routes],
+      );
+
+      // The section reports its own failure...
+      expect(find.textContaining('Could not load recent football'),
+          findsOneWidget);
+
+      // ...and the member is still routed to their own community.
+      await tester.tap(find.text('View community'));
+      await tester.idle();
+      expect(routes.lastPushedWidget(tester), isA<CommunityDetailsScreen>(),
+          reason: 'a football failure must not demote a member');
+    });
+
+    testWidgets('their upcoming match still opens member match details',
+        (tester) async {
+      final routes = _RouteRecorder();
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        matches: [upcoming('m1', communityId: 'c1')],
+        joined: const ['c1'],
+        footballFailure: StateError('football offline'),
+        observers: [routes],
+      );
+
+      await tester.tap(find.text('View match'));
+      await tester.idle();
+      expect(routes.lastPushedWidget(tester), isA<MatchDetailsScreen>(),
+          reason: 'the football read failing says nothing about membership');
+    });
+
+    testWidgets('a membership failure is the only thing that falls back',
+        (tester) async {
+      final routes = _RouteRecorder();
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        communities: [community('c1', 'Muscat United')],
+        joined: const ['c1'],
+        membershipFailure: StateError('membership offline'),
+        results: [completed('p1')],
+        observers: [routes],
+      );
+
+      // Discover survives it...
+      expect(find.text('Communities'), findsWidgets);
+      expect(find.text('Latest results'), findsOneWidget);
+
+      // ...and falls back conservatively, sending nobody into a screen that
+      // would refuse them.
+      await tester.tap(find.text('View community'));
+      await tester.idle();
+      expect(routes.lastPushedWidget(tester), isA<FootballCommunityScreen>());
+    });
+
+    testWidgets('the two reads are issued separately', (tester) async {
+      final ports = await pumpDiscover(
+        tester,
+        signedIn: true,
+        joined: const ['c1'],
+        footballFailure: StateError('football offline'),
+      );
+
+      expect(ports.communities.myCommunitiesCalls, 1,
+          reason: 'membership is read once per screen load, and its own read');
+      expect(ports.football.completedCalls, 1);
     });
   });
 
@@ -533,7 +627,7 @@ void main() {
       expect(find.text('Guest Striker'), findsOneWidget);
 
       await tester.tap(find.text('Guest Striker'));
-      await tester.pump();
+      await tester.idle();
 
       expect(routes.pushes, isEmpty,
           reason: 'a guest has no account and therefore no profile');
@@ -548,7 +642,7 @@ void main() {
       );
 
       await tester.tap(find.text('Salim Al Harthy'));
-      await tester.pump();
+      await tester.idle();
 
       expect(routes.lastPushedWidget(tester), isA<ProfileScreen>());
     });
@@ -587,6 +681,8 @@ void main() {
       List<CommunityPlayerStats> players = const [],
       CommunityFootballStats? stats,
       Object? footballFailure,
+      JoinCommunityOutcome joinOutcome = const NeedsJoinCode(),
+      List<NavigatorObserver> observers = const [],
     }) async {
       tester.view.physicalSize = const Size(900, 3200);
       tester.view.devicePixelRatio = 1.0;
@@ -605,8 +701,9 @@ void main() {
           stats: stats,
           failure: footballFailure,
         )),
-        communityRepository: CommunityRepository(_JoinedAdapter(const [])),
-      )));
+        communityRepository:
+            CommunityRepository(_JoinedAdapter(const [], join: joinOutcome)),
+      ), observers: observers));
       await tester.pumpAndSettle();
     }
 
@@ -642,6 +739,60 @@ void main() {
       expect(find.textContaining('Join code'), findsNothing);
       expect(find.byKey(const Key('footballCommunityJoin')), findsOneWidget,
           reason: 'joining still goes through the existing flow');
+    });
+
+    // The upcoming-match action used to push `MatchDetailsScreen`, which is
+    // membership-gated and would have refused this very reader. The useful
+    // offer is the one thing that changes the answer.
+    testWidgets('an upcoming match offers the way in, not a refused screen',
+        (tester) async {
+      final routes = _RouteRecorder();
+      await pumpCommunity(tester, observers: [routes]);
+
+      // Two of them: the hero's, and the upcoming-match card's. The card's
+      // action used to read "View match" and push a screen that would refuse
+      // this reader.
+      expect(find.text('Join'), findsNWidgets(2));
+      expect(find.text('View match'), findsNothing);
+
+      await tester.tap(find.text('Join').last);
+      await tester.idle();
+
+      expect(routes.lastPushedWidget(tester), isNot(isA<MatchDetailsScreen>()),
+          reason: 'a read-only screen must not lead into a membership wall');
+    });
+
+    testWidgets('a successful join replaces this screen with the member one',
+        (tester) async {
+      final routes = _RouteRecorder();
+      await pumpCommunity(
+        tester,
+        joinOutcome: const JoinedCommunity('c1'),
+        observers: [routes],
+      );
+
+      await tester.tap(find.byKey(const Key('footballCommunityJoin')));
+      await tester.pumpAndSettle();
+
+      expect(routes.replacedWith(tester), isA<CommunityDetailsScreen>(),
+          reason: 'the reader is a member now; this screen describes a state '
+              'that has ended, and Back must not return to it');
+    });
+
+    testWidgets('a refused join leaves the read-only screen in place',
+        (tester) async {
+      final routes = _RouteRecorder();
+      await pumpCommunity(
+        tester,
+        joinOutcome: const NeedsJoinCode(),
+        observers: [routes],
+      );
+
+      await tester.tap(find.byKey(const Key('footballCommunityJoin')));
+      await tester.pumpAndSettle();
+
+      expect(routes.replacements, isEmpty);
+      expect(find.byType(FootballCommunityScreen), findsOneWidget);
     });
 
     testWidgets('a football failure leaves the public half standing',
@@ -793,20 +944,39 @@ class _FakeFootballAdapter implements FootballAdapter {
 }
 
 class _JoinedAdapter implements CommunityAdapter {
-  _JoinedAdapter(this.joinedIds);
+  _JoinedAdapter(this.joinedIds, {this.failure, this.join});
 
   final List<String> joinedIds;
+  final Object? failure;
+
+  /// What `joinCommunity` resolves to. `JoinedCommunity` is the success path the
+  /// replacement navigation hangs off; anything else leaves the reader put.
+  final JoinCommunityOutcome? join;
+
+  var myCommunitiesCalls = 0;
 
   @override
-  Future<List<Community>> fetchMyCommunities() async => [
-        for (final id in joinedIds)
-          Community(
-            id: id,
-            ownerId: 'owner',
-            name: 'Joined $id',
-            joinPolicy: JoinPolicy.open,
-          ),
-      ];
+  Future<List<Community>> fetchMyCommunities() async {
+    myCommunitiesCalls++;
+    if (failure != null) throw failure!;
+    return [
+      for (final id in joinedIds)
+        Community(
+          id: id,
+          ownerId: 'owner',
+          name: 'Joined $id',
+          joinPolicy: JoinPolicy.open,
+        ),
+    ];
+  }
+
+  @override
+  Future<String> joinCommunity(String communityId) async {
+    if (join is JoinedCommunity) return communityId;
+    // The repository turns this into `NeedsJoinCode`, which is the refusal the
+    // shared flow words for itself.
+    throw const ValidationFailure(FailureReason.joinCodeRequired);
+  }
 
   @override
   Future<List<Community>> fetchAllCommunities() => throw UnimplementedError();
@@ -819,9 +989,6 @@ class _JoinedAdapter implements CommunityAdapter {
     String? description,
     required JoinPolicy joinPolicy,
   }) =>
-      throw UnimplementedError();
-  @override
-  Future<String> joinCommunity(String communityId) =>
       throw UnimplementedError();
   @override
   Future<String> joinCommunityByCode(String code) => throw UnimplementedError();
@@ -932,12 +1099,27 @@ class _StubAuth implements AuthAdapter {
 /// widget test has not initialised.
 class _RouteRecorder extends NavigatorObserver {
   final pushes = <Route<dynamic>>[];
+  final replacements = <Route<dynamic>>[];
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     // The initial route is not a navigation any test made.
     if (route.settings.name != '/') pushes.add(route);
     super.didPush(route, previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    if (newRoute != null) replacements.add(newRoute);
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+  }
+
+  /// The widget a `pushReplacement` put in place, without mounting it.
+  Widget? replacedWith(WidgetTester tester) {
+    if (replacements.isEmpty) return null;
+    final route = replacements.last;
+    if (route is! MaterialPageRoute) return null;
+    return route.builder(tester.element(find.byType(Navigator).first));
   }
 
   Widget? lastPushedWidget(WidgetTester tester) {
