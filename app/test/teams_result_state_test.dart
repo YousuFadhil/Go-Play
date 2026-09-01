@@ -155,8 +155,10 @@ void main() {
     testWidgets('both lineups are drawn as they always were', (tester) async {
       await pumpTeams(tester, match: upcomingMatch());
 
-      expect(find.text('Team A (2)'), findsOneWidget);
-      expect(find.text('Team B (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
+      expect(find.text('Team B'), findsOneWidget);
+      expect(find.text('Team A (2)'), findsNothing);
+      expect(find.text('Team B (2)'), findsNothing);
       expect(find.byType(PitchView), findsNWidgets(2));
       final pitchSizes = tester
           .widgetList<AspectRatio>(
@@ -193,6 +195,16 @@ void main() {
       expect(find.byIcon(Icons.ios_share), findsOneWidget);
       // And nowhere else: no bottom call to action anywhere on the screen.
       expect(find.text('Share the lineup'), findsNothing);
+    });
+
+    testWidgets('the app-bar controls use a high-contrast foreground',
+        (tester) async {
+      await pumpTeams(tester, match: upcomingMatch());
+
+      final appBar = tester.widget<AppBar>(find.byType(AppBar));
+      expect(appBar.foregroundColor, Colors.white);
+      expect(appBar.iconTheme?.color, Colors.white);
+      expect(appBar.actionsIconTheme?.color, Colors.white);
     });
 
     testWidgets('and it sends the lineup card', (tester) async {

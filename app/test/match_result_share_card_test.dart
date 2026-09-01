@@ -186,9 +186,12 @@ void main() {
       for (final name in names.values) {
         expect(find.text(name), findsOneWidget, reason: '$name played');
       }
-      // Each side keeps the screen's own heading, down to the count.
-      expect(find.text('Team A (2)'), findsOneWidget);
-      expect(find.text('Team B (2)'), findsOneWidget);
+      // Each side keeps the screen's own heading without a player count. The
+      // other occurrence is the score strip's team label.
+      expect(find.text('Team A'), findsNWidgets(2));
+      expect(find.text('Team B'), findsNWidgets(2));
+      expect(find.text('Team A (2)'), findsNothing);
+      expect(find.text('Team B (2)'), findsNothing);
     });
 
     testWidgets('a goalkeeper is drawn even when nobody keeps goal naturally',
@@ -278,8 +281,8 @@ void main() {
       // separate headings.
       expect(find.textContaining('Al Amerat FC'), findsOneWidget);
       expect(find.textContaining('August 21, 2026'), findsOneWidget);
-      expect(find.text('Team A'), findsOneWidget);
-      expect(find.text('Team B'), findsOneWidget);
+      expect(find.text('Team A'), findsNWidgets(2));
+      expect(find.text('Team B'), findsNWidgets(2));
     });
 
     testWidgets('it signs itself, once', (tester) async {
@@ -291,7 +294,8 @@ void main() {
     testWidgets('it holds together in Arabic', (tester) async {
       await pumpCard(tester, cardData(), locale: const Locale('ar'));
 
-      expect(find.text('الفريق أ (2)'), findsWidgets);
+      expect(find.text('الفريق أ'), findsWidgets);
+      expect(find.text('الفريق أ (2)'), findsNothing);
       expect(find.text('الفائز'), findsOneWidget);
       // The score keeps its own order whatever the paragraph does around it.
       expect(_scoreNumerals(tester), ['3', '1']);
