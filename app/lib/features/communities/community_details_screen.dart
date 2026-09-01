@@ -48,11 +48,19 @@ class CommunityDetailsScreen extends StatefulWidget {
   State<CommunityDetailsScreen> createState() => _CommunityDetailsScreenState();
 }
 
+/// What one build of this screen holds.
+///
+/// The last element is the join code, and it is nullable for one reason: it is
+/// only ever read for an owner or an admin. Migration `0056` made the code a
+/// separate, role-checked read rather than a column of the community, so a
+/// Player's build genuinely does not have one — and the screen that used to
+/// hide the value now simply never receives it.
 typedef _Data = (
   Community,
   List<CommunityMember>,
   List<Match>,
   CommunityRole?,
+  String?,
 );
 
 /// One thing an organizer can do to a community, chosen from the actions sheet.
@@ -84,12 +92,36 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       _matchService.fetchCommunityMatches(widget.communityId),
       _memberRepository.fetchMyRole(widget.communityId),
     ]);
+    final role = results[3] as CommunityRole?;
+
+    // Asked second, and only when the answer would be given. A Player's request
+    // would be refused server-side, so making it would be a round trip whose
+    // only outcome is a refusal — and the screen has nowhere to put a code it
+    // is not going to show.
+    final joinCode = (role?.atLeast(CommunityRole.admin) ?? false)
+        ? await _fetchJoinCode()
+        : null;
+
     return (
       results[0] as Community,
       results[1] as List<CommunityMember>,
       results[2] as List<Match>,
-      results[3] as CommunityRole?,
+      role,
+      joinCode,
     );
+  }
+
+  /// The join code, or null when it could not be read.
+  ///
+  /// A failure here is not a failure of the screen. Everything else has already
+  /// loaded, and a community page that reports "could not load" because one
+  /// organizer-only card is missing would be reporting the wrong thing.
+  Future<String?> _fetchJoinCode() async {
+    try {
+      return await _communityRepository.fetchJoinCode(widget.communityId);
+    } catch (_) {
+      return null;
+    }
   }
 
   void _refresh() {
@@ -132,13 +164,23 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     }
   }
 
-  Future<void> _openInvitation(Community community) async {
+  /// The invitation screen, which is the join code and the link made from it.
+  ///
+  /// [joinCode] is passed in rather than read here: this screen already has it
+  /// for an organizer, and asking a second time would be a second authorization
+  /// decision about the same thing. A null code means the read was refused or
+  /// failed, and there is no invitation to show without one.
+  Future<void> _openInvitation(Community community, String? joinCode) async {
+    if (joinCode == null) {
+      _say(context.l10n.loadFailed);
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CommunityInvitationScreen(
           communityId: community.id,
           communityName: community.name,
-          joinCode: community.joinCode,
+          joinCode: joinCode,
         ),
       ),
     );
@@ -171,6 +213,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     required Community community,
     required bool isOwner,
     required bool isOrganizer,
+    required String? joinCode,
   }) async {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
@@ -250,7 +293,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     if (!mounted || action == null) return;
     switch (action) {
       case _CommunityAction.invitation:
-        await _openInvitation(community);
+        await _openInvitation(community, joinCode);
       case _CommunityAction.joinPolicy:
         await _setJoinPolicy(
           codeRequired ? JoinPolicy.open : JoinPolicy.codeRequired,
@@ -346,7 +389,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
           );
         }
 
-        final (community, members, matches, myRole) = snapshot.data!;
+        final (community, members, matches, myRole, joinCode) =
+            snapshot.data!;
         final isOwner = myRole == CommunityRole.owner;
         // Creating a match is an organizer action now (PD-06), and so is
         // everything to do with the join code (see `_MembersTab`).
@@ -383,6 +427,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                                     community: community,
                                     isOwner: isOwner,
                                     isOrganizer: isOrganizer,
+                                    joinCode: joinCode,
                                   ),
                         ),
                       ],
@@ -447,7 +492,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                                   style: ClubHeroButtons.ghost,
                                   onPressed: _busy
                                       ? null
-                                      : () => _openInvitation(community),
+                                      : () =>
+                                          _openInvitation(community, joinCode),
                                   icon: const Icon(Icons.person_add_outlined,
                                       size: IconSize.row),
                                   label: Text(
@@ -496,7 +542,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                               _MembersTab(
                                 community: community,
                                 members: members,
-                                isOrganizer: isOrganizer,
+                                joinCode: joinCode,
                                 positionLabel: _positionLabel,
                                 onCopyJoinCode: _copyJoinCode,
                               ),
@@ -602,7 +648,7 @@ class _MembersTab extends StatelessWidget {
   const _MembersTab({
     required this.community,
     required this.members,
-    required this.isOrganizer,
+    required this.joinCode,
     required this.positionLabel,
     required this.onCopyJoinCode,
   });
@@ -610,9 +656,13 @@ class _MembersTab extends StatelessWidget {
   final Community community;
   final List<CommunityMember> members;
 
-  /// Owner or admin. The join code is a credential, and this is the only thing
-  /// that decides whether it is on the screen at all.
-  final bool isOrganizer;
+  /// The community's join code, or null when this reader is not entitled to one.
+  ///
+  /// This used to be an `isOrganizer` flag beside a code every build carried,
+  /// which made the tab responsible for not drawing something it was holding.
+  /// Since migration `0056` the code is fetched only for an owner or an admin,
+  /// so a Player's build has nothing to withhold — the null is the permission.
+  final String? joinCode;
   final String Function(BuildContext, String) positionLabel;
   final Future<void> Function(String) onCopyJoinCode;
 
@@ -645,10 +695,10 @@ class _MembersTab extends StatelessWidget {
         // community to anybody. It is not merely hidden from the roster here —
         // the invitation screen that shares it is reachable only from the
         // actions sheet, which offers it under the same condition.
-        if (isOrganizer)
+        if (joinCode != null)
           _JoinCodeCard(
-            code: community.joinCode,
-            onCopy: () => onCopyJoinCode(community.joinCode),
+            code: joinCode!,
+            onCopy: () => onCopyJoinCode(joinCode!),
           ),
 
         SectionHeading(title: l10n.membersTitle, count: members.length),

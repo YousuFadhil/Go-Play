@@ -19,9 +19,11 @@ import '../results/result_models.dart';
 /// this reports what is stored and the player supplies the rest.
 /// Who may open a player's profile.
 ///
-/// Two answers and no third. [everyone] is the default a new account carries —
-/// migration `0043` sets it on the column, so the default is one fact in one
-/// place rather than a value this layer also asserts.
+/// **Retired by migration `0056`.** A football profile is football data and is
+/// readable by every signed-in player, so `player_profile` no longer consults
+/// this. The type and its column survive because dropping a column is
+/// irreversible and because removing the type would churn every fake that
+/// implements the port; nothing reads either to decide anything.
 enum ProfileVisibility {
   /// Any signed-in player may read the non-sensitive profile.
   everyone,
@@ -30,12 +32,13 @@ enum ProfileVisibility {
   communityMembersOnly,
 }
 
-/// What a player has decided about who sees what.
+/// What a player had decided about who sees what.
 ///
-/// Held apart from [PlayerProfile] because it is not part of the record: it is
-/// the two preferences behind it, written from Settings and read nowhere a
-/// profile is drawn. The server is what enforces both (`player_profile`,
-/// migration `0043`); these are the values the settings screen shows back.
+/// **Retired by migration `0056`**, along with the Settings controls that wrote
+/// it. Both preferences described disclosures that no longer happen: a football
+/// profile is readable by every signed-in player, and no date of birth leaves
+/// through it for an age setting to withhold. Kept as plumbing so the stored
+/// columns can still be read back, and read by nothing that decides anything.
 class ProfilePrivacy {
   const ProfilePrivacy({
     required this.visibility,
@@ -126,18 +129,19 @@ class PlayerProfile {
   int? get age => ageOn(DateTime.now());
 }
 
-/// Another player's profile, as this viewer is allowed to see it.
+/// Another player's **football** profile.
 ///
 /// A separate model from [PlayerProfile], and deliberately so. What keeps a
-/// phone number, an email address and an authentication identifier off somebody
-/// else's profile is not a screen remembering not to draw them — it is that
-/// there is nowhere here to put one. The server sends the same short list
-/// (`player_profile`, migration `0043`) and this is its shape.
+/// phone number, an email address, an authentication identifier and a date of
+/// birth off somebody else's profile is not a screen remembering not to draw
+/// them — it is that there is nowhere here to put one. The server sends a fixed
+/// short list (`player_profile`, migrations `0043` and `0056`) and this is its
+/// shape.
 ///
-/// [dateOfBirth] is null for two different reasons that are deliberately not
-/// distinguished: the player never gave one, or they have hidden their age. Both
-/// mean the same thing to a reader — there is no age to show — and telling them
-/// apart would leak the setting itself.
+/// There is no date of birth and therefore no age. That is migration `0056`'s
+/// boundary: a birth date is account data, and account data belongs to the
+/// account's owner. A player's own age is still on their own record, which is
+/// [PlayerProfile].
 class PlayerProfileView {
   const PlayerProfileView({
     required this.userId,
@@ -146,7 +150,6 @@ class PlayerProfileView {
     required this.statistics,
     required this.isSelf,
     this.secondaryPosition,
-    this.dateOfBirth,
     this.avatarUrl,
   });
 
@@ -162,26 +165,7 @@ class PlayerProfileView {
   /// from the session rather than the client from an id it was handed.
   final bool isSelf;
 
-  /// Null when the player has none stored, and null when they have hidden their
-  /// age — the value never leaves the database in that case (`0043`).
-  final DateTime? dateOfBirth;
-
   final String? avatarUrl;
-
-  /// Completed years as of [asOf], or null when there is no date to derive one
-  /// from. Derived, never stored (`KB-C7`) — exactly as on [PlayerProfile].
-  int? ageOn(DateTime asOf) {
-    final birth = dateOfBirth;
-    if (birth == null) return null;
-    var age = asOf.year - birth.year;
-    final hadBirthday = asOf.month > birth.month ||
-        (asOf.month == birth.month && asOf.day >= birth.day);
-    if (!hadBirthday) age -= 1;
-    return age;
-  }
-
-  /// Completed years today, in the device's local time (`DD-11`).
-  int? get age => ageOn(DateTime.now());
 }
 
 /// [value] with its time of day dropped, in local time.

@@ -902,6 +902,10 @@ class FakeCommunityAdapter implements CommunityAdapter {
       throw UnimplementedError();
 
   @override
+  Future<String> fetchJoinCode(String communityId) async =>
+      throw UnimplementedError();
+
+  @override
   Future<CommunityInvitePreview> previewInvite(String code) =>
       throw UnimplementedError();
 

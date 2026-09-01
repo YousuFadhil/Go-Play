@@ -13,68 +13,71 @@ import 'supabase_failure_mapper.dart';
 
 /// Supabase implementation of the profile port.
 ///
-/// The read goes through `v_user_profile` (migration `0025`, extended by `0031`)
-/// and the writes go to `users` directly. That split is the point of the read
-/// model: a view is read-only, and the write still belongs to the table whose
-/// policy governs it.
+/// The reads go through functions and the writes go to `users` directly.
 ///
-/// Authorization is unchanged by the move. `v_user_profile` is
-/// `security_invoker = on`, so the caller's own policies decide what it
-/// returns — `authenticated_select_active_users` on `users` exactly as before,
-/// and the view restates none of it. `users_update_own_profile` still allows a
-/// write only where `auth.uid() = id`, and migration `0022`'s column grant is
-/// what decides *which* columns that write may touch. The `eq` below says which
-/// row is meant, not who may have it.
+/// That split follows the privileges. Migration `0056` revoked SELECT on
+/// `users.phone`, so a caller — including the column's owner — can no longer
+/// read it through the table or through a `security_invoker` view over it. Both
+/// reads here are therefore `security definer` functions with fixed column
+/// lists: `my_profile` for the owner's own row, `player_profile` for anybody's
+/// football profile.
+///
+/// The writes are unchanged and stay on the table. `users_update_own_profile`
+/// allows a write only where `auth.uid() = id`, and migration `0022`'s column
+/// grant is what decides *which* columns it may touch — `phone` among them.
+/// Writing a column is not reading it, so `0056` did not touch that path.
 class SupabaseProfileAdapter implements ProfileAdapter {
   SupabaseProfileAdapter([SupabaseClient? client])
       : _client = client ?? SupabaseBootstrap.client;
 
   final SupabaseClient _client;
 
-  /// The profile columns this aggregate deals in. `overall_rating` is not among
-  /// them: it is neither shown nor written, so it is not read either — the view
-  /// carries it, and leaving it out of the projection keeps that true.
-  static const _columns = 'full_name, phone, date_of_birth, primary_position, '
-      'secondary_position, avatar_path, profile_visibility, age_visible';
-
-  /// Reads the profile from the read model.
+  /// Reads the signed-in player's own profile, through `my_profile`
+  /// (migration `0055`).
   ///
-  /// The view names the key `user_id` where the table calls it `id`; the other
-  /// columns keep their names.
+  /// This was a projection of `v_user_profile`, and it stopped being one when
+  /// the phone number stopped being a column any caller may select. The view is
+  /// `security_invoker = on`, so it can only return what the caller is allowed
+  /// to read — and since `0056` that no longer includes `phone` or
+  /// `date_of_birth` for anybody, the owner included.
+  ///
+  /// The function takes no user id. That is the whole of the authorization
+  /// story: there is no argument to point at somebody else, so this call cannot
+  /// express the request the boundary is there to refuse.
   @override
-  Future<PlayerProfile> fetchMyProfile() => guarded(() async {
-        final row = await _client
-            .from('v_user_profile')
-            .select(_columns)
-            .eq('user_id', _currentUserId)
-            .maybeSingle();
-        if (row == null) throw const NotFoundFailure();
-        return playerProfileFromRow(
-          row,
-          // Versioned: this is the player looking at their own profile, which
-          // is exactly where a picture they have just changed must not be the
-          // one the cache still holds.
-          avatarUrl: SupabaseAvatars.publicUrl(
-            _client,
-            row['avatar_path'] as String?,
-            version: true,
-          ),
-        );
-      });
+  Future<PlayerProfile> fetchMyProfile() => guarded(
+        () async {
+          final rows =
+              await _client.rpc('my_profile') as List<dynamic>;
+          if (rows.isEmpty) throw const NotFoundFailure();
+          final row = rows.first as Map<String, dynamic>;
+          return playerProfileFromRow(
+            row,
+            // Versioned: this is the player looking at their own profile, which
+            // is exactly where a picture they have just changed must not be the
+            // one the cache still holds.
+            avatarUrl: SupabaseAvatars.publicUrl(
+              _client,
+              row['avatar_path'] as String?,
+              version: true,
+            ),
+          );
+        },
+        operation: 'rpc my_profile',
+      );
 
-  /// Another player's profile, through `player_profile` (migration `0043`).
+  /// Another player's football profile, through `player_profile`
+  /// (migrations `0043`, `0056`).
   ///
-  /// An RPC rather than a table read, because the question is not "which row"
-  /// but "may this viewer see it" — and the function is what decides, from the
-  /// owner's setting and the two players' communities. It refuses with
-  /// `PROFILE_NOT_VISIBLE`, which reaches this layer as an
-  /// [AuthorizationFailure]; an empty answer would have made a refusal
-  /// indistinguishable from a missing player.
+  /// An RPC rather than a table read, because the columns it returns are a
+  /// fixed list decided by the server rather than a projection chosen here.
+  /// That is what makes the boundary hold: there is no phone, no email, no
+  /// authentication identifier and — since `0056` — no date of birth in the
+  /// answer, whatever this layer asks for.
   ///
-  /// The projection is the function's own. Nothing is dropped here because
-  /// nothing sensitive arrives: the function returns no phone, no email and no
-  /// authentication identifier, and withholds the date of birth of a player who
-  /// has hidden their age.
+  /// It no longer asks whether the two players share a community. A football
+  /// profile is football data, and every active player's is readable by every
+  /// signed-in player.
   @override
   Future<PlayerProfileView> fetchPlayerProfile(String userId) => guarded(
         () async {

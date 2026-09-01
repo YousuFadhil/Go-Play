@@ -321,11 +321,12 @@ void main() {
 
     test('the code works under either policy, which is what a link carries',
         () async {
-      final code = (await owner.client
-          .from('communities')
-          .select('join_code')
-          .eq('id', communityId)
-          .single())['join_code'] as String;
+      // The owner's read of the code is `community_join_code` (migration
+      // `0056`); the column itself is no longer selectable by anyone.
+      final code = await owner.client.rpc(
+        'community_join_code',
+        params: {'p_community_id': communityId},
+      ) as String;
 
       for (final value in ['CODE_REQUIRED', 'OPEN']) {
         await owner.client
@@ -370,11 +371,10 @@ void main() {
   });
 
   group('regenerating the join code', () {
-    Future<String> codeOf() async => (await owner.client
-        .from('communities')
-        .select('join_code')
-        .eq('id', communityId)
-        .single())['join_code'] as String;
+    Future<String> codeOf() async => await owner.client.rpc(
+          'community_join_code',
+          params: {'p_community_id': communityId},
+        ) as String;
 
     Future<String> regenerateAs(TestUser user) async =>
         await user.client.rpc('regenerate_join_code',

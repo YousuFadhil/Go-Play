@@ -28,7 +28,6 @@ void main() {
     name: 'Al Amerat FC',
     description: 'Friday football in Al Amerat.',
     joinPolicy: JoinPolicy.open,
-    joinCode: 'ABC123',
   );
 
   const members = [
@@ -268,7 +267,6 @@ void main() {
       name: 'The Extremely Long Community Name Football Association Of Muscat',
       description: 'A description that also runs on well past the hero width.',
       joinPolicy: JoinPolicy.open,
-      joinCode: 'ABC123',
     );
 
     const longArabic = Community(
@@ -277,7 +275,6 @@ void main() {
       name: 'نادي المجتمع الرياضي لكرة القدم في ولاية العامرات بمحافظة مسقط',
       description: 'مجتمع كرة قدم يلتقي كل يوم جمعة في ملعب العامرات الرئيسي.',
       joinPolicy: JoinPolicy.open,
-      joinCode: 'ABC123',
     );
 
     testWidgets('a long English name truncates rather than overflowing',
@@ -378,6 +375,16 @@ class _FakeCommunityAdapter implements CommunityAdapter {
     required JoinPolicy joinPolicy,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<String> fetchJoinCode(String communityId) async {
+    // Owner and admin are the only roles this screen asks on behalf of, and
+    // both are entitled to the code (migration `0056`).
+    fetchJoinCodeCalls.add(communityId);
+    return '4213';
+  }
+
+  final fetchJoinCodeCalls = <String>[];
 
   @override
   Future<CommunityInvitePreview> previewInvite(String code) =>

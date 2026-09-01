@@ -241,6 +241,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   final List<String> joinedCodes = [];
 
   @override
+  Future<String> fetchJoinCode(String communityId) async =>
+      throw UnimplementedError();
+
+  @override
   Future<CommunityInvitePreview> previewInvite(String code) async {
     if (previewFailure != null) throw previewFailure!;
     return preview;

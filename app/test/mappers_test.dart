@@ -72,7 +72,6 @@ void main() {
         'name': 'Friday Football',
         'description': 'Weekly game',
         'join_policy': 'CODE_REQUIRED',
-        'join_code': 'AB12CD',
       });
 
       expect(community.id, 'c1');
@@ -80,7 +79,25 @@ void main() {
       expect(community.name, 'Friday Football');
       expect(community.description, 'Weekly game');
       expect(community.joinPolicy, JoinPolicy.codeRequired);
-      expect(community.joinCode, 'AB12CD');
+    });
+
+    // Migration `0056` revoked SELECT on `communities.join_code`, so a row
+    // carrying one cannot arrive. This proves the mapper does not depend on it
+    // arriving, and that a row which somehow carried one has nowhere to put it:
+    // `Community` has no join-code field, which is a compile-time fact rather
+    // than a value this test could read back.
+    test('needs no join code, and keeps none when one is present', () {
+      final community = communityFromRow(const {
+        'id': 'c1',
+        'owner_id': 'u1',
+        'name': 'Friday Football',
+        'description': 'Weekly game',
+        'join_policy': 'CODE_REQUIRED',
+        'join_code': 'AB12CD',
+      });
+
+      expect(community.id, 'c1');
+      expect(community.joinPolicy, JoinPolicy.codeRequired);
     });
 
     test('accepts a null description', () {
@@ -90,7 +107,6 @@ void main() {
         'name': 'No description',
         'description': null,
         'join_policy': 'OPEN',
-        'join_code': 'EF34GH',
       });
       expect(community.description, isNull);
     });

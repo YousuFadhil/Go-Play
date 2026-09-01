@@ -1,0 +1,107 @@
+# Manual staging web deployment: pick a ref -> build -> Cloudflare Pages
+# (project `go-play-staging`, branch `staging`).
+#
+# This exists so a feature branch can be looked at on a real URL without any
+# commit of it reaching `main`. Production is `deploy-web.yml`; this workflow
+# never touches it, and `main` stays the only production branch.
+#
+# The workflow file itself is merged to `main` so it appears in the Actions
+# list, but the build is of `inputs.source_ref`, not of the commit that carries
+# this file.
+#
+# Web push is deliberately absent. No Firebase secret and no Firebase
+# `--dart-define` is supplied, so `FirebaseWebConfig.isConfigured` is false and
+# the generated service worker is inert. Staging has no push notifications by
+# design — one less credential in a non-production environment.
+
+name: Deploy staging web app to Cloudflare Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Branch, tag or SHA to build and publish to staging
+        required: true
+        default: feat/design-tokens-phase-1
+
+# Separate from production's `cloudflare-pages` group: a staging run must never
+# cancel, or be cancelled by, a production deployment.
+concurrency:
+  group: cloudflare-pages-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Environment secrets are visible only to a job that names the environment.
+    # `staging` holds its own Supabase and Cloudflare values.
+    environment: staging
+    steps:
+      - name: Check out the ref being deployed
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      # Fail before the build rather than after the deployment: a missing value
+      # otherwise produces a green run and a site showing the "Supabase
+      # configuration missing" screen.
+      - name: Require the build configuration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$SUPABASE_URL"      || { echo "::error::secret SUPABASE_URL is not set"; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo "::error::secret SUPABASE_ANON_KEY is not set"; exit 1; }
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.7
+
+      - name: Fetch dependencies
+        working-directory: app
+        run: flutter pub get
+
+      # Runs with no Firebase environment variables, which is what makes the
+      # emitted worker inert. `flutter build web` copies `web/` as it finds it,
+      # so this must precede the build.
+      - name: Generate the Firebase messaging service worker
+        working-directory: app
+        run: dart run tool/generate_firebase_sw.dart
+
+      - name: Build the web release
+        working-directory: app
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      # The build succeeds whether or not the values were compiled in, so the
+      # bundle is checked rather than trusted. `grep -q` prints nothing, so no
+      # secret reaches the log.
+      - name: Verify the configuration reached the bundle
+        run: |
+          grep -q 'supabase\.co' app/build/web/main.dart.js \
+            || { echo "::error::built bundle carries no Supabase URL"; exit 1; }
+          if grep -q 'service_role' app/build/web/main.dart.js; then
+            echo "::error::a service-role key reached the web bundle"
+            exit 1
+          fi
+          grep -q 'v_completed_matches' app/build/web/main.dart.js \
+            || { echo "::error::bundle predates 0b3fb0f — stale build, refusing to deploy"; exit 1; }
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # A separate project from production. `--branch=staging` must match
+          # the project's configured production branch for this to be the
+          # deployment served at the project's primary URL rather than a
+          # preview. The project must already exist; a wrong name fails the run
+          # instead of silently creating a second, empty project.
+          command: pages deploy app/build/web --project-name=go-play-staging --branch=staging
