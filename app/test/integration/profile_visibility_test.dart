@@ -3,28 +3,36 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
-import 'package:go_play/features/profile/profile_models.dart';
 import 'package:go_play/features/profile/profile_repository.dart';
 import 'package:go_play/infrastructure/supabase/supabase_profile_adapter.dart';
 
 import 'support.dart';
 
-/// Profile visibility and age visibility, against a real project.
+/// The football-profile boundary, against a real project.
 ///
-/// These are server rules, so this is where they are actually proved. A widget
-/// test can show that the application asks through the authorized path and words
-/// a refusal; only a live `player_profile` call can show that the refusal
-/// happens at all, and that a hidden date of birth never leaves the database.
+/// This file used to prove the `COMMUNITY_MEMBERS` visibility rule and the age
+/// setting. Migration `0056` retired both: a football profile is football data
+/// and is readable by every signed-in player, and a date of birth no longer
+/// leaves the database for anybody but its owner — so there is no age
+/// disclosure left for a setting to govern. What replaces those tests is the
+/// rule that took their place, proved the same way: on the server.
+///
+/// A widget test can show that the application asks through the authorized
+/// path; only a live call can show what the database actually sends.
 ///
 /// **`outsider` is the subject of every test below**, and deliberately: it is
-/// the one permanent account whose profile columns no other file writes, so the
-/// visibility settings this file changes cannot collide with a parallel run. The
-/// viewers are `owner` (who shares a community with it, when a test says so) and
-/// `player` (who never does). Teardown puts the two columns back to the defaults
-/// the column carries, so a run leaves the account as it found it.
+/// the one permanent account that shares no community with anybody unless a
+/// test puts it in one, which is the condition requirement 8 is about.
+///
+/// **Requires `0056_private_account_hardening.sql` to be applied.** Cycle 1
+/// ships as two migrations against one shared database: `0055` adds the two
+/// RPCs and takes nothing away, so the previously deployed client keeps
+/// working; `0056` is what actually closes the leaks. Run this file against a
+/// project with only `0055` applied and it will fail, correctly -- the columns
+/// really are still readable at that point.
 void main() {
   if (!integrationConfigured) {
-    test('profile visibility', () {}, skip: skipReason);
+    test('football profile boundary', () {}, skip: skipReason);
     return;
   }
 
@@ -38,22 +46,13 @@ void main() {
   ProfileRepository repositoryFor(TestUser user) =>
       ProfileRepository(SupabaseProfileAdapter(user.client));
 
-  Future<void> setPrivacy(
-    TestUser user, {
-    required ProfileVisibility visibility,
-    required bool ageVisible,
-  }) =>
-      repositoryFor(user).saveMyPrivacy(
-        ProfilePrivacy(visibility: visibility, ageVisible: ageVisible),
-      );
-
   setUpAll(() async {
     owner = await signInTestUser('owner');
     player = await signInTestUser('player');
     outsider = await signInTestUser('outsider');
 
-    // A date of birth to derive an age from. `outsider` may or may not have one
-    // depending on what has run before, so this file supplies its own.
+    // A date of birth to withhold. Without one stored, "no date of birth comes
+    // back" would be true for an uninteresting reason.
     await repositoryFor(outsider).saveMyProfile(
       dateOfBirth: DateTime(1994, 6, 15),
       primaryPosition:
@@ -62,45 +61,18 @@ void main() {
     );
   });
 
-  setUp(() async {
-    communityId = null;
-    await setPrivacy(
-      outsider,
-      visibility: ProfileVisibility.everyone,
-      ageVisible: true,
-    );
-  });
+  setUp(() => communityId = null);
+  tearDown(() => disposeCommunity(owner, communityId));
 
-  tearDown(() async {
-    await disposeCommunity(owner, communityId);
-    await setPrivacy(
-      outsider,
-      visibility: ProfileVisibility.everyone,
-      ageVisible: true,
-    );
-  });
-
-  /// Puts `owner` and `outsider` in one community, which is what
-  /// `shares_active_community` looks for.
+  /// Puts `owner` and `outsider` in one community.
   Future<void> shareACommunity() async {
     communityId = await createCommunity(owner, 'ITest Visibility');
     await addMember(owner, communityId!, outsider);
   }
 
-  group('what the column defaults are', () {
-    test('a profile is visible to everyone, with an age on it', () async {
-      // Read back through the owner's own profile, which is where the two
-      // preferences live. This is the state `setUp` restores, and it is the
-      // state migration 0043 gives every account that predates it.
-      final profile = await repositoryFor(outsider).fetchMyProfile();
-
-      expect(profile.privacy.visibility, ProfileVisibility.everyone);
-      expect(profile.privacy.ageVisible, isTrue);
-    });
-  });
-
-  group('visibility EVERYONE', () {
-    test('a player who shares no community may open the profile', () async {
+  group('any signed-in player may open any active football profile', () {
+    // Requirement 8: no shared community, no refusal.
+    test('a player who shares no community may open it', () async {
       final view = await repositoryFor(player).fetchPlayerProfile(outsider.id);
 
       expect(view.userId, outsider.id);
@@ -115,110 +87,93 @@ void main() {
 
       expect(view.fullName, outsider.name);
     });
-  });
 
-  group('visibility COMMUNITY_MEMBERS', () {
-    test('a player who shares no community is refused', () async {
-      await setPrivacy(
-        outsider,
-        visibility: ProfileVisibility.communityMembersOnly,
-        ageVisible: true,
-      );
-
-      await expectLater(
-        repositoryFor(player).fetchPlayerProfile(outsider.id),
-        throwsA(isA<AuthorizationFailure>().having(
-          (f) => f.reason,
-          'reason',
-          FailureReason.profileNotVisible,
-        )),
-      );
-    });
-
-    test('a player who shares an active community may still open it', () async {
-      await shareACommunity();
-      await setPrivacy(
-        outsider,
-        visibility: ProfileVisibility.communityMembersOnly,
-        ageVisible: true,
-      );
-
-      final view = await repositoryFor(owner).fetchPlayerProfile(outsider.id);
-
-      expect(view.fullName, outsider.name);
-    });
-
-    test('the owner always opens their own', () async {
-      await setPrivacy(
-        outsider,
-        visibility: ProfileVisibility.communityMembersOnly,
-        ageVisible: true,
-      );
-
+    test('the owner of the profile opens their own', () async {
       final view =
           await repositoryFor(outsider).fetchPlayerProfile(outsider.id);
 
       expect(view.isSelf, isTrue);
       expect(view.fullName, outsider.name);
     });
-  });
 
-  group('age visibility', () {
-    test('a visible age arrives as the date it is derived from', () async {
-      final view = await repositoryFor(player).fetchPlayerProfile(outsider.id);
-
-      expect(view.dateOfBirth, isNotNull);
-      expect(view.age, isNotNull);
-    });
-
-    test('a hidden age does not leave the database', () async {
-      await setPrivacy(
-        outsider,
-        visibility: ProfileVisibility.everyone,
-        ageVisible: false,
-      );
+    // The setting is retired, not merely ignored by the client: whatever the
+    // column says, the function no longer reads it. Written straight to the
+    // column, because the application no longer has a path that writes it.
+    test('a profile marked COMMUNITY_MEMBERS still opens', () async {
+      await outsider.client
+          .from('users')
+          .update({'profile_visibility': 'COMMUNITY_MEMBERS'}).eq(
+              'id', outsider.id);
+      addTearDown(() async {
+        await outsider.client
+            .from('users')
+            .update({'profile_visibility': 'EVERYONE'}).eq('id', outsider.id);
+      });
 
       final view = await repositoryFor(player).fetchPlayerProfile(outsider.id);
 
-      // The rest of the profile is unaffected: hiding an age is not hiding a
-      // profile.
-      expect(view.fullName, outsider.name);
-      expect(view.dateOfBirth, isNull,
-          reason: 'the value is withheld at the source, not by the client');
-      expect(view.age, isNull);
-    });
-
-    test('the owner still receives their own hidden age', () async {
-      await setPrivacy(
-        outsider,
-        visibility: ProfileVisibility.everyone,
-        ageVisible: false,
-      );
-
-      final view =
-          await repositoryFor(outsider).fetchPlayerProfile(outsider.id);
-
-      expect(view.dateOfBirth, isNotNull);
-      expect(view.age, isNotNull);
+      expect(view.fullName, outsider.name,
+          reason: 'the retired setting grants and refuses nothing');
     });
   });
 
-  group('what a profile never carries', () {
-    test('no phone number, email or auth identifier is returned', () async {
-      // The function returns a fixed column list. Asked directly, so the
-      // assertion is about what the *database* sends and not about what the
-      // model happens to have room for.
-      final rows = await player.client.rpc(
+  group('what a football profile never carries', () {
+    /// The function's own answer, asked directly. The assertion is about what
+    /// the *database* sends, not about what the model has room for.
+    Future<Map<String, dynamic>> rowFor(TestUser viewer, String userId) async {
+      final rows = await viewer.client.rpc(
         'player_profile',
-        params: {'p_user_id': outsider.id},
+        params: {'p_user_id': userId},
       ) as List<dynamic>;
-
       expect(rows, hasLength(1));
-      final row = rows.first as Map<String, dynamic>;
+      return rows.first as Map<String, dynamic>;
+    }
+
+    // Requirements 9, 10 and 11 in one read, because they are one column list.
+    test('no phone, email, auth identifier or date of birth', () async {
+      final row = await rowFor(player, outsider.id);
+
       expect(row.containsKey('phone'), isFalse);
       expect(row.containsKey('email'), isFalse);
-      expect(row.keys, isNot(contains('id')));
-      expect(row['user_id'], outsider.id);
+      expect(row.keys, isNot(contains('id')),
+          reason: 'the key is user_id; there is no auth identifier column');
+      expect(row.containsKey('date_of_birth'), isFalse,
+          reason: 'a birth date is account data (migration 0056)');
+      expect(row.containsKey('age'), isFalse);
+    });
+
+    test('and carries exactly the approved football columns', () async {
+      final row = await rowFor(player, outsider.id);
+
+      expect(
+        row.keys.toSet(),
+        {
+          'user_id',
+          'full_name',
+          'primary_position',
+          'secondary_position',
+          'avatar_path',
+          'overall_rating',
+          'matches_played',
+          'wins',
+          'losses',
+          'draws',
+          'goals',
+          'mvp_count',
+          'is_self',
+        },
+        reason: 'the column list is fixed by the function, not by the caller',
+      );
+    });
+
+    test('not even for the profile owner, who reads their own elsewhere',
+        () async {
+      final row = await rowFor(outsider, outsider.id);
+
+      expect(row['is_self'], isTrue);
+      expect(row.containsKey('phone'), isFalse);
+      expect(row.containsKey('date_of_birth'), isFalse,
+          reason: 'my_profile() is the owner path, not this one');
     });
   });
 
@@ -228,6 +183,21 @@ void main() {
         repositoryFor(player)
             .fetchPlayerProfile('00000000-0000-0000-0000-000000000000'),
         throwsA(isA<NotFoundFailure>()),
+      );
+    });
+  });
+
+  group('a session is still required', () {
+    test('anon cannot call player_profile at all', () async {
+      expect(
+        await outcomeOf(() async {
+          await anonClient().rpc(
+            'player_profile',
+            params: {'p_user_id': outsider.id},
+          );
+        }),
+        isNot('ALLOW'),
+        reason: 'execute is revoked from anon (migration 0056)',
       );
     });
   });
