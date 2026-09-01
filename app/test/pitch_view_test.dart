@@ -569,8 +569,9 @@ void main() {
       expect(PitchView.aspectRatio, inInclusiveRange(1.85, 1.95));
 
       final avatar = tester.getSize(find.byType(CircleAvatar));
-      expect(avatar.width, inInclusiveRange(56, 70));
+      expect(avatar.width, inInclusiveRange(72, 76));
       expect(avatar.height, avatar.width);
+      expect(PitchView.avatarDiameterFraction, 0.10);
     });
 
     testWidgets('a 2 v 2 side draws without a goalkeeper row', (tester) async {

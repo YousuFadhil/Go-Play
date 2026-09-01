@@ -120,7 +120,7 @@ class MatchResultCard extends StatelessWidget {
 
   static const shareMargin = 40.0;
   static const shareScale = 1.55;
-  static const sharePitchWidth = 1080.0 - (shareMargin * 2) - (22 * shareScale);
+  static const sharePitchWidth = 1080.0 - (shareMargin * 2) - (18 * shareScale);
   static const sharePitchHeight = sharePitchWidth / PitchView.aspectRatio;
 
   @override
@@ -145,19 +145,14 @@ class MatchResultCard extends StatelessWidget {
             // Deeper at the ends than the sides: this picture is looked at in a
             // Story, where the app showing it puts its own furniture across the
             // top and bottom of the frame.
-            padding: const EdgeInsets.fromLTRB(
-              shareMargin,
-              62,
-              shareMargin,
-              44,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: shareMargin),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               // Whatever the solve leaves over is spread between the blocks
               // rather than pooled under the last one, which is what an
               // earlier version did and why it ended with a band of empty
               // ground above the signature.
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 MatchStageHeader(
                   community: data.communityName,
@@ -184,7 +179,7 @@ class MatchResultCard extends StatelessWidget {
     List<TeamAssignment> assignments,
   ) =>
       MatchStageSection(
-        title: '$title (${assignments.length})',
+        title: title,
         won: data.winner == team,
         scale: shareScale,
         child: PitchView(

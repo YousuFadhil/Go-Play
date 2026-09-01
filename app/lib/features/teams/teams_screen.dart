@@ -365,7 +365,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
       backgroundColor: MatchStage.ground,
       appBar: AppBar(
         backgroundColor: MatchStage.ground,
-        foregroundColor: MatchStage.ink,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -426,7 +428,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                 ),
                 ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsetsDirectional.fromSTEB(0, 6, 0, 28),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 2, 0, 24),
                   children: view.lineup.isEmpty
                       ? _emptyState(l10n, view)
                       : _generatedTeams(l10n, view),
@@ -469,9 +471,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(
             kPageMargin,
-            Gap.md,
+            Gap.sm,
             kPageMargin,
-            Gap.lg,
+            12,
           ),
           child: MatchStageHeader(
             community: view.match.communityName,
@@ -552,8 +554,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         child: FilledButton.icon(
-          onPressed:
-              _busy ? null : () => _generate(view, replacing: replacing),
+          onPressed: _busy ? null : () => _generate(view, replacing: replacing),
           icon: _busy
               ? const SizedBox(
                   height: 20,
@@ -591,42 +592,42 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // a detached pitch.
     return [
       Padding(
-        padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.md),
+        padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, 10),
         child: MatchStageSection(
-          title: '$title (${assignments.length})',
+          title: title,
           won: won,
           child: PitchView(
-        assignments: assignments,
-        players: view.players,
-        hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
-        nameOf: (userId) => _nameOf(view, userId),
-        // Null before a result exists, which leaves every card exactly what it
-        // was. The same pitch, drawn after the match, carries what each player
-        // did on the player.
-        goalsOf: view.hasResult ? view.goalsOf : null,
-        isMvpOf: view.hasResult ? view.isMvpOf : null,
-        // Who a card belongs to decides what tapping it does, and the
-        // management action wins where there is one.
-        //
-        //   * owner/admin  -> the manual-override sheet, exactly as before. A
-        //                     card is 82 pixels wide and cannot carry a second
-        //                     hit target, so the organizer keeps the one they
-        //                     came for.
-        //   * anybody else -> the player's profile, which is the rule
-        //                     everywhere a name is shown.
-        //
-        // A Professional Guest is neither: `_editPlayer` already returns for
-        // one, and they have no profile to open.
-        onTapPlayer: _busy
-            ? null
-            : (assignment) {
-                if (view.canGenerate) {
-                  _editPlayer(l10n, view, assignment);
-                  return;
-                }
-                final userId = assignment.userId;
-                if (userId != null) openPlayerProfile(context, userId);
-              },
+            assignments: assignments,
+            players: view.players,
+            hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
+            nameOf: (userId) => _nameOf(view, userId),
+            // Null before a result exists, which leaves every card exactly what it
+            // was. The same pitch, drawn after the match, carries what each player
+            // did on the player.
+            goalsOf: view.hasResult ? view.goalsOf : null,
+            isMvpOf: view.hasResult ? view.isMvpOf : null,
+            // Who a card belongs to decides what tapping it does, and the
+            // management action wins where there is one.
+            //
+            //   * owner/admin  -> the manual-override sheet, exactly as before. A
+            //                     card is 82 pixels wide and cannot carry a second
+            //                     hit target, so the organizer keeps the one they
+            //                     came for.
+            //   * anybody else -> the player's profile, which is the rule
+            //                     everywhere a name is shown.
+            //
+            // A Professional Guest is neither: `_editPlayer` already returns for
+            // one, and they have no profile to open.
+            onTapPlayer: _busy
+                ? null
+                : (assignment) {
+                    if (view.canGenerate) {
+                      _editPlayer(l10n, view, assignment);
+                      return;
+                    }
+                    final userId = assignment.userId;
+                    if (userId != null) openPlayerProfile(context, userId);
+                  },
           ),
         ),
       ),

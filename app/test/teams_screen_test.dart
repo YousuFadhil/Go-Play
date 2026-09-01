@@ -272,7 +272,7 @@ void main() {
       gate.complete();
       await tester.pumpAndSettle();
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
     });
   });
 
@@ -376,8 +376,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Team A (2)'), findsOneWidget);
-      expect(find.text('Team B (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
+      expect(find.text('Team B'), findsOneWidget);
       for (final name in const [
         'Sara Al Balushi',
         'Ahmed Al Harthy',
@@ -446,7 +446,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
       for (final name in const ['Sara Al Balushi', 'Noor Al Kindi']) {
         expect(find.text(name), findsOneWidget);
       }
@@ -470,8 +470,7 @@ void main() {
       expect(find.text('6.0'), findsNWidgets(3));
     });
 
-    testWidgets('a transition has no presentation badge',
-        (tester) async {
+    testWidgets('a transition has no presentation badge', (tester) async {
       final lineup = storedLineup()
         ..[1] = assignment('u3', TeamId.a, Position.def,
             basis: AssignmentBasis.transition);
@@ -534,7 +533,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Regenerate teams'), findsNothing);
-      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
       expect(find.text('Sara Al Balushi'), findsOneWidget);
     });
   });
@@ -558,8 +557,8 @@ void main() {
       expect(teams.lineupReads, 2,
           reason: 'the teams shown come from a fresh read, not from what the '
               'screen was handed');
-      expect(find.text('Team A (2)'), findsOneWidget);
-      expect(find.text('Team B (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
+      expect(find.text('Team B'), findsOneWidget);
       expect(find.text('Teams generated.'), findsOneWidget);
       // Nothing else follows the success, now or once it expires. A second
       // message queued behind it would mean the screen swallowed something on
@@ -685,8 +684,8 @@ void main() {
       await tester.tap(find.text('Generate teams'));
       await tester.pumpAndSettle();
 
-      expect(find.text('You do not have permission to do this.'),
-          findsOneWidget);
+      expect(
+          find.text('You do not have permission to do this.'), findsOneWidget);
     });
 
     testWidgets('a save that failed part-way leaves no stale teams on screen',
@@ -706,16 +705,16 @@ void main() {
         matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
 
       await tester.tap(find.text('Regenerate teams'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Regenerate teams').last);
       await tester.pumpAndSettle();
 
-      expect(find.text('Something went wrong. Please try again.'),
-          findsOneWidget);
-      expect(find.text('Team A (2)'), findsNothing,
+      expect(
+          find.text('Something went wrong. Please try again.'), findsOneWidget);
+      expect(find.text('Team A'), findsNothing,
           reason: 'the teams shown must never outlive the stored lineup');
       expect(find.text('Teams have not been generated for this match yet.'),
           findsOneWidget);
@@ -740,7 +739,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(teams.savedLineup, isNull);
-      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
     });
 
     testWidgets('a confirmed regeneration replaces the stored lineup',
@@ -839,14 +838,15 @@ void main() {
     }
 
     testWidgets('a move is persisted and read back', (tester) async {
-      final teams = FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
       await pumpTeams(
         tester,
         teams: teams,
         matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
 
       await tapPlayer(tester, 'Sara Al Balushi');
       await tester.tap(find.text('Move to the other team'));
@@ -855,14 +855,15 @@ void main() {
       expect(teams.savedLineup, hasLength(4));
       expect(teams.savedLineup!.singleWhere((a) => a.userId == 'u1').team,
           TeamId.b);
-      expect(find.text('Team A (1)'), findsOneWidget,
+      expect(find.text('Team A'), findsOneWidget,
           reason: 'the sides shown come from a fresh read');
-      expect(find.text('Team B (3)'), findsOneWidget);
+      expect(find.text('Team B'), findsOneWidget);
       expect(find.text('Lineup updated.'), findsOneWidget);
     });
 
     testWidgets('a swap asks which player, then persists it', (tester) async {
-      final teams = FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
       await pumpTeams(
         tester,
         teams: teams,
@@ -897,7 +898,7 @@ void main() {
       expect(saved.singleWhere((a) => a.userId == 'u1').team, TeamId.b);
       expect(saved.singleWhere((a) => a.userId == 'u2').team, TeamId.a);
       expect(saved, hasLength(4));
-      expect(find.text('Team A (2)'), findsOneWidget,
+      expect(find.text('Team A'), findsOneWidget,
           reason: 'a swap leaves the sides the size they were');
     });
 
@@ -952,7 +953,8 @@ void main() {
     });
 
     testWidgets('dismissing the action dialog writes nothing', (tester) async {
-      final teams = FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
       await pumpTeams(
         tester,
         teams: teams,
@@ -965,7 +967,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(teams.savedLineup, isNull);
-      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
     });
 
     testWidgets('a refused edit reports it and reloads what is stored',
@@ -994,7 +996,7 @@ void main() {
             'That change was refused. A team cannot have two goalkeepers.'),
         findsOneWidget,
       );
-      expect(find.text('Team A (2)'), findsOneWidget,
+      expect(find.text('Team A'), findsOneWidget,
           reason: 'the stored lineup is untouched and is what is shown');
       expect(teams.lineupReads, 3,
           reason: 'one read for the screen, one for the edit, and one more '
@@ -1018,9 +1020,9 @@ void main() {
       await tester.tap(find.text('Move to the other team'));
       await tester.pumpAndSettle();
 
-      expect(find.text('You do not have permission to do this.'),
-          findsOneWidget);
-      expect(find.text('Team A (2)'), findsOneWidget);
+      expect(
+          find.text('You do not have permission to do this.'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
     });
 
     testWidgets('a second edit while one is running starts nothing',
@@ -1077,8 +1079,8 @@ void main() {
       await tester.tap(find.text('Swap with a player'));
       await tester.pumpAndSettle();
 
-      expect(find.text('The other team has nobody to swap with.'),
-          findsOneWidget);
+      expect(
+          find.text('The other team has nobody to swap with.'), findsOneWidget);
       expect(teams.savedLineup, isNull);
     });
 
@@ -1096,7 +1098,7 @@ void main() {
       await tapPlayer(tester, 'Sara Al Balushi');
       await tester.tap(find.text('Move to the other team'));
       await tester.pumpAndSettle();
-      expect(find.text('Team A (1)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
 
       await tester.tap(find.text('Regenerate teams'));
       await tester.pumpAndSettle();
@@ -1105,8 +1107,8 @@ void main() {
 
       // The engine split four players two a side; the manual move is gone and
       // nothing tried to preserve or reapply it.
-      expect(find.text('Team A (2)'), findsOneWidget);
-      expect(find.text('Team B (2)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
+      expect(find.text('Team B'), findsOneWidget);
     });
   });
 
@@ -1187,7 +1189,10 @@ void main() {
 
       await tester.tap(find.text('Layla Al Riyami'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Team B'));
+      await tester.tap(find.descendant(
+        of: find.byType(SimpleDialog),
+        matching: find.text('Team B'),
+      ));
       await tester.pumpAndSettle();
       // The dialog is over the lineup, which names a defender of its own.
       await tester.tap(find.text('Defender').last);
@@ -1199,7 +1204,7 @@ void main() {
       expect(members.memberReads, 1,
           reason: 'the member list is read when it is needed, not on every '
               'visit to the screen');
-      expect(find.text('Team B (3)'), findsOneWidget);
+      expect(find.text('Team B'), findsOneWidget);
     });
 
     testWidgets('with everybody already in the lineup there is nobody to add',
@@ -1254,11 +1259,12 @@ void main() {
       await tapPlayer(tester, 'Sara Al Balushi');
       await tester.tap(find.text('Remove from the match'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Remove from the match'));
+      await tester
+          .tap(find.widgetWithText(FilledButton, 'Remove from the match'));
       await tester.pumpAndSettle();
 
       expect(teams.removedUserId, 'u1');
-      expect(find.text('Team A (1)'), findsOneWidget);
+      expect(find.text('Team A'), findsOneWidget);
     });
 
     testWidgets('taking out the recorded MVP says which rule refused it',
@@ -1280,7 +1286,8 @@ void main() {
       await tapPlayer(tester, 'Sara Al Balushi');
       await tester.tap(find.text('Remove from the match'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Remove from the match'));
+      await tester
+          .tap(find.widgetWithText(FilledButton, 'Remove from the match'));
       await tester.pumpAndSettle();
 
       // Not "the lineup was refused": the organizer has to know to correct the
@@ -1304,8 +1311,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('الفريقان'), findsWidgets);
-      expect(find.text('الفريق أ (2)'), findsOneWidget);
-      expect(find.text('الفريق ب (2)'), findsOneWidget);
+      expect(find.text('الفريق أ'), findsOneWidget);
+      expect(find.text('الفريق ب'), findsOneWidget);
+      expect(find.text('الفريق أ (2)'), findsNothing);
+      expect(find.text('الفريق ب (2)'), findsNothing);
       expect(find.text('إعادة إنشاء الفرق'), findsOneWidget);
       // The position label is gone from the card — the row it sits in says it —
       // so what is checked here is that the names and the chrome are Arabic.
@@ -1321,7 +1330,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(Directionality.of(tester.element(find.text('الفريق أ (2)'))),
+      expect(Directionality.of(tester.element(find.text('الفريق أ'))),
           TextDirection.rtl);
     });
 
@@ -1470,7 +1479,6 @@ class _PitchRouteRecorder extends NavigatorObserver {
     pushed.clear();
   }
 }
-
 
 // --- Fake ports -------------------------------------------------------------
 //

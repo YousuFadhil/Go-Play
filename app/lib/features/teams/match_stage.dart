@@ -6,7 +6,6 @@ import 'package:intl/intl.dart' show DateFormat;
 
 import '../../core/l10n.dart';
 import '../../core/design.dart';
-import '../../core/tokens.dart';
 
 /// The one dark ground a match is presented on, and the pieces that sit on it.
 ///
@@ -46,15 +45,15 @@ abstract final class MatchStage {
   static const accent = Color(0xFF63E39D);
 
   /// The winning side's segment of the score strip, against the other's.
-  static const wonFill = Color(0xFF15402B);
+  static const wonFill = Color(0xFF123724);
   static const restFill = Color(0xFF0E2A1D);
 
   /// The star. Brighter than the app's `warn`, which was chosen against white.
   static const star = Color(0xFFF0C43C);
 
   /// The badge a goal tally sits on, over grass.
-  static const badge = Color(0x1FFFFFFF);
-  static const badgeEdge = Color(0x8AFFFFFF);
+  static const badge = Color(0x0FFFFFFF);
+  static const badgeEdge = Color(0x52FFFFFF);
 }
 
 /// The match, above the two sides: whose it is, what it was called, when it was
@@ -114,13 +113,13 @@ class MatchStageHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: MatchStage.inkMuted,
-              fontSize: 12.5 * scale,
+              fontSize: 12 * scale,
               fontWeight: FontWeight.w600,
-              height: 1.3,
+              height: 1.2,
             ),
           ),
         if (title != null) ...[
-          SizedBox(height: 2 * scale),
+          SizedBox(height: 1 * scale),
           Text(
             title,
             maxLines: 1,
@@ -130,23 +129,23 @@ class MatchStageHeader extends StatelessWidget {
             // breaks the cursive joins.
             style: TextStyle(
               color: MatchStage.ink,
-              fontSize: 21 * scale,
+              fontSize: 20 * scale,
               fontWeight: FontWeight.w800,
-              height: 1.2,
+              height: 1.1,
             ),
           ),
         ],
         if (playedAt != null) ...[
-          SizedBox(height: 4 * scale),
+          SizedBox(height: 2 * scale),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.calendar_today_outlined,
-                size: 12 * scale,
+                size: 11.5 * scale,
                 color: MatchStage.inkMuted,
               ),
-              SizedBox(width: 6 * scale),
+              SizedBox(width: 5 * scale),
               Flexible(
                 child: Text(
                   DateFormat.yMMMMEEEEd(locale).format(playedAt),
@@ -154,9 +153,9 @@ class MatchStageHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: MatchStage.inkMuted,
-                    fontSize: 12.5 * scale,
+                    fontSize: 12 * scale,
                     fontWeight: FontWeight.w500,
-                    height: 1.3,
+                    height: 1.2,
                   ),
                 ),
               ),
@@ -164,7 +163,7 @@ class MatchStageHeader extends StatelessWidget {
           ),
         ],
         if (_hasResult) ...[
-          SizedBox(height: 12 * scale),
+          SizedBox(height: 8 * scale),
           _ScoreStrip(
             teamA: l10n.teamAName,
             teamB: l10n.teamBName,
@@ -214,7 +213,7 @@ class _ScoreStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14 * scale),
+        borderRadius: BorderRadius.circular(12 * scale),
         border: Border.all(color: MatchStage.sectionEdge, width: scale),
       ),
       clipBehavior: Clip.antiAlias,
@@ -274,8 +273,8 @@ class _StripSide extends StatelessWidget {
       color: won ? MatchStage.wonFill : MatchStage.restFill,
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 12 * scale,
-          vertical: 10 * scale,
+          horizontal: 10 * scale,
+          vertical: 7.5 * scale,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -283,7 +282,7 @@ class _StripSide extends StatelessWidget {
           children: [
             if (won) ...[
               _WinnerChip(label: winnerLabel, scale: scale),
-              SizedBox(height: 5 * scale),
+              SizedBox(height: 3 * scale),
             ],
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -291,9 +290,8 @@ class _StripSide extends StatelessWidget {
                 Icon(
                   Icons.shield,
                   size: 17 * scale,
-                  color: won
-                      ? MatchStage.accent
-                      : MatchStage.inkMuted.withValues(alpha: 0.55),
+                  color:
+                      MatchStage.inkMuted.withValues(alpha: won ? 0.75 : 0.55),
                 ),
                 SizedBox(width: 7 * scale),
                 Flexible(
@@ -302,9 +300,9 @@ class _StripSide extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: won ? MatchStage.accent : MatchStage.ink,
-                      fontSize: 13 * scale,
-                      fontWeight: won ? FontWeight.w800 : FontWeight.w600,
+                      color: MatchStage.ink,
+                      fontSize: 12.5 * scale,
+                      fontWeight: won ? FontWeight.w700 : FontWeight.w600,
                       height: 1.25,
                     ),
                   ),
@@ -339,7 +337,7 @@ class _StripScore extends StatelessWidget {
           textDirection: TextDirection.ltr,
           style: TextStyle(
             color: won ? MatchStage.accent : MatchStage.ink,
-            fontSize: 30 * scale,
+            fontSize: 26 * scale,
             fontWeight: FontWeight.w800,
             height: 1,
             letterSpacing: -1 * scale,
@@ -350,8 +348,8 @@ class _StripScore extends StatelessWidget {
       color: MatchStage.restFill,
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 16 * scale,
-          vertical: 12 * scale,
+          horizontal: 14 * scale,
+          vertical: 8 * scale,
         ),
         child: Center(
           child: Row(
@@ -360,13 +358,13 @@ class _StripScore extends StatelessWidget {
             children: [
               numeral(scoreA, winner == TeamId.a),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 9 * scale),
+                padding: EdgeInsets.symmetric(horizontal: 8 * scale),
                 child: Text(
                   '–',
                   textDirection: TextDirection.ltr,
                   style: TextStyle(
                     color: MatchStage.inkMuted,
-                    fontSize: 22 * scale,
+                    fontSize: 20 * scale,
                     fontWeight: FontWeight.w300,
                     height: 1,
                   ),
@@ -392,19 +390,23 @@ class _WinnerChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: 9 * scale,
-        vertical: 1.5 * scale,
+        horizontal: 7 * scale,
+        vertical: 1 * scale,
       ),
       decoration: BoxDecoration(
-        color: GoColors.primaryContainer,
+        color: MatchStage.accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(Radii.pill),
+        border: Border.all(
+          color: MatchStage.accent.withValues(alpha: 0.28),
+          width: scale,
+        ),
       ),
       child: Text(
         label,
         maxLines: 1,
         style: TextStyle(
-          color: GoColors.onPrimaryContainer,
-          fontSize: 9.5 * scale,
+          color: MatchStage.accent,
+          fontSize: 8.5 * scale,
           fontWeight: FontWeight.w800,
           height: 1.4,
         ),
@@ -451,24 +453,24 @@ class MatchStageSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(18 * scale),
         border: Border.all(
           color: won
-              ? MatchStage.accent.withValues(alpha: 0.35)
+              ? MatchStage.accent.withValues(alpha: 0.24)
               : MatchStage.sectionEdge,
           width: 1 * scale,
         ),
       ),
-      padding: EdgeInsets.all(10 * scale),
+      padding: EdgeInsets.all(8 * scale),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
         children: [
           Padding(
             padding:
-                EdgeInsets.fromLTRB(4 * scale, 2 * scale, 4 * scale, 8 * scale),
+                EdgeInsets.fromLTRB(4 * scale, 1 * scale, 4 * scale, 6 * scale),
             child: Row(
               children: [
                 Container(
                   width: 3 * scale,
-                  height: 16 * scale,
+                  height: 14 * scale,
                   decoration: BoxDecoration(
                     color: won ? MatchStage.accent : MatchStage.inkMuted,
                     borderRadius: BorderRadius.circular(Radii.pill),
@@ -482,7 +484,7 @@ class MatchStageSection extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: MatchStage.ink,
-                      fontSize: 15 * scale,
+                      fontSize: 14.5 * scale,
                       fontWeight: FontWeight.w800,
                       height: 1.25,
                     ),
@@ -490,15 +492,15 @@ class MatchStageSection extends StatelessWidget {
                 ),
                 if (won)
                   Container(
-                    width: 26 * scale,
-                    height: 26 * scale,
+                    width: 22 * scale,
+                    height: 22 * scale,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: MatchStage.accent.withValues(alpha: 0.16),
+                      color: MatchStage.accent.withValues(alpha: 0.10),
                     ),
                     child: Icon(
                       Icons.emoji_events,
-                      size: 15 * scale,
+                      size: 13 * scale,
                       color: MatchStage.accent,
                     ),
                   ),

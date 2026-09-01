@@ -34,9 +34,9 @@ class PitchView extends StatelessWidget {
   /// Fixed approved geometry. The page scrolls; the pitch never stretches to
   /// absorb formation rows.
   static const aspectRatio = 1.9;
-  static const avatarDiameterFraction = 0.09;
-  static const minAvatarDiameter = 32.0;
-  static const maxAvatarDiameter = 70.0;
+  static const avatarDiameterFraction = 0.10;
+  static const minAvatarDiameter = 34.0;
+  static const maxAvatarDiameter = 76.0;
 
   /// This team's stored assignments, in any order.
   final List<TeamAssignment> assignments;
@@ -363,7 +363,7 @@ class PlayerCard extends StatelessWidget {
     // ancestor a share card has no reason to carry.
     final body = Padding(
       padding: EdgeInsets.symmetric(
-        vertical: Gap.xs * scale,
+        vertical: 2 * scale,
         horizontal: 2 * scale,
       ),
       child: Column(
@@ -393,7 +393,7 @@ class PlayerCard extends StatelessWidget {
               size: radius,
             ),
           ),
-          SizedBox(height: Gap.xs * scale),
+          SizedBox(height: 3 * scale),
           // The name, and the star beside it.
           //
           // **Inline, because the star belongs to the player and not to a
@@ -500,10 +500,10 @@ class _GoalBadge extends StatelessWidget {
       label: l10n.goalsScoredLabel(goals),
       excludeSemantics: true,
       child: Container(
-        margin: EdgeInsets.only(top: 3 * scale),
+        margin: EdgeInsets.only(top: 2 * scale),
         padding: EdgeInsets.symmetric(
-          horizontal: 7 * scale,
-          vertical: 1.5 * scale,
+          horizontal: 5.5 * scale,
+          vertical: 0.75 * scale,
         ),
         decoration: BoxDecoration(
           color: MatchStage.badge,
@@ -519,13 +519,17 @@ class _GoalBadge extends StatelessWidget {
               textDirection: TextDirection.ltr,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 11 * scale,
+                fontSize: 10 * scale,
                 fontWeight: FontWeight.w800,
                 height: 1.3,
               ),
             ),
-            SizedBox(width: 4 * scale),
-            Icon(Icons.sports_soccer, size: 11 * scale, color: Colors.white),
+            SizedBox(width: 3 * scale),
+            Icon(
+              Icons.sports_soccer,
+              size: 9.5 * scale,
+              color: Colors.white.withValues(alpha: 0.88),
+            ),
           ],
         ),
       ),
