@@ -118,65 +118,84 @@ class MatchResultCard extends StatelessWidget {
 
   final MatchResultCardData data;
 
-  static const shareMargin = 42.0;
-  static const sharePitchWidth = 1080.0 - (shareMargin * 2) - 28;
-  static const sharePitchHeight = sharePitchWidth / PitchView.aspectRatio;
+  static const horizontalPadding = 40.0;
+  static const sharePitchWidth = 950.0;
+  static const shareBeforePitchHeight = 610.0;
+  static const shareResultPitchHeight = 580.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return ColoredBox(
-      color: MatchStage.ground,
+    final stagePresentation = data.hasResult
+        ? MatchStagePresentation.shareResult
+        : MatchStagePresentation.shareBeforeResult;
+    final pitchPresentation = data.hasResult
+        ? PitchPresentation.shareResult
+        : PitchPresentation.shareBeforeResult;
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF063126), MatchStage.ground],
+        ),
+      ),
       child: Stack(
         children: [
-          // The screen's own watermark, at the card's size.
           Positioned(
-            top: -170,
-            right: -150,
+            top: -130,
+            right: -125,
             child: Icon(
               Icons.sports_soccer,
-              size: 660,
-              color: Colors.white.withValues(alpha: 0.03),
+              size: 430,
+              color: Colors.white.withValues(alpha: 0.06),
+            ),
+          ),
+          Positioned(
+            top: -150,
+            left: -150,
+            child: Icon(
+              Icons.sports_soccer,
+              size: 410,
+              color: Colors.white.withValues(alpha: 0.05),
             ),
           ),
           Padding(
-            padding:
-                const EdgeInsets.fromLTRB(shareMargin, 52, shareMargin, 36),
+            padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                SizedBox(height: data.hasResult ? 46 : 54),
                 MatchStageHeader(
                   community: data.communityName,
                   title: data.matchTitle,
                   playedAt: data.playedAt,
                   teamAScore: data.teamAScore,
                   teamBScore: data.teamBScore,
-                  share: true,
+                  presentation: stagePresentation,
                 ),
-                const SizedBox(height: 18),
-                Expanded(
-                  child: _side(
-                    l10n.teamAName,
-                    TeamId.a,
-                    data.of(TeamId.a),
-                  ),
+                SizedBox(height: data.hasResult ? 20 : 26),
+                _side(
+                  l10n.teamAName,
+                  TeamId.a,
+                  data.of(TeamId.a),
+                  stagePresentation,
+                  pitchPresentation,
                 ),
-                const SizedBox(height: 18),
-                Expanded(
-                  child: _side(
-                    l10n.teamBName,
-                    TeamId.b,
-                    data.of(TeamId.b),
-                  ),
+                SizedBox(height: data.hasResult ? 22 : 26),
+                _side(
+                  l10n.teamBName,
+                  TeamId.b,
+                  data.of(TeamId.b),
+                  stagePresentation,
+                  pitchPresentation,
                 ),
-                const SizedBox(height: 24),
+                const Spacer(),
                 SizedBox(
-                  height: 60,
-                  child: Align(
-                    alignment: AlignmentDirectional.bottomStart,
-                    child: _Signature(label: l10n.appName),
-                  ),
+                  height: data.hasResult ? 100 : 120,
+                  child: const _Signature(),
                 ),
               ],
             ),
@@ -190,12 +209,13 @@ class MatchResultCard extends StatelessWidget {
     String title,
     TeamId team,
     List<TeamAssignment> assignments,
+    MatchStagePresentation stagePresentation,
+    PitchPresentation pitchPresentation,
   ) =>
       MatchStageSection(
         title: title,
         won: data.winner == team,
-        share: true,
-        fill: true,
+        presentation: stagePresentation,
         child: PitchView(
           assignments: assignments,
           players: data.players,
@@ -207,77 +227,60 @@ class MatchResultCard extends StatelessWidget {
           nameOf: (id) => data.names[id] ?? '—',
           goalsOf: data.hasResult ? data.goalsOf : null,
           isMvpOf: data.hasResult ? data.isMvp : null,
-          presentation: PitchPresentation.share,
+          presentation: pitchPresentation,
         ),
       );
 }
 
-/// The product's signature: a hairline, then a play mark and the name, once, at
-/// the foot.
-///
-/// On the dark ground the mark and the name are the accent green rather than the
-/// app's `primary`, which does not carry here.
+/// The centered, secondary-weight share-card signature.
 class _Signature extends StatelessWidget {
-  const _Signature({required this.label});
-
-  final String label;
+  const _Signature();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Divider(height: 1, thickness: 1, color: MatchStage.sectionEdge),
-        const SizedBox(height: 14),
-        // The mark and the name are one thing and it reads left to right, so
-        // the row is pinned rather than inherited: an Arabic card would
-        // otherwise put the triangle after the name and point it backwards.
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: Color(0x3845DF7C),
+        ),
+        Spacer(),
         Row(
           textDirection: TextDirection.ltr,
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(
-              width: 11,
-              height: 12,
-              child: CustomPaint(painter: _PlayMarkPainter()),
+            Icon(
+              Icons.sports_soccer,
+              size: 42,
+              color: MatchStage.accent,
             ),
-            const SizedBox(width: 9),
-            Text(
-              label.toUpperCase(),
-              // A name, not a sentence: it reads left to right in both
-              // languages, and Latin capitals are the one place tracking is
-              // safe.
+            SizedBox(width: 12),
+            Text.rich(
+              TextSpan(
+                text: 'GO ',
+                children: [
+                  TextSpan(
+                    text: 'PLAY',
+                    style: TextStyle(color: MatchStage.ink),
+                  ),
+                ],
+              ),
               textDirection: TextDirection.ltr,
-              style: const TextStyle(
+              style: TextStyle(
                 color: MatchStage.accent,
-                fontSize: 17,
+                fontSize: 46,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 4.5,
-                height: 1.1,
+                fontStyle: FontStyle.italic,
+                letterSpacing: -1,
+                height: 1,
               ),
             ),
           ],
         ),
+        Spacer(),
       ],
     );
   }
-}
-
-/// The play triangle that signs the card.
-class _PlayMarkPainter extends CustomPainter {
-  const _PlayMarkPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, size.height / 2)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(path, Paint()..color = MatchStage.accent);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PlayMarkPainter oldDelegate) => false;
 }

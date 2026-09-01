@@ -2,6 +2,7 @@ import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/features/teams/match_stage.dart';
 import 'package:go_play/features/teams/pitch_view.dart';
 import 'package:go_play/features/teams/team_models.dart';
 
@@ -54,13 +55,17 @@ void main() {
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: Scaffold(
-        body: SingleChildScrollView(
-          child: PitchView(
-            assignments: assignments,
-            players: byId,
-            hasNaturalGoalkeeper:
-                hasNaturalGoalkeeper ?? squad.any((p) => p.isNaturalGoalkeeper),
-            nameOf: (id) => byId[id]?.fullName ?? '—',
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: PitchView.phonePitchWidth,
+            child: PitchView(
+              assignments: assignments,
+              players: byId,
+              hasNaturalGoalkeeper: hasNaturalGoalkeeper ??
+                  squad.any((p) => p.isNaturalGoalkeeper),
+              nameOf: (id) => byId[id]?.fullName ?? '—',
+            ),
           ),
         ),
       ),
@@ -72,7 +77,7 @@ void main() {
       tester.getCenter(find.text(name)).dy;
 
   group('the order of the rows', () {
-    testWidgets('attack at the top, then midfield, defence, and goal',
+    testWidgets('goal at the top, then defence, midfield, and attack',
         (tester) async {
       // A squad big enough to fill every line. A smaller one would not: the
       // approved rules fill defence to three before attack gets anybody, so a
@@ -95,9 +100,9 @@ void main() {
         squad: squad,
       );
 
-      expect(yOf(tester, 'Player f0'), lessThan(yOf(tester, 'Player m0')));
-      expect(yOf(tester, 'Player m0'), lessThan(yOf(tester, 'Player d0')));
-      expect(yOf(tester, 'Player d0'), lessThan(yOf(tester, 'Player gk')));
+      expect(yOf(tester, 'Player gk'), lessThan(yOf(tester, 'Player d0')));
+      expect(yOf(tester, 'Player d0'), lessThan(yOf(tester, 'Player m0')));
+      expect(yOf(tester, 'Player m0'), lessThan(yOf(tester, 'Player f0')));
     });
 
     testWidgets('a line nobody plays in is not drawn', (tester) async {
@@ -163,10 +168,10 @@ void main() {
 
       final rows = rowSizes(tester, names);
       final ys = rows.keys.toList()..sort();
-      // Top row is the attack; the rows between it and the back line are the
+      // Top row is the back line; the rows between it and the attack are the
       // midfield.
-      final attack = rows[ys.first]!;
-      final defence = rows[ys.last]!;
+      final defence = rows[ys.first]!;
+      final attack = rows[ys.last]!;
       final midfield = names.length - attack - defence;
 
       expect(attack, lessThan(midfield));
@@ -191,11 +196,12 @@ void main() {
         hasNaturalGoalkeeper: false,
       );
 
-      // The three forwards share the top line, which is where they started.
-      final top = yOf(tester, 'Player f0');
-      expect(yOf(tester, 'Player f1'), top);
-      expect(yOf(tester, 'Player f2'), top);
-      expect(yOf(tester, 'Player m0'), greaterThan(top));
+      // The three forwards share the bottom outfield line, which is where the
+      // approved visual composition places the attack.
+      final attack = yOf(tester, 'Player f0');
+      expect(yOf(tester, 'Player f1'), attack);
+      expect(yOf(tester, 'Player f2'), attack);
+      expect(yOf(tester, 'Player m0'), lessThan(attack));
     });
 
     testWidgets('a forward drawn in midfield keeps its data without a badge',
@@ -429,9 +435,9 @@ void main() {
       }
       final rows = ys.keys.toList()..sort();
 
-      expect(ys[rows.first], 1, reason: 'one attacker on the top row');
+      expect(ys[rows.first], 3, reason: 'three at the back, untouched');
       expect(ys[rows[1]], 3, reason: 'three in midfield');
-      expect(ys[rows.last], 3, reason: 'three at the back, untouched');
+      expect(ys[rows.last], 1, reason: 'one attacker on the bottom row');
     });
   });
 
@@ -555,7 +561,7 @@ void main() {
   });
 
   group('the sizes the engine supports', () {
-    testWidgets('the pitch is 1.9 landscape with a recognisable avatar',
+    testWidgets('the phone pitch and player unit use the approved geometry',
         (tester) async {
       await pumpPitch(
         tester,
@@ -565,20 +571,29 @@ void main() {
       );
 
       final pitch = tester.getSize(find.byKey(const ValueKey('match-pitch')));
-      expect(pitch.width / pitch.height, closeTo(PitchView.aspectRatio, 0.001));
-      expect(PitchView.aspectRatio, inInclusiveRange(1.85, 1.95));
+      expect(pitch.width, PitchView.phonePitchWidth);
+      expect(pitch.height, PitchView.phonePitchHeight);
+      expect(
+        pitch.width / pitch.height,
+        closeTo(PitchView.phoneAspectRatio, 0.001),
+      );
 
-      final avatar = tester.getSize(find.byType(CircleAvatar));
-      expect(avatar.width, inInclusiveRange(54, 58));
+      final avatar =
+          tester.getSize(find.byKey(const ValueKey('player-avatar')));
+      expect(avatar.width, PitchView.phoneAvatarDiameter);
       expect(avatar.height, avatar.width);
-      expect(PitchView.screenAvatarDiameter, 56);
 
       final name = tester.widget<Text>(find.text('Player m1'));
       final rating = tester.widget<Text>(find.text('6.0'));
-      expect(name.style!.fontSize, 14);
+      expect(name.style!.fontSize, 13);
       expect(name.maxLines, 1);
       expect(name.overflow, TextOverflow.ellipsis);
       expect(rating.style!.fontSize, 11);
+      expect(rating.style!.color, MatchStage.ink);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('player-rating'))).height,
+        18,
+      );
     });
 
     testWidgets('a 2 v 2 side draws without a goalkeeper row', (tester) async {

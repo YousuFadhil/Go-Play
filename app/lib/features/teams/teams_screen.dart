@@ -1,7 +1,6 @@
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
@@ -364,6 +363,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     return Scaffold(
       backgroundColor: MatchStage.ground,
       appBar: AppBar(
+        toolbarHeight: 56,
         backgroundColor: MatchStage.ground,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -371,13 +371,15 @@ class _TeamsScreenState extends State<TeamsScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        centerTitle: true,
+        leadingWidth: 56,
         titleSpacing: 0,
         title: Text(
           l10n.teamsTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            fontSize: 17,
+            fontSize: 20,
             height: 1.25,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
@@ -392,10 +394,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // The one share control in the product. There is no second one at the
         // foot of this screen and none on Match Details.
         actions: [
-          IconButton(
-            icon: const Icon(Icons.ios_share),
-            tooltip: l10n.shareTeamLineupAction,
-            onPressed: _canShare && !_busy ? _shareLineup : null,
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 4),
+            child: IconButton(
+              icon: const Icon(Icons.ios_share, size: 24),
+              tooltip: l10n.shareTeamLineupAction,
+              onPressed: _canShare && !_busy ? _shareLineup : null,
+            ),
           ),
         ],
       ),
@@ -415,25 +420,43 @@ class _TeamsScreenState extends State<TeamsScreen> {
             // The watermark is the one decoration on the ground: a ball, large,
             // cropped by the corner and barely lighter than what it sits on. It
             // says "football" without competing with a single player.
-            child: Stack(
-              children: [
-                Positioned(
-                  top: -70,
-                  right: -60,
-                  child: Icon(
-                    Icons.sports_soccer,
-                    size: 260,
-                    color: Colors.white.withValues(alpha: 0.028),
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF063126), MatchStage.ground],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -72,
+                    right: -64,
+                    child: Icon(
+                      Icons.sports_soccer,
+                      size: 230,
+                      color: Colors.white.withValues(alpha: 0.055),
+                    ),
                   ),
-                ),
-                ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsetsDirectional.fromSTEB(0, 2, 0, 24),
-                  children: view.lineup.isEmpty
-                      ? _emptyState(l10n, view)
-                      : _generatedTeams(l10n, view),
-                ),
-              ],
+                  Positioned(
+                    top: -82,
+                    left: -84,
+                    child: Icon(
+                      Icons.sports_soccer,
+                      size: 210,
+                      color: Colors.white.withValues(alpha: 0.045),
+                    ),
+                  ),
+                  ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 20),
+                    children: view.lineup.isEmpty
+                        ? _emptyState(l10n, view)
+                        : _generatedTeams(l10n, view),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -469,12 +492,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // the match and the date; after one it grows the score strip, and
         // nothing else about the screen changes.
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            Gap.sm,
-            20,
-            14,
-          ),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           child: MatchStageHeader(
             community: view.match.communityName,
             title: view.match.displayName,
@@ -488,7 +506,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
           view,
           l10n.teamAName,
           TeamId.a,
-          bottomGap: 16,
+          bottomGap: 14,
         ),
         ..._teamSection(
           l10n,
@@ -605,7 +623,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // a detached pitch.
     return [
       Padding(
-        padding: EdgeInsets.fromLTRB(20, 0, 20, bottomGap),
+        padding: EdgeInsets.fromLTRB(12, 0, 12, bottomGap),
         child: MatchStageSection(
           title: title,
           won: won,
