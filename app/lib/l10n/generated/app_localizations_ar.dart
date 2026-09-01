@@ -1704,4 +1704,65 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get profileAgeVisibleHelp =>
       'يُحتسب عمرك من تاريخ ميلادك. عطّل هذا الخيار فلن يراه اللاعبون الآخرون.';
+
+  @override
+  String get latestResultsTitle => 'آخر النتائج';
+
+  @override
+  String get latestResultsSubtitle => 'ما لُعب للتو';
+
+  @override
+  String get latestResultsEmpty =>
+      'لا توجد نتائج بعد. أول مباراة تُلعب ستظهر هنا.';
+
+  @override
+  String get latestResultsFailed => 'تعذّر تحميل آخر المباريات.';
+
+  @override
+  String get resultPendingLabel => 'النتيجة لم تُسجَّل بعد';
+
+  @override
+  String get footballRecordTitle => 'السجل الكروي';
+
+  @override
+  String get footballMatchTitle => 'المباراة';
+
+  @override
+  String get topPlayersTitle => 'أبرز اللاعبين';
+
+  @override
+  String get topPlayersSubtitle => 'بحسب التقييم ثم الأهداف';
+
+  @override
+  String get topPlayersEmpty => 'لا سجل لأحد هنا بعد.';
+
+  @override
+  String get recentResultsTitle => 'أحدث النتائج';
+
+  @override
+  String get statPlayersWithRecord => 'اللاعبون';
+
+  @override
+  String get statMvps => 'أفضل لاعب';
+
+  @override
+  String get lineupUnavailable =>
+      'لم يُحفظ تشكيل لهذه المباراة. هؤلاء من شاركوا فيها.';
+
+  @override
+  String get rosterTitle => 'من شارك';
+
+  @override
+  String goalsShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count أهداف',
+      one: 'هدف واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get communityFootballTitle => 'كرة القدم';
 }

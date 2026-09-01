@@ -1085,7 +1085,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Only the community owner and admins can record a match result.';
 
   @override
-  String get mvpLabel => 'Best player';
+  String get mvpLabel => 'MVP';
 
   @override
   String get addGoalLabel => 'Add a goal';
@@ -1720,4 +1720,65 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get profileAgeVisibleHelp =>
       'Your age is worked out from your date of birth. Turn this off and other players will not see it.';
+
+  @override
+  String get latestResultsTitle => 'Latest results';
+
+  @override
+  String get latestResultsSubtitle => 'What has just been played';
+
+  @override
+  String get latestResultsEmpty =>
+      'No results yet. Once a match is played it shows up here.';
+
+  @override
+  String get latestResultsFailed => 'Could not load recent football.';
+
+  @override
+  String get resultPendingLabel => 'Result pending';
+
+  @override
+  String get footballRecordTitle => 'Football record';
+
+  @override
+  String get footballMatchTitle => 'Match';
+
+  @override
+  String get topPlayersTitle => 'Top players';
+
+  @override
+  String get topPlayersSubtitle => 'Ranked by rating, then goals';
+
+  @override
+  String get topPlayersEmpty => 'Nobody has a record here yet.';
+
+  @override
+  String get recentResultsTitle => 'Recent results';
+
+  @override
+  String get statPlayersWithRecord => 'Players';
+
+  @override
+  String get statMvps => 'MVPs';
+
+  @override
+  String get lineupUnavailable =>
+      'No lineup was saved for this match. This is who took part.';
+
+  @override
+  String get rosterTitle => 'Who played';
+
+  @override
+  String goalsShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count goals',
+      one: '$count goal',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get communityFootballTitle => 'Football';
 }

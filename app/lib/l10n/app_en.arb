@@ -716,5 +716,30 @@
   },
 
   "profileAgeVisibleLabel": "Show my age",
-  "profileAgeVisibleHelp": "Your age is worked out from your date of birth. Turn this off and other players will not see it."
+  "profileAgeVisibleHelp": "Your age is worked out from your date of birth. Turn this off and other players will not see it.",
+  "latestResultsTitle": "Latest results",
+  "latestResultsSubtitle": "What has just been played",
+  "latestResultsEmpty": "No results yet. Once a match is played it shows up here.",
+  "latestResultsFailed": "Could not load recent football.",
+  "resultPendingLabel": "Result pending",
+  "footballRecordTitle": "Football record",
+  "footballMatchTitle": "Match",
+  "topPlayersTitle": "Top players",
+  "topPlayersSubtitle": "Ranked by rating, then goals",
+  "topPlayersEmpty": "Nobody has a record here yet.",
+  "recentResultsTitle": "Recent results",
+  "statPlayersWithRecord": "Players",
+  "statMvps": "MVPs",
+  "mvpLabel": "MVP",
+  "lineupUnavailable": "No lineup was saved for this match. This is who took part.",
+  "rosterTitle": "Who played",
+  "goalsShort": "{count, plural, =1{{count} goal} other{{count} goals}}",
+  "@goalsShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "communityFootballTitle": "Football"
 }

@@ -593,5 +593,30 @@
   "teamsShownOutOfLine": "مرسوم في خط آخر. مركزه: {position}.",
 
   "profileAgeVisibleLabel": "إظهار عمري",
-  "profileAgeVisibleHelp": "يُحتسب عمرك من تاريخ ميلادك. عطّل هذا الخيار فلن يراه اللاعبون الآخرون."
+  "profileAgeVisibleHelp": "يُحتسب عمرك من تاريخ ميلادك. عطّل هذا الخيار فلن يراه اللاعبون الآخرون.",
+  "latestResultsTitle": "آخر النتائج",
+  "latestResultsSubtitle": "ما لُعب للتو",
+  "latestResultsEmpty": "لا توجد نتائج بعد. أول مباراة تُلعب ستظهر هنا.",
+  "latestResultsFailed": "تعذّر تحميل آخر المباريات.",
+  "resultPendingLabel": "النتيجة لم تُسجَّل بعد",
+  "footballRecordTitle": "السجل الكروي",
+  "footballMatchTitle": "المباراة",
+  "topPlayersTitle": "أبرز اللاعبين",
+  "topPlayersSubtitle": "بحسب التقييم ثم الأهداف",
+  "topPlayersEmpty": "لا سجل لأحد هنا بعد.",
+  "recentResultsTitle": "أحدث النتائج",
+  "statPlayersWithRecord": "اللاعبون",
+  "statMvps": "أفضل لاعب",
+  "mvpLabel": "أفضل لاعب",
+  "lineupUnavailable": "لم يُحفظ تشكيل لهذه المباراة. هؤلاء من شاركوا فيها.",
+  "rosterTitle": "من شارك",
+  "goalsShort": "{count, plural, =1{هدف واحد} other{{count} أهداف}}",
+  "@goalsShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "communityFootballTitle": "كرة القدم"
 }

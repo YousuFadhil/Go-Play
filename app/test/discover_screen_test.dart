@@ -10,11 +10,17 @@ import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
 import 'package:go_play/features/auth/login_screen.dart';
 import 'package:go_play/features/auth/register_screen.dart';
+import 'package:go_play/features/communities/community_adapter.dart';
+import 'package:go_play/features/communities/community_models.dart';
+import 'package:go_play/features/communities/community_repository.dart';
 import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
 import 'package:go_play/features/discover/discover_screen.dart';
 import 'package:go_play/features/discover/public_community_screen.dart';
+import 'package:go_play/features/football/football_adapter.dart';
+import 'package:go_play/features/football/football_models.dart';
+import 'package:go_play/features/football/football_repository.dart';
 import 'package:go_play/features/profile/current_user.dart';
 import 'package:go_play/features/profile/profile_adapter.dart';
 import 'package:go_play/features/profile/profile_models.dart';
@@ -76,6 +82,12 @@ void main() {
     PlayerProfile? profile,
     Locale locale = const Locale('en'),
     Size size = const Size(800, 2400),
+    // Cycle 3: a signed-in Discover also reads football history and the
+    // reader's own memberships. Supplied here so the screen never reaches the
+    // real provider, exactly as the discover repository already is.
+    List<CompletedMatch>? results,
+    Object? footballFailure,
+    List<String> joinedCommunityIds = const [],
   }) async {
     // The greeting reads the profile the session holds. Left null nothing is
     // loaded, which is the case the headline has to fall back for.
@@ -102,6 +114,14 @@ void main() {
       home: DiscoverScreen(
         repository: DiscoverRepository(adapter),
         authService: AuthService(_StubAuthAdapter(signedIn: signedIn)),
+        footballRepository: FootballRepository(
+          _FakeFootballAdapter(
+            results: results ?? const [],
+            failure: footballFailure,
+          ),
+        ),
+        communityRepository:
+            CommunityRepository(_JoinedCommunitiesAdapter(joinedCommunityIds)),
       ),
     ));
     await tester.pumpAndSettle();
@@ -650,5 +670,103 @@ class _StaticProfileAdapter implements ProfileAdapter {
 
   @override
   Future<void> updateMyPrivacy(ProfilePrivacy privacy) =>
+      throw UnimplementedError();
+}
+
+
+/// A football port that answers from a list, or refuses.
+///
+/// Only Discover's two signed-in reads are exercised here; the rest throw so a
+/// screen that started calling them would say so rather than pass quietly.
+class _FakeFootballAdapter implements FootballAdapter {
+  _FakeFootballAdapter({this.results = const [], this.failure});
+
+  final List<CompletedMatch> results;
+  final Object? failure;
+  var completedCalls = 0;
+
+  @override
+  Future<List<CompletedMatch>> fetchCompletedMatches({
+    String? communityId,
+    int limit = 50,
+  }) async {
+    completedCalls++;
+    if (failure != null) throw failure!;
+    return results;
+  }
+
+  @override
+  Future<CompletedMatch> fetchCompletedMatch(String matchId) =>
+      throw UnimplementedError();
+  @override
+  Future<List<MatchRosterEntry>> fetchMatchRoster(String matchId) =>
+      throw UnimplementedError();
+  @override
+  Future<List<LineupSlot>> fetchMatchLineup(String matchId) =>
+      throw UnimplementedError();
+  @override
+  Future<CommunityFootballStats> fetchCommunityStats(String communityId) =>
+      throw UnimplementedError();
+  @override
+  Future<List<CommunityPlayerStats>> fetchCommunityPlayerStats(
+          String communityId) =>
+      throw UnimplementedError();
+}
+
+/// A community port that reports which communities the reader has joined, and
+/// refuses everything else — Discover reads exactly one thing from it.
+class _JoinedCommunitiesAdapter implements CommunityAdapter {
+  _JoinedCommunitiesAdapter(this.joinedIds);
+
+  final List<String> joinedIds;
+  var myCommunitiesCalls = 0;
+
+  @override
+  Future<List<Community>> fetchMyCommunities() async {
+    myCommunitiesCalls++;
+    return [
+      for (final id in joinedIds)
+        Community(
+          id: id,
+          ownerId: 'owner',
+          name: 'Joined $id',
+          joinPolicy: JoinPolicy.open,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<Community>> fetchAllCommunities() => throw UnimplementedError();
+  @override
+  Future<Community> fetchCommunity(String communityId) =>
+      throw UnimplementedError();
+  @override
+  Future<String> createCommunity({
+    required String name,
+    String? description,
+    required JoinPolicy joinPolicy,
+  }) =>
+      throw UnimplementedError();
+  @override
+  Future<String> joinCommunity(String communityId) =>
+      throw UnimplementedError();
+  @override
+  Future<String> joinCommunityByCode(String code) =>
+      throw UnimplementedError();
+  @override
+  Future<void> setJoinPolicy(String communityId,
+          {required JoinPolicy joinPolicy}) =>
+      throw UnimplementedError();
+  @override
+  Future<String> fetchJoinCode(String communityId) =>
+      throw UnimplementedError();
+  @override
+  Future<CommunityInvitePreview> previewInvite(String code) =>
+      throw UnimplementedError();
+  @override
+  Future<String> regenerateJoinCode(String communityId) =>
+      throw UnimplementedError();
+  @override
+  Future<void> deleteCommunity(String communityId) =>
       throw UnimplementedError();
 }

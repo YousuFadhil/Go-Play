@@ -63,7 +63,7 @@ import 'app_localizations_en.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('ar'),
-    Locale('en')
+    Locale('en'),
   ];
 
   /// No description provided for @appName.
@@ -2027,7 +2027,7 @@ abstract class AppLocalizations {
   /// No description provided for @mvpLabel.
   ///
   /// In en, this message translates to:
-  /// **'Best player'**
+  /// **'MVP'**
   String get mvpLabel;
 
   /// No description provided for @addGoalLabel.
@@ -3049,6 +3049,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your age is worked out from your date of birth. Turn this off and other players will not see it.'**
   String get profileAgeVisibleHelp;
+
+  /// No description provided for @latestResultsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest results'**
+  String get latestResultsTitle;
+
+  /// No description provided for @latestResultsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What has just been played'**
+  String get latestResultsSubtitle;
+
+  /// No description provided for @latestResultsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No results yet. Once a match is played it shows up here.'**
+  String get latestResultsEmpty;
+
+  /// No description provided for @latestResultsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load recent football.'**
+  String get latestResultsFailed;
+
+  /// No description provided for @resultPendingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Result pending'**
+  String get resultPendingLabel;
+
+  /// No description provided for @footballRecordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Football record'**
+  String get footballRecordTitle;
+
+  /// No description provided for @footballMatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match'**
+  String get footballMatchTitle;
+
+  /// No description provided for @topPlayersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Top players'**
+  String get topPlayersTitle;
+
+  /// No description provided for @topPlayersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranked by rating, then goals'**
+  String get topPlayersSubtitle;
+
+  /// No description provided for @topPlayersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has a record here yet.'**
+  String get topPlayersEmpty;
+
+  /// No description provided for @recentResultsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent results'**
+  String get recentResultsTitle;
+
+  /// No description provided for @statPlayersWithRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Players'**
+  String get statPlayersWithRecord;
+
+  /// No description provided for @statMvps.
+  ///
+  /// In en, this message translates to:
+  /// **'MVPs'**
+  String get statMvps;
+
+  /// No description provided for @lineupUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No lineup was saved for this match. This is who took part.'**
+  String get lineupUnavailable;
+
+  /// No description provided for @rosterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Who played'**
+  String get rosterTitle;
+
+  /// No description provided for @goalsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{count} goal} other{{count} goals}}'**
+  String goalsShort(int count);
+
+  /// No description provided for @communityFootballTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Football'**
+  String get communityFootballTitle;
 }
 
 class _AppLocalizationsDelegate
@@ -3078,8 +3180,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }
