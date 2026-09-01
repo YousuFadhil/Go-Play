@@ -33,7 +33,7 @@ String communityRoleToDb(CommunityRole role) => switch (role) {
 /// Reads a community row.
 ///
 /// There is no `join_code` here, and there is nowhere to put one: migration
-/// `0055` revoked SELECT on the column, so a row carrying one cannot arrive.
+/// `0056` revoked SELECT on the column, so a row carrying one cannot arrive.
 /// The organizer's read is `community_join_code`, mapped by nothing — it
 /// returns the code itself.
 Community communityFromRow(Map<String, dynamic> row) => Community(

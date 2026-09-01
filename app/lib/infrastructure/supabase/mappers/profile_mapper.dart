@@ -68,10 +68,10 @@ Map<String, dynamic> privacyUpdateToRow(ProfilePrivacy privacy) => {
       'age_visible': privacy.ageVisible,
     };
 
-/// Reads one row of `player_profile` (migrations `0043`, `0055`).
+/// Reads one row of `player_profile` (migrations `0043`, `0056`).
 ///
 /// The function decides what the row contains, so nothing is filtered here —
-/// and since `0055` there is nothing to filter: no phone, no email, no
+/// and since `0056` there is nothing to filter: no phone, no email, no
 /// authentication identifier and no date of birth is returned, so none can be
 /// read out even by mistake. A column named here that the function does not
 /// send would simply be absent.

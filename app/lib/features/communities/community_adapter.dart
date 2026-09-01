@@ -39,7 +39,7 @@ abstract interface class CommunityAdapter {
   /// The community's join code, for an owner or an admin.
   ///
   /// A call of its own rather than a field of [Community], because it is a
-  /// credential and not a property: migration `0055` revoked SELECT on the
+  /// credential and not a property: migration `0056` revoked SELECT on the
   /// column, so no community read carries one and this is the only path to it.
   /// Anyone below the admin role is refused with an `AuthorizationFailure`,
   /// which is the server's answer and not a check made above this layer.

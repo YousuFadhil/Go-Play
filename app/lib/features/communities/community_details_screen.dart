@@ -51,7 +51,7 @@ class CommunityDetailsScreen extends StatefulWidget {
 /// What one build of this screen holds.
 ///
 /// The last element is the join code, and it is nullable for one reason: it is
-/// only ever read for an owner or an admin. Migration `0055` made the code a
+/// only ever read for an owner or an admin. Migration `0056` made the code a
 /// separate, role-checked read rather than a column of the community, so a
 /// Player's build genuinely does not have one — and the screen that used to
 /// hide the value now simply never receives it.
@@ -660,7 +660,7 @@ class _MembersTab extends StatelessWidget {
   ///
   /// This used to be an `isOrganizer` flag beside a code every build carried,
   /// which made the tab responsible for not drawing something it was holding.
-  /// Since migration `0055` the code is fetched only for an owner or an admin,
+  /// Since migration `0056` the code is fetched only for an owner or an admin,
   /// so a Player's build has nothing to withhold — the null is the permission.
   final String? joinCode;
   final String Function(BuildContext, String) positionLabel;

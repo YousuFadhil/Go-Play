@@ -322,7 +322,7 @@ void main() {
     test('the code works under either policy, which is what a link carries',
         () async {
       // The owner's read of the code is `community_join_code` (migration
-      // `0055`); the column itself is no longer selectable by anyone.
+      // `0056`); the column itself is no longer selectable by anyone.
       final code = await owner.client.rpc(
         'community_join_code',
         params: {'p_community_id': communityId},

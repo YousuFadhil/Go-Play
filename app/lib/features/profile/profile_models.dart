@@ -19,7 +19,7 @@ import '../results/result_models.dart';
 /// this reports what is stored and the player supplies the rest.
 /// Who may open a player's profile.
 ///
-/// **Retired by migration `0055`.** A football profile is football data and is
+/// **Retired by migration `0056`.** A football profile is football data and is
 /// readable by every signed-in player, so `player_profile` no longer consults
 /// this. The type and its column survive because dropping a column is
 /// irreversible and because removing the type would churn every fake that
@@ -34,7 +34,7 @@ enum ProfileVisibility {
 
 /// What a player had decided about who sees what.
 ///
-/// **Retired by migration `0055`**, along with the Settings controls that wrote
+/// **Retired by migration `0056`**, along with the Settings controls that wrote
 /// it. Both preferences described disclosures that no longer happen: a football
 /// profile is readable by every signed-in player, and no date of birth leaves
 /// through it for an age setting to withhold. Kept as plumbing so the stored
@@ -135,10 +135,10 @@ class PlayerProfile {
 /// phone number, an email address, an authentication identifier and a date of
 /// birth off somebody else's profile is not a screen remembering not to draw
 /// them — it is that there is nowhere here to put one. The server sends a fixed
-/// short list (`player_profile`, migrations `0043` and `0055`) and this is its
+/// short list (`player_profile`, migrations `0043` and `0056`) and this is its
 /// shape.
 ///
-/// There is no date of birth and therefore no age. That is migration `0055`'s
+/// There is no date of birth and therefore no age. That is migration `0056`'s
 /// boundary: a birth date is account data, and account data belongs to the
 /// account's owner. A player's own age is still on their own record, which is
 /// [PlayerProfile].

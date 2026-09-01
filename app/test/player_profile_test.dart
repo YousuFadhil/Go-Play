@@ -31,7 +31,7 @@ import 'package:go_play/infrastructure/supabase/mappers/profile_mapper.dart';
 /// A player's profile, as another player sees it.
 ///
 /// The rules themselves are the database's — `player_profile` (migrations `0043`
-/// and `0055`) decides what a football profile carries, and
+/// and `0056`) decides what a football profile carries, and
 /// `test/integration/profile_visibility_test.dart` proves that against a real
 /// project. What is asserted here is everything above it: that the application
 /// asks through the one authorized path, that a refusal is worded rather than
@@ -57,7 +57,7 @@ void main() {
 
   /// A football profile, which is all another player's record is.
   ///
-  /// There is no date of birth to pass: migration `0055` took it out of
+  /// There is no date of birth to pass: migration `0056` took it out of
   /// `player_profile` altogether, so [PlayerProfileView] has nowhere to carry
   /// one and no test can construct a profile that leaks an age.
   PlayerProfileView viewOf({
@@ -207,7 +207,7 @@ void main() {
     testWidgets("never shows an age on another player's profile",
         (tester) async {
       // A date of birth is account data and does not leave the database for
-      // anybody but its owner (migration `0055`), so there is no age to draw
+      // anybody but its owner (migration `0056`), so there is no age to draw
       // here — not a hidden one, not a withheld one, none.
       final profiles = FakeProfileAdapter(player: viewOf());
       await pumpPlayerProfile(tester, profiles: profiles);
@@ -394,7 +394,7 @@ void main() {
 
   group('the settings the boundary retired', () {
     // Settings used to carry two controls: "who may open my profile" and "show
-    // my age". Migration `0055` ended both disclosures they governed — a
+    // my age". Migration `0056` ended both disclosures they governed — a
     // football profile is readable by every signed-in player, and no date of
     // birth leaves the database for anybody but its owner — so a control that
     // still offered the choice would be stating something untrue about the
@@ -509,7 +509,7 @@ void main() {
 
     test('carries nothing private, even when the row does', () {
       // The row below is deliberately wider than anything `player_profile` can
-      // send: `0055` fixed its column list and none of these four is on it. The
+      // send: `0056` fixed its column list and none of these four is on it. The
       // point is that the mapper has nowhere to put them — `PlayerProfileView`
       // has no phone, no email, no auth identifier and no date of birth — so a
       // server that started returning them could not push them into the model.

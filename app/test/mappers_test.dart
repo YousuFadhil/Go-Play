@@ -81,7 +81,7 @@ void main() {
       expect(community.joinPolicy, JoinPolicy.codeRequired);
     });
 
-    // Migration `0055` revoked SELECT on `communities.join_code`, so a row
+    // Migration `0056` revoked SELECT on `communities.join_code`, so a row
     // carrying one cannot arrive. This proves the mapper does not depend on it
     // arriving, and that a row which somehow carried one has nowhere to put it:
     // `Community` has no join-code field, which is a compile-time fact rather

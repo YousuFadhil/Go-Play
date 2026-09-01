@@ -19,7 +19,7 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
 
   /// What a community read is allowed to ask for.
   ///
-  /// `join_code` is not on this list and cannot be put back: migration `0055`
+  /// `join_code` is not on this list and cannot be put back: migration `0056`
   /// revoked SELECT on the column for both client roles, so a request naming it
   /// is refused by the server rather than filtered here. The organizer's read is
   /// [fetchJoinCode].

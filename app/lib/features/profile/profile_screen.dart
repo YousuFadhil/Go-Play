@@ -151,11 +151,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Another player's profile, in one read.
   ///
   /// One call and not three: the server sends the football profile and its
-  /// counters together (`player_profile`, migrations `0043` and `0055`), so
+  /// counters together (`player_profile`, migrations `0043` and `0056`), so
   /// asking separately would be asking the same question twice.
   ///
   /// [_ProfileView.age] is left null, and there is nothing to put in it: since
-  /// `0055` a date of birth does not leave the database for anybody but its
+  /// `0056` a date of birth does not leave the database for anybody but its
   /// owner, so another player's record has no age to show. The owner's own
   /// build still has one — see [_loadOwnProfile].
   Future<_ProfileView> _loadPlayerProfile(String userId) async {

@@ -11,7 +11,7 @@ import 'support.dart';
 /// The football-profile boundary, against a real project.
 ///
 /// This file used to prove the `COMMUNITY_MEMBERS` visibility rule and the age
-/// setting. Migration `0055` retired both: a football profile is football data
+/// setting. Migration `0056` retired both: a football profile is football data
 /// and is readable by every signed-in player, and a date of birth no longer
 /// leaves the database for anybody but its owner — so there is no age
 /// disclosure left for a setting to govern. What replaces those tests is the
@@ -22,7 +22,13 @@ import 'support.dart';
 ///
 /// **`outsider` is the subject of every test below**, and deliberately: it is
 /// the one permanent account that shares no community with anybody unless a
-/// test puts it in one, which is the condition requirement 8 is about.
+/// test puts it in one, which is the condition requirement 8 is about.///
+/// **Requires `0056_private_account_hardening.sql` to be applied.** Cycle 1
+/// ships as two migrations against one shared database: `0055` adds the two
+/// RPCs and takes nothing away, so the previously deployed client keeps
+/// working; `0056` is what actually closes the leaks. Run this file against a
+/// project with only `0055` applied and it will fail, correctly -- the columns
+/// really are still readable at that point.
 void main() {
   if (!integrationConfigured) {
     test('football profile boundary', () {}, skip: skipReason);
@@ -131,7 +137,7 @@ void main() {
       expect(row.keys, isNot(contains('id')),
           reason: 'the key is user_id; there is no auth identifier column');
       expect(row.containsKey('date_of_birth'), isFalse,
-          reason: 'a birth date is account data (migration 0055)');
+          reason: 'a birth date is account data (migration 0056)');
       expect(row.containsKey('age'), isFalse);
     });
 
@@ -190,7 +196,7 @@ void main() {
           );
         }),
         isNot('ALLOW'),
-        reason: 'execute is revoked from anon (migration 0055)',
+        reason: 'execute is revoked from anon (migration 0056)',
       );
     });
   });

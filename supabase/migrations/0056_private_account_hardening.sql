@@ -1,56 +1,48 @@
--- ============ migrations/0055_private_account_boundary.sql ============
--- Cycle 1 of Public Discovery: the security boundary, and nothing else.
+-- ============ migrations/0056_private_account_hardening.sql ============
+-- Cycle 1, phase two of two: the boundary itself.
 --
--- The approved product rule this migration serves:
+-- `0055_private_account_compatibility.sql` added the two paths the new client
+-- reads through -- `community_join_code` and `my_profile` -- and deliberately
+-- took nothing away, so that it could be applied to the shared project while
+-- the previous release was still the one being served. This is the half that
+-- takes things away, and it is therefore the half with a precondition.
 --
---     Football activity is discoverable; private account data is private;
---     participation still requires membership.
+-- ## DO NOT APPLY THIS UNTIL THE NEW CLIENT IS THE ONE BEING SERVED
 --
--- Nothing here makes any new football entity discoverable. No completed match,
--- no result, no lineup, no goal, no MVP and no leaderboard becomes readable to
--- anybody who could not read it yesterday. Every statement below either takes a
--- privilege away or replaces a read path with a narrower one. The one thing
--- that widens is `player_profile`, and it widens along an axis the Product
--- Owner has approved: a football profile no longer asks whether the two players
--- share a community.
+-- Staging and production share one Supabase project, so "the deployed client"
+-- is not a hypothetical. Two statements below break the release built from
+-- `main`:
 --
--- THE TWO LEAKS THIS CLOSES
+--   * `revoke select on public.communities` -- `main`'s
+--     `SupabaseCommunityAdapter._columns` names `join_code` in every community
+--     read, so its Communities list and Community Details both start failing.
+--   * `revoke select on public.users` plus the rebuilt `v_user_profile` --
+--     `main`'s profile adapter projects `phone` and `date_of_birth` off that
+--     view for the account screen.
 --
---   1) `communities.join_code`. `communities_select_visible` (migration `0016`)
---      is `for select to authenticated using (is_active)`, and no column
---      privilege ever narrowed it. Any account holder could therefore read
---      every active community's join code -- `GET /rest/v1/communities?
---      select=id,join_code` -- which made `CODE_REQUIRED` decorative: the code
---      is the credential `join_community_by_code` accepts. The application made
---      it worse by asking for the column: `SupabaseCommunityAdapter._columns`
---      listed `join_code`, so the Communities screen shipped every code to
---      every client that opened it.
+-- Neither is a bug in this migration. They are what closing the leak means, and
+-- they are the reason the split exists: apply this only once the Cycle 1 build
+-- is deployed, and the same statements are invisible to every caller.
 --
---   2) `users.phone`. `authenticated_select_active_users` (migration `0001`) is
---      `using (is_active)`, and `v_user_profile` (`0025`, `0031`, `0043`)
---      republished the column through a `security_invoker` view. Any account
---      holder could read every active player's phone number.
+-- ## WHAT THIS CLOSES
 --
--- WHY COLUMN PRIVILEGES AND NOT A POLICY
+-- Two leaks, one instrument. `communities_select_visible` (`0016`) and
+-- `authenticated_select_active_users` (`0001`) both say `using (is_active)`, and
+-- a policy decides *rows*. It cannot decide columns. So every account holder
+-- could read every active community's `join_code` -- the credential
+-- `join_community_by_code` accepts, which made `CODE_REQUIRED` decorative --
+-- and every active player's `phone`.
 --
--- RLS decides rows. It cannot decide columns. A policy that lets a caller have
--- the community row is a policy that lets them have every column of it,
--- `join_code` included, and the same is true of `users` and `phone`. So the
--- fix is where the granularity is: `revoke select on <table>`, then
+-- The fix is where the granularity is: `revoke select on <table>`, then
 -- `grant select (<the columns that are not credentials>)`. This is the pattern
 -- migration `0022` already established on this schema when it took the blanket
--- UPDATE off `users` and granted the writable columns back by name.
---
--- What legitimately still needs a withheld column gets a narrowly scoped
--- `security definer` function -- one question, one answer, one authorization
--- check -- rather than a wider grant:
---
---   * `community_join_code(uuid)` -> the code, to an owner or admin only.
---   * `my_profile()`              -> the caller's own account row, phone
---                                    included, self-only by construction.
+-- UPDATE off `users` and granted the writable columns back by name. What
+-- legitimately still needs a withheld column reads it through one of `0055`'s
+-- two functions rather than through a wider grant.
 --
 -- Idempotent: every statement is `revoke`, `grant`, `create or replace`, or a
--- guarded `drop ... if exists` followed by a create. Re-running it is a no-op.
+-- guarded `drop ... if exists` followed by a create.
+
 
 
 -- ============================================================================
@@ -85,7 +77,7 @@ revoke select on public.communities from anon, authenticated;
 -- `communities_update_owner`, which is a row rule and stays exactly as it was.
 -- Note that an owner can no longer read the code back through
 -- `update ... returning join_code` either: `returning` needs SELECT on the
--- column, and there is no longer one. The owner's path is section 2's function.
+-- column, and there is no longer one. The owner's path is `community_join_code`, added by `0055`.
 grant select (
   id,
   owner_id,
@@ -98,64 +90,9 @@ grant select (
 ) on public.communities to authenticated;
 
 
--- ============================================================================
--- 2) The one path to a join code
--- ============================================================================
--- An owner or an admin still has to be able to invite people, and inviting
--- people is showing them the code. That is a community-management action, so it
--- asks the community-management question: `has_community_role(..., 'admin')`,
--- the same predicate that gates every other organizer operation (PD-07, PD-16).
--- Being a member is not enough -- an ordinary Player has no administrative
--- reason to hold the credential that lets them hand the community to anybody.
---
--- `security definer`, because the caller no longer has the privilege to read
--- the column and this function is the reason that is survivable. The function
--- returns one text value and takes one id, so there is no projection a caller
--- could widen and no row they could reach past.
---
--- An inactive community answers `COMMUNITY_NOT_FOUND` rather than a code: a
--- soft-deleted community is not one anybody is being invited to.
-create or replace function public.community_join_code(p_community_id uuid)
-returns text
-language plpgsql
-security definer
-stable
-set search_path = public
-as $$
-declare
-  v_code text;
-begin
-  if auth.uid() is null then
-    raise exception 'NOT_AUTHENTICATED';
-  end if;
-
-  -- Asked before the row is read, so a refusal never depends on what was found.
-  if not public.has_community_role(p_community_id, auth.uid(), 'admin') then
-    raise exception 'NOT_AUTHORIZED';
-  end if;
-
-  select c.join_code into v_code
-  from communities c
-  where c.id = p_community_id and c.is_active;
-
-  if not found then
-    raise exception 'COMMUNITY_NOT_FOUND';
-  end if;
-
-  return v_code;
-end;
-$$;
-
-comment on function public.community_join_code(uuid) is
-  'The community join code, to an owner or admin and to nobody else. The only '
-  'read path that exists: migration 0055 revoked SELECT on the column itself.';
-
-revoke execute on function public.community_join_code(uuid) from anon, public;
-grant execute on function public.community_join_code(uuid) to authenticated;
-
 
 -- ============================================================================
--- 3) The phone number stops being a column anybody but its owner may read
+-- 2) The phone number stops being a column anybody but its owner may read
 -- ============================================================================
 -- Same instrument as section 1, same reason: the policy on `users` decides
 -- which rows, and every active row is every row. The column list below is the
@@ -167,11 +104,11 @@ grant execute on function public.community_join_code(uuid) to authenticated;
 -- recorded as untouched by the visibility work and untouched for the same
 -- reason here: narrowing it means moving the engine's input read behind a
 -- function, which is a change to team generation and not to this boundary. What
--- section 5 does do is stop the date leaving through the *football profile*,
+-- section 4 does do is stop the date leaving through the *football profile*,
 -- which is what the approved rule asks of this cycle.
 --
 -- `profile_visibility` and `age_visible` stay granted so that no existing read
--- of `users` breaks; both are retired as controls by section 5.
+-- of `users` breaks; both are retired as controls by section 4.
 revoke select on public.users from anon, authenticated;
 
 grant select (
@@ -197,10 +134,11 @@ grant select (
 -- SELECT away does not take the account screen's save away.
 
 
+
 -- ============================================================================
--- 4) `v_user_profile`, without the account columns
+-- 3) `v_user_profile`, without the account columns
 -- ============================================================================
--- The view is `security_invoker = on`, so it now inherits section 3's column
+-- The view is `security_invoker = on`, so it now inherits section 2's column
 -- privileges and a `phone` in its body would make every read of it fail. It is
 -- rebuilt without one.
 --
@@ -208,7 +146,7 @@ grant select (
 -- reads this view:
 --
 --   * `date_of_birth` -- the view's only reader for it was the owner's own
---     profile, which section 5's `my_profile()` now answers. Leaving it here
+--     profile, which `my_profile()` (migration `0055`) now answers. Leaving it here
 --     would have published every player's birth date to every account holder
 --     through a view whose whole purpose is now the career record.
 --   * `profile_visibility`, `age_visible` -- the owner's own preferences. They
@@ -269,71 +207,9 @@ revoke insert, update, delete, truncate, references, trigger
 grant select on public.v_user_profile to authenticated;
 
 
--- ============================================================================
--- 5) `my_profile()`: the caller's own account row
--- ============================================================================
--- Self-only by construction, not by policy: the function does not take a user
--- id, so there is no argument a caller could point at somebody else. It reads
--- `auth.uid()` and nothing else, which means "User A retrieving User B's phone"
--- is not a request this function can express.
---
--- `security definer` because `phone` is no longer selectable by the caller, and
--- because this is the one place the product has decided it should be.
---
--- The column list is the account screen's and the profile screen's, together:
--- identity, contact number, playing inputs, picture, rating and the two privacy
--- preferences. It is not a football profile and is never read for one --
--- section 6 is that path.
-create or replace function public.my_profile()
-returns table (
-  user_id uuid,
-  full_name text,
-  phone text,
-  primary_position text,
-  secondary_position text,
-  date_of_birth date,
-  avatar_path text,
-  overall_rating numeric,
-  profile_visibility text,
-  age_visible boolean
-)
-language plpgsql
-security definer
-stable
-set search_path = public
-as $$
-begin
-  if auth.uid() is null then
-    raise exception 'NOT_AUTHENTICATED';
-  end if;
-
-  return query
-  select
-    u.id,
-    u.full_name,
-    u.phone,
-    u.primary_position,
-    u.secondary_position,
-    u.date_of_birth,
-    u.avatar_path,
-    u.overall_rating,
-    u.profile_visibility,
-    u.age_visible
-  from users u
-  where u.id = auth.uid() and u.is_active;
-end;
-$$;
-
-comment on function public.my_profile() is
-  'The signed-in player''s own account row, phone included. Takes no user id, '
-  'so it cannot be pointed at anybody else -- see migration 0055.';
-
-revoke execute on function public.my_profile() from anon, public;
-grant execute on function public.my_profile() to authenticated;
-
 
 -- ============================================================================
--- 6) `player_profile()`: the football profile
+-- 4) `player_profile()`: the football profile
 -- ============================================================================
 -- Two approved changes, and the column list is the whole of the first.
 --
@@ -425,7 +301,7 @@ comment on function public.player_profile(uuid) is
   'One player''s football profile: identity, playing positions, picture, '
   'Global Rating and career counters. Readable by any signed-in player, '
   'whatever communities either of them is in. Never the phone, the email, an '
-  'auth identifier or the date of birth -- see migration 0055.';
+  'auth identifier or the date of birth -- see migration 0056.';
 
 revoke execute on function public.player_profile(uuid) from anon, public;
 grant execute on function public.player_profile(uuid) to authenticated;
@@ -437,20 +313,21 @@ grant execute on function public.player_profile(uuid) to authenticated;
 -- comments are corrected so the schema does not go on claiming an effect the
 -- code no longer has.
 comment on column public.users.profile_visibility is
-  'RETIRED by migration 0055. A football profile is readable by any signed-in '
+  'RETIRED by migration 0056. A football profile is readable by any signed-in '
   'player, so this column is no longer consulted by player_profile(). Kept '
   'because dropping a column is irreversible; written by nothing.';
 comment on column public.users.age_visible is
-  'RETIRED by migration 0055. The date of birth no longer leaves through '
+  'RETIRED by migration 0056. The date of birth no longer leaves through '
   'player_profile(), so there is no disclosure for this to withhold. Kept '
   'because dropping a column is irreversible; written by nothing.';
 
 
+
 -- ============================================================================
--- 7) `shares_active_community()` stops being callable by a client
+-- 5) `shares_active_community()` stops being callable by a client
 -- ============================================================================
 -- Migration `0043` created it as the predicate behind `COMMUNITY_MEMBERS`, and
--- section 6 just removed its only caller. What is left is a `security definer`
+-- section 4 just removed its only caller. What is left is a `security definer`
 -- function, granted to every account holder, that answers "are these two people
 -- in a community together" for any pair of user ids -- a relationship oracle
 -- with nothing asking it anything.
@@ -461,8 +338,9 @@ revoke execute on function public.shares_active_community(uuid, uuid)
   from anon, authenticated, public;
 
 
+
 -- ============================================================================
--- 8) The public discovery views stay exactly as they were
+-- 6) The public discovery views stay exactly as they were
 -- ============================================================================
 -- Neither is recreated here, so neither's privileges have moved. The revokes
 -- below are re-asserted rather than assumed: `0034` exists because these two

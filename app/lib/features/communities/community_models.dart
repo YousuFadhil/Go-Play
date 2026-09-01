@@ -49,7 +49,7 @@ final class AlreadyMember extends JoinCommunityOutcome {
 /// A community of players.
 ///
 /// The join code is deliberately absent. It is the credential a CODE_REQUIRED
-/// community is entered with, and migration `0055` revoked SELECT on the column
+/// community is entered with, and migration `0056` revoked SELECT on the column
 /// so that no community read carries one — for a member or anybody else. An
 /// organizer asks for it separately, through
 /// [CommunityAdapter.fetchJoinCode], which is the only path that exists.

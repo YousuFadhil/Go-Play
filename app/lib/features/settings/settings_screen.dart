@@ -25,7 +25,7 @@ class SettingsScreen extends StatelessWidget {
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   ///
-  /// Read by nothing since migration `0055` removed the Privacy section, and
+  /// Read by nothing since migration `0056` removed the Privacy section, and
   /// kept so that a caller passing one still compiles. The screen reads no
   /// account data at all now.
   final ProfileRepository? profileRepository;
@@ -41,7 +41,7 @@ class SettingsScreen extends StatelessWidget {
         children: [
           // The Privacy section is gone, and its absence is the correct state.
           // It offered two controls — "who may open my profile" and "show my
-          // age" — and migration `0055` ended both disclosures they governed: a
+          // age" — and migration `0056` ended both disclosures they governed: a
           // football profile is readable by every signed-in player, and a date
           // of birth no longer leaves the database for anybody but its owner. A
           // switch that cannot change what it names is worse than no switch.

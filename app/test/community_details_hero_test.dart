@@ -379,7 +379,7 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   @override
   Future<String> fetchJoinCode(String communityId) async {
     // Owner and admin are the only roles this screen asks on behalf of, and
-    // both are entitled to the code (migration `0055`).
+    // both are entitled to the code (migration `0056`).
     fetchJoinCodeCalls.add(communityId);
     return '4213';
   }

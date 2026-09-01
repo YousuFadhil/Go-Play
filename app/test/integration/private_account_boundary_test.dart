@@ -12,7 +12,7 @@ import 'support.dart';
 
 /// The private-account boundary, proved where it is enforced.
 ///
-/// Migration `0055` closed two leaks, and it closed them with column
+/// Migration `0056` closed two leaks, and it closed them with column
 /// privileges rather than with policies, because a policy decides rows and the
 /// leak was a column. That distinction is the reason this file exists and the
 /// reason every assertion below is a *live* call: a widget test can only show
@@ -21,7 +21,13 @@ import 'support.dart';
 /// is the whole threat. A publishable key and an HTTP client are all it takes.
 ///
 /// So each test here asks the database directly, in the shape an attacker would
-/// use, and requires a refusal.
+/// use, and requires a refusal.///
+/// **Requires `0056_private_account_hardening.sql` to be applied.** Cycle 1
+/// ships as two migrations against one shared database: `0055` adds the two
+/// RPCs and takes nothing away, so the previously deployed client keeps
+/// working; `0056` is what actually closes the leaks. Run this file against a
+/// project with only `0055` applied and it will fail, correctly -- the columns
+/// really are still readable at that point.
 void main() {
   if (!integrationConfigured) {
     test('private account boundary', () {}, skip: skipReason);
@@ -230,7 +236,7 @@ void main() {
               .eq('user_id', owner.id);
         }),
         isNot('ALLOW'),
-        reason: 'the view was rebuilt without the column (migration 0055)',
+        reason: 'the view was rebuilt without the column (migration 0056)',
       );
     });
 
@@ -293,7 +299,7 @@ void main() {
     });
 
     test('and writing a phone still works for its owner', () async {
-      // Writing a column is not reading it. `0055` took SELECT and left the
+      // Writing a column is not reading it. `0056` took SELECT and left the
       // named-column UPDATE grant from `0022` alone, which is what keeps the
       // account screen's save working.
       final before = await profilesFor(player).fetchMyProfile();
@@ -349,7 +355,7 @@ void main() {
     // Migration `0034` recorded that Supabase grants ALL on a newly created
     // object in `public` before a migration's own grant is reached, and that
     // `v_public_communities` was briefly deletable by anon because of it.
-    // `0055` recreates `v_user_profile`, so it inherits the same hazard and
+    // `0056` recreates `v_user_profile`, so it inherits the same hazard and
     // carries the same revoke. This is that revoke, checked.
     for (final view in [
       'v_public_communities',

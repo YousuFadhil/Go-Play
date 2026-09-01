@@ -15,7 +15,7 @@ import 'supabase_failure_mapper.dart';
 ///
 /// The reads go through functions and the writes go to `users` directly.
 ///
-/// That split follows the privileges. Migration `0055` revoked SELECT on
+/// That split follows the privileges. Migration `0056` revoked SELECT on
 /// `users.phone`, so a caller — including the column's owner — can no longer
 /// read it through the table or through a `security_invoker` view over it. Both
 /// reads here are therefore `security definer` functions with fixed column
@@ -25,7 +25,7 @@ import 'supabase_failure_mapper.dart';
 /// The writes are unchanged and stay on the table. `users_update_own_profile`
 /// allows a write only where `auth.uid() = id`, and migration `0022`'s column
 /// grant is what decides *which* columns it may touch — `phone` among them.
-/// Writing a column is not reading it, so `0055` did not touch that path.
+/// Writing a column is not reading it, so `0056` did not touch that path.
 class SupabaseProfileAdapter implements ProfileAdapter {
   SupabaseProfileAdapter([SupabaseClient? client])
       : _client = client ?? SupabaseBootstrap.client;
@@ -38,7 +38,7 @@ class SupabaseProfileAdapter implements ProfileAdapter {
   /// This was a projection of `v_user_profile`, and it stopped being one when
   /// the phone number stopped being a column any caller may select. The view is
   /// `security_invoker = on`, so it can only return what the caller is allowed
-  /// to read — and since `0055` that no longer includes `phone` or
+  /// to read — and since `0056` that no longer includes `phone` or
   /// `date_of_birth` for anybody, the owner included.
   ///
   /// The function takes no user id. That is the whole of the authorization
@@ -67,12 +67,12 @@ class SupabaseProfileAdapter implements ProfileAdapter {
       );
 
   /// Another player's football profile, through `player_profile`
-  /// (migrations `0043`, `0055`).
+  /// (migrations `0043`, `0056`).
   ///
   /// An RPC rather than a table read, because the columns it returns are a
   /// fixed list decided by the server rather than a projection chosen here.
   /// That is what makes the boundary hold: there is no phone, no email, no
-  /// authentication identifier and — since `0055` — no date of birth in the
+  /// authentication identifier and — since `0056` — no date of birth in the
   /// answer, whatever this layer asks for.
   ///
   /// It no longer asks whether the two players share a community. A football
