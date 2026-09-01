@@ -36,7 +36,6 @@ void main() {
         ownerId: 'owner',
         name: 'Community $id',
         joinPolicy: JoinPolicy.open,
-        joinCode: 'CODE$id',
       );
 
   group('CommunityRepository.joinCommunity', () {
@@ -843,6 +842,10 @@ class FakeCommunityAdapter implements CommunityAdapter {
   @override
   Future<void> setJoinPolicy(String communityId,
           {required JoinPolicy joinPolicy}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> fetchJoinCode(String communityId) async =>
       throw UnimplementedError();
 
   @override

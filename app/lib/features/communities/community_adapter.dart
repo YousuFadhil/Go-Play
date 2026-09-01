@@ -36,6 +36,15 @@ abstract interface class CommunityAdapter {
     required JoinPolicy joinPolicy,
   });
 
+  /// The community's join code, for an owner or an admin.
+  ///
+  /// A call of its own rather than a field of [Community], because it is a
+  /// credential and not a property: migration `0055` revoked SELECT on the
+  /// column, so no community read carries one and this is the only path to it.
+  /// Anyone below the admin role is refused with an `AuthorizationFailure`,
+  /// which is the server's answer and not a check made above this layer.
+  Future<String> fetchJoinCode(String communityId);
+
   /// What a shared invitation offers. Readable without a session.
   Future<CommunityInvitePreview> previewInvite(String code);
 

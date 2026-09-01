@@ -35,6 +35,15 @@ class CommunityRepository {
     return (mine: mine, discover: discover);
   }
 
+  /// The community's join code — an owner's or an admin's read.
+  ///
+  /// Not part of [fetchCommunity]: the code is a credential, and migration
+  /// `0055` took it out of every community read so that holding a community row
+  /// is no longer the same thing as holding the way into it. A Player asking is
+  /// refused by the server, which is where the rule lives.
+  Future<String> fetchJoinCode(String communityId) =>
+      _adapter.fetchJoinCode(communityId);
+
   /// Creates a community and adds the creator as owner. Returns its id.
   Future<String> createCommunity({
     required String name,

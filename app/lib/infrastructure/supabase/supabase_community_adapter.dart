@@ -17,8 +17,14 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
 
   final SupabaseClient _client;
 
+  /// What a community read is allowed to ask for.
+  ///
+  /// `join_code` is not on this list and cannot be put back: migration `0055`
+  /// revoked SELECT on the column for both client roles, so a request naming it
+  /// is refused by the server rather than filtered here. The organizer's read is
+  /// [fetchJoinCode].
   static const _columns =
-      'id, owner_id, name, description, join_policy, join_code';
+      'id, owner_id, name, description, join_policy';
 
   @override
   Future<List<Community>> fetchMyCommunities() => guarded(() async {
@@ -100,6 +106,24 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
             .select('id');
         if (rows.isEmpty) throw const AuthorizationFailure();
       });
+
+  /// The join code, through `community_join_code` (migration `0055`).
+  ///
+  /// An RPC rather than a column, because the question is not "which row" but
+  /// "may this caller hold the credential" — and the function is what decides,
+  /// from `has_community_role(..., 'admin')`. It refuses with `NOT_AUTHORIZED`,
+  /// which reaches this layer as an `AuthorizationFailure`.
+  @override
+  Future<String> fetchJoinCode(String communityId) => guarded(
+        () async {
+          final code = await _client.rpc(
+            'community_join_code',
+            params: {'p_community_id': communityId},
+          );
+          return code as String;
+        },
+        operation: 'rpc community_join_code',
+      );
 
   @override
   Future<CommunityInvitePreview> previewInvite(String code) => guarded(() async {

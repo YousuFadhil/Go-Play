@@ -10,7 +10,8 @@ import 'result_mapper.dart';
 // registration, which writes the same fields through Auth metadata, so both
 // come from `auth_mapper.dart` rather than being restated.
 
-/// Reads the signed-in player's own profile row.
+/// Reads the signed-in player's own profile row (`my_profile`, migration
+/// `0055`).
 ///
 /// A null date of birth or secondary position stays null. Migration `0018` left
 /// both nullable on purpose and §4.3 forbids filling either in, so nothing here
@@ -67,17 +68,17 @@ Map<String, dynamic> privacyUpdateToRow(ProfilePrivacy privacy) => {
       'age_visible': privacy.ageVisible,
     };
 
-/// Reads one row of `player_profile` (migration `0043`).
+/// Reads one row of `player_profile` (migrations `0043`, `0055`).
 ///
-/// The function decides what the row contains, so nothing is filtered here: a
-/// missing `date_of_birth` is a hidden age or an unset one, and this reports the
-/// absence either way. There is no phone, email or authentication identifier to
-/// read — the function does not return any.
+/// The function decides what the row contains, so nothing is filtered here —
+/// and since `0055` there is nothing to filter: no phone, no email, no
+/// authentication identifier and no date of birth is returned, so none can be
+/// read out even by mistake. A column named here that the function does not
+/// send would simply be absent.
 PlayerProfileView playerProfileViewFromRow(
   Map<String, dynamic> row, {
   String? avatarUrl,
 }) {
-  final dateOfBirth = row['date_of_birth'] as String?;
   final secondary = row['secondary_position'] as String?;
   return PlayerProfileView(
     userId: row['user_id'] as String,
@@ -85,7 +86,6 @@ PlayerProfileView playerProfileViewFromRow(
     primaryPosition: playerPositionFromDb(row['primary_position'] as String),
     secondaryPosition:
         secondary == null ? null : playerPositionFromDb(secondary),
-    dateOfBirth: dateOfBirth == null ? null : DateTime.parse(dateOfBirth),
     avatarUrl: avatarUrl,
     isSelf: row['is_self'] as bool? ?? false,
     statistics: playerStatisticsFromRow(row),

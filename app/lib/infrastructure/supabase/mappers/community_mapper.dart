@@ -30,13 +30,18 @@ String communityRoleToDb(CommunityRole role) => switch (role) {
       CommunityRole.player => 'player',
     };
 
+/// Reads a community row.
+///
+/// There is no `join_code` here, and there is nowhere to put one: migration
+/// `0055` revoked SELECT on the column, so a row carrying one cannot arrive.
+/// The organizer's read is `community_join_code`, mapped by nothing — it
+/// returns the code itself.
 Community communityFromRow(Map<String, dynamic> row) => Community(
       id: row['id'] as String,
       ownerId: row['owner_id'] as String,
       name: row['name'] as String,
       description: row['description'] as String?,
       joinPolicy: joinPolicyFromDb(row['join_policy'] as String),
-      joinCode: row['join_code'] as String,
     );
 
 /// Reads a membership row joined with the player profile.

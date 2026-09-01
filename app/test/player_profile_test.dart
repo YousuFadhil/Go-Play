@@ -30,14 +30,14 @@ import 'package:go_play/infrastructure/supabase/mappers/profile_mapper.dart';
 
 /// A player's profile, as another player sees it.
 ///
-/// The rules themselves are the database's — `player_profile` (migration `0043`)
-/// decides who may open a profile and withholds a hidden age at the source, and
+/// The rules themselves are the database's — `player_profile` (migrations `0043`
+/// and `0055`) decides what a football profile carries, and
 /// `test/integration/profile_visibility_test.dart` proves that against a real
 /// project. What is asserted here is everything above it: that the application
 /// asks through the one authorized path, that a refusal is worded rather than
 /// reported as a broken read, that a profile carries no contact detail because
-/// the model has nowhere to put one, and that the two settings behind it are
-/// where a player can reach them.
+/// the model has nowhere to put one, and that the two settings the boundary
+/// retired are no longer offered.
 void main() {
   PlayerStatistics stats({
     int played = 12,
@@ -55,8 +55,12 @@ void main() {
         currentRating: rating,
       );
 
+  /// A football profile, which is all another player's record is.
+  ///
+  /// There is no date of birth to pass: migration `0055` took it out of
+  /// `player_profile` altogether, so [PlayerProfileView] has nowhere to carry
+  /// one and no test can construct a profile that leaks an age.
   PlayerProfileView viewOf({
-    DateTime? dateOfBirth,
     bool isSelf = false,
     String fullName = 'Noor Al Kindi',
   }) =>
@@ -67,7 +71,6 @@ void main() {
         secondaryPosition: PlayerPosition.fwd,
         statistics: stats(),
         isSelf: isSelf,
-        dateOfBirth: dateOfBirth,
       );
 
   /// The signed-in player's own record, which is the reading of this screen
@@ -201,19 +204,11 @@ void main() {
       expect(find.text('Communities'), findsNothing);
     });
 
-    testWidgets('shows the age when the player has left it visible',
+    testWidgets("never shows an age on another player's profile",
         (tester) async {
-      final profiles = FakeProfileAdapter(
-        player: viewOf(dateOfBirth: bornYearsAgo(29)),
-      );
-      await pumpPlayerProfile(tester, profiles: profiles);
-
-      expect(find.text('29 years old'), findsOneWidget);
-    });
-
-    testWidgets('shows no age when the player has hidden it', (tester) async {
-      // A hidden age arrives as no date of birth at all — the value never left
-      // the database — so there is nothing here to withhold.
+      // A date of birth is account data and does not leave the database for
+      // anybody but its owner (migration `0055`), so there is no age to draw
+      // here — not a hidden one, not a withheld one, none.
       final profiles = FakeProfileAdapter(player: viewOf());
       await pumpPlayerProfile(tester, profiles: profiles);
 
@@ -397,22 +392,62 @@ void main() {
     });
   });
 
-  group('the two settings behind it', () {
-    Future<FakeProfileAdapter> pumpSettings(
-      WidgetTester tester, {
-      ProfilePrivacy privacy = const ProfilePrivacy.defaults(),
-    }) async {
+  group('the settings the boundary retired', () {
+    // Settings used to carry two controls: "who may open my profile" and "show
+    // my age". Migration `0055` ended both disclosures they governed — a
+    // football profile is readable by every signed-in player, and no date of
+    // birth leaves the database for anybody but its owner — so a control that
+    // still offered the choice would be stating something untrue about the
+    // database. It is gone, and this is what says so.
+    Future<void> pumpSettings(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(900, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(const MaterialApp(
+        locale: Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: SettingsScreen(),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('no profile-visibility choice is offered', (tester) async {
+      await pumpSettings(tester);
+
+      expect(find.byType(RadioListTile<ProfileVisibility>), findsNothing);
+      expect(find.text('Everyone'), findsNothing);
+      expect(find.text('Community members only'), findsNothing);
+    });
+
+    testWidgets('no age-visibility switch is offered', (tester) async {
+      await pumpSettings(tester);
+
+      expect(find.byType(SwitchListTile), findsNothing);
+    });
+
+    testWidgets('and the Privacy section itself is gone', (tester) async {
+      await pumpSettings(tester);
+
+      expect(find.text('Privacy'), findsNothing,
+          reason: 'an empty section heading is still a claim');
+      // The rest of Settings is untouched, which is the other half of the rule:
+      // only the affected controls were removed.
+      expect(find.text('Language'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+    });
+
+    testWidgets('and Settings reads no account data at all', (tester) async {
+      // The screen no longer needs a profile to render, so it no longer asks
+      // for one. Passing an adapter that fails every read proves it: the screen
+      // still builds.
       tester.view.physicalSize = const Size(900, 2000);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
       final profiles = FakeProfileAdapter(
-        profile: PlayerProfile(
-          fullName: 'Salim Al Harthy',
-          phone: '+96890123456',
-          primaryPosition: PlayerPosition.mid,
-          privacy: privacy,
-        ),
+        readFailure: const InfrastructureFailure(),
       );
       await tester.pumpWidget(MaterialApp(
         locale: const Locale('en'),
@@ -421,78 +456,9 @@ void main() {
         home: SettingsScreen(profileRepository: ProfileRepository(profiles)),
       ));
       await tester.pumpAndSettle();
-      return profiles;
-    }
 
-    testWidgets('a profile that has never been configured opens on Everyone',
-        (tester) async {
-      await pumpSettings(tester);
-
-      final selected = tester
-          .widgetList<RadioListTile<ProfileVisibility>>(
-              find.byType(RadioListTile<ProfileVisibility>))
-          .where((tile) => tile.value == ProfileVisibility.everyone);
-      expect(selected, hasLength(1));
-      expect(find.text('Everyone'), findsOneWidget);
-      expect(find.text('Community members only'), findsOneWidget);
-    });
-
-    testWidgets('the age is shown by default', (tester) async {
-      await pumpSettings(tester);
-
-      final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
-      expect(toggle.value, isTrue);
-      expect(find.text('Show my age'), findsOneWidget);
-    });
-
-    testWidgets('choosing community members only is written', (tester) async {
-      final profiles = await pumpSettings(tester);
-
-      await tester.tap(find.text('Community members only'));
-      await tester.pumpAndSettle();
-
-      expect(profiles.savedPrivacy?.visibility,
-          ProfileVisibility.communityMembersOnly);
-      expect(profiles.savedPrivacy?.ageVisible, isTrue,
-          reason: 'one setting at a time; the other is left as it was');
-    });
-
-    testWidgets('hiding the age is written', (tester) async {
-      final profiles = await pumpSettings(tester);
-
-      await tester.tap(find.byType(SwitchListTile));
-      await tester.pumpAndSettle();
-
-      expect(profiles.savedPrivacy?.ageVisible, isFalse);
-      expect(profiles.savedPrivacy?.visibility, ProfileVisibility.everyone);
-    });
-
-    testWidgets('a stored setting is the one shown back', (tester) async {
-      await pumpSettings(
-        tester,
-        privacy: const ProfilePrivacy(
-          visibility: ProfileVisibility.communityMembersOnly,
-          ageVisible: false,
-        ),
-      );
-
-      final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
-      expect(toggle.value, isFalse);
-    });
-
-    testWidgets('a refused write puts the previous answer back',
-        (tester) async {
-      final profiles = await pumpSettings(tester);
-      profiles.writeFailure = const InfrastructureFailure();
-
-      await tester.tap(find.byType(SwitchListTile));
-      await tester.pumpAndSettle();
-
-      final toggle = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
-      expect(toggle.value, isTrue,
-          reason: 'the screen must not show a setting the database refused');
-      expect(
-          find.text('Something went wrong. Please try again.'), findsOneWidget);
+      expect(find.text('Language'), findsOneWidget);
+      expect(profiles.readCount, 0);
     });
   });
 
@@ -516,13 +482,12 @@ void main() {
       });
     });
 
-    test('a row with no date of birth derives no age', () {
+    test('reads the football profile the function returns', () {
       final view = playerProfileViewFromRow(const {
         'user_id': 'u2',
         'full_name': 'Noor Al Kindi',
         'primary_position': 'MID',
         'secondary_position': null,
-        'date_of_birth': null,
         'overall_rating': 6.4,
         'matches_played': 3,
         'wins': 1,
@@ -533,22 +498,27 @@ void main() {
         'is_self': false,
       });
 
-      expect(view.dateOfBirth, isNull);
-      expect(view.age, isNull);
+      expect(view.userId, 'u2');
       expect(view.fullName, 'Noor Al Kindi');
+      expect(view.primaryPosition, PlayerPosition.mid);
+      expect(view.secondaryPosition, isNull);
       expect(view.statistics.matchesPlayed, 3);
+      expect(view.statistics.goals, 2);
+      expect(view.isSelf, isFalse);
     });
 
-    test('an age is derived from the date, never read as a number', () {
+    test('carries nothing private, even when the row does', () {
+      // The row below is deliberately wider than anything `player_profile` can
+      // send: `0055` fixed its column list and none of these four is on it. The
+      // point is that the mapper has nowhere to put them — `PlayerProfileView`
+      // has no phone, no email, no auth identifier and no date of birth — so a
+      // server that started returning them could not push them into the model.
       final born = bornYearsAgo(21);
       final view = playerProfileViewFromRow({
         'user_id': 'u2',
         'full_name': 'Noor Al Kindi',
         'primary_position': 'MID',
         'secondary_position': 'FWD',
-        'date_of_birth': '${born.year.toString().padLeft(4, '0')}-'
-            '${born.month.toString().padLeft(2, '0')}-'
-            '${born.day.toString().padLeft(2, '0')}',
         'overall_rating': 6.4,
         'matches_played': 0,
         'wins': 0,
@@ -557,12 +527,21 @@ void main() {
         'goals': 0,
         'mvp_count': 0,
         'is_self': true,
+        'phone': '+96890123456',
+        'email': 'noor@example.com',
+        'id': 'auth-identifier',
+        'date_of_birth': '${born.year.toString().padLeft(4, '0')}-'
+            '${born.month.toString().padLeft(2, '0')}-'
+            '${born.day.toString().padLeft(2, '0')}',
       });
 
-      expect(view.age, 21);
+      expect(view.userId, 'u2');
       expect(view.isSelf, isTrue);
-      // The day before the birthday is still the previous year.
-      expect(view.ageOn(born.add(const Duration(days: 1))), 0);
+      expect(view.secondaryPosition, PlayerPosition.fwd);
+      // Everything the model does carry is football data and nothing else. The
+      // absence of the four keys above is enforced by the type, which is why
+      // this test compiles rather than asserts.
+      expect(view.fullName, 'Noor Al Kindi');
     });
   });
 
@@ -604,6 +583,7 @@ class FakeProfileAdapter implements ProfileAdapter {
     this.player,
     this.failure,
     this.gate,
+    this.readFailure,
   });
 
   final PlayerProfile profile;
@@ -613,6 +593,13 @@ class FakeProfileAdapter implements ProfileAdapter {
   final Failure? failure;
   final Future<void>? gate;
 
+  /// What the *owner's own* read does. Set by a test that needs to prove a
+  /// screen never asks for it.
+  final Failure? readFailure;
+
+  /// How many times the owner's own profile was read.
+  int readCount = 0;
+
   /// What the privacy write does. Settable, so a test can let the load succeed
   /// and then refuse the save.
   Failure? writeFailure;
@@ -621,7 +608,11 @@ class FakeProfileAdapter implements ProfileAdapter {
   ProfilePrivacy? savedPrivacy;
 
   @override
-  Future<PlayerProfile> fetchMyProfile() async => profile;
+  Future<PlayerProfile> fetchMyProfile() async {
+    readCount++;
+    if (readFailure != null) throw readFailure!;
+    return profile;
+  }
 
   @override
   Future<PlayerProfileView> fetchPlayerProfile(String userId) async {
@@ -719,7 +710,6 @@ class _FakeCommunityAdapter implements CommunityAdapter {
           ownerId: 'u9',
           name: 'Al Amerat FC',
           joinPolicy: JoinPolicy.open,
-          joinCode: '123456',
         ),
       ];
 
@@ -750,6 +740,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
     String communityId, {
     required JoinPolicy joinPolicy,
   }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> fetchJoinCode(String communityId) async =>
       throw UnimplementedError();
 
   @override

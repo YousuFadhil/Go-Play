@@ -47,13 +47,18 @@ final class AlreadyMember extends JoinCommunityOutcome {
 }
 
 /// A community of players.
+///
+/// The join code is deliberately absent. It is the credential a CODE_REQUIRED
+/// community is entered with, and migration `0055` revoked SELECT on the column
+/// so that no community read carries one — for a member or anybody else. An
+/// organizer asks for it separately, through
+/// [CommunityAdapter.fetchJoinCode], which is the only path that exists.
 class Community {
   const Community({
     required this.id,
     required this.ownerId,
     required this.name,
     required this.joinPolicy,
-    required this.joinCode,
     this.description,
   });
 
@@ -64,7 +69,6 @@ class Community {
   final String name;
   final String? description;
   final JoinPolicy joinPolicy;
-  final String joinCode;
 }
 
 /// A membership row inside a community, joined with the player profile.

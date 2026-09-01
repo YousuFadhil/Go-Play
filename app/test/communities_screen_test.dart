@@ -18,7 +18,6 @@ void main() {
     name: 'Al Amerat Friday Football',
     description: 'Friday evening football.',
     joinPolicy: JoinPolicy.open,
-    joinCode: 'MINE01',
   );
   const discover = Community(
     id: 'discover',
@@ -26,7 +25,6 @@ void main() {
     name: 'Muscat Open Football Club',
     description: 'Open games every week.',
     joinPolicy: JoinPolicy.codeRequired,
-    joinCode: 'OPEN01',
   );
 
   Future<void> pumpCommunities(
@@ -152,7 +150,6 @@ void main() {
       name: longName,
       description: 'An intentionally long community description.',
       joinPolicy: JoinPolicy.codeRequired,
-      joinCode: 'LONG01',
     );
     await pumpCommunities(
       tester,
@@ -175,7 +172,6 @@ void main() {
       name: longName,
       description: 'مجتمع كرة قدم يلتقي كل يوم جمعة في ملعب العامرات الرئيسي.',
       joinPolicy: JoinPolicy.open,
-      joinCode: 'ARABIC1',
     );
     await pumpCommunities(
       tester,
@@ -252,6 +248,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
     String communityId, {
     required JoinPolicy joinPolicy,
   }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> fetchJoinCode(String communityId) async =>
       throw UnimplementedError();
 
   @override

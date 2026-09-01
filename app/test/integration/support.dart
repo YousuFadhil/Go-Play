@@ -79,6 +79,17 @@ Future<TestUser> signInTestUser(String label) async {
   return TestUser(label, client, user!.id, name);
 }
 
+/// A client carrying no session at all — the signed-out visitor.
+///
+/// The publishable key and nothing else, which is exactly what a guest's
+/// browser holds. Used to prove what `anon` may and may not read: a claim about
+/// a signed-out reader cannot be made with a signed-in client.
+SupabaseClient anonClient() => SupabaseClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      authOptions: const AuthClientOptions(authFlowType: AuthFlowType.implicit),
+    );
+
 /// A community owned by [owner], cleaned up by [disposeCommunity].
 Future<String> createCommunity(TestUser owner, String name,
     {String joinPolicy = 'CODE_REQUIRED'}) async {
@@ -99,13 +110,14 @@ Future<void> addMember(
   TestUser user, {
   String role = 'player',
 }) async {
-  final row = await owner.client
-      .from('communities')
-      .select('join_code')
-      .eq('id', communityId)
-      .single();
+  // Through `community_join_code` (migration `0055`) rather than off the
+  // `communities` row. The column is no longer selectable by anybody: the code
+  // is a credential, and an owner reads it through the one role-checked path
+  // that exists. `owner` is the community's owner, so the function answers.
+  final code = await owner.client
+      .rpc('community_join_code', params: {'p_community_id': communityId});
   await user.client
-      .rpc('join_community_by_code', params: {'p_code': row['join_code']});
+      .rpc('join_community_by_code', params: {'p_code': code as String});
   if (role != 'player') {
     await owner.client.rpc('set_member_role', params: {
       'p_community_id': communityId,
