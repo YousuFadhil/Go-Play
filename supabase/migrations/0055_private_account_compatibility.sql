@@ -61,10 +61,11 @@
 -- Being a member is not enough -- an ordinary Player has no administrative
 -- reason to hold the credential that lets them hand the community to anybody.
 --
--- `security definer`, because the caller no longer has the privilege to read
--- the column and this function is the reason that is survivable. The function
--- returns one text value and takes one id, so there is no projection a caller
--- could widen and no row they could reach past.
+-- `security definer`, because once `0056` revokes the column privilege this
+-- function is the reason that is survivable -- and because it must already work
+-- before then, so the new client can ship first. The function returns one text
+-- value and takes one id, so there is no projection a caller could widen and no
+-- row they could reach past.
 --
 -- An inactive community answers `COMMUNITY_NOT_FOUND` rather than a code: a
 -- soft-deleted community is not one anybody is being invited to.
@@ -100,8 +101,9 @@ end;
 $$;
 
 comment on function public.community_join_code(uuid) is
-  'The community join code, to an owner or admin and to nobody else. The only '
-  'read path that exists: migration 0055 revoked SELECT on the column itself.';
+  'The community join code, to an owner or admin and to nobody else. Added by '
+  'migration 0055; it becomes the *only* read path once 0056 revokes SELECT on '
+  'the column itself.';
 
 revoke execute on function public.community_join_code(uuid) from anon, public;
 grant execute on function public.community_join_code(uuid) to authenticated;
@@ -116,13 +118,15 @@ grant execute on function public.community_join_code(uuid) to authenticated;
 -- `auth.uid()` and nothing else, which means "User A retrieving User B's phone"
 -- is not a request this function can express.
 --
--- `security definer` because `phone` is no longer selectable by the caller, and
--- because this is the one place the product has decided it should be.
+-- `security definer` because `0056` stops `phone` being selectable by the
+-- caller, and because this is the one place the product has decided it should
+-- be. It is created here, ahead of that revoke, so the new client has somewhere
+-- to read its own number from before the old path goes.
 --
 -- The column list is the account screen's and the profile screen's, together:
 -- identity, contact number, playing inputs, picture, rating and the two privacy
 -- preferences. It is not a football profile and is never read for one --
--- section 6 is that path.
+-- `player_profile` is that path.
 create or replace function public.my_profile()
 returns table (
   user_id uuid,
