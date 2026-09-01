@@ -218,12 +218,71 @@ void main() {
       expect(d.teamB, isNotEmpty);
       expect(d.teamA.length + d.teamB.length, d.lineup.length,
           reason: 'every slot belongs to exactly one side');
+    });
 
-      if (d.match.hasResult) {
-        final goals = d.lineup.fold<int>(0, (sum, s) => sum + s.goals);
-        expect(goals, d.match.teamAScore! + d.match.teamBScore!,
-            reason: 'recorded goals add up to the recorded score');
+    // What the read model owes is faithfulness, not arithmetic.
+    //
+    // This assertion used to require the attributed goals to add up to the
+    // recorded score, and that is not a system invariant. `match_goals` records
+    // *who* scored; `match_results` records *how it finished*. A score can
+    // therefore be recorded while a goal remains unattributed to anybody, and
+    // the live project carries two such matches — 7 recorded against 6
+    // attributed, and 6 against 5. A view that "corrected" the difference would
+    // be inventing a scorer.
+    //
+    // So the invariant is the one Cycle 2 is actually responsible for: the
+    // football read model reproduces the stored attribution exactly. Nothing
+    // invented, nothing lost.
+    //
+    // The comparison is deliberately across two roles. The lineup is read by
+    // `outsider` through the Cycle 2 view, and `match_goals` is read by `owner`
+    // through the member-only base table, so a match is only checked where the
+    // authoritative source is genuinely readable — which is also a second proof
+    // that the two paths agree about the same match.
+    test('lineup goals reproduce match_goals exactly', () async {
+      final matches = await footballFor(outsider).fetchCompletedMatches();
+      var compared = 0;
+
+      for (final m in matches.take(8)) {
+        // Only where `owner` is in the match's community is `match_goals` the
+        // authoritative answer rather than an empty membership-filtered read.
+        final visible = await owner.client
+            .from('matches')
+            .select('id')
+            .eq('id', m.matchId)
+            .maybeSingle();
+        if (visible == null) continue;
+
+        final sourceRows = await owner.client
+            .from('match_goals')
+            .select('user_id, professional_guest_id, goals')
+            .eq('match_id', m.matchId);
+
+        final source = <String, int>{
+          for (final row in sourceRows)
+            ((row as Map<String, dynamic>)['user_id'] ??
+                    row['professional_guest_id']) as String:
+                row['goals'] as int,
+        };
+
+        final detail = await footballFor(outsider).fetchMatchDetail(m.matchId);
+        if (detail.lineup.isEmpty) continue;
+
+        final exposed = <String, int>{
+          for (final slot in detail.lineup)
+            if (slot.goals > 0)
+              (slot.participant.userId ?? slot.participant.guestId)!: slot.goals,
+        };
+
+        expect(exposed, source,
+            reason: 'the view must reproduce the attribution stored for '
+                '${m.matchId} — no scorer invented, none lost');
+        compared++;
       }
+
+      expect(compared, greaterThan(0),
+          reason: 'at least one completed match should be readable from both '
+              'the Cycle 2 view and the member-only source');
     });
 
     test('a roster comes back in the order it was saved', () async {
