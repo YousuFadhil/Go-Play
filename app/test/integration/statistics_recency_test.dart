@@ -2,6 +2,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/features/statistics/statistics_period.dart';
+import 'package:go_play/infrastructure/supabase/statistics_period_window.dart';
 
 import 'support.dart';
 
@@ -226,28 +228,25 @@ void main() {
       expect(stamp((await recency(owner))[owner.id], 'last_goal_at'),
           isNotNull);
 
-      // The week that match fell in, asked of the database rather than
-      // recomputed here, so the boundary is the one migration 0028 froze.
-      final key = await owner.client.rpc('statistics_period_key', params: {
-        'p_start_at': (await startOf(longAgo)).toIso8601String(),
-        'p_period_type': 'weekly',
-      }) as String;
+      // The same translation the production adapter performs, so the pair sent
+      // here is the pair the app sends. The bucketing itself stays the
+      // database's: the function calls `statistics_period_key` internally.
+      final start = await startOf(longAgo);
+      final itsWeek =
+          StatisticsPeriodWindow.periodKey(StatisticsPeriod.weekly, now: start);
+      final thisWeek =
+          StatisticsPeriodWindow.periodKey(StatisticsPeriod.weekly);
 
       final inThatWeek =
-          await recency(owner, periodType: 'weekly', periodKey: key);
-      expect(stamp(inThatWeek[owner.id], 'last_goal_at'), isNotNull);
+          await recency(owner, periodType: 'weekly', periodKey: itsWeek);
+      expect(stamp(inThatWeek[owner.id], 'last_goal_at'), isNotNull,
+          reason: 'the goal is evidence inside the week it happened in');
 
-      final thisWeekKey = await owner.client.rpc('statistics_period_key',
-          params: {
-            'p_start_at': DateTime.now().toUtc().toIso8601String(),
-            'p_period_type': 'weekly',
-          }) as String;
-      if (thisWeekKey != key) {
-        final thisWeek = await recency(owner,
-            periodType: 'weekly', periodKey: thisWeekKey);
-        expect(stamp(thisWeek[owner.id], 'last_goal_at'), isNull,
-            reason: 'a goal outside the week is not evidence inside it');
-      }
+      expect(itsWeek, isNot(thisWeek), reason: '90 days is not this week');
+      final now =
+          await recency(owner, periodType: 'weekly', periodKey: thisWeek);
+      expect(now[owner.id]?['last_goal_at'], isNull,
+          reason: 'a goal outside the week is not evidence inside it');
     });
 
     test('the rating recency ignores the period entirely', () async {
@@ -258,8 +257,10 @@ void main() {
 
       final overall = stamp((await recency(owner))[owner.id], 'last_rating_at');
       final weekly = stamp(
-        (await recency(owner, periodType: 'weekly', periodKey: '2026-W01'))[
-            owner.id],
+        (await recency(owner,
+            periodType: 'weekly',
+            periodKey: StatisticsPeriodWindow.periodKey(
+                StatisticsPeriod.weekly)))[owner.id],
         'last_rating_at',
       );
 
@@ -376,17 +377,39 @@ void main() {
     });
   });
 
-  group('authorization is the databases', () {
-    test('a non-member reads nothing', () async {
-      // `security invoker`: the policies on matches, results and rating history
-      // decide, exactly as they do for `community_statistics`. An outsider gets
-      // an empty result rather than a refusal — the same shape a community with
-      // no football has.
+  group('authorization is stated by the function, not inherited', () {
+    // It runs as its owner, so the base-table policies decide nothing here.
+    // Both questions are asked before a row is read.
+
+    test('a non-member is refused, and enumerates nobody', () async {
       final matchId = await playedMatch(daysAgo: 5);
       await recordResult(matchId, teamA: 1, teamB: 0);
 
       expect(await recency(owner), isNotEmpty);
-      expect(await recency(outsider), isEmpty);
+
+      await expectLater(
+        recency(outsider),
+        throwsA(predicate(
+          (e) => e.toString().contains('NOT_AUTHORIZED'),
+          'NOT_AUTHORIZED',
+        )),
+        reason: 'a refusal, not a filtered list — nothing is learned about who '
+            'is in the community',
+      );
+    });
+
+    test('a signed-out caller cannot execute it at all', () async {
+      // Two independent defences: `anon` holds no EXECUTE, and the body raises
+      // NOT_AUTHENTICATED before reading. Either one refuses; the test only
+      // requires that no data comes back.
+      await expectLater(
+        anonClient().rpc('community_statistics_recency', params: {
+          'p_community_id': communityId,
+          'p_period_type': 'overall',
+          'p_period_key': 'overall',
+        }),
+        throwsA(anything),
+      );
     });
 
     test('a member reads the community they belong to', () async {
@@ -395,5 +418,145 @@ void main() {
 
       expect(await recency(player), isNotEmpty);
     });
+
+    test('a member of one community cannot name another', () async {
+      // The isolation that matters now that RLS is bypassed inside: the
+      // parameter is not a way to reach somewhere the caller does not belong.
+      final other = await createCommunity(outsider, 'ITest Recency Elsewhere');
+      addTearDown(() => disposeCommunity(outsider, other));
+
+      await expectLater(
+        owner.client.rpc('community_statistics_recency', params: {
+          'p_community_id': other,
+          'p_period_type': 'overall',
+          'p_period_key': 'overall',
+        }),
+        throwsA(predicate(
+          (e) => e.toString().contains('NOT_AUTHORIZED'),
+          'NOT_AUTHORIZED',
+        )),
+      );
+    });
+
+    test('only this community\'s players come back', () async {
+      // A second community with its own football. Its players must not appear
+      // in the target community's answer.
+      final other = await createCommunity(outsider, 'ITest Recency Elsewhere');
+      addTearDown(() => disposeCommunity(outsider, other));
+      final otherMatch = await createMatch(
+        outsider,
+        other,
+        startsIn: const Duration(days: 9),
+        startingPlayers: 4,
+      );
+      await outsider.client
+          .rpc('register_for_match', params: {'p_match_id': otherMatch});
+
+      final matchId = await playedMatch(daysAgo: 5);
+      await recordResult(matchId, teamA: 1, teamB: 0);
+
+      expect((await recency(owner)).keys, isNot(contains(outsider.id)));
+    });
   });
+
+  group('the rating recency is global, and the same for every viewer', () {
+    test('an event in a community the viewer cannot see still counts',
+        () async {
+      // The defect this cycle corrects. Both players are in the target
+      // community. `player` also plays in a second community that `admin` is
+      // not in — so under the caller's own policies, `admin` could not see the
+      // rating entry that makes `player`'s recency newer, and the two viewers
+      // would order the same tied board differently.
+      final older = await playedMatch(daysAgo: 40);
+      await recordResult(older, teamA: 1, teamB: 0);
+
+      final elsewhere =
+          await createCommunity(outsider, 'ITest Recency Elsewhere');
+      addTearDown(() => disposeCommunity(outsider, elsewhere));
+      await addMember(outsider, elsewhere, player);
+
+      final hidden = await createMatch(
+        outsider,
+        elsewhere,
+        startsIn: const Duration(days: 9),
+        startingPlayers: 2,
+      );
+      for (final user in [outsider, player]) {
+        await user.client
+            .rpc('register_for_match', params: {'p_match_id': hidden});
+      }
+      await outsider.client.rpc('replace_match_lineup', params: {
+        'p_match_id': hidden,
+        'p_assignments': [
+          {
+            'user_id': outsider.id,
+            'team': 'A',
+            'assigned_position': 'MID',
+            'assignment_basis': 'TRANSITION',
+          },
+          {
+            'user_id': player.id,
+            'team': 'B',
+            'assigned_position': 'MID',
+            'assignment_basis': 'TRANSITION',
+          },
+        ],
+      });
+      final hiddenStart = DateTime.now().toUtc().subtract(
+            const Duration(days: 2),
+          );
+      await outsider.client.from('matches').update({
+        'start_at': hiddenStart.toIso8601String(),
+        'end_at':
+            hiddenStart.add(const Duration(hours: 2)).toIso8601String(),
+      }).eq('id', hidden);
+      await outsider.client.rpc('record_match_result', params: {
+        'p_match_id': hidden,
+        'p_team_a_score': 0,
+        'p_team_b_score': 1,
+        'p_mvp_user_id': null,
+        'p_goals': <Map<String, Object?>>[],
+      });
+
+      // Read by a member who is *not* in the second community.
+      final seenByAdmin = await recency(admin);
+      final playerRating = stamp(seenByAdmin[player.id], 'last_rating_at');
+      final ownerRating = stamp(seenByAdmin[owner.id], 'last_rating_at');
+
+      expect(playerRating, isNotNull,
+          reason: 'the hidden match still moved a global rating');
+      expect(ownerRating, isNotNull);
+      expect(playerRating!.isAfter(ownerRating!), isTrue,
+          reason: 'the newer effective rating event wins, wherever it was');
+
+      // And every authorized viewer agrees, which is the contract.
+      final seenByOwner = await recency(owner);
+      final seenByPlayer = await recency(player);
+      for (final view in [seenByOwner, seenByPlayer]) {
+        expect(stamp(view[player.id], 'last_rating_at'), playerRating);
+        expect(stamp(view[owner.id], 'last_rating_at'), ownerRating);
+      }
+    });
+
+    test('nothing identifies the match or community behind it', () async {
+      // The widening is one timestamp. The output carries six columns and no
+      // identifier of the football behind the rating half.
+      final matchId = await playedMatch(daysAgo: 5);
+      await recordResult(matchId, teamA: 1, teamB: 0);
+
+      final rows = await recency(owner);
+      expect(rows, isNotEmpty);
+      for (final row in rows.values) {
+        expect(row.keys.toSet(), {
+          'user_id',
+          'last_goal_at',
+          'last_mvp_at',
+          'last_played_at',
+          'last_win_at',
+          'last_rating_at',
+        });
+      }
+    });
+  });
+
 }

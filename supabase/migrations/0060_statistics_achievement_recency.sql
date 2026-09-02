@@ -45,42 +45,60 @@
 -- is simply a different `mvp_user_id`. There is no "latest achievement" field
 -- to go stale because there is no field.
 --
--- ## `security invoker`, deliberately
+-- ## Why this is `security definer`
 --
--- This function is **not** `security definer`. It reads the same tables the
--- caller could already read, under the same policies:
+-- **Because one of the five answers is global, and RLS cannot give a global
+-- answer consistently.**
 --
---     match_results / match_goals / rating_history
---         -> is_match_community_member(match_id, auth.uid())
---     matches, v_community_members
---         -> the community policies
+-- Four of the timestamps are about this community's matches, and any member can
+-- already read those. The fifth is not. Highest Rated ranks the **Global**
+-- Rating -- one number spanning every community a player has ever played in --
+-- so the tie-break for it has to be global too, or it is breaking ties on a
+-- different measure than the one being ranked.
 --
--- So a non-member gets an empty result, exactly as they get an empty result
--- from `community_statistics` today. **No policy is changed and no statistics
--- visibility is widened.** A definer function here would have been easier and
--- would have leaked: rating history is readable per match-community, and
--- bypassing that to compute a truly global recency would tell a reader when a
--- player last played somewhere the reader cannot see.
+-- `rating_history` is protected by `is_match_community_member(match_id,
+-- auth.uid())`: a reader sees a rating entry only for a match in a community
+-- *they* belong to. Under `security invoker` that produces a genuinely wrong
+-- answer, not merely a partial one -- two members of the same community, both
+-- authorized, looking at the same board with the same tied ratings, would be
+-- shown **different orders**, because one of them happens to share a second
+-- community with the tied player and the other does not. An ordering that
+-- depends on who is looking is not an ordering.
 --
--- The consequence is stated rather than hidden: `last_rating_at` is the newest
--- effective rating event **among the matches the reader may see**. That is the
--- same shape of answer `CS-D3` already accepts for a player's own periodic
--- totals, and it keeps this read from being a hole in the policies around it.
+-- So the function runs as its owner, and pays for that with the authorization
+-- it now has to state itself:
 --
--- Two pure helpers are granted to `authenticated` so this can stay invoker:
--- `statistics_period_zone()` returns a constant string and
--- `statistics_period_key(timestamptz, text)` formats a timestamp the caller
--- already supplied. Neither reads a row, so neither can disclose anything --
--- and granting them is what removes the reason to make this function definer.
+--   * `auth.uid()` must exist -- no anonymous caller;
+--   * the caller must be a **current member of `p_community_id`**, asked
+--     directly through `is_community_member` rather than inferred from what a
+--     base-table policy happened to return;
+--   * both checks run **before any row is read**, so a refusal never depends on
+--     what was found.
+--
+-- This is the same shape `community_join_code` (0055) uses for the same reason.
+--
+-- ## What it does not disclose
+--
+-- The widening is exactly one number: how recently a player last had a rating
+-- change, wherever it happened. It is bounded deliberately:
+--
+--   * **No identifiers.** The match and the community behind that timestamp are
+--     read inside the function and never returned. The output has six columns
+--     and five of them are timestamps; there is no `match_id`, no
+--     `community_id`, and no way to ask which match it was.
+--   * **No history.** `max(start_at)` over effective entries -- not the entries,
+--     not the deltas, not the ratings before and after.
+--   * **No new population.** Rows come back only for players of the requested
+--     community: the four event timestamps for whoever played in *its* matches,
+--     and the rating timestamp only for its current members. Naming another
+--     community here returns nothing, because the caller is not a member of it.
+--
+-- No policy is changed. `rating_history`, `matches`, `match_results`,
+-- `match_goals`, `match_team_assignments` and `community_members` keep exactly
+-- the SELECT policies they had; nothing is readable through the base tables
+-- that was not readable before.
 
--- 1) The two pure period helpers, callable by the read below -------------------------
--- Data-free: a constant, and a `to_char` over an argument. Granting them
--- exposes no row and is the price of keeping the read model `security invoker`.
-grant execute on function public.statistics_period_zone() to authenticated;
-grant execute on function
-  public.statistics_period_key(timestamptz, text) to authenticated;
-
--- 2) The read model ------------------------------------------------------------------
+-- The read model ---------------------------------------------------------------------
 -- One row per player the community has evidence about, with the timestamp of
 -- their most recent achievement of each measure. Null where the measure has
 -- never happened to them, which the caller reads as "sorts last".
@@ -102,18 +120,40 @@ returns table (
   last_win_at timestamptz,
   last_rating_at timestamptz
 )
-language sql
+language plpgsql
+security definer
 stable
 set search_path = public
 as $$
+begin
+  -- Stated here rather than left to the base tables, because this function no
+  -- longer runs under the caller's policies. Both questions are asked before a
+  -- single row is read.
+  if auth.uid() is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  -- Current membership of the community being asked about. This is the whole
+  -- of the authorization: a non-member cannot enumerate a community's players
+  -- through this function, and a member of one community cannot name another
+  -- and receive its players.
+  if not public.is_community_member(p_community_id, auth.uid()) then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+
+  return query
   with played as (
     -- `match_result_contribution`'s join, restricted to one community and one
     -- period. A row here is one player's participation in one match that has a
     -- recorded result -- which is exactly what the counters are built from, so
     -- the recency and the number it breaks ties for always describe the same
     -- matches.
+    --
+    -- `m.community_id = p_community_id` is the isolation as well as the filter:
+    -- with RLS bypassed it is what keeps another community's football out of
+    -- the answer entirely.
     select
-      a.user_id,
+      a.user_id as player_id,
       m.start_at,
       coalesce(g.goals, 0) > 0                     as scored,
       a.user_id = r.mvp_user_id                    as was_mvp,
@@ -133,7 +173,7 @@ as $$
   ),
   counters as (
     select
-      p.user_id,
+      p.player_id,
       max(p.start_at) filter (where p.scored)  as last_goal_at,
       max(p.start_at) filter (where p.was_mvp) as last_mvp_at,
       -- Played participation, which is what the Most Active counter counts:
@@ -142,12 +182,22 @@ as $$
       max(p.start_at)                          as last_played_at,
       max(p.start_at) filter (where p.won)     as last_win_at
     from played p
-    group by p.user_id
+    group by p.player_id
   ),
   rating as (
-    -- Highest Rated shows the Global Rating, which has no periodic form, so its
-    -- recency has none either: this ignores `p_period_type` entirely and is the
-    -- same answer in every period.
+    -- **Global, and this is the reason the function is definer.** Highest Rated
+    -- shows the Global Rating, so its tie-break spans every community the
+    -- player has played in -- including ones the caller cannot see. Two
+    -- authorized members of this community therefore get the same order as each
+    -- other, which is the contract; under the caller's own policies they would
+    -- not have.
+    --
+    -- No `community_id` filter on the match, deliberately. It also ignores
+    -- `p_period_type` entirely: the rating has no periodic form, so neither has
+    -- its recency, and the answer is the same in every period.
+    --
+    -- What leaves this CTE is one `max()`. The match and its community are read
+    -- and discarded.
     --
     -- "Currently effective" is `reverse_match_rating_effects`'s own predicate,
     -- verbatim (0022): an entry that reverses nothing and that nothing has
@@ -158,11 +208,13 @@ as $$
     -- every application, recording the change actually applied -- which is zero
     -- for a player already at the top of the 0.00-10.00 range. That is a real
     -- rating event about a real match, and the contract records it, so it is
-    -- not filtered out here.
+    -- not filtered out here. A player with no effective entry at all -- still on
+    -- the opening 5.00, never rated -- gets null, which the caller sorts last.
     --
-    -- Scoped to the community's current members because they are the only
-    -- population the Highest Rated board can rank.
-    select h.user_id, max(rm.start_at) as last_rating_at
+    -- Scoped to the community's **current members**, which is both the only
+    -- population the Highest Rated board can rank and the boundary that keeps
+    -- this from becoming a way to ask about anybody at all.
+    select h.user_id as player_id, max(rm.start_at) as last_rating_at
     from rating_history h
     join matches rm on rm.id = h.match_id
     where h.reverses_id is null
@@ -170,31 +222,39 @@ as $$
         select 1 from rating_history x where x.reverses_id = h.id
       )
       and exists (
-        select 1 from v_community_members v
-        where v.community_id = p_community_id and v.user_id = h.user_id
+        select 1 from community_members cm
+        where cm.community_id = p_community_id and cm.user_id = h.user_id
       )
     group by h.user_id
   )
   -- Full join: a player may have counters without a rating event (a draw moves
   -- no rating) or a rating event without counters in this period.
   select
-    coalesce(c.user_id, r.user_id),
+    coalesce(c.player_id, r.player_id),
     c.last_goal_at,
     c.last_mvp_at,
     c.last_played_at,
     c.last_win_at,
     r.last_rating_at
   from counters c
-  full outer join rating r on r.user_id = c.user_id;
+  full outer join rating r on r.player_id = c.player_id;
+end;
 $$;
 
 comment on function public.community_statistics_recency(uuid, text, text) is
   'Per-player timestamps of the most recent goal, MVP, played match and win in '
   'one community and period, plus the most recent currently-effective rating '
-  'event (global, non-periodic). Every timestamp is matches.start_at. A read '
-  'model over existing evidence: no stored state, and corrections are followed '
-  'because the evidence itself moves. security invoker -- see migration 0060.';
+  'event -- which is global and periodless, because the Global Rating it '
+  'breaks ties for is. Every timestamp is matches.start_at. A read model over '
+  'existing evidence: no stored state, and corrections are followed because the '
+  'evidence itself moves. security definer so the global half is the same for '
+  'every authorized viewer; it checks authentication and current membership of '
+  'p_community_id itself, returns no match or community identifiers, and '
+  'changes no policy -- see migration 0060.';
 
+-- Default privileges on a new function include EXECUTE for PUBLIC, which for a
+-- definer function would mean anybody. Revoked first, then granted to exactly
+-- the role the client uses.
 revoke execute on function
   public.community_statistics_recency(uuid, text, text) from anon, public;
 grant execute on function
