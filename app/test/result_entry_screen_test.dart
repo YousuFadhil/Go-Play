@@ -946,7 +946,11 @@ class FakeTeamAdapter implements TeamAdapter {
   Future<List<TeamAssignment>> fetchLineup(String matchId) async => lineup;
 
   @override
-  Future<void> saveLineup(String matchId, List<TeamAssignment> assignments) =>
+  Future<void> saveLineup(
+    String matchId,
+    List<TeamAssignment> assignments, {
+    bool fromGeneration = false,
+  }) =>
       throw UnimplementedError();
 
   @override

@@ -493,6 +493,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // still an organizer on a match that is over, and
         // `set_completed_match_player` still refuses it on any other.
         if (view.canEditPlayed) ..._addPlayerAction(l10n, view),
+        if (view.canGenerate) ..._addGuestAction(l10n),
         if (view.canGenerate) ..._generateAction(l10n, view),
       ];
 
@@ -536,9 +537,147 @@ class _TeamsScreenState extends State<TeamsScreen> {
         ],
         if (view.canGenerate) ...[
           const Divider(height: 32),
+          ..._addGuestAction(l10n),
+        ],
+        if (view.canGenerate) ...[
+          const Divider(height: 32),
           ..._generateAction(l10n, view, replacing: true),
         ],
       ];
+
+  /// Adding a Professional Guest without leaving the Teams screen.
+  ///
+  /// The organizer is looking at the two sides and realises somebody else is
+  /// playing; the roster screen is two navigations away. The convenience is the
+  /// only new thing here — **where** the guest ends up is not this screen's
+  /// answer to give.
+  List<Widget> _addGuestAction(AppLocalizations l10n) => [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: OutlinedButton.icon(
+            key: const Key('teamsAddGuestButton'),
+            onPressed: _busy ? null : _addGuest,
+            icon: const Icon(Icons.workspace_premium_outlined),
+            label: Text(l10n.addGuestButton),
+          ),
+        ),
+      ];
+
+  /// Asks for the guest's name and adds them through the roster.
+  ///
+  /// **The canonical path, and nothing beside it.** This calls the same
+  /// `MatchService.addProfessionalGuest` the roster screen calls, which reaches
+  /// the same `add_professional_guest` function; there is no direct write into
+  /// Team A or Team B from here and no second RPC. Everything that decides the
+  /// outcome stays where it already lives: the owner/admin check, the name
+  /// validation, the total capacity, and the priority that puts community
+  /// confirmed ahead of community reserve ahead of a guest.
+  ///
+  /// So this screen does not decide whether the guest plays. The database
+  /// answers `confirmed` or `reserve`, the reload re-reads the roster and the
+  /// lineup, and `assign_professional_guest_teams` places the guest on a side
+  /// only if they are starting. A guest who lands on the reserve list is simply
+  /// absent from the pitch until the roster says otherwise — and only a guest
+  /// who is on it can be moved or swapped, because only they have a lineup row.
+  Future<void> _addGuest() async {
+    if (_busy) return;
+    final l10n = context.l10n;
+    final name = await _askGuestName(l10n);
+    if (name == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final guestId = await _matches.addProfessionalGuest(widget.matchId, name);
+      if (!mounted) return;
+      // Read back rather than assumed: which list they landed in is the
+      // server's answer, and the counts on screen may already be stale.
+      final registrations = await _matches.fetchRegistrations(widget.matchId);
+      if (!mounted) return;
+      final starting = registrations.any((r) =>
+          r.professionalGuestId == guestId &&
+          r.status == RegistrationStatus.confirmed);
+      _showMessage(starting
+          ? l10n.guestAddedConfirmed(name)
+          : l10n.guestAddedReserve(name));
+      setState(() => _busy = false);
+      _reload();
+    } on Failure catch (failure) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _showMessage(_guestErrorMessage(l10n, failure));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _showMessage(l10n.guestActionFailed);
+    }
+  }
+
+  /// The database's refusal for a Professional Guest operation, in the
+  /// organizer's words. The same codes and the same wording the roster screen
+  /// shows, because it is the same function refusing.
+  String _guestErrorMessage(AppLocalizations l10n, Failure failure) =>
+      switch (failure.reason) {
+        FailureReason.invalidGuestName => l10n.errInvalidGuestName,
+        FailureReason.registrationClosed => l10n.errRegistrationClosed,
+        _ => failure is AuthorizationFailure
+            ? l10n.errNotAuthorized
+            : l10n.guestActionFailed,
+      };
+
+  /// Asks for a guest's name. Returns the trimmed name, or null if cancelled.
+  ///
+  /// The 2–60 bound is the one the database states, asked here so a mistyped
+  /// name is caught before a round trip. `add_professional_guest` still refuses
+  /// it if this check is ever wrong — the rule is the server's and this is only
+  /// the courtesy.
+  ///
+  /// No `TextEditingController`: the field's value is kept by the form and read
+  /// through `onSaved`. A controller would have to outlive the dialog's exit
+  /// animation to avoid being used after disposal, and the name is the only
+  /// thing wanted out of it.
+  Future<String?> _askGuestName(AppLocalizations l10n) {
+    final formKey = GlobalKey<FormState>();
+    var name = '';
+
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.addGuestTitle),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            key: const Key('teamsGuestNameField'),
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(labelText: l10n.guestNameLabel),
+            validator: (value) {
+              final entered = (value ?? '').trim();
+              return entered.length < 2 || entered.length > 60
+                  ? l10n.guestNameInvalid
+                  : null;
+            },
+            onSaved: (value) => name = (value ?? '').trim(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.confirmNo),
+          ),
+          FilledButton(
+            key: const Key('teamsGuestNameSubmit'),
+            onPressed: () {
+              final form = formKey.currentState;
+              if (form == null || !form.validate()) return;
+              form.save();
+              Navigator.of(dialogContext).pop(name);
+            },
+            child: Text(l10n.addGuestButton),
+          ),
+        ],
+      ),
+    );
+  }
 
   /// Correcting who played, offered once the match is over.
   ///
@@ -718,12 +857,17 @@ class _TeamsScreenState extends State<TeamsScreen> {
     TeamAssignment assignment,
   ) async {
     if (_busy) return;
-    // Every action below — move, swap, change position, remove — is a manual
-    // override of the engine's output, and the engine only ever places
-    // registered players. A Professional Guest is placed by the roster, is not
-    // a generation input, and has no profile for a position change to be
-    // derived against, so their card is shown and not edited here.
-    if (assignment.isProfessionalGuest) return;
+    // A Professional Guest is offered the two actions that are about **sides**,
+    // and only those.
+    //
+    // Which side somebody is on is `KB-D6`'s question and nothing to do with a
+    // profile, so it is answerable for a guest exactly as it is for anybody
+    // else. The other two are not: changing a position derives the assignment
+    // basis from the player's profile (§5.1) and a guest has none, and removing
+    // somebody from the record of who played takes back the statistics and
+    // ratings their row earned — a guest's row earns neither, and the roster is
+    // where a guest is taken off.
+    final guest = assignment.isProfessionalGuest;
     final action = await showDialog<_PlayerAction>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
@@ -734,14 +878,15 @@ class _TeamsScreenState extends State<TeamsScreen> {
               in <(_PlayerAction, String, IconData)>[
             (_PlayerAction.move, l10n.movePlayerAction, Icons.swap_horiz),
             (_PlayerAction.swap, l10n.swapPlayerAction, Icons.swap_vert),
-            (
-              _PlayerAction.position,
-              l10n.changePositionAction,
-              Icons.sports_soccer
-            ),
+            if (!guest)
+              (
+                _PlayerAction.position,
+                l10n.changePositionAction,
+                Icons.sports_soccer
+              ),
             // Taking somebody out of the record of who played is a correction to
             // a played match, so it is offered on one and nowhere else.
-            if (view.canEditPlayed)
+            if (view.canEditPlayed && !guest)
               (
                 _PlayerAction.remove,
                 l10n.removePlayedPlayerAction,
@@ -762,7 +907,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
       case _PlayerAction.move:
         await _runEdit(
           l10n,
-          () => _teams.movePlayer(widget.matchId, assignment.userId!),
+          // The participant id, not the user id: a guest is moved by the same
+          // operation as anybody else, and `userId!` would have thrown on one.
+          () => _teams.movePlayer(widget.matchId, assignment.participantId),
         );
       case _PlayerAction.swap:
         await _swap(l10n, view, assignment);
@@ -900,7 +1047,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
         ),
       );
 
-  /// Asks which player on the other side to swap with, then swaps them.
+  /// Asks who on the other side to swap with, then swaps them.
+  ///
+  /// Everybody on the other side is offered, Professional Guests included. A
+  /// swap exchanges two sides and `KB-D6` gives the labels no other meaning, so
+  /// which column names a participant has no bearing on whether they can be one
+  /// half of it. All four combinations are the same operation: player with
+  /// player, player with guest, guest with player, guest with guest.
   Future<void> _swap(
     AppLocalizations l10n,
     _TeamsView view,
@@ -908,9 +1061,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
   ) async {
     final others = [
       for (final other in view.lineup)
-        // A guest is not a swap partner: `swapPlayers` exchanges two registered
-        // players, and offering one here would produce a refusal at the port.
-        if (other.team != assignment.team && !other.isProfessionalGuest) other,
+        if (other.team != assignment.team) other,
     ];
     if (others.isEmpty) {
       _showMessage(l10n.swapNobodyAvailable);
@@ -927,13 +1078,17 @@ class _TeamsScreenState extends State<TeamsScreen> {
               leading: PlayerAvatar(
                 avatarUrl: view.players[other.participantId]?.avatarUrl,
                 fullName: _nameOf(view, other.participantId),
+                isProfessionalGuest: other.isProfessionalGuest,
               ),
               title: Text(_nameOf(view, other.participantId)),
-              // Non-null by construction: `others` above excludes Professional
-              // Guests, and a lineup row naming a registered player always
-              // carries a position — the database refuses one that does not.
-              subtitle:
-                  Text(_positionLabel(l10n, other.assignedPosition!.code)),
+              // A guest has no position, and none is invented for them: the row
+              // says what they are instead. A registered player always carries
+              // one — the database refuses a lineup row naming a user without.
+              subtitle: Text(
+                other.assignedPosition == null
+                    ? l10n.professionalGuestLabel
+                    : _positionLabel(l10n, other.assignedPosition!.code),
+              ),
               onTap: () => Navigator.of(dialogContext).pop(other),
             ),
         ],
@@ -943,10 +1098,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
     await _runEdit(
       l10n,
+      // Participant ids on both sides. `userId!` threw for a guest, which is
+      // half of why guests could not be swapped at all.
       () => _teams.swapPlayers(
         widget.matchId,
-        assignment.userId!,
-        partner.userId!,
+        assignment.participantId,
+        partner.participantId,
       ),
     );
   }

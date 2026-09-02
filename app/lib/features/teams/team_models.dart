@@ -95,6 +95,7 @@ class TeamAssignment {
     required this.basis,
     this.userId,
     this.professionalGuestId,
+    this.teamManuallyOverridden = false,
   });
 
   /// The engine's output for one player, as a lineup that can be stored.
@@ -106,7 +107,8 @@ class TeamAssignment {
         professionalGuestId = null,
         team = assignment.team,
         assignedPosition = assignment.assignedPosition,
-        basis = assignment.basis;
+        basis = assignment.basis,
+        teamManuallyOverridden = false;
 
   /// Null when this lineup row belongs to a Professional Guest.
   final String? userId;
@@ -154,6 +156,66 @@ class TeamAssignment {
   /// migration `0018` left the column out. A guest is never out of position:
   /// there is no position of theirs to be out of.
   bool get outOfPosition => basis == AssignmentBasis.transition;
+
+  /// Whether an organizer chose this row's [team] by hand.
+  ///
+  /// It exists for Professional Guests. A guest is not an engine input, so
+  /// nothing generates a side for them: `assign_professional_guest_teams`
+  /// alternates them A, B, A, B by the order they were added, and re-runs that
+  /// alternation on every lineup write. Without a record that a side was
+  /// *chosen*, a guest moved by hand was put straight back by the next save.
+  /// This is that record, and migration `0058` is where the alternation learns
+  /// to leave it alone.
+  ///
+  /// False for a community player, always. Their side is the engine's output
+  /// and their manual moves are already authoritative — there is nothing
+  /// re-deriving it afterwards for a flag to protect them from. The column
+  /// carries false for them because the column is not nullable, not because
+  /// anything reads it.
+  ///
+  /// Reset by Generate/Regenerate: a fresh search discards what was adjusted
+  /// around the previous one (`BTGE-MO-2`), and the guests re-alternate around
+  /// the new teams.
+  final bool teamManuallyOverridden;
+
+  /// The same participant, on the other side.
+  ///
+  /// The whole of a move: `KB-D6` says the two labels distinguish the sides and
+  /// carry nothing else, so nothing but [team] changes — the position, the
+  /// basis and above all the **identity** are carried across untouched.
+  ///
+  /// This exists because the identity is the easy thing to lose. Rebuilding an
+  /// assignment field by field to move it drops whichever of [userId] and
+  /// [professionalGuestId] the author forgot, and for a guest that produced a
+  /// row naming nobody — which the table's XOR check refuses and which no test
+  /// covered, because the move was never offered for a guest in the first
+  /// place. Copying and changing one field cannot express that mistake.
+  TeamAssignment movedToOtherTeam({bool manualOverride = false}) =>
+      TeamAssignment(
+        userId: userId,
+        professionalGuestId: professionalGuestId,
+        team: team == TeamId.a ? TeamId.b : TeamId.a,
+        assignedPosition: assignedPosition,
+        basis: basis,
+        // A community player's row keeps false: the flag governs the guest
+        // alternation, and nothing re-derives a player's side.
+        teamManuallyOverridden:
+            isProfessionalGuest ? manualOverride : teamManuallyOverridden,
+      );
+
+  /// The same participant with a different [assignedPosition].
+  ///
+  /// Identity-preserving for the same reason as [movedToOtherTeam], and the
+  /// side is what stays put here.
+  TeamAssignment withPosition(Position position, AssignmentBasis? basis) =>
+      TeamAssignment(
+        userId: userId,
+        professionalGuestId: professionalGuestId,
+        team: team,
+        assignedPosition: position,
+        basis: basis,
+        teamManuallyOverridden: teamManuallyOverridden,
+      );
 }
 
 /// The engine's input contract (§4), assembled from what the schema holds.

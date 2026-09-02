@@ -416,6 +416,261 @@ void main() {
       }
     });
   });
+
+  // --- Professional Guests -----------------------------------------------------
+  //
+  // A guest is on a side like anybody else, and which side is `KB-D6`'s
+  // question rather than a profile's. What differs is which column names them,
+  // and that is exactly what these assert cannot be lost.
+
+  TeamAssignment guestAt(String guestId, TeamId team) => TeamAssignment(
+        professionalGuestId: guestId,
+        team: team,
+        assignedPosition: null,
+        basis: null,
+      );
+
+  /// Two players and two guests, one of each a side.
+  List<TeamAssignment> mixedLineup() => [
+        at('u1', TeamId.a, Position.gk),
+        guestAt('g1', TeamId.a),
+        at('u3', TeamId.b, Position.mid),
+        guestAt('g2', TeamId.b),
+      ];
+
+  TeamAssignment savedParticipant(FakeTeamAdapter adapter, String id) =>
+      adapter.savedLineup!.singleWhere((a) => a.participantId == id);
+
+  group('the identity a move carries', () {
+    // The latent bug this closes: the moved assignment used to be rebuilt from
+    // `userId` alone, which dropped `professionalGuestId`. For a guest that
+    // produced a row naming nobody -- refused by the table's XOR check -- and
+    // nothing caught it because a guest could not be moved in the first place.
+
+    test('a community player keeps their user id and gains no guest id',
+        () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'u1');
+
+      final moved = savedParticipant(adapter, 'u1');
+      expect(moved.userId, 'u1');
+      expect(moved.professionalGuestId, isNull);
+      expect(moved.isProfessionalGuest, isFalse);
+      expect(moved.team, TeamId.b);
+    });
+
+    test('a Professional Guest keeps their guest id and gains no user id',
+        () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'g1');
+
+      final moved = savedParticipant(adapter, 'g1');
+      expect(moved.professionalGuestId, 'g1');
+      expect(moved.userId, isNull);
+      expect(moved.isProfessionalGuest, isTrue);
+      expect(moved.team, TeamId.b);
+    });
+
+    test('every saved row still names exactly one participant', () async {
+      // The XOR the schema states, asserted over the whole lineup rather than
+      // the row that moved: a rebuild that lost an identity would show up here
+      // whichever row it happened to.
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2');
+
+      for (final a in adapter.savedLineup!) {
+        expect((a.userId == null) != (a.professionalGuestId == null), isTrue,
+            reason: 'exactly one identity, never both and never neither');
+      }
+    });
+  });
+
+  group('move a Professional Guest', () {
+    test('A to B', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'g1');
+
+      expect(savedParticipant(adapter, 'g1').team, TeamId.b);
+    });
+
+    test('B to A', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'g2');
+
+      expect(savedParticipant(adapter, 'g2').team, TeamId.a);
+    });
+
+    test('no position is invented for them', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'g1');
+
+      final moved = savedParticipant(adapter, 'g1');
+      expect(moved.assignedPosition, isNull,
+          reason: 'a guest has no profile for a position to be derived from');
+      expect(moved.basis, isNull);
+    });
+
+    test('the side is marked as one a person chose', () async {
+      // What `assign_professional_guest_teams` reads to stop re-alternating
+      // this row (migration `0058`). Without it the move is undone by the very
+      // write that saves it.
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'g1');
+
+      expect(savedParticipant(adapter, 'g1').teamManuallyOverridden, isTrue);
+    });
+
+    test('a community player is not marked', () async {
+      // The flag governs the guest alternation. Nothing re-derives a player's
+      // side, so there is nothing for it to protect them from.
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'u1');
+
+      expect(savedParticipant(adapter, 'u1').teamManuallyOverridden, isFalse);
+    });
+
+    test('nobody else is touched (BTGE-MO-3)', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'g1');
+
+      expect(savedParticipant(adapter, 'u1').team, TeamId.a);
+      expect(savedParticipant(adapter, 'u3').team, TeamId.b);
+      expect(savedParticipant(adapter, 'g2').team, TeamId.b);
+      expect(adapter.savedLineup, hasLength(4));
+    });
+
+    test('a guest who is not in the lineup is refused', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      expect(
+        () => TeamRepository(adapter).movePlayer('m1', 'g9'),
+        throwsA(isA<ValidationFailure>()),
+      );
+    });
+  });
+
+  group('swap with a Professional Guest', () {
+    test('a guest and a community player exchange sides', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+
+      expect(savedParticipant(adapter, 'g1').team, TeamId.b);
+      expect(savedParticipant(adapter, 'u3').team, TeamId.a);
+      expect(savedParticipant(adapter, 'g1').professionalGuestId, 'g1');
+      expect(savedParticipant(adapter, 'u3').userId, 'u3');
+    });
+
+    test('two guests exchange sides', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2');
+
+      expect(savedParticipant(adapter, 'g1').team, TeamId.b);
+      expect(savedParticipant(adapter, 'g2').team, TeamId.a);
+    });
+
+    test('each keeps the position they had, guests included', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+
+      expect(savedParticipant(adapter, 'g1').assignedPosition, isNull);
+      expect(savedParticipant(adapter, 'u3').assignedPosition, Position.mid);
+    });
+
+    test('each guest involved is marked, the player is not', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+
+      expect(savedParticipant(adapter, 'g1').teamManuallyOverridden, isTrue);
+      expect(savedParticipant(adapter, 'u3').teamManuallyOverridden, isFalse);
+    });
+
+    test('both guests are marked in a guest-to-guest swap', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2');
+
+      expect(savedParticipant(adapter, 'g1').teamManuallyOverridden, isTrue);
+      expect(savedParticipant(adapter, 'g2').teamManuallyOverridden, isTrue);
+    });
+
+    test('two guests already on the same side are refused', () async {
+      final adapter = FakeTeamAdapter(lineup: [
+        at('u1', TeamId.a, Position.gk),
+        guestAt('g1', TeamId.a),
+        guestAt('g2', TeamId.a),
+        at('u3', TeamId.b, Position.mid),
+      ]);
+
+      expect(
+        () => TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2'),
+        throwsA(isA<ValidationFailure>()),
+      );
+    });
+
+    test('a guest swapped with themselves is refused', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      expect(
+        () => TeamRepository(adapter).swapPlayers('m1', 'g1', 'g1'),
+        throwsA(isA<ValidationFailure>()),
+      );
+    });
+
+    test('the whole lineup is written once, atomically', () async {
+      // One `saveLineup`, not two updates. `replace_match_lineup` is one
+      // transaction, and a swap that took two calls could leave both
+      // participants on the same side in between.
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+
+      expect(adapter.saveCount, 1);
+      expect(adapter.savedLineup, hasLength(4));
+    });
+  });
+
+  group('which save clears a chosen side', () {
+    test('a manual move does not say it came from a generation', () async {
+      // The distinction migration `0058` reads. A manual save must keep every
+      // chosen side, so it must not claim to be a generation.
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).movePlayer('m1', 'g1');
+
+      expect(adapter.lastFromGeneration, isFalse);
+    });
+
+    test('a swap does not either', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+
+      expect(adapter.lastFromGeneration, isFalse);
+    });
+
+    test('saving a generated lineup does', () async {
+      // `BTGE-MO-2`: a fresh search discards what was adjusted around the
+      // previous teams, and a guest's chosen side is such an adjustment.
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).saveLineup('m1', lineup());
+
+      expect(adapter.lastFromGeneration, isTrue);
+    });
+  });
 }
 
 extension on List<TeamAssignment> {
@@ -448,6 +703,13 @@ class FakeTeamAdapter implements TeamAdapter {
   String? lastMatchId;
   List<TeamAssignment>? savedLineup;
 
+  /// Whether the last save said it followed a generation. It is the one
+  /// thing that clears a guest's chosen side (migration `0058`).
+  bool? lastFromGeneration;
+
+  /// How many times the lineup was written. A swap is one write.
+  int saveCount = 0;
+
   @override
   Future<List<TeamAssignment>> fetchLineup(String matchId) async {
     lineupReads++;
@@ -455,10 +717,16 @@ class FakeTeamAdapter implements TeamAdapter {
   }
 
   @override
-  Future<void> saveLineup(String matchId, List<TeamAssignment> lineup) async {
+  Future<void> saveLineup(
+    String matchId,
+    List<TeamAssignment> lineup, {
+    bool fromGeneration = false,
+  }) async {
     if (saveFailure != null) throw saveFailure!;
     lastMatchId = matchId;
     savedLineup = lineup;
+    lastFromGeneration = fromGeneration;
+    saveCount++;
     _lineup = [...lineup];
   }
 

@@ -185,8 +185,13 @@ class TeamRepository {
   /// A generated result reaches this through [TeamAssignment.fromAssignment];
   /// an organizer's adjustment reaches it directly. `BTGE-MO-5` makes both the
   /// authoritative lineup for the match, so both take the same path.
+  ///
+  /// This is the generation half of that path — the Teams screen calls it with
+  /// what the engine just produced — so it is where the guests give up any side
+  /// an organizer chose around the previous teams. The manual operations below
+  /// go through `_replace`, which does not.
   Future<void> saveLineup(String matchId, List<TeamAssignment> lineup) =>
-      _adapter.saveLineup(matchId, lineup);
+      _adapter.saveLineup(matchId, lineup, fromGeneration: true);
 
   // --- Correcting who played (completed matches) -----------------------------
   //
@@ -233,46 +238,57 @@ class TeamRepository {
   // what the port already does, and migration `0020` made it a single
   // transaction, so a refused edit leaves the previous lineup as it was.
 
-  /// Moves [userId] to the other team, keeping their assigned position.
+  /// Moves [participantId] to the other team, keeping their assigned position.
   ///
-  /// Only that player moves. `BTGE-MO-3` forbids rebalancing the sides
+  /// Only that participant moves. `BTGE-MO-3` forbids rebalancing the sides
   /// afterwards or moving somebody back in compensation: the organizer asked
   /// for this, and the result is theirs.
   ///
-  /// Throws [ValidationFailure] when the player is not in the stored lineup.
-  Future<void> movePlayer(String matchId, String userId) async {
+  /// Takes a participant id, not a user id. A Professional Guest is moved by
+  /// the same operation as anybody else on the pitch — the two differ in which
+  /// column names them, which is exactly what `participantId` exists to stop
+  /// mattering here.
+  ///
+  /// Throws [ValidationFailure] when the participant is not in the stored
+  /// lineup.
+  Future<void> movePlayer(String matchId, String participantId) async {
     final lineup = await _adapter.fetchLineup(matchId);
-    final player = _find(lineup, userId);
+    final player = _find(lineup, participantId);
 
     await _replace(matchId, lineup, {
-      userId: _moved(player),
+      participantId: player.movedToOtherTeam(manualOverride: true),
     });
   }
 
-  /// Exchanges the teams of [firstUserId] and [secondUserId].
+  /// Exchanges the teams of [firstParticipantId] and [secondParticipantId].
   ///
-  /// Each keeps their assigned position — a swap is about which side a player
-  /// is on, and §13 gives it no authority over anything else.
+  /// Each keeps their assigned position — a swap is about which side somebody
+  /// is on, and §13 gives it no authority over anything else. A guest keeps a
+  /// null position, because that is the position they have.
   ///
-  /// Throws [ValidationFailure] when either player is absent from the stored
-  /// lineup, when they are the same player, or when they are already on the
-  /// same team: there is no swap to perform, and silently doing nothing would
-  /// report success for an operation that never happened.
+  /// Either side may be a Professional Guest, including both.
+  ///
+  /// Throws [ValidationFailure] when either participant is absent from the
+  /// stored lineup, when they are the same participant, or when they are
+  /// already on the same team: there is no swap to perform, and silently doing
+  /// nothing would report success for an operation that never happened.
   Future<void> swapPlayers(
     String matchId,
-    String firstUserId,
-    String secondUserId,
+    String firstParticipantId,
+    String secondParticipantId,
   ) async {
-    if (firstUserId == secondUserId) throw const ValidationFailure();
+    if (firstParticipantId == secondParticipantId) {
+      throw const ValidationFailure();
+    }
 
     final lineup = await _adapter.fetchLineup(matchId);
-    final first = _find(lineup, firstUserId);
-    final second = _find(lineup, secondUserId);
+    final first = _find(lineup, firstParticipantId);
+    final second = _find(lineup, secondParticipantId);
     if (first.team == second.team) throw const ValidationFailure();
 
     await _replace(matchId, lineup, {
-      firstUserId: _moved(first),
-      secondUserId: _moved(second),
+      firstParticipantId: first.movedToOtherTeam(manualOverride: true),
+      secondParticipantId: second.movedToOtherTeam(manualOverride: true),
     });
   }
 
@@ -299,34 +315,29 @@ class TeamRepository {
     final player = _find(lineup, userId);
 
     await _replace(matchId, lineup, {
-      userId: TeamAssignment(
-        userId: player.userId,
-        team: player.team,
-        assignedPosition: position,
-        basis: await _basisFor(matchId, userId, position, player.basis),
+      userId: player.withPosition(
+        position,
+        await _basisFor(matchId, userId, position, player.basis),
       ),
     });
   }
 
-  /// The stored assignment of [userId], or a refusal.
+  /// The stored assignment of [participantId], or a refusal.
   ///
-  /// A manual edit only ever rearranges players who are already in the lineup.
-  /// One who is not is not something to add — `BTGE-HC-3` says the engine never
-  /// drops a player, and the reverse holds here: an edit does not recruit one.
-  TeamAssignment _find(List<TeamAssignment> lineup, String userId) {
-    final found = lineup.where((a) => a.userId == userId);
+  /// A manual edit only ever rearranges participants who are already in the
+  /// lineup. One who is not is not something to add — `BTGE-HC-3` says the
+  /// engine never drops a player, and the reverse holds here: an edit does not
+  /// recruit one. A Professional Guest reaches the lineup through the roster
+  /// and the guest alternation, never through an edit.
+  ///
+  /// Matched on `participantId`, so a guest is found by the id that names them.
+  /// Matching on `userId` meant a guest was never found at all, and a null
+  /// `userId` would have matched every other guest at once.
+  TeamAssignment _find(List<TeamAssignment> lineup, String participantId) {
+    final found = lineup.where((a) => a.participantId == participantId);
     if (found.length != 1) throw const ValidationFailure();
     return found.single;
   }
-
-  /// The same assignment on the other side. `KB-D6`: the two labels distinguish
-  /// the sides and carry nothing else, so this is the whole of a move.
-  TeamAssignment _moved(TeamAssignment assignment) => TeamAssignment(
-        userId: assignment.userId,
-        team: assignment.team == TeamId.a ? TeamId.b : TeamId.a,
-        assignedPosition: assignment.assignedPosition,
-        basis: assignment.basis,
-      );
 
   /// Writes [lineup] back with [changes] applied, in the order it was read.
   ///

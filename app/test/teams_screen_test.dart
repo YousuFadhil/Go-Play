@@ -1458,6 +1458,312 @@ void main() {
           reason: 'a guest has no account and therefore no record to open');
     });
   });
+
+  // --- managing a Professional Guest's side -------------------------------------
+
+  group('a Professional Guest on the pitch, to an organizer', () {
+    TeamAssignment guestOnPitch(String guestId, TeamId team) => TeamAssignment(
+          professionalGuestId: guestId,
+          team: team,
+          assignedPosition: null,
+          basis: null,
+        );
+
+    MatchRegistration guestSeat(String guestId, String name, int order) =>
+        MatchRegistration(
+          registrationId: 'reg-$guestId',
+          professionalGuestId: guestId,
+          fullName: name,
+          status: RegistrationStatus.confirmed,
+          registrationOrder: order,
+        );
+
+    Future<void> pumpWithGuests(
+      WidgetTester tester,
+      FakeTeamAdapter teams, {
+      NavigatorObserver? observer,
+    }) async {
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches: FakeMatchAdapter(
+          match: match,
+          registrations: [
+            ...fourSeats(),
+            guestSeat('g1', 'Faisal', 5),
+            guestSeat('g2', 'Khalid', 6),
+          ],
+        ),
+        observer: observer,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    /// One guest a side, alongside the four community players.
+    FakeTeamAdapter withTwoGuests() => FakeTeamAdapter(
+          lineup: [
+            ...storedLineup(),
+            guestOnPitch('g1', TeamId.a),
+            guestOnPitch('g2', TeamId.b),
+          ],
+          roster: fourInputs(),
+        );
+
+    Future<void> tapParticipant(WidgetTester tester, String name) async {
+      await tester.tap(find.text(name));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is offered the two actions about sides, and no others',
+        (tester) async {
+      // Move and swap are `KB-D6` questions and answerable for a guest.
+      // Changing a position derives the basis from a profile they do not have,
+      // and removing somebody from the played record takes back statistics
+      // their row never earned.
+      await pumpWithGuests(tester, withTwoGuests());
+
+      await tapParticipant(tester, 'Faisal');
+
+      expect(find.text('Edit Faisal'), findsOneWidget);
+      expect(find.text('Move to the other team'), findsOneWidget);
+      expect(find.text('Swap with a player'), findsOneWidget);
+      expect(find.text('Change position'), findsNothing);
+    });
+
+    testWidgets('a move persists the guest, not a row naming nobody',
+        (tester) async {
+      final teams = withTwoGuests();
+      await pumpWithGuests(tester, teams);
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Move to the other team'));
+      await tester.pumpAndSettle();
+
+      final moved = teams.savedLineup!
+          .singleWhere((a) => a.professionalGuestId == 'g1');
+      expect(moved.team, TeamId.b);
+      expect(moved.userId, isNull);
+      expect(moved.professionalGuestId, 'g1',
+          reason: 'the identity survives the move');
+      expect(moved.teamManuallyOverridden, isTrue,
+          reason: 'so the alternation leaves the chosen side alone');
+      expect(teams.savedLineup, hasLength(6));
+    });
+
+    testWidgets('a manual move does not claim to be a generation',
+        (tester) async {
+      // What decides whether migration `0058` clears every chosen side.
+      final teams = withTwoGuests();
+      await pumpWithGuests(tester, teams);
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Move to the other team'));
+      await tester.pumpAndSettle();
+
+      expect(teams.lastFromGeneration, isFalse);
+    });
+
+    testWidgets('the swap list offers guests as well as players',
+        (tester) async {
+      final teams = withTwoGuests();
+      await pumpWithGuests(tester, teams);
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Swap with a player'));
+      await tester.pumpAndSettle();
+
+      Finder inDialog(String text) => find.descendant(
+            of: find.byType(SimpleDialog),
+            matching: find.text(text),
+          );
+
+      // Team B, whoever is on it: the two community players and the guest.
+      expect(inDialog('Ahmed Al Harthy'), findsOneWidget);
+      expect(inDialog('Yousef Al Amri'), findsOneWidget);
+      expect(inDialog('Khalid'), findsOneWidget,
+          reason: 'a guest is half of a swap like anybody else');
+      // The guest's row says what they are where a position would go, and does
+      // not crash on the null one.
+      expect(inDialog('Professional guest'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a guest swaps with a community player', (tester) async {
+      final teams = withTwoGuests();
+      await pumpWithGuests(tester, teams);
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Swap with a player'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(
+        of: find.byType(SimpleDialog),
+        matching: find.text('Ahmed Al Harthy'),
+      ));
+      await tester.pumpAndSettle();
+
+      final guest =
+          teams.savedLineup!.singleWhere((a) => a.professionalGuestId == 'g1');
+      final player = teams.savedLineup!.singleWhere((a) => a.userId == 'u2');
+      expect(guest.team, TeamId.b);
+      expect(player.team, TeamId.a);
+      expect(guest.assignedPosition, isNull,
+          reason: 'no position is manufactured for the guest');
+      expect(guest.teamManuallyOverridden, isTrue);
+      expect(player.teamManuallyOverridden, isFalse);
+    });
+
+    testWidgets('a guest swaps with another guest', (tester) async {
+      final teams = withTwoGuests();
+      await pumpWithGuests(tester, teams);
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Swap with a player'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(
+        of: find.byType(SimpleDialog),
+        matching: find.text('Khalid'),
+      ));
+      await tester.pumpAndSettle();
+
+      final first =
+          teams.savedLineup!.singleWhere((a) => a.professionalGuestId == 'g1');
+      final second =
+          teams.savedLineup!.singleWhere((a) => a.professionalGuestId == 'g2');
+      expect(first.team, TeamId.b);
+      expect(second.team, TeamId.a);
+      expect(first.teamManuallyOverridden, isTrue);
+      expect(second.teamManuallyOverridden, isTrue);
+      // One write, not two: a swap saved in halves could show both on the same
+      // side in between.
+      expect(teams.saveCount, 1);
+    });
+
+    testWidgets('can be added from Teams through the roster', (tester) async {
+      // The canonical path and no other: this calls the same
+      // `MatchService.addProfessionalGuest` the roster screen calls, which
+      // reaches `add_professional_guest`. There is no direct write into Team A
+      // or Team B from this screen, and no second RPC.
+      final matches = FakeMatchAdapter(
+        match: match,
+        registrations: fourSeats(),
+      );
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(tester, teams: teams, matches: matches);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('teamsGuestNameField')), 'Faisal');
+      await tester.tap(find.byKey(const Key('teamsGuestNameSubmit')));
+      await tester.pumpAndSettle();
+
+      expect(matches.addedGuestNames, ['Faisal']);
+      expect(teams.savedLineup, isNull,
+          reason: 'adding a guest is a roster operation, not a lineup write — '
+              'the screen never puts them on a side itself');
+    });
+
+    testWidgets('added to the reserve list, is not forced onto a side',
+        (tester) async {
+      // Capacity and the confirmed-before-reserve priority are the database's
+      // to apply. A guest who lands on the reserve holds no seat, so
+      // `assign_professional_guest_teams` gives them no lineup row and there is
+      // nothing on the pitch to move.
+      final matches = FakeMatchAdapter(
+        match: match,
+        registrations: fourSeats(),
+        addedGuestStatus: RegistrationStatus.reserve,
+      );
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(tester, teams: teams, matches: matches);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const Key('teamsGuestNameField')), 'Faisal');
+      await tester.tap(find.byKey(const Key('teamsGuestNameSubmit')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Faisal was added to the reserve list.'), findsOneWidget);
+      expect(teams.savedLineup, isNull);
+    });
+
+    testWidgets('a refusal from the database is reported, not worked around',
+        (tester) async {
+      // Capacity, the name rule and the owner/admin check all live in
+      // `add_professional_guest`. The screen shows what it said.
+      final matches = FakeMatchAdapter(
+        match: match,
+        registrations: fourSeats(),
+        guestAddFailure:
+            const ValidationFailure(FailureReason.invalidGuestName),
+      );
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: matches,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const Key('teamsGuestNameField')), 'Faisal');
+      await tester.tap(find.byKey(const Key('teamsGuestNameSubmit')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a name between 2 and 60 characters.'),
+          findsOneWidget);
+    });
+
+    testWidgets('a name the rule refuses never reaches the database',
+        (tester) async {
+      final matches = FakeMatchAdapter(
+        match: match,
+        registrations: fourSeats(),
+      );
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: matches,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('teamsGuestNameField')), 'F');
+      await tester.tap(find.byKey(const Key('teamsGuestNameSubmit')));
+      await tester.pumpAndSettle();
+
+      expect(matches.addedGuestNames, isEmpty);
+    });
+
+    testWidgets('the guest still opens no profile', (tester) async {
+      final observer = _PitchRouteRecorder();
+      await pumpWithGuests(tester, withTwoGuests(), observer: observer);
+      observer.pushed.clear();
+
+      await tapParticipant(tester, 'Faisal');
+
+      // The management sheet, not a profile — and nothing was navigated to.
+      expect(find.text('Edit Faisal'), findsOneWidget);
+      expect(observer.pushed.whereType<MaterialPageRoute<dynamic>>(), isEmpty);
+      observer.discard();
+    });
+  });
 }
 
 /// Records a pushed route without letting it build: `ProfileScreen` makes the
@@ -1514,6 +1820,10 @@ class FakeTeamAdapter implements TeamAdapter {
   int? lastLimit;
   List<TeamAssignment>? savedLineup;
 
+  /// Whether the last save said it followed a generation. It is the one
+  /// thing that clears a guest's chosen side (migration `0058`).
+  bool? lastFromGeneration;
+
   @override
   Future<List<PlayerCoreInputs>> fetchConfirmedPlayerInputs(
           String matchId) async =>
@@ -1538,7 +1848,12 @@ class FakeTeamAdapter implements TeamAdapter {
   }
 
   @override
-  Future<void> saveLineup(String matchId, List<TeamAssignment> lineup) async {
+  Future<void> saveLineup(
+    String matchId,
+    List<TeamAssignment> lineup, {
+    bool fromGeneration = false,
+  }) async {
+    lastFromGeneration = fromGeneration;
     if (saveGate != null) await saveGate;
     if (failAfterClearing) _lineup = [];
     if (saveFailure != null) throw saveFailure!;
@@ -1595,10 +1910,23 @@ class FakeMatchAdapter implements MatchAdapter {
     required this.registrations,
     this.thrown,
     this.gate,
+    this.guestAddFailure,
+    this.addedGuestStatus = RegistrationStatus.confirmed,
   });
 
+  /// What `add_professional_guest` refused with, when it did.
+  final Failure? guestAddFailure;
+
+  /// Which list the database put the added guest in. The screen does not get
+  /// to choose: capacity and the confirmed-before-reserve priority decide it,
+  /// and this stands in for that answer.
+  final RegistrationStatus addedGuestStatus;
+
+  /// The names this adapter was asked to add, in order.
+  final List<String> addedGuestNames = [];
+
   final Match match;
-  final List<MatchRegistration> registrations;
+  List<MatchRegistration> registrations;
   final Failure? thrown;
 
   /// Held open to keep the first load pending while the test looks at it.
@@ -1677,8 +2005,21 @@ class FakeMatchAdapter implements MatchAdapter {
       throw UnimplementedError();
 
   @override
-  Future<String> addProfessionalGuest(String matchId, String name) =>
-      throw UnimplementedError();
+  Future<String> addProfessionalGuest(String matchId, String name) async {
+    if (guestAddFailure != null) throw guestAddFailure!;
+    addedGuestNames.add(name);
+    registrations = [
+      ...registrations,
+      MatchRegistration(
+        registrationId: 'reg-added',
+        professionalGuestId: 'added',
+        fullName: name,
+        status: addedGuestStatus,
+        registrationOrder: registrations.length + 1,
+      ),
+    ];
+    return 'added';
+  }
 
   @override
   Future<void> removeProfessionalGuest(String matchId, String guestId) =>

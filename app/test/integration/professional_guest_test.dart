@@ -1868,6 +1868,173 @@ void main() {
       expect(teamOfGuest(rows, ids[3]), 'A');
     });
 
+    // --- a side an organizer chose (migration 0058) --------------------------
+    //
+    // The alternation re-runs at the end of every lineup write, and its upsert
+    // used to set the team unconditionally: a guest moved to the other side was
+    // moved back by the very call that saved the move. These prove the column
+    // that stops it, and the one operation that still clears it.
+
+    /// A move, as `TeamRepository.movePlayer` sends it: the whole lineup back
+    /// with one guest row on the other side, marked as chosen.
+    Future<void> moveGuest(
+      String matchId,
+      List<TestUser> squad,
+      String guestId,
+      String toTeam,
+    ) =>
+        owner.client.rpc('replace_match_lineup', params: {
+          'p_match_id': matchId,
+          'p_assignments': [
+            for (final (index, user) in squad.indexed)
+              {
+                'user_id': user.id,
+                'team': index.isEven ? 'A' : 'B',
+                'assigned_position': const ['DEF', 'MID', 'FWD'][index % 3],
+                'assignment_basis': 'TRANSITION',
+              },
+            {
+              'professional_guest_id': guestId,
+              'team': toTeam,
+              'assigned_position': null,
+              'assignment_basis': 'GUEST',
+              'team_manually_overridden': true,
+            },
+          ],
+        });
+
+    Future<String> startedMatchWithSquad(List<TestUser> squad) async {
+      final matchId = await matchWithSlots(8);
+      for (final user in squad) {
+        await user.client
+            .rpc('register_for_match', params: {'p_match_id': matchId});
+      }
+      await saveCommunityLineup(matchId, squad);
+      return matchId;
+    }
+
+    test('a chosen side survives the write that saves it', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+
+      // First guest added, so the alternation put them on A.
+      expect(teamOfGuest(await lineup(matchId), guestId), 'A');
+
+      await moveGuest(matchId, squad, guestId, 'B');
+
+      expect(teamOfGuest(await lineup(matchId), guestId), 'B',
+          reason: 'the alternation that runs at the end of this same call must '
+              'leave a chosen side alone');
+    });
+
+    test('and survives an ordinary later save', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+      await moveGuest(matchId, squad, guestId, 'B');
+
+      // Another manual save saying nothing about the guest — a community player
+      // rearranged, which is the common case.
+      await saveCommunityLineup(matchId, squad);
+
+      expect(teamOfGuest(await lineup(matchId), guestId), 'B');
+    });
+
+    test('and is given up by a generation', () async {
+      // `BTGE-MO-2`: a fresh search discards what was adjusted around the teams
+      // it replaces, and a guest's chosen side is such an adjustment.
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+      await moveGuest(matchId, squad, guestId, 'B');
+      expect(teamOfGuest(await lineup(matchId), guestId), 'B');
+
+      await owner.client.rpc('replace_match_lineup', params: {
+        'p_match_id': matchId,
+        'p_assignments': [
+          for (final (index, user) in squad.indexed)
+            {
+              'user_id': user.id,
+              'team': index.isEven ? 'A' : 'B',
+              'assigned_position': const ['DEF', 'MID', 'FWD'][index % 3],
+              'assignment_basis': 'TRANSITION',
+            },
+        ],
+        'p_from_generation': true,
+      });
+
+      expect(teamOfGuest(await lineup(matchId), guestId), 'A',
+          reason: 'the automatic A, B, A, B policy applies again');
+    });
+
+    test('the two-argument call still works and keeps a chosen side', () async {
+      // A client older than 0058 calls this function with two arguments. The
+      // default resolves it to the same body with `p_from_generation => false`,
+      // so nothing is cleared by a client that never asked to clear it.
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+      await moveGuest(matchId, squad, guestId, 'B');
+
+      await owner.client.rpc('replace_match_lineup', params: {
+        'p_match_id': matchId,
+        'p_assignments': [
+          for (final (index, user) in squad.indexed)
+            {
+              'user_id': user.id,
+              'team': index.isEven ? 'A' : 'B',
+              'assigned_position': const ['DEF', 'MID', 'FWD'][index % 3],
+              'assignment_basis': 'TRANSITION',
+            },
+        ],
+      });
+
+      expect(teamOfGuest(await lineup(matchId), guestId), 'B');
+    });
+
+    test('a pinned guest still holds its place in the alternation', () async {
+      // The sequence decides everybody else's side. A pinned guest is counted
+      // by it rather than skipped, so the guests added after them keep the
+      // seats they had.
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+
+      final ids = <String>[];
+      for (var i = 1; i <= 3; i++) {
+        ids.add(await addGuest(owner, matchId, 'Guest $i'));
+      }
+      // A, B, A by addition order.
+      expect(teamOfGuest(await lineup(matchId), ids[1]), 'B');
+
+      // Pin the second guest onto A, where the alternation would not put them.
+      await owner.client.rpc('replace_match_lineup', params: {
+        'p_match_id': matchId,
+        'p_assignments': [
+          for (final (index, user) in squad.indexed)
+            {
+              'user_id': user.id,
+              'team': index.isEven ? 'A' : 'B',
+              'assigned_position': const ['DEF', 'MID', 'FWD'][index % 3],
+              'assignment_basis': 'TRANSITION',
+            },
+          {
+            'professional_guest_id': ids[1],
+            'team': 'A',
+            'assigned_position': null,
+            'assignment_basis': 'GUEST',
+            'team_manually_overridden': true,
+          },
+        ],
+      });
+
+      final rows = await lineup(matchId);
+      expect(teamOfGuest(rows, ids[0]), 'A');
+      expect(teamOfGuest(rows, ids[1]), 'A', reason: 'chosen, and kept');
+      expect(teamOfGuest(rows, ids[2]), 'A',
+          reason: 'still the third seat in the order, so still A');
+    });
+
     test('a reserve guest is not on the pitch', () async {
       final matchId = await matchWithSlots(4);
       final squad = [owner, admin, player, player2];

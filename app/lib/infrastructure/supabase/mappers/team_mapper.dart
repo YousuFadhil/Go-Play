@@ -101,6 +101,10 @@ TeamAssignment teamAssignmentFromRow(Map<String, dynamic> row) {
     team: teamFromDb(row['team'] as String),
     assignedPosition: position == null ? null : positionFromDb(position),
     basis: assignmentBasisFromDb(row['assignment_basis'] as String),
+    // Absent on a row read before migration `0058` added the column, and false
+    // is what such a row means: nobody had chosen a side by hand yet.
+    teamManuallyOverridden:
+        row['team_manually_overridden'] as bool? ?? false,
   );
 }
 
@@ -123,6 +127,10 @@ Map<String, dynamic> teamAssignmentToRow(TeamAssignment assignment) => {
           ? null
           : positionToDb(assignment.assignedPosition!),
       'assignment_basis': assignmentBasisToDb(assignment.basis),
+      // Whether an organizer chose this side by hand. It matters for a guest,
+      // whose side is otherwise re-derived by the alternation on every write;
+      // a community player carries false because the column is not nullable.
+      'team_manually_overridden': assignment.teamManuallyOverridden,
       // out_of_position is deliberately not stored: §5.1 derives it from the
       // basis, and a stored copy could disagree with it.
     };

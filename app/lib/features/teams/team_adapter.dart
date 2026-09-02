@@ -45,7 +45,22 @@ abstract interface class TeamAdapter {
   /// One path for both a generated and a manually adjusted lineup: `KB-017`
   /// and `BTGE-MO-5` make the lineup that actually played the thing recorded,
   /// however it came to be. An empty [lineup] clears what was stored.
-  Future<void> saveLineup(String matchId, List<TeamAssignment> lineup);
+  ///
+  /// [fromGeneration] is the one thing the two callers do not share. A
+  /// generated lineup is a fresh search, and `BTGE-MO-2` makes it discard what
+  /// was adjusted around the previous one — so the guests give up the sides an
+  /// organizer chose for them and re-alternate around the new teams. A manual
+  /// save is the adjustment itself, and must keep them.
+  ///
+  /// A flag rather than a second method: it changes one thing about one write,
+  /// and the two callers are already distinct above this layer — generation
+  /// reaches here through `TeamRepository.saveLineup`, every manual operation
+  /// through its private replace.
+  Future<void> saveLineup(
+    String matchId,
+    List<TeamAssignment> lineup, {
+    bool fromGeneration = false,
+  });
 
   /// Records that [userId] played [matchId] on [team] at [position].
   ///

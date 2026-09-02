@@ -609,6 +609,7 @@ void main() {
             'team': 'B',
             'assigned_position': null,
             'assignment_basis': 'GUEST',
+            'team_manually_overridden': false,
           },
         );
 
@@ -624,8 +625,39 @@ void main() {
             'team': 'A',
             'assigned_position': 'MID',
             'assignment_basis': 'PRIMARY',
+            'team_manually_overridden': false,
           },
         );
+      });
+
+      test('a guest whose side was chosen by hand says so in the payload', () {
+        // The one thing `assign_professional_guest_teams` reads to decide
+        // whether to re-alternate this row (migration `0058`). It has to reach
+        // the database for a chosen side to survive the write that saves it.
+        expect(
+          teamAssignmentToRow(const TeamAssignment(
+            professionalGuestId: 'g1',
+            team: TeamId.b,
+            assignedPosition: null,
+            basis: null,
+            teamManuallyOverridden: true,
+          ))['team_manually_overridden'],
+          isTrue,
+        );
+      });
+
+      test('a row read before the column existed means false', () {
+        // A lineup row stored before `0058`. Absent is not unknown here: no
+        // side could be chosen by hand before the column existed.
+        final assignment = teamAssignmentFromRow(const {
+          'user_id': 'u1',
+          'professional_guest_id': null,
+          'team': 'A',
+          'assigned_position': 'MID',
+          'assignment_basis': 'PRIMARY',
+        });
+
+        expect(assignment.teamManuallyOverridden, isFalse);
       });
     });
 
@@ -732,10 +764,23 @@ void main() {
         'team': 'A',
         'assigned_position': 'GK',
         'assignment_basis': 'PRIMARY',
+        'team_manually_overridden': false,
       };
 
       // No match_id: `replace_match_lineup` takes the match as its own
       // argument, so a row never names one.
+      expect(teamAssignmentToRow(teamAssignmentFromRow(row)), row);
+    });
+
+    test('a guest row keeps its chosen side through a round trip', () {
+      const row = {
+        'professional_guest_id': 'g1',
+        'team': 'B',
+        'assigned_position': null,
+        'assignment_basis': 'GUEST',
+        'team_manually_overridden': true,
+      };
+
       expect(teamAssignmentToRow(teamAssignmentFromRow(row)), row);
     });
 

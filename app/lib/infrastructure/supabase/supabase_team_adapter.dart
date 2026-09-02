@@ -23,7 +23,7 @@ class SupabaseTeamAdapter implements TeamAdapter {
   final SupabaseClient _client;
 
   static const _assignmentColumns = 'user_id, professional_guest_id, team, '
-      'assigned_position, assignment_basis';
+      'assigned_position, assignment_basis, team_manually_overridden';
 
   /// The generation set: **registered community players only**.
   ///
@@ -107,14 +107,23 @@ class SupabaseTeamAdapter implements TeamAdapter {
   /// failure mapper already knows. That replaces the pre-flight check this
   /// class used to make, which existed only because a delete refused by RLS
   /// matches zero rows and succeeds silently.
+  /// `p_from_generation` (migration `0058`) is the one argument the two callers
+  /// differ on: a generated lineup clears the sides organizers chose for the
+  /// guests, a manual save keeps them. It defaults to false in the function, so
+  /// a client older than `0058` keeps working and keeps them.
   @override
-  Future<void> saveLineup(String matchId, List<TeamAssignment> lineup) =>
+  Future<void> saveLineup(
+    String matchId,
+    List<TeamAssignment> lineup, {
+    bool fromGeneration = false,
+  }) =>
       guarded(() async {
         await _client.rpc('replace_match_lineup', params: {
           'p_match_id': matchId,
           'p_assignments': [
             for (final assignment in lineup) teamAssignmentToRow(assignment),
           ],
+          'p_from_generation': fromGeneration,
         });
       });
 
