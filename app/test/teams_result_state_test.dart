@@ -16,6 +16,7 @@ import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
+import 'package:go_play/features/teams/match_stage.dart';
 import 'package:go_play/features/teams/pitch_view.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_models.dart';
@@ -130,7 +131,7 @@ void main() {
     _Renderer? renderer,
     _Share? share,
   }) async {
-    tester.view.physicalSize = const Size(1000, 2600);
+    tester.view.physicalSize = const Size(390, 1800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -166,9 +167,30 @@ void main() {
           )
           .map((widget) => widget.aspectRatio)
           .toList();
-      expect(pitchSizes, [PitchView.aspectRatio, PitchView.aspectRatio]);
+      expect(
+        pitchSizes,
+        [PitchView.phoneAspectRatio, PitchView.phoneAspectRatio],
+      );
       for (final name in names.values) {
         expect(find.text(name), findsOneWidget);
+      }
+    });
+
+    testWidgets('phone cards and pitches use the approved 390px geometry',
+        (tester) async {
+      await pumpTeams(tester, match: upcomingMatch());
+
+      expect(tester.getSize(find.byType(AppBar)).height, 56);
+      expect(tester.getSize(find.byType(MatchStageHeader)).height, 102);
+      for (final section in find.byType(MatchStageSection).evaluate()) {
+        final size = tester.getSize(find.byWidget(section.widget));
+        expect(size.width, 366);
+        expect(size.height, 314);
+      }
+      for (final pitch
+          in find.byKey(const ValueKey('match-pitch')).evaluate()) {
+        final size = tester.getSize(find.byWidget(pitch.widget));
+        expect(size, const Size(350, 260));
       }
     });
 
@@ -232,6 +254,8 @@ void main() {
     testWidgets('a compact summary appears above the teams', (tester) async {
       await pumpTeams(tester, match: playedMatch(), recorded: result());
 
+      // 102 match header + 8 gap + 58 result strip.
+      expect(tester.getSize(find.byType(MatchStageHeader)).height, 168);
       expect(find.textContaining('Al Amerat FC'), findsWidgets);
       expect(find.text('3'), findsWidgets);
       expect(find.text('1'), findsWidgets);

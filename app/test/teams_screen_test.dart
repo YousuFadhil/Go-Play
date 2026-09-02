@@ -395,7 +395,7 @@ void main() {
       expect(find.byType(PitchView), findsNWidgets(2));
     });
 
-    testWidgets('the rows run attack at the top down to goal at the bottom',
+    testWidgets('the rows run from goal at the top down to attack',
         (tester) async {
       await pumpTeams(
         tester,
@@ -404,12 +404,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Team A is a goalkeeper and a midfielder. The outfielder is nearer the
-      // top of the pitch than the keeper, whatever the formation: the keeper is
-      // taken out of the outfield rules and drawn in goal underneath them.
+      // Team A is a goalkeeper and a midfielder. The approved visual sheet
+      // places the keeper in the top goal and the outfield rows beneath them.
       final keeper = tester.getCenter(find.text('Sara Al Balushi')).dy;
       final midfielder = tester.getCenter(find.text('Noor Al Kindi')).dy;
-      expect(midfielder, lessThan(keeper));
+      expect(keeper, lessThan(midfielder));
 
       // Team B is a defender and a forward, and both are drawn on one line.
       // That is the approved rule rather than a compromise: defence is filled

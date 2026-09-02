@@ -7,7 +7,7 @@ import 'match_stage.dart';
 import 'formation.dart';
 import 'team_models.dart';
 
-enum PitchPresentation { screen, share }
+enum PitchPresentation { phone, shareBeforeResult, shareResult }
 
 /// One team drawn on a pitch rather than listed.
 ///
@@ -31,15 +31,27 @@ class PitchView extends StatelessWidget {
     this.onTapPlayer,
     this.goalsOf,
     this.isMvpOf,
-    this.presentation = PitchPresentation.screen,
+    this.presentation = PitchPresentation.phone,
   });
 
-  /// Fixed approved geometry. The page scrolls; the pitch never stretches to
-  /// absorb formation rows.
-  static const aspectRatio = 1.9;
-  static const screenAvatarDiameter = 56.0;
-  static const narrowScreenAvatarDiameter = 54.0;
-  static const shareAvatarDiameter = 82.0;
+  /// The three approved pitch geometries. Phone and share metrics are separate
+  /// by design; none is solved from the available viewport height.
+  static const phonePitchWidth = 350.0;
+  static const phonePitchHeight = 260.0;
+  static const phoneAspectRatio = phonePitchWidth / phonePitchHeight;
+  static const phoneAvatarDiameter = 42.0;
+
+  static const shareBeforePitchWidth = 950.0;
+  static const shareBeforePitchHeight = 610.0;
+  static const shareBeforeAspectRatio =
+      shareBeforePitchWidth / shareBeforePitchHeight;
+  static const shareBeforeAvatarDiameter = 82.0;
+
+  static const shareResultPitchWidth = 950.0;
+  static const shareResultPitchHeight = 580.0;
+  static const shareResultAspectRatio =
+      shareResultPitchWidth / shareResultPitchHeight;
+  static const shareResultAvatarDiameter = 80.0;
 
   /// This team's stored assignments, in any order.
   final List<TeamAssignment> assignments;
@@ -87,31 +99,27 @@ class PitchView extends StatelessWidget {
     );
 
     final rows = <List<TeamAssignment>>[
-      if (formation.attack.isNotEmpty) formation.attack,
-      ...formation.midfieldRows,
-      if (formation.defence.isNotEmpty) formation.defence,
       if (hasNaturalGoalkeeper && formation.goalkeepers.isNotEmpty)
         formation.goalkeepers,
+      if (formation.defence.isNotEmpty) formation.defence,
+      ...formation.midfieldRows.reversed,
+      if (formation.attack.isNotEmpty) formation.attack,
     ];
 
     return AspectRatio(
       key: const ValueKey('match-pitch'),
-      aspectRatio: aspectRatio,
+      aspectRatio: _aspectRatio,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(Radii.md),
+        borderRadius: BorderRadius.circular(14),
         child: LayoutBuilder(
           builder: (context, box) {
-            final avatarDiameter = presentation == PitchPresentation.share
-                ? shareAvatarDiameter
-                : box.maxWidth < 360
-                    ? narrowScreenAvatarDiameter
-                    : screenAvatarDiameter;
+            final avatarDiameter = _avatarDiameter;
 
             return CustomPaint(
               painter: const _PitchPainter(
-                grass: MatchStage.grass,
-                stripe: MatchStage.grassBand,
-                lines: MatchStage.grassLine,
+                grass: MatchStage.pitchDark,
+                stripe: MatchStage.pitchLight,
+                lines: MatchStage.pitchLine,
               ),
               child: Stack(
                 clipBehavior: Clip.hardEdge,
@@ -146,6 +154,18 @@ class PitchView extends StatelessWidget {
       ),
     );
   }
+
+  double get _aspectRatio => switch (presentation) {
+        PitchPresentation.phone => phoneAspectRatio,
+        PitchPresentation.shareBeforeResult => shareBeforeAspectRatio,
+        PitchPresentation.shareResult => shareResultAspectRatio,
+      };
+
+  double get _avatarDiameter => switch (presentation) {
+        PitchPresentation.phone => phoneAvatarDiameter,
+        PitchPresentation.shareBeforeResult => shareBeforeAvatarDiameter,
+        PitchPresentation.shareResult => shareResultAvatarDiameter,
+      };
 }
 
 /// The pitch under the players: mown stripes, a touchline, a halfway line with
@@ -265,7 +285,7 @@ class _PitchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: presentation == PitchPresentation.share ? 10 : 4,
+        horizontal: presentation == PitchPresentation.phone ? 4 : 14,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -363,16 +383,27 @@ class PlayerCard extends StatelessWidget {
     final avatarUrl = player?.avatarUrl;
     final isGuest = assignment.isProfessionalGuest;
 
-    final isShare = presentation == PitchPresentation.share;
-    final radius = avatarDiameter / 2;
+    final isShare = presentation != PitchPresentation.phone;
+    final isShareResult = presentation == PitchPresentation.shareResult;
+    final innerRadius = (avatarDiameter - 4) / 2;
+    final nameSize = switch (presentation) {
+      PitchPresentation.phone => 13.0,
+      PitchPresentation.shareBeforeResult => 28.0,
+      PitchPresentation.shareResult => 27.0,
+    };
+    final ratingSize = switch (presentation) {
+      PitchPresentation.phone => 11.0,
+      PitchPresentation.shareBeforeResult => 22.0,
+      PitchPresentation.shareResult => 21.0,
+    };
 
     // The ink is there only where there is something to tap. A card with no
     // `onTap` is a card in a picture, and an `InkWell` there wants a `Material`
     // ancestor a share card has no reason to carry.
     final body = Padding(
       padding: EdgeInsets.symmetric(
-        vertical: isShare ? 2 : 1,
-        horizontal: isShare ? 4 : 2,
+        vertical: isShare ? 2 : 0,
+        horizontal: isShare ? 4 : 1,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -381,27 +412,41 @@ class PlayerCard extends StatelessWidget {
           // roster: the tertiary disc and the badge, never a picture. Before
           // this they shared the plain white disc with a player who had left
           // the match, which said the same thing about two different people.
-          CircleAvatar(
-            radius: radius,
-            backgroundColor:
-                isGuest ? theme.colorScheme.tertiaryContainer : Colors.white,
-            foregroundColor: isGuest
-                ? theme.colorScheme.onTertiaryContainer
-                : theme.colorScheme.primary,
-            // A guest holds no account, so there is no picture of theirs to
-            // load and no chance of loading somebody else's.
-            foregroundImage:
-                avatarUrl == null || isGuest ? null : NetworkImage(avatarUrl),
-            // Swallowed: a picture that will not load is not worth an error,
-            // and the child shows through instead of a broken image.
-            onForegroundImageError:
-                avatarUrl == null || isGuest ? null : (_, __) {},
-            child: Icon(
-              isGuest ? Icons.workspace_premium_outlined : Icons.person,
-              size: radius,
+          SizedBox(
+            key: const ValueKey('player-avatar'),
+            width: avatarDiameter,
+            height: avatarDiameter,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: MatchStage.ink,
+                shape: BoxShape.circle,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: CircleAvatar(
+                  radius: innerRadius,
+                  backgroundColor: isGuest
+                      ? theme.colorScheme.tertiaryContainer
+                      : Colors.white,
+                  foregroundColor: isGuest
+                      ? theme.colorScheme.onTertiaryContainer
+                      : theme.colorScheme.primary,
+                  // A guest holds no account, so there is no picture of theirs
+                  // to load and no chance of loading somebody else's.
+                  foregroundImage: avatarUrl == null || isGuest
+                      ? null
+                      : NetworkImage(avatarUrl),
+                  onForegroundImageError:
+                      avatarUrl == null || isGuest ? null : (_, __) {},
+                  child: Icon(
+                    isGuest ? Icons.workspace_premium_outlined : Icons.person,
+                    size: innerRadius,
+                  ),
+                ),
+              ),
             ),
           ),
-          SizedBox(height: isShare ? 4 : 2),
+          SizedBox(height: isShare ? 7 : 3),
           // The name, and the star beside it.
           //
           // **Inline, because the star belongs to the player and not to a
@@ -421,9 +466,9 @@ class PlayerCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: isShare ? 28 : 14,
-                    height: 1.25,
+                    fontWeight: FontWeight.w600,
+                    fontSize: nameSize,
+                    height: 1.15,
                     // A hard shadow, so a pale name stays readable over a
                     // pale stripe without darkening the pitch for everyone.
                     shadows: const [
@@ -436,30 +481,49 @@ class PlayerCard extends StatelessWidget {
                 SizedBox(width: isShare ? 6 : 3),
                 Icon(
                   Icons.star_rounded,
-                  size: isShare ? 30 : 16,
+                  size: isShare ? 28 : 14,
                   color: MatchStage.star,
                   shadows: const [
                     Shadow(blurRadius: 2, color: Color(0x99000000)),
                   ],
                 ),
               ],
+              if (goals > 0 && isShareResult) ...[
+                const SizedBox(width: 8),
+                _GoalBadge(goals: goals, presentation: presentation),
+              ],
             ],
           ),
-          if (player != null)
-            Text(
-              // One decimal, which is `OP-1`'s presentation scale.
-              player!.overallRating.toStringAsFixed(1),
-              textDirection: TextDirection.ltr,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.85),
-                fontSize: isShare ? 22 : 11,
-                height: 1.15,
+          if (player != null) ...[
+            SizedBox(height: isShare ? 4 : 2),
+            Container(
+              key: const ValueKey('player-rating'),
+              padding: EdgeInsets.symmetric(
+                horizontal: isShare ? 11 : 6,
+                vertical: isShare ? 5.5 : 3.5,
+              ),
+              decoration: BoxDecoration(
+                color: MatchStage.rating,
+                borderRadius: BorderRadius.circular(isShare ? 16 : 9),
+              ),
+              child: Text(
+                // One decimal, which is `OP-1`'s presentation scale.
+                player!.overallRating.toStringAsFixed(1),
+                textDirection: TextDirection.ltr,
+                style: TextStyle(
+                  color: MatchStage.ink,
+                  fontSize: ratingSize,
+                  fontWeight: FontWeight.w600,
+                  height: 1,
+                ),
               ),
             ),
+          ],
           // What this player scored, under the rating: a number among
           // numbers. Drawn only where there is one — a tally of zero is the
           // absence of a badge, not a badge of none.
-          if (goals > 0) _GoalBadge(goals: goals, presentation: presentation),
+          if (goals > 0 && !isShareResult)
+            _GoalBadge(goals: goals, presentation: presentation),
           // What this player's position actually is, when the drawing has
           // put them somewhere else. The card carries no position text
           // otherwise — the row it sits in is what says it — so without
@@ -474,7 +538,7 @@ class PlayerCard extends StatelessWidget {
     );
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: isShare ? 190 : 92),
+      constraints: BoxConstraints(maxWidth: isShare ? 250 : 112),
       child: onTap == null
           ? body
           : InkWell(
@@ -503,22 +567,28 @@ class _GoalBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final isShare = presentation == PitchPresentation.share;
+    final isShare = presentation != PitchPresentation.phone;
+    final inline = presentation == PitchPresentation.shareResult;
 
     return Semantics(
       label: l10n.goalsScoredLabel(goals),
       excludeSemantics: true,
       child: Container(
-        height: isShare ? 34 : 20,
-        margin: EdgeInsets.only(top: isShare ? 4 : 2),
+        height: isShare ? 32 : 18,
+        margin: EdgeInsets.only(
+            top: inline
+                ? 0
+                : isShare
+                    ? 4
+                    : 2),
         padding: EdgeInsets.symmetric(
           horizontal: isShare ? 12 : 6,
         ),
         decoration: BoxDecoration(
-          color: MatchStage.badge,
-          borderRadius: BorderRadius.circular(Radii.pill),
+          color: MatchStage.goal.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(isShare ? 16 : 9),
           border: Border.all(
-            color: MatchStage.badgeEdge,
+            color: MatchStage.goal.withValues(alpha: 0.65),
             width: isShare ? 2 : 1,
           ),
         ),
@@ -526,21 +596,21 @@ class _GoalBadge extends StatelessWidget {
           textDirection: TextDirection.ltr,
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(
+              Icons.sports_soccer,
+              size: isShare ? 20 : 11,
+              color: MatchStage.goal,
+            ),
+            SizedBox(width: isShare ? 6 : 3),
             Text(
               '$goals',
               textDirection: TextDirection.ltr,
               style: TextStyle(
-                color: Colors.white,
-                fontSize: isShare ? 22 : 11,
-                fontWeight: FontWeight.w800,
-                height: 1.3,
+                color: MatchStage.goal,
+                fontSize: isShare ? 21 : 11,
+                fontWeight: FontWeight.w700,
+                height: 1,
               ),
-            ),
-            SizedBox(width: isShare ? 6 : 3),
-            Icon(
-              Icons.sports_soccer,
-              size: isShare ? 20 : 10,
-              color: Colors.white.withValues(alpha: 0.88),
             ),
           ],
         ),

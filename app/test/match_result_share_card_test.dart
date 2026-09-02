@@ -273,9 +273,17 @@ void main() {
       await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
 
       expect(_scoreNumerals(tester), ['3', '1']);
-      // Compact, not a scoreboard. Asserted as a ceiling rather than as an
-      // exact value so the design can breathe, but not back to 112.
-      expect(_scoreSize, lessThan(80));
+      final scoreTexts = tester.widgetList<Text>(find.descendant(
+        of: find.byType(MatchStageHeader),
+        matching: find.byType(Text),
+      ));
+      expect(
+        scoreTexts
+            .where((text) => int.tryParse(text.data ?? '') != null)
+            .map((text) => text.style?.fontSize)
+            .toSet(),
+        {58.0},
+      );
       // Community, match and date share one compact line of context above the
       // score, so they are asserted as parts of it rather than as three
       // separate headings.
@@ -304,7 +312,7 @@ void main() {
   });
 
   group('the picture itself', () {
-    testWidgets('both share pitches use the dedicated 1.9 geometry',
+    testWidgets('result share uses its dedicated pitch and player metrics',
         (tester) async {
       await pumpCard(tester, cardData());
 
@@ -313,12 +321,55 @@ void main() {
       for (final element in pitchFinders.evaluate()) {
         final size = tester.getSize(find.byWidget(element.widget));
         expect(size.width, closeTo(MatchResultCard.sharePitchWidth, 0.01));
-        expect(size.height, closeTo(MatchResultCard.sharePitchHeight, 0.01));
-        expect(size.width / size.height, closeTo(PitchView.aspectRatio, 0.001));
+        expect(
+          size.height,
+          closeTo(MatchResultCard.shareResultPitchHeight, 0.01),
+        );
+        expect(
+          size.width / size.height,
+          closeTo(PitchView.shareResultAspectRatio, 0.001),
+        );
       }
 
-      for (final avatar in find.byType(CircleAvatar).evaluate()) {
-        expect(tester.getSize(find.byWidget(avatar.widget)).width, 82);
+      for (final avatar
+          in find.byKey(const ValueKey('player-avatar')).evaluate()) {
+        expect(
+          tester.getSize(find.byWidget(avatar.widget)).width,
+          PitchView.shareResultAvatarDiameter,
+        );
+      }
+    });
+
+    testWidgets('before-result share uses independent larger geometry',
+        (tester) async {
+      await pumpCard(
+        tester,
+        cardData(
+          teamAScore: null,
+          teamBScore: null,
+          goals: const {},
+          mvp: null,
+        ),
+      );
+
+      final pitchFinders = find.byKey(const ValueKey('match-pitch'));
+      expect(pitchFinders, findsNWidgets(2));
+      for (final element in pitchFinders.evaluate()) {
+        final size = tester.getSize(find.byWidget(element.widget));
+        expect(size.width, MatchResultCard.sharePitchWidth);
+        expect(size.height, MatchResultCard.shareBeforePitchHeight);
+        expect(
+          size.width / size.height,
+          closeTo(PitchView.shareBeforeAspectRatio, 0.001),
+        );
+      }
+
+      for (final avatar
+          in find.byKey(const ValueKey('player-avatar')).evaluate()) {
+        expect(
+          tester.getSize(find.byWidget(avatar.widget)).width,
+          PitchView.shareBeforeAvatarDiameter,
+        );
       }
     });
 
@@ -470,14 +521,6 @@ void main() {
   });
 }
 
-/// The size the score is set at.
-///
-/// **Named, and asserted as a bound as well as a selector.** The first version
-/// of this card set it at 132 and the second at 112, and both were rejected for
-/// the same reason: every point spent on the score is a point the solver cannot
-/// spend on making a face recognisable. The card's subject is the players.
-const _scoreSize = 64.0;
-
 /// The two numerals of the scoreboard, in the order they are drawn.
 ///
 /// Identified by the one size nothing else on the card is set at, which is what
@@ -489,7 +532,7 @@ List<String> _scoreNumerals(WidgetTester tester) => tester
       matching: find.byType(Text),
     ))
     .where((text) =>
-        text.style?.fontWeight == FontWeight.w800 &&
+        text.style?.fontWeight == FontWeight.w700 &&
         int.tryParse(text.data ?? '') != null)
     .map((text) => text.data ?? '')
     .toList();
