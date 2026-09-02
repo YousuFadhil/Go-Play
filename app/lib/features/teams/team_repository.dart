@@ -223,6 +223,17 @@ class TeamRepository {
   Future<void> removePlayedPlayer(String matchId, String userId) =>
       _adapter.removePlayedPlayer(matchId, userId);
 
+  /// Records that the Professional Guest [guestId] did not play [matchId] after
+  /// all: the lineup row goes with the roster seat.
+  ///
+  /// Refused with [FailureReason.resultParticipantRemoved] when they scored in
+  /// the recorded result. No goal is deleted and no score is changed by the
+  /// attempt — the organizer corrects the result first, and the invariant that
+  /// the goals recorded equal the score is never weakened to make a removal
+  /// possible.
+  Future<void> removePlayedProfessionalGuest(String matchId, String guestId) =>
+      _adapter.removePlayedProfessionalGuest(matchId, guestId);
+
   // --- Manual Override (§13) -------------------------------------------------
   //
   // `BTGE-MO-1` requires manual override to remain supported, and `BTGE-MO-2`

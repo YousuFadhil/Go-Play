@@ -48,6 +48,88 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   /// same form with one line changed.
   bool _isHistorical = false;
 
+  /// Where this community has played before, newest first.
+  ///
+  /// A community plays the same handful of pitches over and over, and typing
+  /// one out every time is the cost this saves. It is a **convenience over the
+  /// matches that already exist**, not a venue feature: nothing is stored, no
+  /// table is added, and what a tap does is fill in the same free-text field
+  /// the organizer could have typed themselves.
+  late final Future<List<String>> _recent = _loadRecentLocations();
+
+  /// The distinct locations of this community's matches, most recently used
+  /// first, capped at a handful.
+  ///
+  /// One read of the matches this community already has — the same
+  /// `fetchCommunityMatches` the community screen uses, already ordered by
+  /// `start_at` descending — so this costs one query and never one per
+  /// location.
+  ///
+  /// Case and surrounding space decide *duplication* only. The spelling kept is
+  /// the one from the most recent match, so a pitch entered as "al amerat
+  /// pitch" last week and "Al Amerat Pitch" yesterday is offered once, as
+  /// yesterday's reader would recognise it.
+  ///
+  /// A failure here is not a failure of the screen: the field is a text field
+  /// with or without suggestions, so the read is swallowed and nothing is
+  /// offered.
+  Future<List<String>> _loadRecentLocations() async {
+    const limit = 6;
+    try {
+      final matches =
+          await _matchService.fetchCommunityMatches(widget.communityId);
+      final seen = <String>{};
+      final recent = <String>[];
+      for (final match in matches) {
+        final location = match.location.trim();
+        if (location.isEmpty) continue;
+        if (!seen.add(location.toLowerCase())) continue;
+        recent.add(location);
+        if (recent.length == limit) break;
+      }
+      return recent;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// The chips under the location field, when there are any to show.
+  ///
+  /// Compact on purpose: a wrap of short chips under the field rather than a
+  /// list or a second screen, so the ordinary case — type a new place — is
+  /// untouched and the common case is one tap.
+  Widget _recentLocations() => FutureBuilder<List<String>>(
+        future: _recent,
+        builder: (context, snapshot) {
+          final locations = snapshot.data ?? const <String>[];
+          if (locations.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(top: Gap.sm),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.xs,
+                children: [
+                  for (final location in locations)
+                    ActionChip(
+                      key: Key('recentLocation_$location'),
+                      label: Text(location),
+                      onPressed: () {
+                        _locationController.text = location;
+                        // The caret follows the text, so the organizer can edit
+                        // what they just chose instead of typing in front of it.
+                        _locationController.selection =
+                            TextSelection.collapsed(offset: location.length);
+                      },
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -261,6 +343,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                                 ? l10n.locationRequired
                                 : null,
                       ),
+                      _recentLocations(),
                     ],
                   ),
                 ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/app_header.dart';
 import 'package:go_play/core/club_task.dart';
+import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/matches/create_match_screen.dart';
 import 'package:go_play/features/matches/match_adapter.dart';
@@ -153,6 +154,172 @@ void main() {
     expect(find.byType(ClubActionBar), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  group('the location field remembers where this community plays', () {
+    Match played(String location, DateTime startAt) => Match(
+          id: 'm-${startAt.millisecondsSinceEpoch}-$location',
+          communityId: 'c1',
+          createdBy: 'u1',
+          location: location,
+          startAt: startAt,
+          endAt: startAt.add(const Duration(hours: 2)),
+          startingPlayers: 10,
+          maxRegistration: 14,
+          status: MatchStatus.completed,
+        );
+
+    final base = DateTime(2026, 6, 1, 20);
+
+    /// Newest first, which is the order `fetchCommunityMatches` returns.
+    List<Match> history(List<String> locations) => [
+          for (final (index, location) in locations.indexed)
+            played(location, base.subtract(Duration(days: index))),
+        ];
+
+    testWidgets('offers the ones used before', (tester) async {
+      await pumpCreate(
+        tester,
+        adapter: CreateMatchAdapter(
+          communityMatches: history(['Al Amerat Pitch', 'Bowsher Dome']),
+        ),
+      );
+
+      expect(find.text('Al Amerat Pitch'), findsOneWidget);
+      expect(find.text('Bowsher Dome'), findsOneWidget);
+    });
+
+    testWidgets('choosing one fills the field in', (tester) async {
+      await pumpCreate(
+        tester,
+        adapter: CreateMatchAdapter(
+          communityMatches: history(['Al Amerat Pitch', 'Bowsher Dome']),
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('recentLocation_Bowsher Dome')));
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TextFormField>(
+        find.ancestor(
+          of: find.text('Location'),
+          matching: find.byType(TextFormField),
+        ),
+      );
+      expect(field.controller?.text, 'Bowsher Dome');
+    });
+
+    testWidgets('and it is still an ordinary text field afterwards',
+        (tester) async {
+      // The value stays free text: a chosen location can be edited, and a new
+      // one can be typed over it.
+      await pumpCreate(
+        tester,
+        adapter: CreateMatchAdapter(
+          communityMatches: history(['Al Amerat Pitch']),
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('recentLocation_Al Amerat Pitch')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.ancestor(
+          of: find.text('Location'),
+          matching: find.byType(TextFormField),
+        ),
+        'Somewhere new entirely',
+      );
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TextFormField>(
+        find.ancestor(
+          of: find.text('Location'),
+          matching: find.byType(TextFormField),
+        ),
+      );
+      expect(field.controller?.text, 'Somewhere new entirely');
+    });
+
+    testWidgets('the same place is not offered twice', (tester) async {
+      // Case and surrounding space decide duplication only. The spelling kept
+      // is the most recent one, which is what a reader would recognise.
+      await pumpCreate(
+        tester,
+        adapter: CreateMatchAdapter(
+          communityMatches: history([
+            'Al Amerat Pitch',
+            'al amerat pitch',
+            '  Al Amerat Pitch  ',
+            'Bowsher Dome',
+          ]),
+        ),
+      );
+
+      expect(find.text('Al Amerat Pitch'), findsOneWidget);
+      expect(find.text('al amerat pitch'), findsNothing);
+      expect(find.text('Bowsher Dome'), findsOneWidget);
+    });
+
+    testWidgets('only a handful are offered', (tester) async {
+      // A phone, not a history. The list is capped rather than unbounded.
+      await pumpCreate(
+        tester,
+        adapter: CreateMatchAdapter(
+          communityMatches: history([
+            for (var i = 1; i <= 12; i++) 'Pitch $i',
+          ]),
+        ),
+      );
+
+      expect(find.byType(ActionChip), findsNWidgets(6));
+      expect(find.text('Pitch 1'), findsOneWidget);
+      expect(find.text('Pitch 7'), findsNothing);
+    });
+
+    testWidgets('the suggestions are this community\'s', (tester) async {
+      // One read, scoped to the community the screen was opened for.
+      final adapter = CreateMatchAdapter(
+        communityMatches: history(['Al Amerat Pitch']),
+      );
+      await pumpCreate(tester, adapter: adapter);
+
+      expect(adapter.communityMatchesFor, ['c1']);
+    });
+
+    testWidgets('nothing is shown when the community has played nowhere yet',
+        (tester) async {
+      await pumpCreate(tester, adapter: CreateMatchAdapter());
+
+      expect(find.byType(ActionChip), findsNothing);
+    });
+
+    testWidgets('a failed read leaves an ordinary field behind',
+        (tester) async {
+      // The field works with or without suggestions, so a read that fails is
+      // not a screen that fails.
+      await pumpCreate(
+        tester,
+        adapter: CreateMatchAdapter(communityMatchesFailure: true),
+      );
+
+      expect(find.byType(ActionChip), findsNothing);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Location'), findsOneWidget);
+    });
+
+    testWidgets('an empty location is still refused', (tester) async {
+      await pumpCreate(
+        tester,
+        adapter: CreateMatchAdapter(
+          communityMatches: history(['Al Amerat Pitch']),
+        ),
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Create match'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Location is required'), findsOneWidget);
+    });
+  });
+
 }
 
 Future<void> fillValidForm(WidgetTester tester) async {
@@ -200,10 +367,23 @@ Future<void> fillValidForm(WidgetTester tester) async {
 }
 
 class CreateMatchAdapter implements MatchAdapter {
-  CreateMatchAdapter({this.gate});
+  CreateMatchAdapter({
+    this.gate,
+    this.communityMatches = const [],
+    this.communityMatchesFailure = false,
+  });
 
   final Future<void>? gate;
   int writes = 0;
+
+  /// This community's matches, newest first — what the production adapter
+  /// returns, ordered by `start_at` descending.
+  final List<Match> communityMatches;
+  final bool communityMatchesFailure;
+
+  /// Which communities were asked about, so the read can be shown to be scoped
+  /// and to happen once.
+  final List<String> communityMatchesFor = [];
 
   @override
   Future<void> createMatch({
@@ -231,8 +411,11 @@ class CreateMatchAdapter implements MatchAdapter {
       throw UnimplementedError();
 
   @override
-  Future<List<Match>> fetchCommunityMatches(String communityId) =>
-      throw UnimplementedError();
+  Future<List<Match>> fetchCommunityMatches(String communityId) async {
+    communityMatchesFor.add(communityId);
+    if (communityMatchesFailure) throw const InfrastructureFailure();
+    return communityMatches;
+  }
 
   @override
   Future<List<Match>> fetchUpcomingMatches() => throw UnimplementedError();

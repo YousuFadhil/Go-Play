@@ -977,6 +977,10 @@ class FakeTeamAdapter implements TeamAdapter {
   @override
   Future<void> removePlayedPlayer(String matchId, String userId) =>
       throw UnimplementedError();
+
+  @override
+  Future<void> removePlayedProfessionalGuest(String matchId, String guestId) =>
+      throw UnimplementedError();
 }
 
 class FakeMatchAdapter implements MatchAdapter {

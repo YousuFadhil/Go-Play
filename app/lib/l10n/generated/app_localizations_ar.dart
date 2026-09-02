@@ -529,6 +529,44 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String addSelectedPlayersButton(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'إضافة $count لاعبين',
+      one: 'إضافة لاعب واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String playersAddedSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تمت إضافة $count لاعبين.',
+      one: 'تمت إضافة لاعب واحد.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String playersAddedPartial(int added, int failed) {
+    return 'أُضيف $added، وتعذّرت إضافة $failed.';
+  }
+
+  @override
+  String playersAddedNone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تعذّرت إضافة أي من اللاعبين الـ$count.',
+      one: 'تعذّرت إضافة هذا اللاعب.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get addPlayerFailed => 'تعذّرت إضافة اللاعب. حاول مرة أخرى.';
 
   @override
@@ -588,6 +626,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String removeGuestConfirmBody(String name) {
     return 'سيفقد $name مكانه في هذه المباراة. ويبقى كل ما سجّله في مباراة انتهت كما هو.';
+  }
+
+  @override
+  String removePlayedGuestConfirmBody(String name) {
+    return 'سيُزال $name من سجل من شارك في هذه المباراة. إن كان قد سجّل هدفاً فصحّح النتيجة أولاً.';
   }
 
   @override

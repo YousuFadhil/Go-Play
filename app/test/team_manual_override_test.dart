@@ -642,6 +642,84 @@ void main() {
     });
   });
 
+  group('a Professional Guest takes a match-scoped position', () {
+    test('the position is stored and the identity is not disturbed', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter)
+          .changeAssignedPosition('m1', 'g1', Position.mid);
+
+      final saved = savedParticipant(adapter, 'g1');
+      expect(saved.assignedPosition, Position.mid);
+      expect(saved.professionalGuestId, 'g1');
+      expect(saved.userId, isNull,
+          reason: 'a position does not turn a guest into a user');
+      expect(saved.team, TeamId.a, reason: 'the side is not what changed');
+    });
+
+    test('any of the four positions is accepted', () async {
+      for (final position in Position.values) {
+        final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+        await TeamRepository(adapter)
+            .changeAssignedPosition('m1', 'g1', position);
+
+        expect(savedParticipant(adapter, 'g1').assignedPosition, position);
+      }
+    });
+
+    test('the basis stays absent, so no profile is implied', () async {
+      // §5.1 defines the basis against a profile. A guest has none, and a
+      // position for this match does not give them one — `replace_match_lineup`
+      // writes `GUEST` for any row naming a guest regardless.
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter)
+          .changeAssignedPosition('m1', 'g1', Position.fwd);
+
+      expect(savedParticipant(adapter, 'g1').basis, isNull);
+    });
+
+    test('it does not make them an engine input', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter)
+          .changeAssignedPosition('m1', 'g1', Position.gk);
+
+      expect(adapter.historyReads, 0,
+          reason: 'no Auxiliary Data read, so no generation happened');
+      expect(adapter.savedLineup!.where((a) => a.isProfessionalGuest),
+          hasLength(2), reason: 'both guests are still guests');
+    });
+
+    test('a community player still derives a basis from their profile',
+        () async {
+      // Unchanged: the derivation §5.1 defines still runs for somebody who has
+      // a profile to derive it from.
+      final adapter = FakeTeamAdapter(
+        lineup: mixedLineup(),
+        roster: [profile('u1', Position.gk, secondary: Position.def)],
+      );
+
+      await TeamRepository(adapter)
+          .changeAssignedPosition('m1', 'u1', Position.def);
+
+      final saved = savedParticipant(adapter, 'u1');
+      expect(saved.assignedPosition, Position.def);
+      expect(saved.basis, AssignmentBasis.secondary);
+    });
+
+    test('an ordinary save keeps it: it is not a generation', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter)
+          .changeAssignedPosition('m1', 'g1', Position.mid);
+
+      expect(adapter.lastFromGeneration, isFalse,
+          reason: 'only a generation gives a chosen position back');
+    });
+  });
+
   group('which save clears a chosen side', () {
     test('a manual move does not say it came from a generation', () async {
       // The distinction migration `0058` reads. A manual save must keep every
@@ -756,5 +834,9 @@ class FakeTeamAdapter implements TeamAdapter {
 
   @override
   Future<void> removePlayedPlayer(String matchId, String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> removePlayedProfessionalGuest(String matchId, String guestId) =>
       throw UnimplementedError();
 }

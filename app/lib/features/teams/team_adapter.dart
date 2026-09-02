@@ -84,4 +84,19 @@ abstract interface class TeamAdapter {
   /// both the lineup and the roster. Completed matches only, for the same
   /// reason.
   Future<void> removePlayedPlayer(String matchId, String userId);
+
+  /// The same correction for a Professional Guest: this guest did not play
+  /// [matchId] after all, so the lineup row goes along with the roster seat.
+  ///
+  /// Deliberately **not** `remove_professional_guest`. That function means
+  /// something else and says so: it takes the seat and *keeps* the lineup row,
+  /// the goals and the MVP, because on a played match those are the record of
+  /// what happened. Wiring this to it would take a guest off the roster while
+  /// still showing them on the pitch.
+  ///
+  /// Refused when the guest scored in the recorded result, rather than deleting
+  /// their goals: the goals recorded have to equal the score, and taking a
+  /// scorer out silently would either break that or quietly rewrite the score.
+  /// The organizer corrects the result first.
+  Future<void> removePlayedProfessionalGuest(String matchId, String guestId);
 }

@@ -172,6 +172,22 @@
   "@playerAddedReserve": {
     "placeholders": { "name": { "type": "String" } }
   },
+  "addSelectedPlayersButton": "{count, plural, =1{إضافة لاعب واحد} other{إضافة {count} لاعبين}}",
+  "@addSelectedPlayersButton": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "playersAddedSummary": "{count, plural, =1{تمت إضافة لاعب واحد.} other{تمت إضافة {count} لاعبين.}}",
+  "@playersAddedSummary": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "playersAddedPartial": "أُضيف {added}، وتعذّرت إضافة {failed}.",
+  "@playersAddedPartial": {
+    "placeholders": { "added": { "type": "int" }, "failed": { "type": "int" } }
+  },
+  "playersAddedNone": "{count, plural, =1{تعذّرت إضافة هذا اللاعب.} other{تعذّرت إضافة أي من اللاعبين الـ{count}.}}",
+  "@playersAddedNone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "addPlayerFailed": "تعذّرت إضافة اللاعب. حاول مرة أخرى.",
   "errPlayerAlreadyRegistered": "هذا اللاعب مسجّل في المباراة بالفعل.",
   "errPlayerOverlappingMatch": "هذا اللاعب مسجّل في مباراة أخرى في نفس الوقت.",
@@ -189,6 +205,7 @@
   "renameGuestButton": "تعديل الاسم",
   "removeGuestConfirmTitle": "إزالة هذا اللاعب المحترف؟",
   "removeGuestConfirmBody": "سيفقد {name} مكانه في هذه المباراة. ويبقى كل ما سجّله في مباراة انتهت كما هو.",
+  "removePlayedGuestConfirmBody": "سيُزال {name} من سجل من شارك في هذه المباراة. إن كان قد سجّل هدفاً فصحّح النتيجة أولاً.",
   "guestActionFailed": "تعذّر تنفيذ الإجراء. حاول مرة أخرى.",
   "errInvalidGuestName": "أدخل اسماً بين حرفين و60 حرفاً.",
   "errGuestNotFound": "هذا المحترف لم يعد ضمن المباراة.",

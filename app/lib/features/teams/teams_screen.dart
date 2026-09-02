@@ -478,7 +478,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
   List<Widget> _emptyState(AppLocalizations l10n, _TeamsView view) => [
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
-          child: Text(l10n.teamsEmpty, textAlign: TextAlign.center),
+          // Explicitly reversed out. This screen is the one dark surface in the
+          // product, and the text theme it inherits is the light one — so a
+          // colour left to default came out near-black on the deep green and
+          // could barely be read. `MatchStage.ink` is the foreground the rest
+          // of this screen already uses against the same ground.
+          child: Text(
+            l10n.teamsEmpty,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: MatchStage.ink),
+          ),
         ),
         // Adding somebody who played, on a match that has no lineup yet.
         //
@@ -559,6 +568,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
             onPressed: _busy ? null : _addGuest,
             icon: const Icon(Icons.workspace_premium_outlined),
             label: Text(l10n.addGuestButton),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: MatchStage.ink,
+              side: const BorderSide(color: MatchStage.inkMuted),
+            ),
           ),
         ),
       ];
@@ -693,6 +706,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
             onPressed: _busy ? null : () => _addPlayer(l10n, view),
             icon: const Icon(Icons.person_add_alt),
             label: Text(l10n.addPlayedPlayerAction),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: MatchStage.ink,
+              side: const BorderSide(color: MatchStage.inkMuted),
+            ),
           ),
         ),
         Padding(
@@ -728,7 +745,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
               view.confirmedPlayers,
             ),
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
+            // The muted foreground for the same dark ground: secondary next to
+            // the empty-state line, and still legible against it.
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: MatchStage.inkMuted),
           ),
         ),
       ];
@@ -857,16 +879,17 @@ class _TeamsScreenState extends State<TeamsScreen> {
     TeamAssignment assignment,
   ) async {
     if (_busy) return;
-    // A Professional Guest is offered the two actions that are about **sides**,
-    // and only those.
+    // A Professional Guest is offered all four, on the same terms as anybody
+    // else on the pitch.
     //
-    // Which side somebody is on is `KB-D6`'s question and nothing to do with a
-    // profile, so it is answerable for a guest exactly as it is for anybody
-    // else. The other two are not: changing a position derives the assignment
-    // basis from the player's profile (§5.1) and a guest has none, and removing
-    // somebody from the record of who played takes back the statistics and
-    // ratings their row earned — a guest's row earns neither, and the roster is
-    // where a guest is taken off.
+    // Which side somebody is on and where they stood are both facts about this
+    // match rather than about a profile, so both are answerable for a guest.
+    // The position is match-scoped and stays that way: no primary or secondary
+    // is written, no rating appears, `assignment_basis` stays `GUEST`, and the
+    // engine still never sees them.
+    //
+    // Removing one means something different from removing a player, and it is
+    // routed accordingly — see [_removeParticipant].
     final guest = assignment.isProfessionalGuest;
     final action = await showDialog<_PlayerAction>(
       context: context,
@@ -878,18 +901,22 @@ class _TeamsScreenState extends State<TeamsScreen> {
               in <(_PlayerAction, String, IconData)>[
             (_PlayerAction.move, l10n.movePlayerAction, Icons.swap_horiz),
             (_PlayerAction.swap, l10n.swapPlayerAction, Icons.swap_vert),
-            if (!guest)
-              (
-                _PlayerAction.position,
-                l10n.changePositionAction,
-                Icons.sports_soccer
-              ),
-            // Taking somebody out of the record of who played is a correction to
-            // a played match, so it is offered on one and nowhere else.
-            if (view.canEditPlayed && !guest)
+            (
+              _PlayerAction.position,
+              l10n.changePositionAction,
+              Icons.sports_soccer
+            ),
+            // For a community player, taking somebody out of the record of who
+            // played is a correction to a played match, so it is offered on one
+            // and nowhere else. A guest can be taken out in either state: on a
+            // match still to come it is the ordinary roster removal, and on one
+            // that is over it is the same correction.
+            if (view.canEditPlayed || guest)
               (
                 _PlayerAction.remove,
-                l10n.removePlayedPlayerAction,
+                guest
+                    ? l10n.removeGuestButton
+                    : l10n.removePlayedPlayerAction,
                 Icons.person_remove_alt_1,
               ),
           ])
@@ -916,27 +943,50 @@ class _TeamsScreenState extends State<TeamsScreen> {
       case _PlayerAction.position:
         await _changePosition(l10n, assignment);
       case _PlayerAction.remove:
-        await _removePlayer(l10n, view, assignment);
+        await _removeParticipant(l10n, view, assignment);
     }
   }
 
-  /// Takes a player out of the record of who played, after asking.
+  /// Takes somebody out of the match from the Teams screen, after asking.
   ///
-  /// The question is worth asking because the consequence is not local: every
-  /// counter, rating and leaderboard entry the match produced for them is taken
-  /// back as part of the same write.
-  Future<void> _removePlayer(
+  /// Three different operations behind one action, because "remove" means three
+  /// different things depending on who and when:
+  ///
+  ///   * a **community player** on a played match — the correction that already
+  ///     existed. Every counter, rating and leaderboard entry the match gave
+  ///     them is taken back as part of the same write, which is why the
+  ///     question is worth asking.
+  ///   * a **Professional Guest** on a match still to come — the ordinary
+  ///     roster removal, through the same `remove_professional_guest` the
+  ///     roster screen calls. The seat goes, the reserve is rebalanced, and the
+  ///     guest's lineup row goes with the seat.
+  ///   * a **Professional Guest** on a played match — this guest did not
+  ///     actually play. That is not what the roster removal means: it keeps the
+  ///     lineup row on purpose, because for a played match that row is the
+  ///     record of who was on the pitch. So it is its own operation, and it
+  ///     refuses rather than quietly editing a recorded result.
+  Future<void> _removeParticipant(
     AppLocalizations l10n,
     _TeamsView view,
     TeamAssignment assignment,
   ) async {
+    final guest = assignment.isProfessionalGuest;
+    final name = _nameOf(view, assignment.participantId);
+    // A guest earns no statistic and no rating (migration `0046`), so the
+    // player's warning about both being taken back would not be true of them.
+    final body = guest
+        ? (view.canEditPlayed
+            ? l10n.removePlayedGuestConfirmBody(name)
+            : l10n.removeGuestConfirmBody(name))
+        : l10n.removePlayedPlayerConfirmBody(name);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.removePlayedPlayerConfirmTitle),
-        content: Text(l10n.removePlayedPlayerConfirmBody(
-          _nameOf(view, assignment.participantId),
-        )),
+        title: Text(guest
+            ? l10n.removeGuestConfirmTitle
+            : l10n.removePlayedPlayerConfirmTitle),
+        content: Text(body),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -944,17 +994,24 @@ class _TeamsScreenState extends State<TeamsScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.removePlayedPlayerAction),
+            child: Text(guest
+                ? l10n.removeGuestButton
+                : l10n.removePlayedPlayerAction),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
 
-    await _runEdit(
-      l10n,
-      () => _teams.removePlayedPlayer(widget.matchId, assignment.userId!),
-    );
+    await _runEdit(l10n, () {
+      if (!guest) {
+        return _teams.removePlayedPlayer(widget.matchId, assignment.userId!);
+      }
+      final guestId = assignment.professionalGuestId!;
+      return view.canEditPlayed
+          ? _teams.removePlayedProfessionalGuest(widget.matchId, guestId)
+          : _matches.removeProfessionalGuest(widget.matchId, guestId);
+    });
   }
 
   /// Adds a community member to the record of who played.
@@ -1152,7 +1209,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
       l10n,
       () => _teams.changeAssignedPosition(
         widget.matchId,
-        assignment.userId!,
+        assignment.participantId,
         chosen,
       ),
     );

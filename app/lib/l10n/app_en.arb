@@ -196,6 +196,22 @@
   "@playerAddedReserve": {
     "placeholders": { "name": { "type": "String" } }
   },
+  "addSelectedPlayersButton": "{count, plural, =1{Add 1 player} other{Add {count} players}}",
+  "@addSelectedPlayersButton": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "playersAddedSummary": "{count, plural, =1{1 player was added.} other{{count} players were added.}}",
+  "@playersAddedSummary": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "playersAddedPartial": "{added} added, {failed} could not be.",
+  "@playersAddedPartial": {
+    "placeholders": { "added": { "type": "int" }, "failed": { "type": "int" } }
+  },
+  "playersAddedNone": "{count, plural, =1{That player could not be added.} other{None of the {count} players could be added.}}",
+  "@playersAddedNone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "addPlayerFailed": "That player could not be added. Try again.",
   "errPlayerAlreadyRegistered": "That player is already in this match.",
   "errPlayerOverlappingMatch": "That player is registered in another match at the same time.",
@@ -224,6 +240,10 @@
   "removeGuestConfirmTitle": "Remove this professional guest?",
   "removeGuestConfirmBody": "{name} loses their place in this match. Anything they did in a match that was already played is kept.",
   "@removeGuestConfirmBody": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "removePlayedGuestConfirmBody": "{name} will be taken out of the record of who played this match. If they scored, correct the result first.",
+  "@removePlayedGuestConfirmBody": {
     "placeholders": { "name": { "type": "String" } }
   },
   "guestActionFailed": "That could not be done. Try again.",

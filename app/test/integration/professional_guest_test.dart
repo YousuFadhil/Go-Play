@@ -2035,6 +2035,198 @@ void main() {
           reason: 'still the third seat in the order, so still A');
     });
 
+    // --- a position, and not playing after all (migration 0059) --------------
+
+    /// Writes the lineup with one guest carrying [position].
+    Future<void> saveGuestPosition(
+      String matchId,
+      List<TestUser> squad,
+      String guestId,
+      String? position,
+    ) =>
+        owner.client.rpc('replace_match_lineup', params: {
+          'p_match_id': matchId,
+          'p_assignments': [
+            for (final (index, user) in squad.indexed)
+              {
+                'user_id': user.id,
+                'team': index.isEven ? 'A' : 'B',
+                'assigned_position': const ['DEF', 'MID', 'FWD'][index % 3],
+                'assignment_basis': 'TRANSITION',
+              },
+            {
+              'professional_guest_id': guestId,
+              'team': 'A',
+              'assigned_position': position,
+              'assignment_basis': 'GUEST',
+            },
+          ],
+        });
+
+    Future<Map<String, dynamic>?> guestRow(
+        String matchId, String guestId) async {
+      final rows = await owner.client
+          .from('match_team_assignments')
+          .select('professional_guest_id, user_id, team, assigned_position, '
+              'assignment_basis, team_manually_overridden')
+          .eq('match_id', matchId)
+          .eq('professional_guest_id', guestId);
+      final list = List<Map<String, dynamic>>.from(rows);
+      return list.isEmpty ? null : list.single;
+    }
+
+    test('a guest carries any of the four positions, or none', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+
+      for (final position in ['GK', 'DEF', 'MID', 'FWD']) {
+        await saveGuestPosition(matchId, squad, guestId, position);
+        final row = await guestRow(matchId, guestId);
+        expect(row!['assigned_position'], position);
+        expect(row['assignment_basis'], 'GUEST',
+            reason: 'a position for this match implies no profile');
+        expect(row['user_id'], isNull);
+        expect(row['professional_guest_id'], guestId);
+      }
+
+      // And back to none, which is what `0051` calls the normal guest row.
+      await saveGuestPosition(matchId, squad, guestId, null);
+      expect((await guestRow(matchId, guestId))!['assigned_position'], isNull);
+    });
+
+    test('a community player still may not be left without one', () async {
+      // The other half of `0051`'s pair of checks, unchanged: `user_id is null
+      // or assigned_position is not null`.
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+
+      await expectLater(
+        owner.client.rpc('replace_match_lineup', params: {
+          'p_match_id': matchId,
+          'p_assignments': [
+            {
+              'user_id': owner.id,
+              'team': 'A',
+              'assigned_position': null,
+              'assignment_basis': 'TRANSITION',
+            },
+          ],
+        }),
+        throwsA(anything),
+      );
+    });
+
+    test('a chosen position survives an ordinary later save', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+      await saveGuestPosition(matchId, squad, guestId, 'GK');
+
+      // A save that says nothing about the guest.
+      await saveCommunityLineup(matchId, squad);
+
+      expect((await guestRow(matchId, guestId))!['assigned_position'], 'GK');
+    });
+
+    test('and is given up by a generation', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+      await saveGuestPosition(matchId, squad, guestId, 'GK');
+
+      await owner.client.rpc('replace_match_lineup', params: {
+        'p_match_id': matchId,
+        'p_assignments': [
+          for (final (index, user) in squad.indexed)
+            {
+              'user_id': user.id,
+              'team': index.isEven ? 'A' : 'B',
+              'assigned_position': const ['DEF', 'MID', 'FWD'][index % 3],
+              'assignment_basis': 'TRANSITION',
+            },
+        ],
+        'p_from_generation': true,
+      });
+
+      expect((await guestRow(matchId, guestId))!['assigned_position'], isNull,
+          reason: 'a fresh search discards the adjustments around the old one');
+    });
+
+    test('a guest who did not play is taken out of the record', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+      expect(await guestRow(matchId, guestId), isNotNull);
+
+      await owner.client.rpc('remove_played_professional_guest', params: {
+        'p_match_id': matchId,
+        'p_guest_id': guestId,
+      });
+
+      // Neither on the pitch nor on the roster: no dangling reference either
+      // way, which is what `remove_professional_guest` deliberately does not do.
+      expect(await guestRow(matchId, guestId), isNull);
+      expect(
+        (await roster(matchId))
+            .where((r) => r['professional_guest_id'] == guestId),
+        isEmpty,
+      );
+    });
+
+    test('a guest who scored is refused, and nothing is edited', () async {
+      final squad = [owner, admin, player, player2];
+      final matchId = await startedMatchWithSquad(squad);
+      final guestId = await addGuest(owner, matchId, 'Guest 1');
+
+      await owner.client.rpc('record_match_result', params: {
+        'p_match_id': matchId,
+        'p_team_a_score': 2,
+        'p_team_b_score': 0,
+        'p_mvp_user_id': null,
+        'p_goals': [
+          {'user_id': owner.id, 'goals': 1},
+          {'professional_guest_id': guestId, 'goals': 1},
+        ],
+      });
+
+      await expectLater(
+        owner.client.rpc('remove_played_professional_guest', params: {
+          'p_match_id': matchId,
+          'p_guest_id': guestId,
+        }),
+        throwsA(predicate(
+          (e) => e.toString().contains('RESULT_PARTICIPANT_REMOVED'),
+          'RESULT_PARTICIPANT_REMOVED',
+        )),
+      );
+
+      // The refusal changed nothing: the goal stands, the score stands, and the
+      // guest is still on the pitch. The organizer corrects the result first.
+      final goals = List<Map<String, dynamic>>.from(await owner.client
+          .from('match_goals')
+          .select('user_id, professional_guest_id, goals')
+          .eq('match_id', matchId));
+      expect(
+        goals.where((g) => g['professional_guest_id'] == guestId),
+        hasLength(1),
+        reason: 'no goal is deleted to make a removal possible',
+      );
+      final result = await owner.client
+          .from('match_results')
+          .select('team_a_score, team_b_score')
+          .eq('match_id', matchId)
+          .single();
+      expect(result['team_a_score'], 2);
+      expect(result['team_b_score'], 0);
+      expect(
+        goals.fold<int>(0, (sum, g) => sum + (g['goals'] as int)),
+        2,
+        reason: 'the goals still equal the score',
+      );
+      expect(await guestRow(matchId, guestId), isNotNull);
+    });
+
     test('a reserve guest is not on the pitch', () async {
       final matchId = await matchWithSlots(4);
       final squad = [owner, admin, player, player2];

@@ -228,12 +228,19 @@ void main() {
   });
 
   group('adding', () {
-    Future<void> pickAndConfirm(WidgetTester tester, String name) async {
+    /// Opens the picker once, selects everybody named, and starts the batch.
+    ///
+    /// One trip through the sheet however many players are chosen, which is the
+    /// whole point of the change: there is no per-player confirmation to answer
+    /// and no reopening between them.
+    Future<void> pickAndAdd(WidgetTester tester, List<String> names) async {
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(name));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Add player'));
+      for (final name in names) {
+        await tester.tap(find.text(name));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.byKey(const Key('addSelectedPlayersButton')));
       await tester.pumpAndSettle();
     }
 
@@ -249,11 +256,10 @@ void main() {
         members: FakeMemberAdapter(members: [member('b')]),
       );
 
-      await pickAndConfirm(tester, 'Member b');
+      await pickAndAdd(tester, ['Member b']);
 
       expect(matches.added, [(matchId, 'b')]);
-      expect(find.text('Member b was added to the starting players.'),
-          findsOneWidget);
+      expect(find.text('1 player was added.'), findsOneWidget);
       // Re-read rather than patched in memory: the server decided the roster,
       // so the server is asked what it now looks like.
       expect(matches.registrationFetches, greaterThan(1));
@@ -274,14 +280,17 @@ void main() {
         members: FakeMemberAdapter(members: [member('b')]),
       );
 
-      await pickAndConfirm(tester, 'Member b');
+      await pickAndAdd(tester, ['Member b']);
 
-      expect(find.text('Member b was added to the reserve list.'),
-          findsOneWidget);
+      // The status still comes from the server; where they landed is shown by
+      // the reloaded roster rather than restated in the summary.
+      expect(matches.added, [(matchId, 'b')]);
+      expect(find.text('1 player was added.'), findsOneWidget);
     });
 
-    testWidgets('does nothing when the confirmation is declined',
-        (tester) async {
+    testWidgets('adds nobody when the sheet is dismissed', (tester) async {
+      // The count on the action is the confirmation now, so what replaces
+      // declining a dialog is simply not pressing it.
       final matches = FakeMatchAdapter(
         registrations: [registration('a', RegistrationStatus.confirmed)],
       );
@@ -295,10 +304,225 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Member b'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Back'));
+      // Dismissed by tapping the barrier above the sheet.
+      await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
 
       expect(matches.added, isEmpty);
+    });
+
+    testWidgets('the action stays inert until somebody is chosen',
+        (tester) async {
+      await pumpRoster(
+        tester,
+        matches: FakeMatchAdapter(
+          registrations: [registration('a', RegistrationStatus.confirmed)],
+        ),
+        members: FakeMemberAdapter(members: [member('b')]),
+      );
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      final button = tester.widget<FilledButton>(
+        find.byKey(const Key('addSelectedPlayersButton')),
+      );
+      expect(button.onPressed, isNull);
+    });
+  });
+
+  group('adding several at once', () {
+    Future<void> pickAndAddMany(
+        WidgetTester tester, List<String> names) async {
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      for (final name in names) {
+        await tester.tap(find.text(name));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.byKey(const Key('addSelectedPlayersButton')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the action counts what is chosen', (tester) async {
+      await pumpRoster(
+        tester,
+        matches: FakeMatchAdapter(registrations: const []),
+        members: FakeMemberAdapter(
+          members: [member('b'), member('c'), member('d')],
+        ),
+      );
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Add 1 player'), findsNothing);
+
+      await tester.tap(find.text('Member b'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add 1 player'), findsOneWidget);
+
+      await tester.tap(find.text('Member c'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add 2 players'), findsOneWidget);
+
+      // Chosen twice is unchosen: the row is a toggle.
+      await tester.tap(find.text('Member c'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add 1 player'), findsOneWidget);
+    });
+
+    testWidgets('every one of them goes through the canonical add',
+        (tester) async {
+      // One call per player, each the same `addPlayerToMatch` the single add
+      // always used — so membership, duplicates, capacity, overlap and the
+      // confirmed/reserve decision are still the database's, per player.
+      final matches = FakeMatchAdapter(registrations: const []);
+      await pumpRoster(
+        tester,
+        matches: matches,
+        members: FakeMemberAdapter(
+          members: [member('b'), member('c'), member('d')],
+        ),
+      );
+
+      await pickAndAddMany(tester, ['Member b', 'Member c', 'Member d']);
+
+      expect(matches.added, [(matchId, 'b'), (matchId, 'c'), (matchId, 'd')]);
+      expect(find.text('3 players were added.'), findsOneWidget);
+    });
+
+    testWidgets('where each landed stays the answer the server gave',
+        (tester) async {
+      // Two seats left and three added: the screen does not work out who
+      // starts. It sends three and shows what came back.
+      final matches = FakeMatchAdapter(registrations: const [])
+        ..addResults['b'] = RegistrationStatus.confirmed
+        ..addResults['c'] = RegistrationStatus.confirmed
+        ..addResults['d'] = RegistrationStatus.reserve;
+      await pumpRoster(
+        tester,
+        matches: matches,
+        members: FakeMemberAdapter(
+          members: [member('b'), member('c'), member('d')],
+        ),
+      );
+
+      await pickAndAddMany(tester, ['Member b', 'Member c', 'Member d']);
+
+      expect(matches.added, hasLength(3));
+      expect(find.text('3 players were added.'), findsOneWidget);
+    });
+
+    testWidgets('one refusal does not undo the others', (tester) async {
+      // The case the batch exists for: some added, one with a clashing match.
+      // Those stand — there is no batch in the database to roll back.
+      final matches = FakeMatchAdapter(registrations: const [])
+        ..addFailures['c'] =
+            const ConflictFailure(FailureReason.overlappingMatch);
+      await pumpRoster(
+        tester,
+        matches: matches,
+        members: FakeMemberAdapter(
+          members: [member('b'), member('c'), member('d')],
+        ),
+      );
+
+      await pickAndAddMany(tester, ['Member b', 'Member c', 'Member d']);
+
+      expect(matches.added, [(matchId, 'b'), (matchId, 'd')],
+          reason: 'the two that were accepted stay accepted');
+      expect(find.textContaining('2 added, 1 could not be.'), findsOneWidget);
+      expect(
+        find.textContaining(
+            'That player is registered in another match at the same time.'),
+        findsOneWidget,
+        reason: 'the refusal the database gave is kept, not flattened',
+      );
+    });
+
+    testWidgets('all refused says so once, not once per player',
+        (tester) async {
+      final matches = FakeMatchAdapter(
+        registrations: const [],
+        addFailure: const ConflictFailure(FailureReason.alreadyRegistered),
+      );
+      await pumpRoster(
+        tester,
+        matches: matches,
+        members: FakeMemberAdapter(members: [member('b'), member('c')]),
+      );
+
+      await pickAndAddMany(tester, ['Member b', 'Member c']);
+
+      expect(matches.added, isEmpty);
+      expect(find.byType(SnackBar), findsOneWidget,
+          reason: 'one report for the batch, not one per failure');
+      expect(
+        find.textContaining('None of the 2 players could be added.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('two failures for the same reason say it once', (tester) async {
+      final matches = FakeMatchAdapter(registrations: const [])
+        ..addFailures['b'] =
+            const ConflictFailure(FailureReason.overlappingMatch)
+        ..addFailures['c'] =
+            const ConflictFailure(FailureReason.overlappingMatch);
+      await pumpRoster(
+        tester,
+        matches: matches,
+        members: FakeMemberAdapter(
+          members: [member('b'), member('c'), member('d')],
+        ),
+      );
+
+      await pickAndAddMany(tester, ['Member b', 'Member c', 'Member d']);
+
+      final snack = tester.widget<SnackBar>(find.byType(SnackBar));
+      final text = (snack.content as Text).data!;
+      expect(
+        'That player is registered in another match at the same time.'
+            .allMatches(text),
+        hasLength(1),
+        reason: 'the same refusal twice is still one thing to say',
+      );
+    });
+
+    testWidgets('the roster is re-read once, after the batch', (tester) async {
+      final matches = FakeMatchAdapter(registrations: const []);
+      await pumpRoster(
+        tester,
+        matches: matches,
+        members: FakeMemberAdapter(
+          members: [member('b'), member('c'), member('d')],
+        ),
+      );
+      final before = matches.registrationFetches;
+
+      await pickAndAddMany(tester, ['Member b', 'Member c', 'Member d']);
+
+      expect(matches.registrationFetches, before + 1,
+          reason: 'one refresh for the batch, not one per player');
+    });
+
+    testWidgets('a stale pick is still refused by the server', (tester) async {
+      // Eligible when the sheet opened, registered by the time the batch ran.
+      // The client filter is a convenience; this is the authority.
+      final matches = FakeMatchAdapter(registrations: const [])
+        ..addFailures['b'] =
+            const ConflictFailure(FailureReason.alreadyRegistered);
+      await pumpRoster(
+        tester,
+        matches: matches,
+        members: FakeMemberAdapter(members: [member('b'), member('c')]),
+      );
+
+      await pickAndAddMany(tester, ['Member b', 'Member c']);
+
+      expect(matches.added, [(matchId, 'c')]);
+      expect(find.textContaining('That player is already in this match.'),
+          findsOneWidget);
     });
   });
 
@@ -322,10 +546,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Member b'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Add player'));
+      await tester.tap(find.byKey(const Key('addSelectedPlayersButton')));
       await tester.pumpAndSettle();
 
-      expect(find.text(message), findsOneWidget);
+      // The refusal the database gave, kept word for word inside the summary
+      // the batch reports.
+      expect(find.textContaining(message), findsOneWidget);
     }
 
     testWidgets('a player added in the meantime is reported as already in',
@@ -428,11 +654,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Member b'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'إضافة لاعب'));
+      await tester.tap(find.byKey(const Key('addSelectedPlayersButton')));
       await tester.pumpAndSettle();
 
-      expect(find.text('تمت إضافة Member b إلى قائمة الاحتياط.'),
-          findsOneWidget);
+      // The counted action and the batch summary are both Arabic.
+      expect(matches.added, [(matchId, 'b')]);
+      expect(find.text('تمت إضافة لاعب واحد.'), findsOneWidget);
     });
   });
 }
@@ -448,6 +675,14 @@ class FakeMatchAdapter implements MatchAdapter {
   final RegistrationStatus addResult;
   final Failure? addFailure;
 
+  /// Refusals for particular players, so a batch can be partly refused the way
+  /// the database refuses one: per registration, not per batch.
+  final Map<String, Failure> addFailures = {};
+
+  /// Where particular players land, when the server's answer differs per
+  /// player.
+  final Map<String, RegistrationStatus> addResults = {};
+
   final List<(String, String)> added = [];
   int registrationFetches = 0;
 
@@ -460,9 +695,11 @@ class FakeMatchAdapter implements MatchAdapter {
   @override
   Future<RegistrationStatus> addPlayerToMatch(
       String matchId, String userId) async {
+    final perPlayer = addFailures[userId];
+    if (perPlayer != null) throw perPlayer;
     if (addFailure != null) throw addFailure!;
     added.add((matchId, userId));
-    return addResult;
+    return addResults[userId] ?? addResult;
   }
 
   @override

@@ -163,4 +163,20 @@ class SupabaseTeamAdapter implements TeamAdapter {
           'p_assigned_position': null,
         });
       });
+
+  /// `remove_played_professional_guest` (migration `0059`), and not
+  /// `remove_professional_guest`: the two answer different questions, and the
+  /// older one keeps the lineup row a played match needs.
+  ///
+  /// It raises `RESULT_PARTICIPANT_REMOVED` through the same
+  /// `assert_result_survives_lineup` every other lineup edit is checked
+  /// against, which the failure mapper already knows.
+  @override
+  Future<void> removePlayedProfessionalGuest(String matchId, String guestId) =>
+      guarded(() async {
+        await _client.rpc('remove_played_professional_guest', params: {
+          'p_match_id': matchId,
+          'p_guest_id': guestId,
+        });
+      });
 }

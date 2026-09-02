@@ -18,6 +18,7 @@ import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_models.dart';
+import 'package:go_play/features/teams/match_stage.dart';
 import 'package:go_play/features/teams/pitch_view.dart';
 import 'package:go_play/features/teams/team_repository.dart';
 import 'package:go_play/features/teams/teams_screen.dart';
@@ -1368,6 +1369,76 @@ void main() {
     });
   });
 
+  // --- reading the empty state on the dark ground -------------------------------
+
+  group('the empty state is legible', () {
+    /// How far apart two colours are, as the eye sees it. Not a full WCAG
+    /// contrast ratio — just enough to tell "reversed out" from "near-black on
+    /// deep green", which is the defect.
+    double luminanceGap(Color a, Color b) =>
+        (a.computeLuminance() - b.computeLuminance()).abs();
+
+    testWidgets('the empty-state line is reversed out of the ground',
+        (tester) async {
+      // This screen is the one dark surface in the product and inherits the
+      // light text theme, so a colour left to default came out near-black on
+      // the deep green and could barely be read.
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(roster: fourInputs()),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      final empty = tester.widget<Text>(
+        find.text('Teams have not been generated for this match yet.'),
+      );
+      final colour = empty.style?.color;
+      expect(colour, isNotNull,
+          reason: 'the colour must be stated, not inherited from the light '
+              'theme this dark screen sits under');
+      expect(luminanceGap(colour!, MatchStage.ground), greaterThan(0.4),
+          reason: 'it has to stand off the ground it is drawn on');
+    });
+
+    testWidgets('so is the note about how many players are needed',
+        (tester) async {
+      // Shown instead of the generate button when the roster is too small, on
+      // the same ground and with the same problem.
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(roster: const []),
+        matches: FakeMatchAdapter(
+          match: match,
+          registrations: [seat('u1', 'Sara Al Balushi', 'GK')],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final note = tester.widget<Text>(find.textContaining('confirmed players'));
+      final colour = note.style?.color;
+      expect(colour, isNotNull);
+      expect(luminanceGap(colour!, MatchStage.ground), greaterThan(0.3));
+    });
+
+    testWidgets('and the actions offered beside them', (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(roster: fourInputs()),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      final button = tester.widget<OutlinedButton>(
+        find.byKey(const Key('teamsAddGuestButton')),
+      );
+      final foreground =
+          button.style?.foregroundColor?.resolve(<WidgetState>{});
+      expect(foreground, isNotNull);
+      expect(luminanceGap(foreground!, MatchStage.ground), greaterThan(0.4));
+    });
+  });
+
   // --- player identity on the pitch ---------------------------------------------
 
   group('a face on the pitch', () {
@@ -1514,12 +1585,11 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('is offered the two actions about sides, and no others',
+    // CHANGED (Cycle A): a guest is now offered all four actions. Where they
+    // played and whether they played are both facts about this match rather
+    // than about a profile, so both are answerable for a guest.
+    testWidgets('is offered the same actions as anybody on the pitch',
         (tester) async {
-      // Move and swap are `KB-D6` questions and answerable for a guest.
-      // Changing a position derives the basis from a profile they do not have,
-      // and removing somebody from the played record takes back statistics
-      // their row never earned.
       await pumpWithGuests(tester, withTwoGuests());
 
       await tapParticipant(tester, 'Faisal');
@@ -1527,7 +1597,123 @@ void main() {
       expect(find.text('Edit Faisal'), findsOneWidget);
       expect(find.text('Move to the other team'), findsOneWidget);
       expect(find.text('Swap with a player'), findsOneWidget);
-      expect(find.text('Change position'), findsNothing);
+      expect(find.text('Change position'), findsOneWidget);
+      expect(find.text('Remove guest'), findsOneWidget);
+    });
+
+    testWidgets('takes a match-scoped position, and nothing more',
+        (tester) async {
+      // The position this guest played in *this* match. No primary or
+      // secondary is written, no rating appears, and the row still names them
+      // by `professional_guest_id`.
+      final teams = withTwoGuests();
+      await pumpWithGuests(tester, teams);
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Change position'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(
+        of: find.byType(SimpleDialog),
+        matching: find.text('Midfielder'),
+      ));
+      await tester.pumpAndSettle();
+
+      final saved = teams.savedLineup!
+          .singleWhere((a) => a.professionalGuestId == 'g1');
+      expect(saved.assignedPosition, Position.mid);
+      expect(saved.professionalGuestId, 'g1');
+      expect(saved.userId, isNull,
+          reason: 'a position does not turn a guest into a user');
+      expect(saved.team, TeamId.a, reason: 'the side is not what changed');
+    });
+
+    testWidgets('is removed from a played match through the correction path',
+        (tester) async {
+      // Not `remove_professional_guest`: that keeps the lineup row on purpose,
+      // because for a played match it is the record of who was on the pitch.
+      final teams = withTwoGuests();
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches: FakeMatchAdapter(
+          match: playedMatch,
+          registrations: [
+            ...fourSeats(),
+            guestSeat('g1', 'Faisal', 5),
+            guestSeat('g2', 'Khalid', 6),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Remove guest'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove guest'));
+      await tester.pumpAndSettle();
+
+      expect(teams.removedPlayedGuestId, 'g1');
+    });
+
+    testWidgets('a removal refused because they scored is reported',
+        (tester) async {
+      // `assert_result_survives_lineup` raises RESULT_PARTICIPANT_REMOVED. No
+      // goal is deleted and no score is changed to make the removal possible.
+      final teams = withTwoGuests()
+        ..participationFailure =
+            const ValidationFailure(FailureReason.resultParticipantRemoved);
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches: FakeMatchAdapter(
+          match: playedMatch,
+          registrations: [
+            ...fourSeats(),
+            guestSeat('g1', 'Faisal', 5),
+            guestSeat('g2', 'Khalid', 6),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Remove guest'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove guest'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('This player is the best player or a scorer in the recorded '
+            'result. Edit the result first.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('is removed from an ordinary match through the roster',
+        (tester) async {
+      // A match still to come: the canonical roster removal, which frees the
+      // seat and lets the reserve be rebalanced.
+      final teams = withTwoGuests();
+      final matches = FakeMatchAdapter(
+        match: match,
+        registrations: [
+          ...fourSeats(),
+          guestSeat('g1', 'Faisal', 5),
+          guestSeat('g2', 'Khalid', 6),
+        ],
+      );
+      await pumpTeams(tester, teams: teams, matches: matches);
+      await tester.pumpAndSettle();
+
+      await tapParticipant(tester, 'Faisal');
+      await tester.tap(find.text('Remove guest'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove guest'));
+      await tester.pumpAndSettle();
+
+      expect(matches.removedGuestId, 'g1',
+          reason: 'the canonical roster path, not the played correction');
+      expect(teams.removedPlayedGuestId, isNull);
     });
 
     testWidgets('a move persists the guest, not a row naming nobody',
@@ -1902,6 +2088,23 @@ class FakeTeamAdapter implements TeamAdapter {
         if (assignment.userId != userId) assignment,
     ];
   }
+
+  /// The guest this adapter was asked to take out of the played record.
+  String? removedPlayedGuestId;
+
+  @override
+  Future<void> removePlayedProfessionalGuest(
+      String matchId, String guestId) async {
+    // `remove_played_professional_guest` refuses through
+    // `assert_result_survives_lineup` when the guest scored, and writes nothing
+    // when it does.
+    if (participationFailure != null) throw participationFailure!;
+    removedPlayedGuestId = guestId;
+    _lineup = [
+      for (final assignment in _lineup)
+        if (assignment.professionalGuestId != guestId) assignment,
+    ];
+  }
 }
 
 class FakeMatchAdapter implements MatchAdapter {
@@ -2021,9 +2224,17 @@ class FakeMatchAdapter implements MatchAdapter {
     return 'added';
   }
 
+  /// The guest this adapter was asked to take off the roster.
+  String? removedGuestId;
+
   @override
-  Future<void> removeProfessionalGuest(String matchId, String guestId) =>
-      throw UnimplementedError();
+  Future<void> removeProfessionalGuest(String matchId, String guestId) async {
+    removedGuestId = guestId;
+    registrations = [
+      for (final r in registrations)
+        if (r.professionalGuestId != guestId) r,
+    ];
+  }
 
   @override
   Future<void> renameProfessionalGuest(

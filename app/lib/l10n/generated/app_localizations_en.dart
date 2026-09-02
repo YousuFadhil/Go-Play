@@ -543,6 +543,44 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String addSelectedPlayersButton(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Add $count players',
+      one: 'Add 1 player',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String playersAddedSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count players were added.',
+      one: '1 player was added.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String playersAddedPartial(int added, int failed) {
+    return '$added added, $failed could not be.';
+  }
+
+  @override
+  String playersAddedNone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'None of the $count players could be added.',
+      one: 'That player could not be added.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get addPlayerFailed => 'That player could not be added. Try again.';
 
   @override
@@ -602,6 +640,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String removeGuestConfirmBody(String name) {
     return '$name loses their place in this match. Anything they did in a match that was already played is kept.';
+  }
+
+  @override
+  String removePlayedGuestConfirmBody(String name) {
+    return '$name will be taken out of the record of who played this match. If they scored, correct the result first.';
   }
 
   @override

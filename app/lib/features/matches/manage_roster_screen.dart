@@ -397,60 +397,92 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     ];
   }
 
-  Future<void> _addPlayer() async {
+  /// Adds everybody the organizer picked, one canonical call each.
+  ///
+  /// The picker opens once and closes once. Adding six players used to mean six
+  /// trips through it — pick, confirm, add, reload, reopen — and the per-player
+  /// confirmation is gone with it: the count on the button is the confirmation,
+  /// and it is asked before the batch rather than six times during it.
+  ///
+  /// **Sequential, deliberately.** Every addition still goes through
+  /// `MatchService.addPlayerToMatch` → `admin_add_player_to_match` →
+  /// `register_player_in_match`, so membership, the duplicate rule, capacity,
+  /// the overlap check, the historical guard and the confirmed/reserve decision
+  /// are all still the database's and all still applied per player. Firing them
+  /// at once would race exactly the check that decides the last seat: two
+  /// additions could both read a roster with one place left. In order, each one
+  /// sees what the one before it did.
+  ///
+  /// **Partial success is the expected outcome, not an error.** A player with a
+  /// clashing match is refused while the other five are added, and the five
+  /// stand — there is no batch to roll back, because there was never a batch in
+  /// the database, only five accepted registrations. What each refusal *said*
+  /// is kept and shown, deduplicated, rather than one SnackBar per failure.
+  Future<void> _addPlayers() async {
     final l10n = context.l10n;
-    final selected = await showModalBottomSheet<CommunityMember>(
+    final picked = await showModalBottomSheet<List<String>>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => _AddPlayerSheet(
         title: l10n.addPlayerButton,
         emptyMessage: l10n.addPlayerEmpty,
-        load: () async => _eligible(await _members.fetchMembers(widget.communityId)),
+        load: () async =>
+            _eligible(await _members.fetchMembers(widget.communityId)),
         positionLabel: (position) => _positionLabel(l10n, position),
       ),
     );
-    if (selected == null || !mounted) return;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.addPlayerConfirmTitle),
-        content: Text(l10n.addPlayerConfirmBody(selected.fullName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.confirmNo),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.addPlayerButton),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
+    if (picked == null || picked.isEmpty || !mounted) return;
 
     setState(() => _busy = true);
-    try {
-      final status =
-          await _service.addPlayerToMatch(widget.matchId, selected.userId);
-      _changed = true;
-      // Which list they landed in is the server's answer, not a guess from the
-      // counts on screen — those may already be stale.
-      _showMessage(status == RegistrationStatus.confirmed
-          ? l10n.playerAddedConfirmed(selected.fullName)
-          : l10n.playerAddedReserve(selected.fullName));
-      _reload();
-    } on Failure catch (failure) {
-      _showMessage(_addErrorMessage(l10n, failure));
-      // Reload even on refusal: ALREADY_REGISTERED usually means the roster
-      // moved under the picker, and the next attempt should see the truth.
-      _reload();
-    } catch (_) {
-      _showMessage(l10n.addPlayerFailed);
-    } finally {
-      if (mounted) setState(() => _busy = false);
+
+    final added = <RegistrationStatus>[];
+    // Insertion-ordered and de-duplicated: two players refused for the same
+    // reason say it once.
+    final refusals = <String>{};
+
+    for (final userId in picked) {
+      try {
+        added.add(await _service.addPlayerToMatch(widget.matchId, userId));
+      } on Failure catch (failure) {
+        refusals.add(_addErrorMessage(l10n, failure));
+      } catch (_) {
+        refusals.add(l10n.addPlayerFailed);
+      }
     }
+
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (added.isNotEmpty) _changed = true;
+
+    _showMessage(_batchSummary(l10n, picked.length, added, refusals));
+
+    // Once, after the batch, rather than after each player. A stale picker is
+    // still the server's to refuse, and this is what lets the next attempt see
+    // what the batch actually did.
+    _reload();
+  }
+
+  /// What the batch did, in one sentence plus what was refused.
+  String _batchSummary(
+    AppLocalizations l10n,
+    int attempted,
+    List<RegistrationStatus> added,
+    Set<String> refusals,
+  ) {
+    final reasons = refusals.join(' ');
+    if (added.isEmpty) {
+      return '${l10n.playersAddedNone(attempted)} $reasons'.trim();
+    }
+    if (refusals.isEmpty) {
+      // How many, and not which list each landed in. That is the server's
+      // answer and it is already on screen: the reload below puts each of them
+      // under Players or under Reserve, which says it better than a sentence
+      // summarising a split would.
+      return l10n.playersAddedSummary(added.length);
+    }
+    return '${l10n.playersAddedPartial(added.length, refusals.length)} '
+            '$reasons'
+        .trim();
   }
 
   @override
@@ -486,7 +518,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
             FloatingActionButton.extended(
               key: const Key('addPlayerButton'),
               heroTag: 'addCommunityPlayer',
-              onPressed: _busy ? null : _addPlayer,
+              onPressed: _busy ? null : _addPlayers,
               icon: const Icon(Icons.person_add_alt_1),
               label: Text(l10n.addPlayerButton),
             ),
@@ -618,6 +650,18 @@ class _AddPlayerSheet extends StatefulWidget {
 class _AddPlayerSheetState extends State<_AddPlayerSheet> {
   late Future<List<CommunityMember>> _future = widget.load();
 
+  /// Who is chosen, by user id.
+  ///
+  /// Ids rather than members so the set survives a reload of the list without
+  /// having to match objects, and so the order below is the list's order rather
+  /// than the order things were tapped in — the batch is sent in the order the
+  /// organizer sees, which is what makes the reserve outcome predictable.
+  final _selected = <String>{};
+
+  void _toggle(String userId) => setState(() {
+        if (!_selected.remove(userId)) _selected.add(userId);
+      });
+
   void _retry() {
     setState(() {
       _future = widget.load();
@@ -661,22 +705,56 @@ class _AddPlayerSheetState extends State<_AddPlayerSheet> {
                     itemCount: members.length,
                     itemBuilder: (context, index) {
                       final m = members[index];
+                      final selected = _selected.contains(m.userId);
                       return ListTile(
                         // No profile navigation here, deliberately: this row's
                         // tap is the selection, and a picker that opened a
                         // profile instead of choosing somebody would be a
                         // picker that does not pick.
+                        //
+                        // The avatar, the name and the position are as they
+                        // were. What is new is that the row remembers being
+                        // chosen instead of closing the sheet.
                         leading: PlayerAvatar(
                           avatarUrl: m.avatarUrl,
                           fullName: m.fullName,
                         ),
                         title: Text(m.fullName),
                         subtitle: Text(widget.positionLabel(m.position)),
-                        onTap: () => Navigator.of(context).pop(m),
+                        selected: selected,
+                        trailing: Checkbox(
+                          key: Key('pick_${m.userId}'),
+                          value: selected,
+                          onChanged: (_) => _toggle(m.userId),
+                        ),
+                        onTap: () => _toggle(m.userId),
                       );
                     },
                   );
                 },
+              ),
+            ),
+            // One tap starts the batch, and it says how many it is about to
+            // add. Disabled until something is chosen, so the sheet cannot send
+            // an empty batch.
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    key: const Key('addSelectedPlayersButton'),
+                    onPressed: _selected.isEmpty
+                        ? null
+                        : () => Navigator.of(context).pop(
+                              _selected.toList(growable: false),
+                            ),
+                    child: Text(
+                      context.l10n.addSelectedPlayersButton(_selected.length),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],

@@ -1082,6 +1082,30 @@ abstract class AppLocalizations {
   /// **'That player could not be added. Try again.'**
   String get addPlayerFailed;
 
+  /// No description provided for @addSelectedPlayersButton.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Add 1 player} other{Add {count} players}}'**
+  String addSelectedPlayersButton(int count);
+
+  /// No description provided for @playersAddedSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 player was added.} other{{count} players were added.}}'**
+  String playersAddedSummary(int count);
+
+  /// No description provided for @playersAddedPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'{added} added, {failed} could not be.'**
+  String playersAddedPartial(int added, int failed);
+
+  /// No description provided for @playersAddedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{That player could not be added.} other{None of the {count} players could be added.}}'**
+  String playersAddedNone(int count);
+
   /// No description provided for @errPlayerAlreadyRegistered.
   ///
   /// In en, this message translates to:
@@ -1177,6 +1201,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name} loses their place in this match. Anything they did in a match that was already played is kept.'**
   String removeGuestConfirmBody(String name);
+
+  /// No description provided for @removePlayedGuestConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be taken out of the record of who played this match. If they scored, correct the result first.'**
+  String removePlayedGuestConfirmBody(String name);
 
   /// No description provided for @guestActionFailed.
   ///
