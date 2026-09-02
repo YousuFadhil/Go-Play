@@ -100,6 +100,11 @@ class _HomeTabState extends State<HomeTab> {
                 child: ClubHero(
                   bar: ClubHeroBar(
                     title: l10n.homeTitle,
+                    // Home is a shell screen: reached from the bottom bar, with
+                    // no back button to leave by, so the way to a player's own
+                    // profile has to be on it. Appended after Home's own two
+                    // actions, which keep their places.
+                    showCurrentUserMenu: true,
                     actions: [
           // Only a System Admin ever sees this. Hiding it is a convenience:
           // every admin RPC checks is_system_admin() server-side regardless.

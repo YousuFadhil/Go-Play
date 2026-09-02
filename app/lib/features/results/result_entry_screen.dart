@@ -563,13 +563,56 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
   ) {
     final participantId = assignment.participantId;
     final registration = view.players[participantId];
+    final scored = draft.goalsOf(participantId);
 
-    // A Professional Guest played, and this screen says so. What it does not do
-    // is offer them a goal stepper or the MVP star: the database supports both,
-    // but sending either through `record_match_result` means a guest-shaped
-    // payload this screen does not build yet. Showing the row without the
-    // controls states who was on the pitch without inventing a half-supported
-    // flow — see the Phase 2 report.
+    // The goal stepper, for whoever this row belongs to.
+    //
+    // Built once and used by both branches because scoring is the one thing a
+    // Professional Guest does on exactly the same terms as anybody else: the
+    // goals recorded have to add up to the score, and a guest's goal is part of
+    // that sum or the arithmetic refuses a true result. The tally carries which
+    // kind of participant scored it, which is the whole of what the two cases
+    // differ by here.
+    Widget goalStepper() => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              key: Key('goalMinus_$participantId'),
+              tooltip: l10n.removeGoalLabel,
+              icon: const Icon(Icons.remove_circle_outline),
+              onPressed: _busy || scored == 0
+                  ? null
+                  : () => setState(() => draft.setGoals(
+                        participantId,
+                        scored - 1,
+                        isProfessionalGuest: assignment.isProfessionalGuest,
+                      )),
+            ),
+            Text('$scored'),
+            IconButton(
+              key: Key('goalPlus_$participantId'),
+              tooltip: l10n.addGoalLabel,
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: _busy
+                  ? null
+                  : () => setState(() => draft.setGoals(
+                        participantId,
+                        scored + 1,
+                        isProfessionalGuest: assignment.isProfessionalGuest,
+                      )),
+            ),
+          ],
+        );
+
+    // A Professional Guest played, and this screen says so — the guest avatar in
+    // the leading slot and the guest wording below the name, as before.
+    //
+    // What it now also does is let them be named as a scorer, which
+    // `record_match_result` has accepted since migration `0049` and which the
+    // score arithmetic depends on. What it still does not do is offer the MVP
+    // star: the leading slot stays the guest's avatar rather than becoming a
+    // star, and naming a guest best on the pitch is not this cycle's work. No
+    // profile link either — a guest holds no account to open.
     if (assignment.isProfessionalGuest) {
       return ListTile(
         key: Key('player_$participantId'),
@@ -580,11 +623,11 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
               : participantLabel(l10n, registration),
         ),
         subtitle: Text(l10n.professionalGuestLabel),
+        trailing: goalStepper(),
       );
     }
 
     final userId = assignment.userId!;
-    final scored = draft.goalsOf(userId);
 
     return ListTile(
       key: Key('player_$userId'),
@@ -634,28 +677,7 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
         // back to nobody.
         onPressed: _busy ? null : () => setState(() => draft.toggleMvp(userId)),
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            key: Key('goalMinus_$userId'),
-            tooltip: l10n.removeGoalLabel,
-            icon: const Icon(Icons.remove_circle_outline),
-            onPressed: _busy || scored == 0
-                ? null
-                : () => setState(() => draft.setGoals(userId, scored - 1)),
-          ),
-          Text('$scored'),
-          IconButton(
-            key: Key('goalPlus_$userId'),
-            tooltip: l10n.addGoalLabel,
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: _busy
-                ? null
-                : () => setState(() => draft.setGoals(userId, scored + 1)),
-          ),
-        ],
-      ),
+      trailing: goalStepper(),
     );
   }
 }
@@ -704,7 +726,7 @@ class _ResultDraft {
     required this.teamAScore,
     required this.teamBScore,
     required this.mvpUserId,
-    required Map<String, int> goals,
+    required Map<String, GoalTally> goals,
   }) : _goals = goals;
 
   /// The draft a screen opens with: an empty one, or the result already
@@ -715,7 +737,7 @@ class _ResultDraft {
         mvpUserId: recorded?.mvpUserId,
         goals: {
           for (final tally in recorded?.goals ?? const <GoalTally>[])
-            tally.userId: tally.goals,
+            tally.participantId: tally,
         },
       );
 
@@ -738,29 +760,42 @@ class _ResultDraft {
     mvpUserId = mvpUserId == userId ? null : userId;
   }
 
-  final Map<String, int> _goals;
+  /// Keyed by `participantId`, holding the tally itself rather than a bare
+  /// count.
+  ///
+  /// The key is the participant and not the user because a Professional Guest
+  /// scores too, and the two identities live in different columns: keying on
+  /// user id had nowhere to put a guest, and a shared key space with the wrong
+  /// key would let a guest and a player collide. Holding the [GoalTally] rather
+  /// than an `int` is what carries *which* of the two identities this is, so a
+  /// tally is built once, where the answer is known, instead of being inferred
+  /// at save time from a map that never recorded it.
+  final Map<String, GoalTally> _goals;
 
   int get totalScore => teamAScore + teamBScore;
 
   int get recordedGoals =>
-      _goals.values.fold(0, (total, goals) => total + goals);
+      _goals.values.fold(0, (total, tally) => total + tally.goals);
 
-  int goalsOf(String userId) => _goals[userId] ?? 0;
+  int goalsOf(String participantId) => _goals[participantId]?.goals ?? 0;
 
-  /// A player at zero is removed rather than stored as a zero: a tally asserts
-  /// that somebody scored, and the saved result carries no zeroes.
-  void setGoals(String userId, int goals) {
+  /// A participant at zero is removed rather than stored as a zero: a tally
+  /// asserts that somebody scored, and the saved result carries no zeroes.
+  void setGoals(
+    String participantId,
+    int goals, {
+    bool isProfessionalGuest = false,
+  }) {
     if (goals <= 0) {
-      _goals.remove(userId);
-    } else {
-      _goals[userId] = goals;
+      _goals.remove(participantId);
+      return;
     }
+    _goals[participantId] = isProfessionalGuest
+        ? GoalTally.professionalGuest(guestId: participantId, goals: goals)
+        : GoalTally(userId: participantId, goals: goals);
   }
 
-  List<GoalTally> get tallies => [
-        for (final entry in _goals.entries)
-          GoalTally(userId: entry.key, goals: entry.value),
-      ];
+  List<GoalTally> get tallies => _goals.values.toList();
 
   /// Whether the save button is worth offering.
   ///

@@ -110,6 +110,8 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             child: ClubHero(
               bar: ClubHeroBar(
                 title: l10n.communitiesTitle,
+                // A shell screen, on the same rule as Discover and Home.
+                showCurrentUserMenu: true,
                 actions: [
                   IconButton(
                     tooltip: l10n.inviteOpenAction,

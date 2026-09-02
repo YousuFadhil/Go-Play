@@ -29,6 +29,7 @@ class ManageRosterScreen extends StatefulWidget {
     required this.filter,
     required this.title,
     required this.canRemove,
+    this.canAddCommunityPlayer = false,
     this.canManageGuests = false,
     this.memberRepository,
     this.service,
@@ -43,12 +44,35 @@ class ManageRosterScreen extends StatefulWidget {
   final String title;
 
   /// False once the match is locked (started) or completed: the roster is
-  /// then read-only. The same answer governs adding, because a roster that
-  /// cannot be shortened cannot be lengthened either.
+  /// then read-only, and taking somebody out of a match that has been played
+  /// would be editing the record of who was in it.
   ///
   /// This governs **community players only**. Professional Guests are managed
   /// under [canManageGuests], which the lock does not touch.
+  ///
+  /// It no longer governs adding. Removing and adding used to share this one
+  /// answer on the reasoning that a roster which cannot be shortened cannot be
+  /// lengthened either — which is not a rule the database has ever enforced,
+  /// and is not the approved one. See [canAddCommunityPlayer].
   final bool canRemove;
+
+  /// Whether the reader may add a community member who has not registered
+  /// themselves.
+  ///
+  /// Separate from [canRemove] because the two answer to separate rules.
+  /// `admin_add_player_to_match` (migration `0045`) calls
+  /// `register_player_in_match` with `p_enforce_time_lock => false`: an owner
+  /// or admin adds somebody in every ordinary match state, a completed one
+  /// included, and the database has allowed exactly that all along. Folding the
+  /// answer into [canRemove] hid a control the server would have honoured —
+  /// which is what left a completed match offering to add a Professional Guest
+  /// but not a community player.
+  ///
+  /// Everything the server enforces about the player being added still applies
+  /// and is still the server's to enforce: community membership, the duplicate
+  /// rule, total capacity, the overlap check, and the refusal to register
+  /// anybody into a recorded (historical) match.
+  final bool canAddCommunityPlayer;
 
   /// Whether the reader may add, rename and remove Professional Guests.
   ///
@@ -440,9 +464,10 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
           onPressed: () => Navigator.of(context).pop(_changed),
         ),
       ),
-      // Two separate actions because they answer to two separate rules: adding
-      // a community member is locked at kickoff, adding a Professional Guest
-      // never is.
+      // Two separate actions because they answer to two separate rules — but
+      // both are now the *same* rule about state: an owner or admin adds either
+      // kind of participant in every ordinary match state. What still separates
+      // them is who they are, not when it is.
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -455,9 +480,9 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
               icon: const Icon(Icons.workspace_premium_outlined),
               label: Text(l10n.addGuestButton),
             ),
-          if (widget.canManageGuests && widget.canRemove)
+          if (widget.canManageGuests && widget.canAddCommunityPlayer)
             const SizedBox(height: Gap.sm),
-          if (widget.canRemove)
+          if (widget.canAddCommunityPlayer)
             FloatingActionButton.extended(
               key: const Key('addPlayerButton'),
               heroTag: 'addCommunityPlayer',

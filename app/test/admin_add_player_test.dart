@@ -50,6 +50,8 @@ void main() {
     required FakeMatchAdapter matches,
     required FakeMemberAdapter members,
     bool canRemove = true,
+    bool canAddCommunityPlayer = true,
+    bool canManageGuests = false,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -62,6 +64,8 @@ void main() {
           filter: RegistrationStatus.confirmed,
           title: 'Players',
           canRemove: canRemove,
+          canAddCommunityPlayer: canAddCommunityPlayer,
+          canManageGuests: canManageGuests,
           service: MatchService(matches),
           memberRepository: MemberRepository(members),
         ),
@@ -85,14 +89,34 @@ void main() {
           findsOneWidget);
     });
 
-    testWidgets('is withheld once the match is locked or completed',
-        (tester) async {
-      // The same answer that already hides Remove. A roster that cannot be
-      // shortened cannot be lengthened either, and offering the action would
-      // only earn a refusal from the database.
+    // CHANGED: this used to assert the opposite, on the reasoning that a roster
+    // which cannot be shortened cannot be lengthened either. That was never the
+    // database's rule — `admin_add_player_to_match` passes
+    // `p_enforce_time_lock => false` — and it is what left a completed match
+    // offering to add a Professional Guest but not a community player.
+    testWidgets('survives the lock that closes removal', (tester) async {
+      await pumpRoster(
+        tester,
+        // The state a locked or completed match arrives in.
+        canRemove: false,
+        canAddCommunityPlayer: true,
+        matches: FakeMatchAdapter(
+          registrations: [registration('a', RegistrationStatus.confirmed)],
+        ),
+        members: FakeMemberAdapter(members: [member('b')]),
+      );
+
+      expect(find.widgetWithText(FloatingActionButton, 'Add player'),
+          findsOneWidget,
+          reason: 'an owner or admin adds a community member in every ordinary '
+              'match state, which is what the database allows');
+    });
+
+    testWidgets('is withheld from a reader who may not add', (tester) async {
       await pumpRoster(
         tester,
         canRemove: false,
+        canAddCommunityPlayer: false,
         matches: FakeMatchAdapter(
           registrations: [registration('a', RegistrationStatus.confirmed)],
         ),
@@ -100,6 +124,46 @@ void main() {
       );
 
       expect(find.byType(FloatingActionButton), findsNothing);
+    });
+
+    // The two capabilities are independent in both directions, which is the
+    // point of splitting them: widening addition must not widen removal.
+    testWidgets('being offered does not bring Remove with it', (tester) async {
+      await pumpRoster(
+        tester,
+        canRemove: false,
+        canAddCommunityPlayer: true,
+        matches: FakeMatchAdapter(
+          registrations: [registration('a', RegistrationStatus.confirmed)],
+        ),
+        members: FakeMemberAdapter(members: [member('b')]),
+      );
+
+      expect(find.widgetWithText(FloatingActionButton, 'Add player'),
+          findsOneWidget);
+      expect(find.byTooltip('Remove player'), findsNothing,
+          reason: 'removal answers to its own rule and is closed on a match '
+              'that has been played');
+    });
+
+    testWidgets('stands beside Add guest on a completed match', (tester) async {
+      await pumpRoster(
+        tester,
+        // Exactly how a completed match reaches this screen: removal closed,
+        // both additions open.
+        canRemove: false,
+        canAddCommunityPlayer: true,
+        canManageGuests: true,
+        matches: FakeMatchAdapter(
+          registrations: [registration('a', RegistrationStatus.confirmed)],
+        ),
+        members: FakeMemberAdapter(members: [member('b')]),
+      );
+
+      expect(find.byKey(const Key('addPlayerButton')), findsOneWidget);
+      expect(find.byKey(const Key('addGuestButton')), findsOneWidget,
+          reason: 'the guest action was always available here; the community '
+              'player action is what was missing beside it');
     });
   });
 
@@ -348,6 +412,7 @@ void main() {
             filter: RegistrationStatus.confirmed,
             title: 'اللاعبون',
             canRemove: true,
+            canAddCommunityPlayer: true,
             service: MatchService(matches),
             memberRepository:
                 MemberRepository(FakeMemberAdapter(members: [member('b')])),

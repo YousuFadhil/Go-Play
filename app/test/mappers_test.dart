@@ -850,10 +850,50 @@ void main() {
     });
 
     test('a tally writes back the row it was read from', () {
-      const row = {'user_id': 'u1', 'goals': 2};
+      const row = {'user_id': 'u1', 'professional_guest_id': null, 'goals': 2};
 
       // No match_id: `record_match_result` takes the match as its own
       // argument, so a tally never names one.
+      expect(goalTallyToRow(goalTallyFromRow(row)), row);
+    });
+
+    test('a community player serializes with a user id and no guest id', () {
+      final row = goalTallyToRow(const GoalTally(userId: 'u1', goals: 2));
+
+      expect(row['user_id'], 'u1');
+      expect(row['professional_guest_id'], isNull);
+      expect(row['goals'], 2);
+    });
+
+    test('a Professional Guest serializes with a guest id and no user id', () {
+      final row = goalTallyToRow(
+        const GoalTally.professionalGuest(guestId: 'g1', goals: 3),
+      );
+
+      expect(row['user_id'], isNull);
+      expect(row['professional_guest_id'], 'g1');
+      expect(row['goals'], 3);
+    });
+
+    test('a guest row reads back without assuming a user id', () {
+      // The row `match_goals` actually holds for a guest. Reading `user_id` as
+      // a non-null String threw on exactly this, so a guest goal written by any
+      // path made the whole result unreadable.
+      final tally = goalTallyFromRow(
+        const {'user_id': null, 'professional_guest_id': 'g1', 'goals': 1},
+      );
+
+      expect(tally.isProfessionalGuest, isTrue);
+      expect(tally.professionalGuestId, 'g1');
+      expect(tally.userId, isNull);
+      expect(tally.participantId, 'g1',
+          reason: 'the participant id is the identity the tally does carry');
+      expect(tally.goals, 1);
+    });
+
+    test('a guest tally writes back the guest row it was read from', () {
+      const row = {'user_id': null, 'professional_guest_id': 'g1', 'goals': 3};
+
       expect(goalTallyToRow(goalTallyFromRow(row)), row);
     });
   });

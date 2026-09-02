@@ -413,7 +413,12 @@ void main() {
       expect(avatars.every((a) => !a.isProfessionalGuest), isTrue);
     });
 
-    testWidgets('a professional guest remains visible without result controls',
+    // CHANGED: the goal stepper is now offered. `record_match_result` has
+    // accepted a guest scorer since migration `0049`, and the score arithmetic
+    // needs it — a match a guest scored in could not be entered at all while
+    // the tallies could only name users. The MVP star is still withheld: that
+    // is not this cycle's work.
+    testWidgets('a professional guest can be named a scorer, but not the MVP',
         (tester) async {
       await pumpResult(
         tester,
@@ -433,8 +438,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('player_guest-1')), findsOneWidget);
-      expect(find.byKey(const Key('mvp_guest-1')), findsNothing);
-      expect(find.byKey(const Key('goalPlus_guest-1')), findsNothing);
+      expect(find.byKey(const Key('goalPlus_guest-1')), findsOneWidget);
+      expect(find.byKey(const Key('goalMinus_guest-1')), findsOneWidget);
+      expect(find.byKey(const Key('mvp_guest-1')), findsNothing,
+          reason: 'naming a guest best on the pitch is not offered yet');
+      expect(find.byKey(const Key('identity_guest-1')), findsNothing,
+          reason: 'a guest holds no account, so there is no profile to open');
+      expect(find.text('Professional guest'), findsWidgets,
+          reason: 'the guest is still identified as one');
     });
   });
 
@@ -642,6 +653,90 @@ void main() {
         find.text('The goals assigned to scorers must add up to the final '
             'score.'),
         findsOneWidget,
+      );
+    });
+
+    testWidgets('a guest and a player can share the score between them',
+        (tester) async {
+      // The whole point of a guest being recordable: the goals have to add up
+      // to the score, and this match's second goal was a guest's. Before this,
+      // a match a guest scored in could not be entered at all.
+      final results = FakeResultAdapter();
+      await pumpResult(
+        tester,
+        results: results,
+        lineup: [
+          at('u1', TeamId.a),
+          const TeamAssignment(
+            professionalGuestId: 'guest-1',
+            team: TeamId.a,
+            assignedPosition: null,
+            basis: null,
+          ),
+          at('u3', TeamId.b),
+          at('u4', TeamId.b),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      await enterScore(tester, 'teamAScore', '2');
+      await tapGoal(tester, 'u1', 1);
+      await tapGoal(tester, 'guest-1', 1);
+      await tapSave(tester);
+
+      expect(results.lastTeamAScore, 2);
+      expect(results.lastGoals, hasLength(2));
+
+      final guest = results.lastGoals!
+          .singleWhere((tally) => tally.isProfessionalGuest);
+      expect(guest.professionalGuestId, 'guest-1');
+      expect(guest.userId, isNull,
+          reason: 'no invented user id stands in for a guest');
+      expect(guest.goals, 1);
+
+      final player =
+          results.lastGoals!.singleWhere((tally) => !tally.isProfessionalGuest);
+      expect(player.userId, 'u1');
+      expect(player.professionalGuestId, isNull);
+
+      final recorded =
+          results.lastGoals!.fold(0, (sum, tally) => sum + tally.goals);
+      expect(recorded, 2, reason: 'the invariant the guest goal exists to keep');
+    });
+
+    testWidgets('a guest and a player never share a draft entry',
+        (tester) async {
+      // The draft is keyed by participant. Two scorers means two tallies, and
+      // stepping one must not move the other.
+      final results = FakeResultAdapter();
+      await pumpResult(
+        tester,
+        results: results,
+        lineup: [
+          at('u1', TeamId.a),
+          const TeamAssignment(
+            professionalGuestId: 'guest-1',
+            team: TeamId.a,
+            assignedPosition: null,
+            basis: null,
+          ),
+          at('u3', TeamId.b),
+          at('u4', TeamId.b),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      await enterScore(tester, 'teamAScore', '3');
+      await tapGoal(tester, 'guest-1', 2);
+      await tapGoal(tester, 'u1', 1);
+      await tapSave(tester);
+
+      expect(
+        {
+          for (final tally in results.lastGoals!)
+            tally.participantId: tally.goals,
+        },
+        {'guest-1': 2, 'u1': 1},
       );
     });
 

@@ -19,7 +19,11 @@ void main() {
   setUp(() => Diagnostics.verboseErrors = false);
   tearDown(() => Diagnostics.verboseErrors = Diagnostics.verboseErrorsDefault);
 
-  Match matchAt(DateTime start, {MatchStatus status = MatchStatus.open}) =>
+  Match matchAt(
+    DateTime start, {
+    MatchStatus status = MatchStatus.open,
+    bool isHistorical = false,
+  }) =>
       Match(
         id: 'm1',
         communityId: 'c1',
@@ -30,11 +34,19 @@ void main() {
         startingPlayers: 4,
         maxRegistration: 6,
         status: status,
+        isHistorical: isHistorical,
       );
 
   final completed = matchAt(
     DateTime.now().subtract(const Duration(days: 3)),
     status: MatchStatus.completed,
+  );
+
+  /// A match the community played elsewhere and recorded here afterwards.
+  final recorded = matchAt(
+    DateTime.now().subtract(const Duration(days: 3)),
+    status: MatchStatus.completed,
+    isHistorical: true,
   );
 
   /// Pushes the screen onto a navigator, so a pop has somewhere to go and the
@@ -106,6 +118,44 @@ void main() {
     final entry =
         tester.widget<ListTile>(find.byKey(const Key('arrangeRosterEntry')));
     expect(entry.enabled, isTrue);
+  });
+
+  // The capability this screen hands the roster screen, proved through the two
+  // controls it decides. `admin_add_player_to_match` turns the time lock off, so
+  // a completed match still takes an added player; `register_player_in_match`
+  // raises MATCH_HISTORICAL on every path, so a recorded one never does.
+  group('adding a community member to a played match', () {
+    Future<void> openPlayers(WidgetTester tester, Match match) async {
+      await pumpManagement(tester, FakeMatchAdapter(match: match));
+      await tester.tap(find.text('Manage players'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is offered on a completed match', (tester) async {
+      await openPlayers(tester, completed);
+
+      expect(find.byKey(const Key('addPlayerButton')), findsOneWidget);
+      expect(find.byKey(const Key('addGuestButton')), findsOneWidget,
+          reason: 'both kinds of participant, on the same rule about state');
+    });
+
+    testWidgets('is withheld on a recorded match, as it always was',
+        (tester) async {
+      await openPlayers(tester, recorded);
+
+      expect(find.byKey(const Key('addPlayerButton')), findsNothing,
+          reason: 'a recorded match takes no registration through any path, '
+              'and the screen shows the answer the server would give');
+      expect(find.byKey(const Key('addGuestButton')), findsOneWidget,
+          reason: 'guest management on a recorded match is unchanged');
+    });
+
+    testWidgets('does not bring removal with it on a completed match',
+        (tester) async {
+      await openPlayers(tester, completed);
+
+      expect(find.byTooltip('Remove player'), findsNothing);
+    });
   });
 
   testWidgets('a delete that succeeds reports nothing and leaves the screen',

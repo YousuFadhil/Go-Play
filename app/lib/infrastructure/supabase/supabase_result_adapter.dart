@@ -25,9 +25,12 @@ class SupabaseResultAdapter implements ResultAdapter {
 
   final SupabaseClient _client;
 
+  // `professional_guest_id` alongside `user_id`: a goal row carries one or the
+  // other, and selecting only the first returned a guest's goal as a row with
+  // no scorer in it.
   static const _resultColumns =
       'match_id, team_a_score, team_b_score, mvp_user_id, '
-      'goals:match_goals(user_id, goals)';
+      'goals:match_goals(user_id, professional_guest_id, goals)';
 
   static const _ratingColumns =
       'id, user_id, match_id, change_reason, delta, rating_before, '

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_header.dart';
 import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
@@ -117,9 +116,14 @@ class DiscoverHero extends StatelessWidget {
       // No title: the logo lockup in the identity row below already names the
       // product, and `ClubHeroBar.title` documents itself as the thing not to
       // repeat there. The bar is here for the account menu.
-      bar: ClubHeroBar(
-        actions: signedIn ? const [CurrentUserMenu()] : const [],
-      ),
+      // Through the bar's own contract now, rather than passed as one of this
+      // screen's actions. It was never a Discover action: it is the identity
+      // every shell screen carries, and saying so here is what let Home and
+      // Communities be given the same thing.
+      //
+      // Still conditional on a session: a visitor has no identity to show, and
+      // asking for one would be a read that cannot succeed.
+      bar: ClubHeroBar(showCurrentUserMenu: signedIn),
       identity: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -1,15 +1,22 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/core/app_header.dart';
 import 'package:go_play/core/club_place.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/states.dart';
 import 'package:go_play/core/theme.dart';
+import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/communities/communities_screen.dart';
 import 'package:go_play/features/communities/community_adapter.dart';
 import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/communities/community_repository.dart';
+import 'package:go_play/features/profile/current_user.dart';
+import 'package:go_play/features/profile/profile_adapter.dart';
+import 'package:go_play/features/profile/profile_models.dart';
+import 'package:go_play/features/profile/profile_repository.dart';
 
 void main() {
   const mine = Community(
@@ -88,6 +95,23 @@ void main() {
     expect(find.byType(CommunityCrest), findsNWidgets(2));
     expect(find.text(mine.name), findsOneWidget);
     expect(find.text(discover.name), findsOneWidget);
+  });
+
+  testWidgets('carries exactly one way to the profile', (tester) async {
+    // A shell screen: reached from the bottom bar, with no back button to leave
+    // by. The Club redesign moved this screen off `AppHeader`, which appended
+    // the identity for free, and nothing replaced it — so a player standing on
+    // Communities had no way to their own profile, their settings or sign-out.
+    //
+    // Exactly one, not merely at least one: the invite action beside it must
+    // not be joined by a second identity.
+    CurrentUser.instance
+        .useRepository(ProfileRepository(_StaticProfileAdapter()));
+    addTearDown(() => CurrentUser.instance.useRepository(null));
+
+    await pumpCommunities(tester, repository: repository());
+
+    expect(find.byType(CurrentUserMenu), findsOneWidget);
   });
 
   testWidgets('community navigation remains available', (tester) async {
@@ -264,5 +288,51 @@ class _FakeCommunityAdapter implements CommunityAdapter {
 
   @override
   Future<void> deleteCommunity(String communityId) =>
+      throw UnimplementedError();
+}
+
+/// A loaded session, so [CurrentUserMenu] has a player to name rather than a
+/// read that cannot succeed.
+class _StaticProfileAdapter implements ProfileAdapter {
+  static const _profile = PlayerProfile(
+    fullName: 'Salim Al Harthy',
+    phone: '+96890123456',
+    primaryPosition: PlayerPosition.mid,
+  );
+
+  @override
+  Future<PlayerProfile> fetchMyProfile() async => _profile;
+
+  @override
+  Future<void> updateMyProfile({
+    required DateTime dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateMyAccount({
+    required String fullName,
+    required String phone,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> uploadMyAvatar({
+    required Uint8List bytes,
+    required String fileExtension,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> removeMyAvatar() => throw UnimplementedError();
+
+  @override
+  Future<PlayerProfileView> fetchPlayerProfile(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateMyPrivacy(ProfilePrivacy privacy) =>
       throw UnimplementedError();
 }

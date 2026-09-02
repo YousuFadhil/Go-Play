@@ -42,17 +42,36 @@ MatchResult matchResultFromRow(Map<String, dynamic> row) {
   );
 }
 
-GoalTally goalTallyFromRow(Map<String, dynamic> row) => GoalTally(
-      userId: row['user_id'] as String,
-      goals: row['goals'] as int,
-    );
+/// One scorer, as `match_goals` stores them.
+///
+/// Both identity columns are read, and neither is assumed present: the table's
+/// XOR check (migration `0044`) means exactly one of them is set, and a guest's
+/// row carries a null `user_id`. Reading `user_id` as a non-null String was
+/// what made a guest's goal unreadable — the row is legal in the database, and
+/// the first one written would have thrown here.
+GoalTally goalTallyFromRow(Map<String, dynamic> row) {
+  final goals = row['goals'] as int;
+  final userId = row['user_id'] as String?;
+  if (userId != null) return GoalTally(userId: userId, goals: goals);
+  return GoalTally.professionalGuest(
+    guestId: row['professional_guest_id'] as String,
+    goals: goals,
+  );
+}
 
 /// One scorer, as `record_match_result` reads them.
 ///
 /// No `match_id`: the match is an argument of that function, which is what keeps
 /// a tally from naming a different match than the one being authorized.
+///
+/// Both keys are always written, one of them null. `record_match_result`
+/// (migration `0049`) reads each with `nullif(e->>'...', '')::uuid`, so an
+/// explicit null and an absent key mean the same thing to it; writing both says
+/// which kind of scorer this is rather than leaving it to be inferred from
+/// what is missing.
 Map<String, dynamic> goalTallyToRow(GoalTally tally) => {
       'user_id': tally.userId,
+      'professional_guest_id': tally.professionalGuestId,
       'goals': tally.goals,
     };
 

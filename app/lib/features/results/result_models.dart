@@ -11,19 +11,58 @@ import '../../core/failures.dart';
 /// `A` and `B` mean, and a second enum for the same thing is exactly what OP-3
 /// forbids.
 
-/// How many goals one player scored in one match.
+/// How many goals one participant scored in one match.
 ///
 /// A hat-trick is one tally of three. No approved document asks for the minute a
 /// goal was scored or the order of them, and three tallies of one would record
 /// the same fact three times without adding either.
+///
+/// The scorer is a **participant**, not a user. Exactly one of [userId] and
+/// [professionalGuestId] is set, which is the same shape [TeamAssignment]
+/// carries and the same XOR check `match_goals` states in the schema
+/// (migration `0044`). A Professional Guest holds no account, so no user id can
+/// stand for them and none is invented: the identity is simply the other one.
+///
+/// This is what makes the score invariant keepable rather than something to be
+/// weakened. The goals recorded have to add up to the score, and a match a
+/// guest scored in could not be entered at all while a tally could only name a
+/// user — the arithmetic would refuse a true result. Recording the guest's goal
+/// is how the rule stays strict.
+///
+/// A guest's goal is match data and stops there. `match_result_contribution`,
+/// `player_statistics_evidence` and `apply_match_rating_effects` (migration
+/// `0046`) all project only rows carrying a `user_id`, so it counts towards the
+/// score and towards no career total, no rating and no leaderboard.
 class GoalTally {
-  const GoalTally({required this.userId, required this.goals});
+  const GoalTally({required this.userId, required this.goals})
+      : professionalGuestId = null;
 
-  final String userId;
+  /// The same tally for a Professional Guest.
+  const GoalTally.professionalGuest({
+    required String guestId,
+    required this.goals,
+  })  : professionalGuestId = guestId,
+        userId = null;
 
-  /// Always at least one: the tally asserts that this player scored. Nobody
-  /// scoring nothing is the absence of a tally, which is why a goalless match
-  /// carries an empty list rather than a list of zeroes.
+  /// Null when this tally belongs to a Professional Guest.
+  final String? userId;
+
+  /// Null when this tally belongs to a registered user. Exactly one of the two
+  /// is set.
+  final String? professionalGuestId;
+
+  bool get isProfessionalGuest => professionalGuestId != null;
+
+  /// Whichever identity this tally carries — the key everything groups by.
+  ///
+  /// The same name and the same meaning as `TeamAssignment.participantId`, so
+  /// a tally and a lineup row can be compared without either side asking which
+  /// kind of participant it is holding.
+  String get participantId => userId ?? professionalGuestId!;
+
+  /// Always at least one: the tally asserts that this participant scored.
+  /// Nobody scoring nothing is the absence of a tally, which is why a goalless
+  /// match carries an empty list rather than a list of zeroes.
   final int goals;
 }
 
@@ -72,10 +111,14 @@ class MatchResult {
     return teamAScore > teamBScore ? TeamId.a : TeamId.b;
   }
 
-  /// How many goals [userId] is credited with; zero when they scored none.
-  int goalsBy(String userId) {
+  /// How many goals [participantId] is credited with; zero when they scored
+  /// none.
+  ///
+  /// Takes a participant id rather than a user id, so a Professional Guest is
+  /// answered for on the same terms as anybody else who was on the pitch.
+  int goalsBy(String participantId) {
     for (final tally in goals) {
-      if (tally.userId == userId) return tally.goals;
+      if (tally.participantId == participantId) return tally.goals;
     }
     return 0;
   }
@@ -197,9 +240,11 @@ void validateResultInputs({
   if (goals.any((tally) => tally.goals <= 0)) {
     throw const ValidationFailure(FailureReason.invalidGoals);
   }
-  // Two tallies for one player is not a bigger number, it is the same fact
-  // recorded twice, and which of them counted would be arbitrary.
-  if ({for (final tally in goals) tally.userId}.length != goals.length) {
+  // Two tallies for one participant is not a bigger number, it is the same
+  // fact recorded twice, and which of them counted would be arbitrary. Keyed
+  // on the participant, so it catches a guest named twice exactly as it always
+  // caught a player named twice.
+  if ({for (final tally in goals) tally.participantId}.length != goals.length) {
     throw const ValidationFailure(FailureReason.invalidGoals);
   }
   final recorded = goals.fold(0, (total, tally) => total + tally.goals);
@@ -211,7 +256,12 @@ void validateResultInputs({
   }
   // A goal is credited to somebody who played it. Otherwise a rating could be
   // raised for a player who was never in the match.
-  if (goals.any((tally) => !participantIds.contains(tally.userId))) {
+  //
+  // `participantIds` is built from the stored lineup, which already holds
+  // guests under the same `participantId`, so a guest who was on the pitch
+  // passes and one who was not is refused — the rule as it was, asking the
+  // question of everybody rather than only of users.
+  if (goals.any((tally) => !participantIds.contains(tally.participantId))) {
     throw const ValidationFailure(FailureReason.scorerNotParticipant);
   }
 }

@@ -194,6 +194,127 @@ void main() {
     });
   });
 
+  // A Professional Guest scores under exactly the rules everybody else does.
+  // The reason their goal has to be recordable at all is this invariant: the
+  // goals have to add up to the score, and a match a guest scored in could not
+  // be entered while a tally could only name a user.
+  group('a Professional Guest scores under the same rules', () {
+    // The lineup holds guests under the same `participantId` a lineup row
+    // carries, which is what `validateResultInputs` is handed.
+    const withGuest = {'a1', 'a2', 'b1', 'b2', 'g1'};
+
+    test('a guest goal counts towards the score', () {
+      expect(
+        () => validate(
+          teamA: 2,
+          teamB: 0,
+          participants: withGuest,
+          goals: const [
+            GoalTally(userId: 'a1', goals: 1),
+            GoalTally.professionalGuest(guestId: 'g1', goals: 1),
+          ],
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('a mixed set of scorers still has to add up', () {
+      // One short of the score. The guest's goal is part of the sum, so leaving
+      // it out is the same arithmetic failure as leaving a player's out.
+      expect(
+        () => validate(
+          teamA: 2,
+          teamB: 1,
+          participants: withGuest,
+          goals: const [
+            GoalTally(userId: 'a1', goals: 1),
+            GoalTally.professionalGuest(guestId: 'g1', goals: 1),
+          ],
+        ),
+        refusedBecause(FailureReason.goalsDoNotMatchScore),
+      );
+    });
+
+    test('a guest who was not in the lineup is refused', () {
+      expect(
+        () => validate(
+          teamA: 1,
+          teamB: 0,
+          goals: const [
+            GoalTally.professionalGuest(guestId: 'g9', goals: 1),
+          ],
+        ),
+        refusedBecause(FailureReason.scorerNotParticipant),
+      );
+    });
+
+    test('the same guest named twice is refused', () {
+      expect(
+        () => validate(
+          teamA: 3,
+          teamB: 0,
+          participants: withGuest,
+          goals: const [
+            GoalTally.professionalGuest(guestId: 'g1', goals: 1),
+            GoalTally.professionalGuest(guestId: 'g1', goals: 2),
+          ],
+        ),
+        refusedBecause(FailureReason.invalidGoals),
+      );
+    });
+
+    test('a guest identity and a user identity never collide', () {
+      // Two tallies, two participants, three goals. The duplicate rule is keyed
+      // on the participant, so a guest and a player are separate scorers even
+      // if their ids were ever to look alike.
+      expect(
+        () => validate(
+          teamA: 3,
+          teamB: 0,
+          participants: withGuest,
+          goals: const [
+            GoalTally(userId: 'a1', goals: 2),
+            GoalTally.professionalGuest(guestId: 'g1', goals: 1),
+          ],
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('a guest tally carries one identity and only one', () {
+      const guest = GoalTally.professionalGuest(guestId: 'g1', goals: 1);
+      const player = GoalTally(userId: 'a1', goals: 1);
+
+      expect(guest.userId, isNull);
+      expect(guest.professionalGuestId, 'g1');
+      expect(guest.participantId, 'g1');
+      expect(guest.isProfessionalGuest, isTrue);
+
+      expect(player.professionalGuestId, isNull);
+      expect(player.userId, 'a1');
+      expect(player.participantId, 'a1');
+      expect(player.isProfessionalGuest, isFalse);
+    });
+
+    test('a recorded result credits a guest by participant id', () {
+      const result = MatchResult(
+        matchId: 'm1',
+        teamAScore: 2,
+        teamBScore: 0,
+        mvpUserId: null,
+        goals: [
+          GoalTally(userId: 'a1', goals: 1),
+          GoalTally.professionalGuest(guestId: 'g1', goals: 1),
+        ],
+      );
+
+      expect(result.goalsBy('g1'), 1);
+      expect(result.goalsBy('a1'), 1);
+      expect(result.goalsBy('nobody'), 0);
+      expect(result.recordedGoals, result.teamAScore + result.teamBScore);
+    });
+  });
+
   group('a result needs a lineup', () {
     test('no participants is refused before anything else is read', () {
       expect(

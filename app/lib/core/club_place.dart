@@ -15,6 +15,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'app_header.dart';
 import 'design.dart';
 import 'tokens.dart';
 
@@ -126,6 +127,7 @@ class ClubHeroBar extends StatelessWidget {
     this.title,
     this.onBack,
     this.actions = const [],
+    this.showCurrentUserMenu = false,
   });
 
   /// Often absent. On a community the name is the identity row below, and
@@ -134,6 +136,25 @@ class ClubHeroBar extends StatelessWidget {
 
   final VoidCallback? onBack;
   final List<Widget> actions;
+
+  /// Whether the signed-in player's picture and menu close this bar.
+  ///
+  /// Opt-in, and false by default, because this bar serves both kinds of
+  /// screen. A **place** you navigate to from the shell — Discover, Home,
+  /// Communities — is where identity belongs: there is no back button to leave
+  /// by, so without it a player has no way to reach their profile, their
+  /// settings or sign-out from the screen the app opens on. A **task** screen
+  /// arrived at from one of those already has a back button and its own
+  /// actions, and putting a second way out beside them is noise.
+  ///
+  /// [AppHeader] makes the same guarantee unconditionally, which is why the
+  /// task screens that still use it are not affected either way. What this adds
+  /// is the same guarantee for the screens the Club redesign moved off it —
+  /// where it was restored by hand on one and forgotten on the other two.
+  ///
+  /// Appended after [actions], the same order [AppHeader] uses, so a screen's
+  /// own actions keep their position as they differ from screen to screen.
+  final bool showCurrentUserMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -164,6 +185,7 @@ class ClubHeroBar extends StatelessWidget {
                   ),
           ),
           ...actions,
+          if (showCurrentUserMenu) const CurrentUserMenu(),
         ],
       ),
     );

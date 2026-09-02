@@ -306,9 +306,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
       names: names,
       teamAScore: view.result?.teamAScore,
       teamBScore: view.result?.teamBScore,
+      // Keyed by participant, matching `mvpParticipantId` beside it and the
+      // lineup this card draws. A guest's goal belongs on the picture for the
+      // same reason it belongs in the total: it was one of the goals that made
+      // the score.
       goals: {
         for (final tally in view.result?.goals ?? const <GoalTally>[])
-          tally.userId: tally.goals,
+          tally.participantId: tally.goals,
       },
       mvpParticipantId: view.result?.mvpUserId,
       communityName: view.match.communityName,
