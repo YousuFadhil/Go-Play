@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'dart:typed_data' show Uint8List;
+import 'dart:ui' as ui show ImageByteFormat;
 
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/communities/community_models.dart';
@@ -130,27 +133,162 @@ void main() {
     Locale locale = const Locale('en'),
     _Renderer? renderer,
     _Share? share,
+    Size physicalSize = const Size(390, 1800),
+    List<TeamAssignment>? assignments,
+    List<PlayerCoreInputs>? players,
+    GlobalKey? boundaryKey,
   }) async {
-    tester.view.physicalSize = const Size(390, 1800);
+    tester.view.physicalSize = physicalSize;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(MaterialApp(
+      debugShowCheckedModeBanner: false,
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: TeamsScreen(
-        matchId: 'm1',
-        matchService: MatchService(_Matches(match)),
-        memberRepository: MemberRepository(_Members(role)),
-        teamRepository: TeamRepository(_Teams(lineup(), roster())),
-        resultRepository: ResultRepository(_Results(recorded)),
-        renderer: renderer,
-        shareService: share,
+      home: RepaintBoundary(
+        key: boundaryKey,
+        child: TeamsScreen(
+          matchId: 'm1',
+          matchService: MatchService(_Matches(match)),
+          memberRepository: MemberRepository(_Members(role)),
+          teamRepository: TeamRepository(
+            _Teams(assignments ?? lineup(), players ?? roster()),
+          ),
+          resultRepository: ResultRepository(_Results(recorded)),
+          renderer: renderer,
+          shareService: share,
+        ),
       ),
     ));
     await tester.pumpAndSettle();
   }
+
+  group('Gate 3 - REF05 and REF06 live Teams screen', () {
+    final visualLineup = <TeamAssignment>[
+      for (final team in [TeamId.a, TeamId.b]) ...[
+        assignment('${team.name}-gk', team, Position.gk),
+        for (var index = 0; index < 3; index++)
+          assignment('${team.name}-d$index', team, Position.def),
+        for (var index = 0; index < 3; index++)
+          assignment('${team.name}-m$index', team, Position.mid),
+      ],
+    ];
+    final visualPlayers = <PlayerCoreInputs>[
+      for (final item in visualLineup)
+        PlayerCoreInputs(
+          userId: item.userId!,
+          fullName: item.participantId,
+          overallRating: 5.3,
+          primaryPosition: item.assignedPosition!,
+        ),
+    ];
+    final visualMatch = Match(
+      id: 'm1',
+      communityId: 'c1',
+      createdBy: 'u9',
+      location: 'الشمال',
+      startAt: DateTime(2026, 8, 29, 20),
+      endAt: DateTime(2026, 8, 29, 22),
+      startingPlayers: 14,
+      maxRegistration: 14,
+      status: MatchStatus.completed,
+      title: 'تمرين السبت',
+      communityName: 'الشمال',
+    );
+
+    Future<void> captureScreen(
+      WidgetTester tester,
+      GlobalKey boundaryKey,
+      String filename,
+    ) async {
+      final boundary = boundaryKey.currentContext!.findRenderObject()!
+          as RenderRepaintBoundary;
+      await tester.runAsync(() async {
+        final image = await boundary.toImage(pixelRatio: 1);
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        final directory = Directory('build/visual-verification-v2');
+        await directory.create(recursive: true);
+        await File('${directory.path}/$filename')
+            .writeAsBytes(bytes!.buffer.asUint8List(), flush: true);
+      });
+    }
+
+    void expectSourceRect(WidgetTester tester, Finder finder, Rect expected) {
+      final actual = tester.getRect(finder);
+      expect(actual.left, closeTo(expected.left, .15));
+      expect(actual.top, closeTo(expected.top, .15));
+      expect(actual.width, closeTo(expected.width, .15));
+      expect(actual.height, closeTo(expected.height, .15));
+    }
+
+    testWidgets('result state matches REF05 exactly', (tester) async {
+      final boundaryKey = GlobalKey();
+      await pumpTeams(
+        tester,
+        match: visualMatch,
+        recorded: result(a: 7, b: 4),
+        locale: const Locale('ar'),
+        physicalSize: const Size(941, 1672),
+        assignments: visualLineup,
+        players: visualPlayers,
+        boundaryKey: boundaryKey,
+      );
+
+      expectSourceRect(tester, find.byKey(const ValueKey('teams-app-bar')),
+          const Rect.fromLTWH(0, 0, 941, 82));
+      expectSourceRect(tester, find.byKey(const ValueKey('match-header')),
+          const Rect.fromLTWH(0, 90, 941, 170));
+      expectSourceRect(tester, find.byKey(const ValueKey('result-strip')),
+          const Rect.fromLTWH(51, 268, 839, 87));
+      expectSourceRect(tester, find.byKey(const ValueKey('team-a-section')),
+          const Rect.fromLTWH(21, 372, 898, 607));
+      expectSourceRect(tester, find.byKey(const ValueKey('team-a-pitch')),
+          const Rect.fromLTWH(46.68, 459.74, 842.09, 502.90));
+      expectSourceRect(tester, find.byKey(const ValueKey('team-b-section')),
+          const Rect.fromLTWH(21, 993, 898, 607));
+      expectSourceRect(tester, find.byKey(const ValueKey('team-b-pitch')),
+          const Rect.fromLTWH(48.82, 1089.30, 838.88, 502.90));
+      expect(find.byKey(const ValueKey('share-footer')), findsNothing);
+      expect(find.byIcon(Icons.ios_share), findsOneWidget);
+      expect(find.byIcon(Icons.shield_outlined), findsNothing);
+      expect(tester.takeException(), isNull);
+      await captureScreen(tester, boundaryKey, 'teams_result_saved.png');
+    });
+
+    testWidgets('before-result state matches REF06 exactly', (tester) async {
+      final boundaryKey = GlobalKey();
+      await pumpTeams(
+        tester,
+        match: visualMatch,
+        locale: const Locale('ar'),
+        physicalSize: const Size(941, 1672),
+        assignments: visualLineup,
+        players: visualPlayers,
+        boundaryKey: boundaryKey,
+      );
+
+      expectSourceRect(tester, find.byKey(const ValueKey('teams-app-bar')),
+          const Rect.fromLTWH(0, 0, 941, 82));
+      expectSourceRect(tester, find.byKey(const ValueKey('match-header')),
+          const Rect.fromLTWH(0, 90, 941, 170));
+      expect(find.byKey(const ValueKey('result-strip')), findsNothing);
+      expectSourceRect(tester, find.byKey(const ValueKey('team-a-section')),
+          const Rect.fromLTWH(21, 310, 898, 607));
+      expectSourceRect(tester, find.byKey(const ValueKey('team-a-pitch')),
+          const Rect.fromLTWH(46.68, 397.74, 842.09, 502.90));
+      expectSourceRect(tester, find.byKey(const ValueKey('team-b-section')),
+          const Rect.fromLTWH(21, 945, 898, 607));
+      expectSourceRect(tester, find.byKey(const ValueKey('team-b-pitch')),
+          const Rect.fromLTWH(48.82, 1041.30, 838.88, 502.90));
+      expect(find.byKey(const ValueKey('share-footer')), findsNothing);
+      expect(_goalBadges(), findsNothing);
+      expect(find.byIcon(Icons.star_rounded), findsNothing);
+      expect(tester.takeException(), isNull);
+      await captureScreen(tester, boundaryKey, 'teams_before_result.png');
+    });
+  });
 
   group('state A — no result yet', () {
     testWidgets('both lineups are drawn as they always were', (tester) async {
@@ -161,16 +299,14 @@ void main() {
       expect(find.text('Team A (2)'), findsNothing);
       expect(find.text('Team B (2)'), findsNothing);
       expect(find.byType(PitchView), findsNWidgets(2));
-      final pitchSizes = tester
-          .widgetList<AspectRatio>(
-            find.byKey(const ValueKey('match-pitch')),
-          )
-          .map((widget) => widget.aspectRatio)
-          .toList();
+      final teamAPitch =
+          tester.getSize(find.byKey(const ValueKey('team-a-pitch')));
+      final teamBPitch =
+          tester.getSize(find.byKey(const ValueKey('team-b-pitch')));
+      expect(teamAPitch.width / teamAPitch.height,
+          closeTo(PitchView.shareBeforeAspectRatio, .001));
       expect(
-        pitchSizes,
-        [PitchView.phoneAspectRatio, PitchView.phoneAspectRatio],
-      );
+          teamBPitch.width / teamBPitch.height, closeTo(838.88 / 502.90, .001));
       for (final name in names.values) {
         expect(find.text(name), findsOneWidget);
       }
@@ -180,18 +316,24 @@ void main() {
         (tester) async {
       await pumpTeams(tester, match: upcomingMatch());
 
-      expect(tester.getSize(find.byType(AppBar)).height, 56);
-      expect(tester.getSize(find.byType(MatchStageHeader)).height, 102);
+      const scale = 390 / MatchStage.referenceWidth;
+      expect(
+          tester.getSize(find.byType(AppBar)).height, closeTo(82 * scale, .01));
+      expect(tester.getSize(find.byType(MatchStageHeader)).height,
+          closeTo(170 * scale, .01));
       for (final section in find.byType(MatchStageSection).evaluate()) {
         final size = tester.getSize(find.byWidget(section.widget));
-        expect(size.width, 366);
-        expect(size.height, 314);
+        expect(size.width, closeTo(898 * scale, .01));
+        expect(size.height, closeTo(607 * scale, .01));
       }
-      for (final pitch
-          in find.byKey(const ValueKey('match-pitch')).evaluate()) {
-        final size = tester.getSize(find.byWidget(pitch.widget));
-        expect(size, const Size(350, 260));
-      }
+      final teamAPitch =
+          tester.getSize(find.byKey(const ValueKey('team-a-pitch')));
+      final teamBPitch =
+          tester.getSize(find.byKey(const ValueKey('team-b-pitch')));
+      expect(teamAPitch.width, closeTo(842.09 * scale, .01));
+      expect(teamAPitch.height, closeTo(502.90 * scale, .01));
+      expect(teamBPitch.width, closeTo(838.88 * scale, .01));
+      expect(teamBPitch.height, closeTo(502.90 * scale, .01));
     });
 
     testWidgets('no summary, no winner, no marks', (tester) async {
@@ -254,17 +396,19 @@ void main() {
     testWidgets('a compact summary appears above the teams', (tester) async {
       await pumpTeams(tester, match: playedMatch(), recorded: result());
 
-      // 102 match header + 8 gap + 58 result strip.
-      expect(tester.getSize(find.byType(MatchStageHeader)).height, 168);
+      expect(tester.getSize(find.byType(MatchStageHeader)).height,
+          closeTo(265 * 390 / MatchStage.referenceWidth, .01));
       expect(find.textContaining('Al Amerat FC'), findsWidgets);
       expect(find.text('3'), findsWidgets);
       expect(find.text('1'), findsWidgets);
     });
 
-    testWidgets('the winning side is named, once', (tester) async {
+    testWidgets('the winning side is marked once in the result strip',
+        (tester) async {
       await pumpTeams(tester, match: playedMatch(), recorded: result());
 
-      expect(find.text('Winner'), findsOneWidget);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget);
+      expect(find.text('Winner'), findsNothing);
     });
 
     testWidgets('and so is the other one when it wins', (tester) async {
@@ -274,7 +418,8 @@ void main() {
         recorded: result(a: 0, b: 2, goals: const []),
       );
 
-      expect(find.text('Winner'), findsOneWidget);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget);
+      expect(find.text('Winner'), findsNothing);
     });
 
     testWidgets('a draw names nobody', (tester) async {
@@ -285,6 +430,7 @@ void main() {
       );
 
       expect(find.text('Winner'), findsNothing);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
     });
 
     testWidgets('a scorer carries a ball and their count', (tester) async {
@@ -338,10 +484,12 @@ void main() {
 
       expect(find.byIcon(Icons.star_rounded), findsOneWidget);
       expect(_goalBadges(), findsOneWidget);
-      expect(
-        tester.getCenter(find.byIcon(Icons.star_rounded)).dy,
-        closeTo(tester.getCenter(find.text(names['u3']!)).dy, 1),
-      );
+      final goal = tester.getRect(find.byKey(PitchView.goalKey('u3')));
+      final mvp = tester.getRect(find.byKey(PitchView.mvpKey('u3')));
+      final name = tester.getRect(find.byKey(PitchView.nameKey('u3')));
+      expect(goal.bottom, lessThan(name.top));
+      expect(mvp.bottom, lessThan(name.top));
+      expect(goal.overlaps(mvp), isFalse);
       expect(tester.takeException(), isNull);
     });
 

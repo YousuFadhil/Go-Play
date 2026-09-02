@@ -118,10 +118,9 @@ class MatchResultCard extends StatelessWidget {
 
   final MatchResultCardData data;
 
-  static const horizontalPadding = 40.0;
-  static const sharePitchWidth = 950.0;
-  static const shareBeforePitchHeight = 610.0;
-  static const shareResultPitchHeight = 580.0;
+  static const sharePitchWidth = 842.09;
+  static const shareBeforePitchHeight = 502.90;
+  static const shareResultPitchHeight = 502.90;
 
   @override
   Widget build(BuildContext context) {
@@ -134,75 +133,94 @@ class MatchResultCard extends StatelessWidget {
         ? PitchPresentation.shareResult
         : PitchPresentation.shareBeforeResult;
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF063126), MatchStage.ground],
+    return LayoutBuilder(builder: (context, constraints) {
+      final sx = constraints.maxWidth / MatchStage.referenceWidth;
+      final sy = constraints.maxHeight / MatchStage.referenceHeight;
+      final firstTop = data.hasResult ? 282.0 : 220.0;
+      final secondTop = data.hasResult ? 903.0 : 855.0;
+
+      return DecoratedBox(
+        key: const ValueKey('match-card-background'),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF063126), MatchStage.ground],
+          ),
         ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -130,
-            right: -125,
-            child: Icon(
-              Icons.sports_soccer,
-              size: 430,
-              color: Colors.white.withValues(alpha: 0.06),
+        child: Stack(
+          children: [
+            Positioned(
+              key: const ValueKey('share-header-ball-left'),
+              top: -70 * sy,
+              left: -115 * sx,
+              child: Icon(
+                Icons.sports_soccer,
+                size: 255 * sx,
+                color: Colors.white.withValues(alpha: .035),
+              ),
             ),
-          ),
-          Positioned(
-            top: -150,
-            left: -150,
-            child: Icon(
-              Icons.sports_soccer,
-              size: 410,
-              color: Colors.white.withValues(alpha: 0.05),
+            Positioned(
+              key: const ValueKey('share-header-ball-right'),
+              top: -95 * sy,
+              right: -105 * sx,
+              child: Icon(
+                Icons.sports_soccer,
+                size: 405 * sx,
+                color: Colors.white.withValues(alpha: .045),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(height: data.hasResult ? 46 : 54),
-                MatchStageHeader(
-                  community: data.communityName,
-                  title: data.matchTitle,
-                  playedAt: data.playedAt,
-                  teamAScore: data.teamAScore,
-                  teamBScore: data.teamBScore,
-                  presentation: stagePresentation,
-                ),
-                SizedBox(height: data.hasResult ? 20 : 26),
-                _side(
-                  l10n.teamAName,
-                  TeamId.a,
-                  data.of(TeamId.a),
-                  stagePresentation,
-                  pitchPresentation,
-                ),
-                SizedBox(height: data.hasResult ? 22 : 26),
-                _side(
-                  l10n.teamBName,
-                  TeamId.b,
-                  data.of(TeamId.b),
-                  stagePresentation,
-                  pitchPresentation,
-                ),
-                const Spacer(),
-                SizedBox(
-                  height: data.hasResult ? 100 : 120,
-                  child: const _Signature(),
-                ),
-              ],
+            Positioned(
+              left: 0,
+              top: 0,
+              width: constraints.maxWidth,
+              height: (data.hasResult ? 265 : 170) * sy,
+              child: MatchStageHeader(
+                community: data.communityName,
+                title: data.matchTitle,
+                playedAt: data.playedAt,
+                teamAScore: data.teamAScore,
+                teamBScore: data.teamBScore,
+                presentation: stagePresentation,
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+            Positioned(
+              left: 21 * sx,
+              top: firstTop * sy,
+              width: 898 * sx,
+              height: 607 * sy,
+              child: _side(
+                l10n.teamAName,
+                TeamId.a,
+                data.of(TeamId.a),
+                stagePresentation,
+                pitchPresentation,
+              ),
+            ),
+            Positioned(
+              left: 21 * sx,
+              top: secondTop * sy,
+              width: 898 * sx,
+              height: 607 * sy,
+              child: _side(
+                l10n.teamBName,
+                TeamId.b,
+                data.of(TeamId.b),
+                stagePresentation,
+                pitchPresentation,
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: 1538 * sy,
+              width: constraints.maxWidth,
+              height: 134 * sy,
+              child: const _Signature(),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _side(
@@ -215,6 +233,7 @@ class MatchResultCard extends StatelessWidget {
       MatchStageSection(
         title: title,
         won: data.winner == team,
+        team: team,
         presentation: stagePresentation,
         child: PitchView(
           assignments: assignments,
@@ -228,59 +247,145 @@ class MatchResultCard extends StatelessWidget {
           goalsOf: data.hasResult ? data.goalsOf : null,
           isMvpOf: data.hasResult ? data.isMvp : null,
           presentation: pitchPresentation,
+          team: team,
+          pitchKey: ValueKey(
+            team == TeamId.a ? 'team-a-pitch' : 'team-b-pitch',
+          ),
         ),
       );
 }
 
-/// The centered, secondary-weight share-card signature.
+/// Exact 941×134 source footer, scaled only by its containing region.
 class _Signature extends StatelessWidget {
   const _Signature();
 
   @override
-  Widget build(BuildContext context) {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: Color(0x3845DF7C),
-        ),
-        Spacer(),
-        Row(
-          textDirection: TextDirection.ltr,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.sports_soccer,
-              size: 42,
-              color: MatchStage.accent,
-            ),
-            SizedBox(width: 12),
-            Text.rich(
-              TextSpan(
-                text: 'GO ',
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final sx = constraints.maxWidth / MatchStage.referenceWidth;
+          final sy = constraints.maxHeight / 134;
+          return SizedBox.expand(
+            key: const ValueKey('share-footer'),
+            child: CustomPaint(
+              painter: const _FooterPainter(),
+              child: Stack(
                 children: [
-                  TextSpan(
-                    text: 'PLAY',
-                    style: TextStyle(color: MatchStage.ink),
+                  Positioned(
+                    key: const ValueKey('share-footer-stripes-left'),
+                    left: 54 * sx,
+                    top: 35 * sy,
+                    width: 237 * sx,
+                    height: 48 * sy,
+                    child: const CustomPaint(
+                      painter: _StripeGroupPainter(),
+                    ),
+                  ),
+                  Positioned(
+                    key: const ValueKey('share-footer-stripes-right'),
+                    left: 650 * sx,
+                    top: 35 * sy,
+                    width: 237 * sx,
+                    height: 48 * sy,
+                    child: const CustomPaint(
+                      painter: _StripeGroupPainter(mirrored: true),
+                    ),
+                  ),
+                  Positioned(
+                    key: const ValueKey('share-footer-logo'),
+                    left: 319 * sx,
+                    top: 32 * sy,
+                    width: 295 * sx,
+                    height: 60 * sy,
+                    child: const FittedBox(
+                      fit: BoxFit.contain,
+                      child: Row(
+                        textDirection: TextDirection.ltr,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'G',
+                            style: TextStyle(
+                              color: MatchStage.accent,
+                              fontSize: 66,
+                              fontWeight: FontWeight.w900,
+                              fontStyle: FontStyle.italic,
+                              height: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 2),
+                            child: Icon(
+                              Icons.sports_soccer,
+                              size: 56,
+                              color: MatchStage.ink,
+                            ),
+                          ),
+                          Text(
+                            ' PLAY',
+                            style: TextStyle(
+                              color: MatchStage.ink,
+                              fontSize: 56,
+                              fontWeight: FontWeight.w900,
+                              fontStyle: FontStyle.italic,
+                              letterSpacing: 1,
+                              height: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
-              textDirection: TextDirection.ltr,
-              style: TextStyle(
-                color: MatchStage.accent,
-                fontSize: 46,
-                fontWeight: FontWeight.w800,
-                fontStyle: FontStyle.italic,
-                letterSpacing: -1,
-                height: 1,
-              ),
             ),
-          ],
-        ),
-        Spacer(),
-      ],
-    );
+          );
+        },
+      );
+}
+
+class _StripeGroupPainter extends CustomPainter {
+  const _StripeGroupPainter({this.mirrored = false});
+
+  final bool mirrored;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final direction = mirrored ? -1.0 : 1.0;
+    final origin = mirrored ? size.width : 0.0;
+    for (var index = 0; index < 9; index++) {
+      final progress = index / 8;
+      final x = origin + direction * size.width * (.04 + progress * .88);
+      final paint = Paint()
+        ..color = MatchStage.accent.withValues(alpha: .62 - progress * .38)
+        ..strokeWidth = size.height * .16
+        ..strokeCap = StrokeCap.square;
+      canvas.drawLine(
+        Offset(x, size.height * .13),
+        Offset(x + direction * size.width * .085, size.height * .87),
+        paint,
+      );
+    }
   }
+
+  @override
+  bool shouldRepaint(covariant _StripeGroupPainter oldDelegate) =>
+      oldDelegate.mirrored != mirrored;
+}
+
+class _FooterPainter extends CustomPainter {
+  const _FooterPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..color = MatchStage.accent.withValues(alpha: .28)
+      ..strokeWidth = 1;
+    canvas.drawLine(Offset(0, size.height * .08),
+        Offset(size.width, size.height * .08), line);
+    canvas.drawLine(Offset(0, size.height * .92),
+        Offset(size.width, size.height * .92), line);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FooterPainter oldDelegate) => false;
 }

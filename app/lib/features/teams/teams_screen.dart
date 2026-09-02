@@ -354,6 +354,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final screenScale =
+        MediaQuery.sizeOf(context).width / MatchStage.referenceWidth;
 
     // **This screen is dark, and it is the only one that is.** A lineup is a
     // pitch, and a pitch on the app's pale page reads as a picture pasted onto a
@@ -363,7 +365,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
     return Scaffold(
       backgroundColor: MatchStage.ground,
       appBar: AppBar(
-        toolbarHeight: 56,
+        key: const ValueKey('teams-app-bar'),
+        toolbarHeight: 82 * screenScale,
         backgroundColor: MatchStage.ground,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -372,14 +375,14 @@ class _TeamsScreenState extends State<TeamsScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        leadingWidth: 56,
+        leadingWidth: 82 * screenScale,
         titleSpacing: 0,
         title: Text(
           l10n.teamsTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 20,
+          style: TextStyle(
+            fontSize: 35 * screenScale,
             height: 1.25,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
@@ -388,7 +391,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         ),
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const BackButtonIcon(),
+          icon: Icon(Icons.arrow_back, size: 34 * screenScale),
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
         ),
         // The one share control in the product. There is no second one at the
@@ -397,7 +400,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 4),
             child: IconButton(
-              icon: const Icon(Icons.ios_share, size: 24),
+              icon: Icon(Icons.ios_share, size: 34 * screenScale),
               tooltip: l10n.shareTeamLineupAction,
               onPressed: _canShare && !_busy ? _shareLineup : null,
             ),
@@ -431,6 +434,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
               child: Stack(
                 children: [
                   Positioned(
+                    key: const ValueKey('teams-header-ball-right'),
                     top: -72,
                     right: -64,
                     child: Icon(
@@ -440,6 +444,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                     ),
                   ),
                   Positioned(
+                    key: const ValueKey('teams-header-ball-left'),
                     top: -82,
                     left: -84,
                     child: Icon(
@@ -453,7 +458,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                     padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 20),
                     children: view.lineup.isEmpty
                         ? _emptyState(l10n, view)
-                        : _generatedTeams(l10n, view),
+                        : _generatedTeams(l10n, view, screenScale),
                   ),
                 ],
               ),
@@ -487,26 +492,31 @@ class _TeamsScreenState extends State<TeamsScreen> {
         if (view.canGenerate) ..._generateAction(l10n, view),
       ];
 
-  List<Widget> _generatedTeams(AppLocalizations l10n, _TeamsView view) => [
+  List<Widget> _generatedTeams(
+    AppLocalizations l10n,
+    _TeamsView view,
+    double screenScale,
+  ) =>
+      [
         // The one header, in both states. Before a result it is the community,
         // the match and the date; after one it grows the score strip, and
         // nothing else about the screen changes.
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: MatchStageHeader(
-            community: view.match.communityName,
-            title: view.match.displayName,
-            playedAt: view.match.startAt,
-            teamAScore: view.result?.teamAScore,
-            teamBScore: view.result?.teamBScore,
-          ),
+        SizedBox(height: 8 * screenScale),
+        MatchStageHeader(
+          community: view.match.communityName,
+          title: view.match.displayName,
+          playedAt: view.match.startAt,
+          teamAScore: view.result?.teamAScore,
+          teamBScore: view.result?.teamBScore,
         ),
+        SizedBox(height: (view.hasResult ? 17 : 50) * screenScale),
         ..._teamSection(
           l10n,
           view,
           l10n.teamAName,
           TeamId.a,
-          bottomGap: 14,
+          bottomGap: view.hasResult ? 14 : 28,
+          screenScale: screenScale,
         ),
         ..._teamSection(
           l10n,
@@ -514,6 +524,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
           l10n.teamBName,
           TeamId.b,
           bottomGap: 20,
+          screenScale: screenScale,
         ),
         if (view.canEditPlayed) ...[
           const Divider(height: 32),
@@ -610,6 +621,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     String title,
     TeamId team, {
     required double bottomGap,
+    required double screenScale,
   }) {
     final assignments = [
       for (final assignment in view.lineup)
@@ -623,10 +635,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // a detached pitch.
     return [
       Padding(
-        padding: EdgeInsets.fromLTRB(12, 0, 12, bottomGap),
+        padding: EdgeInsets.fromLTRB(
+          21 * screenScale,
+          0,
+          22 * screenScale,
+          bottomGap * screenScale,
+        ),
         child: MatchStageSection(
           title: title,
           won: won,
+          team: team,
           child: PitchView(
             assignments: assignments,
             players: view.players,
@@ -637,6 +655,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
             // did on the player.
             goalsOf: view.hasResult ? view.goalsOf : null,
             isMvpOf: view.hasResult ? view.isMvpOf : null,
+            team: team,
+            pitchKey: ValueKey(
+              team == TeamId.a ? 'team-a-pitch' : 'team-b-pitch',
+            ),
             // Who a card belongs to decides what tapping it does, and the
             // management action wins where there is one.
             //

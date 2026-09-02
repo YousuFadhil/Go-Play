@@ -971,7 +971,7 @@ class AppLocalizationsAr extends AppLocalizations {
       'تُحذف المباراة وتسجيلاتها، ويُبلَّغ المسجّلون. لا يمكن التراجع.';
 
   @override
-  String get teamsTitle => 'الفريقان';
+  String get teamsTitle => 'الفرق';
 
   @override
   String get teamsEmpty => 'لم تُنشأ فرق هذه المباراة بعد.';

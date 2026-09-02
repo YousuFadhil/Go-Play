@@ -18,10 +18,11 @@ void main() {
     Position? secondary,
     double rating = 6,
     String? avatarUrl,
+    String? name,
   }) =>
       PlayerCoreInputs(
         userId: id,
-        fullName: 'Player $id',
+        fullName: name ?? 'Player $id',
         overallRating: rating,
         primaryPosition: primary,
         secondaryPosition: secondary,
@@ -44,6 +45,8 @@ void main() {
     required List<PlayerCoreInputs> squad,
     bool? hasNaturalGoalkeeper,
     Locale locale = const Locale('en'),
+    int Function(String participantId)? goalsOf,
+    bool Function(String participantId)? isMvpOf,
   }) async {
     tester.view.physicalSize = const Size(1000, 2000);
     tester.view.devicePixelRatio = 1;
@@ -65,6 +68,8 @@ void main() {
               hasNaturalGoalkeeper: hasNaturalGoalkeeper ??
                   squad.any((p) => p.isNaturalGoalkeeper),
               nameOf: (id) => byId[id]?.fullName ?? '—',
+              goalsOf: goalsOf,
+              isMvpOf: isMvpOf,
             ),
           ),
         ),
@@ -560,6 +565,216 @@ void main() {
     });
   });
 
+  group('the approved projected field plane', () {
+    const size = Size(
+      PitchView.shareBeforePitchWidth,
+      PitchView.shareBeforePitchHeight,
+    );
+
+    test('penalty areas project to quadrilaterals, not screen rectangles', () {
+      final points = PitchView.projectFieldRect(
+        size,
+        const Rect.fromLTWH(.32, .018, .36, .152),
+      );
+
+      final topWidth = (points[1] - points[0]).distance;
+      final bottomWidth = (points[2] - points[3]).distance;
+      expect(bottomWidth, greaterThan(topWidth));
+      expect(points[0].dx, isNot(closeTo(points[3].dx, .01)));
+      expect(points[1].dx, isNot(closeTo(points[2].dx, .01)));
+    });
+
+    test('center-circle samples are individually projected from field space',
+        () {
+      const segments = 16;
+      final samples = PitchView.projectCenterCircle(
+        size,
+        segments: segments,
+      );
+      const fieldSample = Offset(.5, .65);
+      final projected = PitchView.projectFieldPoint(size, fieldSample);
+
+      expect(samples, hasLength(segments + 1));
+      expect(samples[4].dx, closeTo(projected.dx, .001));
+      expect(samples[4].dy, closeTo(projected.dy, .001));
+      expect(samples.first, samples.last);
+    });
+  });
+
+  group('the approved seven-player presentation', () {
+    final fixtureNames = <String>[
+      'ماجد أبو حافظ',
+      'قيس البلوشي',
+      'علي الرواحي',
+      'عبدالله الغنيوي',
+      'سالم فاضل',
+      'خالد البلوشي',
+      'بو عدول',
+    ];
+
+    List<PlayerCoreInputs> sevenSquad() => [
+          player('p0', Position.gk, name: fixtureNames[0]),
+          for (var index = 1; index <= 3; index++)
+            player('p$index', Position.def, name: fixtureNames[index]),
+          for (var index = 4; index <= 6; index++)
+            player('p$index', Position.mid, name: fixtureNames[index]),
+        ];
+
+    List<TeamAssignment> sevenAssignments() => [
+          at('p0', Position.gk),
+          for (var index = 1; index <= 3; index++) at('p$index', Position.def),
+          for (var index = 4; index <= 6; index++) at('p$index', Position.mid),
+        ];
+
+    testWidgets('uses every exact approved source diameter', (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: sevenAssignments(),
+        squad: sevenSquad(),
+        locale: const Locale('ar'),
+      );
+
+      final actual = [
+        for (var index = 0; index < 7; index++)
+          tester.getSize(find.byKey(PitchView.avatarKey('p$index'))).width,
+      ]..sort();
+      final expected = <double>[83.46, 79.18, 81.32, 74.90, 77.04, 74.90, 74.90]
+          .map((diameter) => diameter * PitchView.phonePitchWidth / 842.09)
+          .toList()
+        ..sort();
+
+      for (var index = 0; index < expected.length; index++) {
+        expect(actual[index], closeTo(expected[index], .01));
+      }
+    });
+
+    testWidgets('keeps only the name below and places metadata around avatar',
+        (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: sevenAssignments(),
+        squad: sevenSquad(),
+        locale: const Locale('ar'),
+        goalsOf: (id) => id == 'p2' ? 2 : 0,
+        isMvpOf: (id) => id == 'p2',
+      );
+
+      final avatar = tester.getRect(find.byKey(PitchView.avatarKey('p2')));
+      final name = tester.getRect(find.byKey(PitchView.nameKey('p2')));
+      final rating = tester.getRect(find.byKey(PitchView.ratingKey('p2')));
+      final goal = tester.getRect(find.byKey(PitchView.goalKey('p2')));
+      final mvp = tester.getRect(find.byKey(PitchView.mvpKey('p2')));
+
+      expect(name.top, greaterThanOrEqualTo(avatar.bottom));
+      expect(rating.bottom, lessThan(name.top));
+      expect(rating.center.dx, lessThan(avatar.center.dx));
+      expect(goal.center.dx, greaterThan(avatar.center.dx));
+      expect(mvp.center.dx, greaterThan(avatar.center.dx));
+      expect(goal.overlaps(mvp), isFalse);
+      expect(
+        find.byWidgetPredicate((widget) {
+          final key = widget.key;
+          return key is ValueKey<String> &&
+              key.value.startsWith('player-number-');
+        }),
+        findsNothing,
+      );
+    });
+
+    testWidgets('one goal is icon-only and multiple goals include the count',
+        (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: sevenAssignments(),
+        squad: sevenSquad(),
+        goalsOf: (id) => id == 'p1'
+            ? 1
+            : id == 'p2'
+                ? 2
+                : 0,
+      );
+
+      final one = find.byKey(PitchView.goalKey('p1'));
+      final multiple = find.byKey(PitchView.goalKey('p2'));
+      expect(
+          find.descendant(of: one, matching: find.byIcon(Icons.sports_soccer)),
+          findsOneWidget);
+      expect(find.descendant(of: one, matching: find.text('1')), findsNothing);
+      expect(
+        find.descendant(of: multiple, matching: find.text('2')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('ordinary Arabic fixture names keep the non-dense envelope',
+        (tester) async {
+      await pumpPitch(
+        tester,
+        assignments: sevenAssignments(),
+        squad: sevenSquad(),
+        locale: const Locale('ar'),
+        goalsOf: (id) => id == 'p2' ? 2 : 0,
+        isMvpOf: (id) => id == 'p2',
+      );
+
+      final widths = <double>[];
+      for (var index = 0; index < fixtureNames.length; index++) {
+        final finder = find.byKey(PitchView.nameKey('p$index'));
+        final text = tester.widget<Text>(finder);
+        final size = tester.getSize(finder);
+        widths.add(size.width);
+        final painter = TextPainter(
+          text: TextSpan(text: fixtureNames[index], style: text.style),
+          textDirection: TextDirection.rtl,
+          maxLines: 1,
+          ellipsis: '…',
+        )..layout(maxWidth: size.width);
+        expect(
+          painter.didExceedMaxLines,
+          isFalse,
+          reason: fixtureNames[index],
+        );
+      }
+      expect(widths.toSet(), hasLength(1),
+          reason: 'Goal and MVP lanes never reduce the name envelope.');
+    });
+
+    testWidgets('dense layouts still ellipsize genuinely long names',
+        (tester) async {
+      const longName = 'عبدالرحمن بن سليمان الحارثي الطويل جداً';
+      final squad = [
+        player('gk', Position.gk, name: longName),
+        for (var index = 0; index < 4; index++)
+          player('d$index', Position.def, name: longName),
+        for (var index = 0; index < 3; index++)
+          player('m$index', Position.mid, name: longName),
+        for (var index = 0; index < 3; index++)
+          player('f$index', Position.fwd, name: longName),
+      ];
+      await pumpPitch(
+        tester,
+        assignments: [
+          at('gk', Position.gk),
+          for (var index = 0; index < 4; index++) at('d$index', Position.def),
+          for (var index = 0; index < 3; index++) at('m$index', Position.mid),
+          for (var index = 0; index < 3; index++) at('f$index', Position.fwd),
+        ],
+        squad: squad,
+        locale: const Locale('ar'),
+      );
+
+      final finder = find.byKey(PitchView.nameKey('gk'));
+      final text = tester.widget<Text>(finder);
+      final painter = TextPainter(
+        text: TextSpan(text: longName, style: text.style),
+        textDirection: TextDirection.rtl,
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: tester.getSize(finder).width);
+      expect(painter.didExceedMaxLines, isTrue);
+    });
+  });
+
   group('the sizes the engine supports', () {
     testWidgets('the phone pitch and player unit use the approved geometry',
         (tester) async {
@@ -578,21 +793,26 @@ void main() {
         closeTo(PitchView.phoneAspectRatio, 0.001),
       );
 
-      final avatar =
-          tester.getSize(find.byKey(const ValueKey('player-avatar')));
+      final avatar = tester.getSize(find.byKey(PitchView.avatarKey('m1')));
       expect(avatar.width, PitchView.phoneAvatarDiameter);
       expect(avatar.height, avatar.width);
 
       final name = tester.widget<Text>(find.text('Player m1'));
       final rating = tester.widget<Text>(find.text('6.0'));
-      expect(name.style!.fontSize, 13);
+      expect(
+        name.style!.fontSize,
+        closeTo(15 * PitchView.phonePitchWidth / 842.09, .01),
+      );
       expect(name.maxLines, 1);
       expect(name.overflow, TextOverflow.ellipsis);
-      expect(rating.style!.fontSize, 11);
+      expect(
+        rating.style!.fontSize,
+        closeTo(14 * PitchView.phonePitchWidth / 842.09, .01),
+      );
       expect(rating.style!.color, MatchStage.ink);
       expect(
-        tester.getSize(find.byKey(const ValueKey('player-rating'))).height,
-        18,
+        tester.getSize(find.byKey(PitchView.ratingKey('m1'))).height,
+        closeTo(22 * PitchView.phonePitchWidth / 842.09, .01),
       );
     });
 

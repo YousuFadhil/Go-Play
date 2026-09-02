@@ -1,37 +1,46 @@
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
-// `show`n, not imported whole: intl exports a `TextDirection` of its own and it
-// would shadow Flutter's everywhere in this file.
 import 'package:intl/intl.dart' show DateFormat;
 
 import '../../core/l10n.dart';
 
-/// The approved Teams and share-card presentation modes.
-///
-/// Phone and share geometry are intentionally independent. In particular, a
-/// share card is not a phone layout multiplied to 1080 pixels.
+/// The three approved surfaces share one 941-wide source coordinate system.
 enum MatchStagePresentation { phone, shareBeforeResult, shareResult }
 
-/// The final semantic palette for the Teams feature.
+/// The approved visual tokens and source-raster coordinate system.
 abstract final class MatchStage {
+  static const referenceWidth = 941.0;
+  static const referenceHeight = 1672.0;
+  static const canonicalWidth = 1080.0;
+  static const canonicalHeight = 1920.0;
+
   static const ground = Color(0xFF05281D);
   static const section = Color(0xFF0B3A29);
   static const pitchDark = Color(0xFF237A3A);
   static const pitchLight = Color(0xFF3B9B43);
-  static const pitchLine = Color(0x80FFFFFF);
+  static const pitchLine = Color(0xB3F5F8F6);
   static const accent = Color(0xFF45DF7C);
   static const ink = Color(0xFFF5F8F6);
   static const inkMuted = Color(0xFFAEC0B5);
-  static const rating = Color(0xB3082D22);
+  static const rating = Color(0xFF082D22);
   static const star = Color(0xFFF5C451);
   static const goal = Color(0xFFFF6B57);
-  static const wonFill = Color(0x2645DF7C);
-  static const restFill = Color(0x59082D22);
+
+  static const canonicalXScale = canonicalWidth / referenceWidth;
+  static const canonicalYScale = canonicalHeight / referenceHeight;
+
+  static double xScale(double width) => width / referenceWidth;
+
+  static double yScale(
+    MatchStagePresentation presentation,
+    double width,
+  ) =>
+      presentation == MatchStagePresentation.phone
+          ? xScale(width)
+          : canonicalYScale;
 }
 
-/// Community, match and date, followed by a result strip only when a result
-/// exists. The match-information block keeps its approved fixed height rather
-/// than growing to consume spare space.
+/// The exact two-line match header and optional approved result strip.
 class MatchStageHeader extends StatelessWidget {
   const MatchStageHeader({
     super.key,
@@ -57,46 +66,57 @@ class MatchStageHeader extends StatelessWidget {
     return teamAScore! > teamBScore! ? TeamId.a : TeamId.b;
   }
 
-  bool get _isPhone => presentation == MatchStagePresentation.phone;
-
-  double get _matchInfoHeight => switch (presentation) {
-        MatchStagePresentation.phone => 102,
-        MatchStagePresentation.shareBeforeResult => 170,
-        MatchStagePresentation.shareResult => 150,
-      };
-
   @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final sx = MatchStage.xScale(width);
+          final sy = MatchStage.yScale(presentation, width);
+          final totalSourceHeight = hasResult ? 265.0 : 170.0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: _matchInfoHeight,
-          child: _MatchInfo(
-            community: community,
-            title: title,
-            playedAt: playedAt,
-            presentation: presentation,
-          ),
-        ),
-        if (hasResult) ...[
-          if (_isPhone) const SizedBox(height: 8),
-          _ScoreStrip(
-            teamA: l10n.teamAName,
-            teamB: l10n.teamBName,
-            scoreA: teamAScore!,
-            scoreB: teamBScore!,
-            winner: winner,
-            winnerLabel: l10n.matchResultWinnerLabel,
-            presentation: presentation,
-          ),
-        ],
-      ],
-    );
-  }
+          return SizedBox(
+            width: width,
+            height: totalSourceHeight * sy,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  width: width,
+                  height: 170 * sy,
+                  child: SizedBox(
+                    key: const ValueKey('match-header'),
+                    child: _MatchInfo(
+                      community: community,
+                      title: title,
+                      playedAt: playedAt,
+                      sx: sx,
+                      sy: sy,
+                    ),
+                  ),
+                ),
+                if (hasResult)
+                  Positioned(
+                    left: 51 * sx,
+                    top: 178 * sy,
+                    width: 839 * sx,
+                    height: 87 * sy,
+                    child: _ScoreStrip(
+                      teamA: context.l10n.teamAName,
+                      teamB: context.l10n.teamBName,
+                      scoreA: teamAScore!,
+                      scoreB: teamBScore!,
+                      winner: winner,
+                      sx: sx,
+                      sy: sy,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
 }
 
 class _MatchInfo extends StatelessWidget {
@@ -104,90 +124,82 @@ class _MatchInfo extends StatelessWidget {
     required this.community,
     required this.title,
     required this.playedAt,
-    required this.presentation,
+    required this.sx,
+    required this.sy,
   });
 
   final String? community;
   final String? title;
   final DateTime? playedAt;
-  final MatchStagePresentation presentation;
+  final double sx;
+  final double sy;
 
   @override
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context).toString();
-    final phone = presentation == MatchStagePresentation.phone;
-    final resultShare = presentation == MatchStagePresentation.shareResult;
+    final date = playedAt == null
+        ? null
+        : DateFormat.yMMMMEEEEd(locale).format(playedAt!);
 
-    final communitySize = phone ? 13.0 : 28.0;
-    final titleSize = phone
-        ? 23.0
-        : resultShare
-            ? 54.0
-            : 58.0;
-    final dateSize = phone ? 13.0 : 27.0;
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (community != null)
-            Text(
-              community!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: MatchStage.inkMuted,
-                fontSize: communitySize,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
-              ),
-            ),
-          if (title != null) ...[
-            SizedBox(height: phone ? 5 : 8),
-            Text(
+    return Stack(
+      children: [
+        if (title != null)
+          Positioned(
+            left: 24 * sx,
+            right: 24 * sx,
+            top: 46 * sy,
+            child: Text(
               title!,
+              key: const ValueKey('match-title'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: MatchStage.ink,
-                fontSize: titleSize,
+                fontSize: 49 * sx,
                 fontWeight: FontWeight.w700,
-                height: 1.05,
+                height: 1,
               ),
             ),
-          ],
-          if (playedAt != null) ...[
-            SizedBox(height: phone ? 5 : 10),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.calendar_today_outlined,
-                  size: phone ? 14 : 28,
-                  color: MatchStage.inkMuted,
-                ),
-                SizedBox(width: phone ? 6 : 12),
-                Flexible(
-                  child: Text(
-                    DateFormat.yMMMMEEEEd(locale).format(playedAt!),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: MatchStage.inkMuted,
-                      fontSize: dateSize,
-                      fontWeight: FontWeight.w500,
-                      height: 1.2,
+          ),
+        if (community != null || date != null)
+          Positioned(
+            left: 24 * sx,
+            right: 24 * sx,
+            top: 119 * sy,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  if (community != null)
+                    TextSpan(
+                      text: community,
+                      style: const TextStyle(color: MatchStage.accent),
                     ),
-                  ),
-                ),
-              ],
+                  if (community != null && date != null)
+                    const TextSpan(
+                      text: '  ·  ',
+                      style: TextStyle(color: MatchStage.inkMuted),
+                    ),
+                  if (date != null)
+                    TextSpan(
+                      text: date,
+                      style: const TextStyle(color: MatchStage.inkMuted),
+                    ),
+                ],
+              ),
+              key: const ValueKey('match-context-line'),
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 22 * sx,
+                fontWeight: FontWeight.w500,
+                height: 1,
+              ),
             ),
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
@@ -199,8 +211,8 @@ class _ScoreStrip extends StatelessWidget {
     required this.scoreA,
     required this.scoreB,
     required this.winner,
-    required this.winnerLabel,
-    required this.presentation,
+    required this.sx,
+    required this.sy,
   });
 
   final String teamA;
@@ -208,120 +220,106 @@ class _ScoreStrip extends StatelessWidget {
   final int scoreA;
   final int scoreB;
   final TeamId? winner;
-  final String winnerLabel;
-  final MatchStagePresentation presentation;
+  final double sx;
+  final double sy;
 
   @override
-  Widget build(BuildContext context) {
-    final phone = presentation == MatchStagePresentation.phone;
-
-    return SizedBox(
-      height: phone ? 58 : 104,
-      child: DecoratedBox(
+  Widget build(BuildContext context) => DecoratedBox(
+        key: const ValueKey('result-strip'),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(phone ? 14 : 22),
+          gradient: const LinearGradient(
+            colors: [Color(0xB30B3A29), Color(0xA605281D)],
+          ),
+          borderRadius: BorderRadius.circular(16 * sx),
           border: Border.all(
-            color: MatchStage.accent.withValues(alpha: 0.32),
-            width: phone ? 1 : 2,
+            color: MatchStage.accent.withValues(alpha: 0.55),
+            width: 1.2 * sx,
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(phone ? 13 : 20),
+          borderRadius: BorderRadius.circular(15 * sx),
           child: Row(
             textDirection: TextDirection.ltr,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
                 child: _StripSide(
                   label: teamA,
                   won: winner == TeamId.a,
-                  winnerLabel: winnerLabel,
-                  presentation: presentation,
+                  sx: sx,
                 ),
               ),
-              _StripScore(
-                scoreA: scoreA,
-                scoreB: scoreB,
-                winner: winner,
-                presentation: presentation,
+              SizedBox(
+                width: 300 * sx,
+                child: _StripScore(
+                  scoreA: scoreA,
+                  scoreB: scoreB,
+                  winner: winner,
+                  sx: sx,
+                  sy: sy,
+                ),
               ),
               Expanded(
                 child: _StripSide(
                   label: teamB,
                   won: winner == TeamId.b,
-                  winnerLabel: winnerLabel,
-                  presentation: presentation,
+                  sx: sx,
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _StripSide extends StatelessWidget {
   const _StripSide({
     required this.label,
     required this.won,
-    required this.winnerLabel,
-    required this.presentation,
+    required this.sx,
   });
 
   final String label;
   final bool won;
-  final String winnerLabel;
-  final MatchStagePresentation presentation;
+  final double sx;
 
   @override
-  Widget build(BuildContext context) {
-    final phone = presentation == MatchStagePresentation.phone;
-
-    return ColoredBox(
-      color: won ? MatchStage.wonFill : MatchStage.restFill,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: phone ? 7 : 18),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (won) ...[
-              _WinnerChip(
-                label: winnerLabel,
-                presentation: presentation,
-              ),
-              SizedBox(height: phone ? 2 : 5),
-            ],
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+  Widget build(BuildContext context) => ColoredBox(
+        color: won
+            ? MatchStage.accent.withValues(alpha: 0.07)
+            : Colors.transparent,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 22 * sx),
+          child: Row(
+            textDirection: TextDirection.ltr,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (won) ...[
                 Icon(
-                  Icons.shield_outlined,
-                  size: phone ? 17 : 32,
-                  color: won ? MatchStage.accent : MatchStage.inkMuted,
+                  Icons.emoji_events_outlined,
+                  key: const ValueKey('winner-trophy'),
+                  size: 25 * sx,
+                  color: MatchStage.accent,
                 ),
-                SizedBox(width: phone ? 5 : 12),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: MatchStage.ink,
-                      fontSize: phone ? 15 : 30,
-                      fontWeight: FontWeight.w700,
-                      height: 1.1,
-                    ),
+                SizedBox(width: 28 * sx),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  textDirection: TextDirection.rtl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: MatchStage.ink,
+                    fontSize: 31 * sx,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _StripScore extends StatelessWidget {
@@ -329,267 +327,174 @@ class _StripScore extends StatelessWidget {
     required this.scoreA,
     required this.scoreB,
     required this.winner,
-    required this.presentation,
+    required this.sx,
+    required this.sy,
   });
 
   final int scoreA;
   final int scoreB;
   final TeamId? winner;
-  final MatchStagePresentation presentation;
+  final double sx;
+  final double sy;
 
   @override
   Widget build(BuildContext context) {
-    final phone = presentation == MatchStagePresentation.phone;
-
-    Widget numeral(int value, bool won) => Text(
-          '$value',
-          textDirection: TextDirection.ltr,
-          style: TextStyle(
-            color: won ? MatchStage.accent : MatchStage.ink,
-            fontSize: phone ? 28 : 58,
-            fontWeight: FontWeight.w700,
-            height: 1,
-            letterSpacing: -1,
+    Widget numeral(int value, bool won) => Container(
+          width: 108 * sx,
+          height: 75 * sy,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: won
+                  ? const [Color(0xFF08752F), Color(0xFF0B4B2C)]
+                  : const [Color(0xB30B3A29), Color(0xB305281D)],
+            ),
+            borderRadius: BorderRadius.circular(14 * sx),
+            border: Border.all(
+              color: MatchStage.accent.withValues(alpha: won ? 0.8 : 0.35),
+              width: 1.2 * sx,
+            ),
+          ),
+          child: Text(
+            '$value',
+            textDirection: TextDirection.ltr,
+            style: TextStyle(
+              color: MatchStage.ink,
+              fontSize: 55 * sx,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
           ),
         );
 
-    return ColoredBox(
-      color: MatchStage.restFill,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: phone ? 10 : 24),
-        child: Center(
-          child: Row(
-            textDirection: TextDirection.ltr,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              numeral(scoreA, winner == TeamId.a),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: phone ? 6 : 14),
-                child: Text(
-                  '–',
-                  textDirection: TextDirection.ltr,
-                  style: TextStyle(
-                    color: MatchStage.inkMuted,
-                    fontSize: phone ? 20 : 42,
-                    fontWeight: FontWeight.w300,
-                    height: 1,
-                  ),
-                ),
+    return Row(
+      textDirection: TextDirection.ltr,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        numeral(scoreA, winner == TeamId.a),
+        SizedBox(
+          width: 43 * sx,
+          child: Center(
+            child: Text(
+              '–',
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                color: MatchStage.ink,
+                fontSize: 35 * sx,
+                fontWeight: FontWeight.w400,
+                height: 1,
               ),
-              numeral(scoreB, winner == TeamId.b),
-            ],
+            ),
           ),
         ),
-      ),
+        numeral(scoreB, winner == TeamId.b),
+      ],
     );
   }
 }
 
-class _WinnerChip extends StatelessWidget {
-  const _WinnerChip({required this.label, required this.presentation});
-
-  final String label;
-  final MatchStagePresentation presentation;
-
-  @override
-  Widget build(BuildContext context) {
-    final phone = presentation == MatchStagePresentation.phone;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: phone ? 6 : 13,
-        vertical: phone ? 1 : 3,
-      ),
-      decoration: BoxDecoration(
-        color: MatchStage.accent.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: MatchStage.accent.withValues(alpha: 0.45),
-          width: phone ? 1 : 2,
-        ),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        style: TextStyle(
-          color: MatchStage.accent,
-          fontSize: phone ? 8 : 18,
-          fontWeight: FontWeight.w700,
-          height: 1.2,
-        ),
-      ),
-    );
-  }
-}
-
-/// A team heading and pitch on the final approved dark team-card surface.
+/// One exact team-card region from the approved 941-wide masters.
 class MatchStageSection extends StatelessWidget {
   const MatchStageSection({
     super.key,
     required this.title,
     required this.won,
     required this.child,
+    this.team = TeamId.a,
     this.presentation = MatchStagePresentation.phone,
   });
+
+  static const sourceWidth = 898.0;
+  static const sourceHeight = 607.0;
 
   final String title;
   final bool won;
   final Widget child;
+  final TeamId team;
   final MatchStagePresentation presentation;
 
-  bool get _isPhone => presentation == MatchStagePresentation.phone;
-  bool get _isShareBefore =>
-      presentation == MatchStagePresentation.shareBeforeResult;
-
   @override
-  Widget build(BuildContext context) {
-    final content = Container(
-      decoration: BoxDecoration(
-        color: MatchStage.section,
-        borderRadius: BorderRadius.circular(_isPhone ? 18 : 28),
-        border: Border.all(
-          color: MatchStage.accent.withValues(alpha: won ? 0.80 : 0.32),
-          width: _isPhone ? 1 : 2,
-        ),
-      ),
-      padding: _isPhone
-          ? const EdgeInsets.all(7)
-          : EdgeInsets.fromLTRB(
-              23,
-              _isShareBefore ? 16 : 18,
-              23,
-              _isShareBefore ? 16 : 18,
-            ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            height: _isPhone
-                ? 28
-                : _isShareBefore
-                    ? 56
-                    : 48,
-            child: _TeamHeading(
-              title: title,
-              won: won,
-              presentation: presentation,
-            ),
-          ),
-          SizedBox(
-              height: _isPhone
-                  ? 10
-                  : _isShareBefore
-                      ? 18
-                      : 12),
-          child,
-        ],
-      ),
-    );
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final sx = constraints.maxWidth / sourceWidth;
+          final sy = presentation == MatchStagePresentation.phone
+              ? sx
+              : MatchStage.canonicalYScale;
+          final isTeamA = team == TeamId.a;
+          final pitchLeft = (isTeamA ? 25.68 : 27.82) * sx;
+          final pitchTop = (isTeamA ? 87.74 : 96.30) * sy;
+          final pitchWidth = (isTeamA ? 842.09 : 838.88) * sx;
+          final pitchHeight = 502.90 * sy;
 
-    if (_isPhone) return content;
-    return SizedBox(height: _isShareBefore ? 720 : 680, child: content);
-  }
+          return SizedBox(
+            key: ValueKey(isTeamA ? 'team-a-section' : 'team-b-section'),
+            width: constraints.maxWidth,
+            height: sourceHeight * sy,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: MatchStage.section,
+                      borderRadius: BorderRadius.circular(19 * sx),
+                      border: Border.all(
+                        color: MatchStage.accent.withValues(alpha: 0.35),
+                        width: 1.1 * sx,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 14 * sy,
+                  right: 32.37 * sx,
+                  child: _TeamHeading(title: title, sx: sx),
+                ),
+                Positioned(
+                  left: pitchLeft,
+                  top: pitchTop,
+                  width: pitchWidth,
+                  height: pitchHeight,
+                  child: child,
+                ),
+              ],
+            ),
+          );
+        },
+      );
 }
 
 class _TeamHeading extends StatelessWidget {
-  const _TeamHeading({
-    required this.title,
-    required this.won,
-    required this.presentation,
-  });
+  const _TeamHeading({required this.title, required this.sx});
 
   final String title;
-  final bool won;
-  final MatchStagePresentation presentation;
+  final double sx;
 
   @override
-  Widget build(BuildContext context) {
-    final phone = presentation == MatchStagePresentation.phone;
-
-    if (phone) {
-      return Row(
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection: TextDirection.rtl,
         children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: MatchStage.ink,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                height: 1.2,
-              ),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: MatchStage.ink,
+              fontSize: 35 * sx,
+              fontWeight: FontWeight.w700,
+              height: 1,
             ),
           ),
-          if (won) const _WinnerTrophy(size: 22),
-        ],
-      );
-    }
-
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const _HeadingRule(),
-            const SizedBox(width: 20),
-            Flexible(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: MatchStage.ink,
-                  fontSize: 38,
-                  fontWeight: FontWeight.w700,
-                  height: 1.1,
-                ),
-              ),
+          SizedBox(width: 15 * sx),
+          Container(
+            width: 42 * sx,
+            height: 5 * sx,
+            decoration: BoxDecoration(
+              color: MatchStage.accent,
+              borderRadius: BorderRadius.circular(4 * sx),
             ),
-            const SizedBox(width: 20),
-            const _HeadingRule(),
-          ],
-        ),
-        if (won) const Positioned(left: 0, child: _WinnerTrophy(size: 40)),
-      ],
-    );
-  }
-}
-
-class _HeadingRule extends StatelessWidget {
-  const _HeadingRule();
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: 48,
-        height: 4,
-        decoration: BoxDecoration(
-          color: MatchStage.accent,
-          borderRadius: BorderRadius.circular(4),
-        ),
-      );
-}
-
-class _WinnerTrophy extends StatelessWidget {
-  const _WinnerTrophy({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: MatchStage.accent.withValues(alpha: 0.12),
-        ),
-        child: Icon(
-          Icons.emoji_events,
-          size: size * 0.58,
-          color: MatchStage.accent,
-        ),
+          ),
+        ],
       );
 }

@@ -1309,7 +1309,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('الفريقان'), findsWidgets);
+      expect(find.text('الفرق'), findsWidgets);
       expect(find.text('الفريق أ'), findsOneWidget);
       expect(find.text('الفريق ب'), findsOneWidget);
       expect(find.text('الفريق أ (2)'), findsNothing);

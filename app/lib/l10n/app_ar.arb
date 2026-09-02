@@ -356,7 +356,7 @@
       }
     }
   },
-  "teamsTitle": "الفريقان",
+  "teamsTitle": "الفرق",
   "teamsEmpty": "لم تُنشأ فرق هذه المباراة بعد.",
   "generateTeamsButton": "إنشاء الفرق",
   "regenerateTeamsButton": "إعادة إنشاء الفرق",

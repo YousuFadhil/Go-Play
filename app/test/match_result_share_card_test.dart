@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:btge/btge.dart';
@@ -113,6 +114,432 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  group('Gate 1 - REF04 canonical result share', () {
+    testWidgets('matches every authoritative region and seven-player anchor',
+        (tester) async {
+      const sourceWidth = 941.0;
+      const sourceHeight = 1672.0;
+      const sx = 1080 / sourceWidth;
+      const sy = 1920 / sourceHeight;
+      final gateLineup = <TeamAssignment>[
+        for (final team in [TeamId.a, TeamId.b]) ...[
+          assignment('${team.name}-gk', team, Position.gk),
+          for (var index = 0; index < 3; index++)
+            assignment('${team.name}-d$index', team, Position.def),
+          for (var index = 0; index < 3; index++)
+            assignment('${team.name}-m$index', team, Position.mid),
+        ],
+      ];
+      final gateNames = {
+        for (final item in gateLineup)
+          item.participantId: '${item.team.name}-${item.participantId}',
+      };
+      final data = MatchResultCardData(
+        teamAScore: 7,
+        teamBScore: 4,
+        lineup: gateLineup,
+        players: {
+          for (final item in gateLineup)
+            item.participantId: PlayerCoreInputs(
+              userId: item.userId!,
+              fullName: gateNames[item.participantId]!,
+              overallRating: 5.3,
+              primaryPosition: item.assignedPosition!,
+            ),
+        },
+        names: gateNames,
+        goals: const {'a-m0': 2, 'b-m1': 1},
+        mvpParticipantId: 'a-m0',
+        communityName: 'الشمال',
+        matchTitle: 'تمرين السبت',
+        playedAt: DateTime(2026, 8, 29),
+      );
+      final boundaryKey = GlobalKey();
+      await pumpCard(
+        tester,
+        data,
+        locale: const Locale('ar'),
+        boundaryKey: boundaryKey,
+      );
+
+      void expectRect(Finder finder, Rect source, {double tolerance = .15}) {
+        final actual = tester.getRect(finder);
+        final expected = Rect.fromLTWH(
+          source.left * sx,
+          source.top * sy,
+          source.width * sx,
+          source.height * sy,
+        );
+        expect(actual.left, closeTo(expected.left, tolerance));
+        expect(actual.top, closeTo(expected.top, tolerance));
+        expect(actual.width, closeTo(expected.width, tolerance));
+        expect(actual.height, closeTo(expected.height, tolerance));
+      }
+
+      expectRect(
+        find.byKey(const ValueKey('match-header')),
+        const Rect.fromLTWH(0, 0, 941, 170),
+      );
+      expectRect(
+        find.byKey(const ValueKey('result-strip')),
+        const Rect.fromLTWH(51, 178, 839, 87),
+      );
+      expectRect(
+        find.byKey(const ValueKey('team-a-section')),
+        const Rect.fromLTWH(21, 282, 898, 607),
+      );
+      expectRect(
+        find.byKey(const ValueKey('team-a-pitch')),
+        const Rect.fromLTWH(46.68, 369.74, 842.09, 502.90),
+      );
+      expectRect(
+        find.byKey(const ValueKey('team-b-section')),
+        const Rect.fromLTWH(21, 903, 898, 607),
+      );
+      expectRect(
+        find.byKey(const ValueKey('team-b-pitch')),
+        const Rect.fromLTWH(48.82, 999.30, 838.88, 502.90),
+      );
+      expectRect(
+        find.byKey(const ValueKey('share-footer')),
+        const Rect.fromLTWH(0, 1538, 941, 134),
+      );
+
+      List<Rect> avatarsOn(String pitchKey) {
+        final avatars = find.descendant(
+          of: find.byKey(ValueKey(pitchKey)),
+          matching: find.byWidgetPredicate((widget) {
+            final key = widget.key;
+            return key is ValueKey<String> &&
+                key.value.startsWith('player-avatar-');
+          }),
+        );
+        final rects = [
+          for (final element in avatars.evaluate())
+            tester.getRect(find.byWidget(element.widget))
+        ];
+        rects.sort((a, b) {
+          final byY = a.center.dy.compareTo(b.center.dy);
+          return byY != 0 ? byY : a.center.dx.compareTo(b.center.dx);
+        });
+        return rects;
+      }
+
+      const expectedA = <(double, double, double)>[
+        (466.12, 392.21, 83.46),
+        (222.16, 558.06, 79.18),
+        (455.42, 559.13, 81.32),
+        (697.24, 559.13, 74.90),
+        (213.60, 737.82, 77.04),
+        (457.56, 736.75, 74.90),
+        (700.45, 737.82, 74.90),
+      ];
+      const expectedB = <(double, double, double)>[
+        (466.12, 1022.84, 83.46),
+        (202.90, 1189.76, 77.04),
+        (453.28, 1189.76, 81.32),
+        (700.45, 1189.76, 83.46),
+        (201.83, 1363.10, 79.18),
+        (455.42, 1363.10, 79.18),
+        (700.45, 1362.03, 79.18),
+      ];
+
+      void expectAnchors(
+          List<Rect> actual, List<(double, double, double)> expected) {
+        expect(actual, hasLength(expected.length));
+        final expectedSorted = [...expected]..sort((a, b) {
+            final byY = a.$2.compareTo(b.$2);
+            return byY != 0 ? byY : a.$1.compareTo(b.$1);
+          });
+        for (var index = 0; index < expectedSorted.length; index++) {
+          expect(actual[index].center.dx,
+              closeTo(expectedSorted[index].$1 * sx, .2));
+          expect(actual[index].center.dy,
+              closeTo(expectedSorted[index].$2 * sy, .2));
+          expect(
+              actual[index].width, closeTo(expectedSorted[index].$3 * sx, .2));
+          expect(
+              actual[index].height, closeTo(expectedSorted[index].$3 * sx, .2));
+        }
+      }
+
+      expectAnchors(avatarsOn('team-a-pitch'), expectedA);
+      expectAnchors(avatarsOn('team-b-pitch'), expectedB);
+
+      final strip = find.byKey(const ValueKey('result-strip'));
+      expect(
+        find.descendant(
+          of: strip,
+          matching: find.byKey(const ValueKey('winner-trophy')),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Winner'), findsNothing);
+      expect(find.text('الفائز'), findsNothing);
+      expect(find.byIcon(Icons.shield_outlined), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      final boundary = boundaryKey.currentContext!.findRenderObject()!
+          as RenderRepaintBoundary;
+      final image = await tester.runAsync(() => captureShareCard(boundary));
+      await tester.runAsync(() async {
+        final directory = Directory('build/visual-verification-v2');
+        await directory.create(recursive: true);
+        await File('${directory.path}/share_result_saved.png')
+            .writeAsBytes(image!.bytes, flush: true);
+      });
+      expect(image!.pixelWidth, 1080);
+      expect(image.pixelHeight, 1920);
+    });
+  });
+
+  group('Gate 2 - REF03 canonical before-result share', () {
+    testWidgets('removes only result metadata and preserves approved geometry',
+        (tester) async {
+      const sx = 1080 / 941.0;
+      const sy = 1920 / 1672.0;
+      final gateLineup = <TeamAssignment>[
+        for (final team in [TeamId.a, TeamId.b]) ...[
+          assignment('${team.name}-gk', team, Position.gk),
+          for (var index = 0; index < 3; index++)
+            assignment('${team.name}-d$index', team, Position.def),
+          for (var index = 0; index < 3; index++)
+            assignment('${team.name}-m$index', team, Position.mid),
+        ],
+      ];
+      final gateNames = {
+        for (final item in gateLineup)
+          item.participantId: '${item.team.name}-${item.participantId}',
+      };
+      final boundaryKey = GlobalKey();
+      await pumpCard(
+        tester,
+        MatchResultCardData(
+          lineup: gateLineup,
+          players: {
+            for (final item in gateLineup)
+              item.participantId: PlayerCoreInputs(
+                userId: item.userId!,
+                fullName: gateNames[item.participantId]!,
+                overallRating: 5.3,
+                primaryPosition: item.assignedPosition!,
+              ),
+          },
+          names: gateNames,
+          communityName: 'الشمال',
+          matchTitle: 'تمرين السبت',
+          playedAt: DateTime(2026, 8, 29),
+        ),
+        locale: const Locale('ar'),
+        boundaryKey: boundaryKey,
+      );
+
+      void expectRect(Finder finder, Rect source) {
+        final actual = tester.getRect(finder);
+        final expected = Rect.fromLTWH(
+          source.left * sx,
+          source.top * sy,
+          source.width * sx,
+          source.height * sy,
+        );
+        expect(actual.left, closeTo(expected.left, .15));
+        expect(actual.top, closeTo(expected.top, .15));
+        expect(actual.width, closeTo(expected.width, .15));
+        expect(actual.height, closeTo(expected.height, .15));
+      }
+
+      expectRect(
+        find.byKey(const ValueKey('match-header')),
+        const Rect.fromLTWH(0, 0, 941, 170),
+      );
+      expect(find.byKey(const ValueKey('match-title')), findsOneWidget);
+      expect(find.byKey(const ValueKey('match-context-line')), findsOneWidget);
+      expect(find.byKey(const ValueKey('result-strip')), findsNothing);
+      expectRect(
+        find.byKey(const ValueKey('team-a-section')),
+        const Rect.fromLTWH(21, 220, 898, 607),
+      );
+      expectRect(
+        find.byKey(const ValueKey('team-a-pitch')),
+        const Rect.fromLTWH(46.68, 307.74, 842.09, 502.90),
+      );
+      expectRect(
+        find.byKey(const ValueKey('team-b-section')),
+        const Rect.fromLTWH(21, 855, 898, 607),
+      );
+      expectRect(
+        find.byKey(const ValueKey('team-b-pitch')),
+        const Rect.fromLTWH(48.82, 951.30, 838.88, 502.90),
+      );
+      expectRect(
+        find.byKey(const ValueKey('share-footer')),
+        const Rect.fromLTWH(0, 1538, 941, 134),
+      );
+
+      expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
+      expect(_goalBadges(), findsNothing);
+      expect(find.byIcon(Icons.star_rounded), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      final boundary = boundaryKey.currentContext!.findRenderObject()!
+          as RenderRepaintBoundary;
+      final image = await tester.runAsync(() => captureShareCard(boundary));
+      await tester.runAsync(() async {
+        final directory = Directory('build/visual-verification-v2');
+        await directory.create(recursive: true);
+        await File('${directory.path}/share_before_result.png')
+            .writeAsBytes(image!.bytes, flush: true);
+      });
+      expect(image!.pixelWidth, 1080);
+      expect(image.pixelHeight, 1920);
+    });
+  });
+
+  group('Gate 4 - dense 11-player contracts', () {
+    MatchResultCardData denseData(int defence, int midfield, int attack) {
+      final dense = <TeamAssignment>[
+        for (final team in [TeamId.a, TeamId.b]) ...[
+          assignment('${team.name}-gk', team, Position.gk),
+          for (var index = 0; index < defence; index++)
+            assignment('${team.name}-d$index', team, Position.def),
+          for (var index = 0; index < midfield; index++)
+            assignment('${team.name}-m$index', team, Position.mid),
+          for (var index = 0; index < attack; index++)
+            assignment('${team.name}-f$index', team, Position.fwd),
+        ],
+      ];
+      return MatchResultCardData(
+        teamAScore: 3,
+        teamBScore: 2,
+        lineup: dense,
+        players: {
+          for (final item in dense)
+            item.participantId: PlayerCoreInputs(
+              userId: item.userId!,
+              fullName: 'عبدالرحمن بن سليمان الحارثي',
+              overallRating: 5.3,
+              primaryPosition: item.assignedPosition!,
+            ),
+        },
+        names: {
+          for (final item in dense)
+            item.participantId: 'عبدالرحمن بن سليمان الحارثي',
+        },
+        goals: const {'a-f0': 2},
+        mvpParticipantId: 'a-f0',
+        communityName: 'الشمال',
+        matchTitle: 'تمرين السبت',
+        playedAt: DateTime(2026, 8, 29),
+      );
+    }
+
+    void expectNoCollisionsOrBoundaryViolations(WidgetTester tester) {
+      for (final pitchKey in ['team-a-pitch', 'team-b-pitch']) {
+        final pitch = find.byKey(ValueKey(pitchKey));
+        final pitchRect = tester.getRect(pitch);
+        final cards = find.descendant(
+          of: pitch,
+          matching: find.byType(PlayerCard),
+        );
+        final rects = [
+          for (final element in cards.evaluate())
+            tester.getRect(find.byWidget(element.widget)),
+        ];
+        expect(rects, hasLength(11));
+        for (final rect in rects) {
+          expect(rect.left, greaterThanOrEqualTo(pitchRect.left - .1));
+          expect(rect.top, greaterThanOrEqualTo(pitchRect.top - .1));
+          expect(rect.right, lessThanOrEqualTo(pitchRect.right + .1));
+          expect(rect.bottom, lessThanOrEqualTo(pitchRect.bottom + .1));
+        }
+        for (var first = 0; first < rects.length; first++) {
+          for (var second = first + 1; second < rects.length; second++) {
+            expect(
+              rects[first].intersect(rects[second]).isEmpty,
+              isTrue,
+              reason: '$pitchKey players $first and $second collide',
+            );
+          }
+        }
+      }
+      expect(tester.takeException(), isNull);
+    }
+
+    Future<void> verifyDenseShape(
+      WidgetTester tester, {
+      required int defence,
+      required int midfield,
+      required int attack,
+      required String filename,
+    }) async {
+      final boundaryKey = GlobalKey();
+      await pumpCard(
+        tester,
+        denseData(defence, midfield, attack),
+        locale: const Locale('ar'),
+        boundaryKey: boundaryKey,
+      );
+      expect(find.byType(PlayerCard), findsNWidgets(22));
+      expectNoCollisionsOrBoundaryViolations(tester);
+      expect(find.byKey(PitchView.mvpKey('a-f0')), findsOneWidget);
+      expect(find.byKey(PitchView.goalKey('a-f0')), findsOneWidget);
+      final goal = tester.getRect(find.byKey(PitchView.goalKey('a-f0')));
+      final mvp = tester.getRect(find.byKey(PitchView.mvpKey('a-f0')));
+      final name = tester.getRect(find.byKey(PitchView.nameKey('a-f0')));
+      expect(
+        goal.bottom,
+        lessThan(name.top),
+      );
+      expect(mvp.bottom, lessThan(name.top));
+      expect(goal.overlaps(mvp), isFalse);
+
+      final boundary = boundaryKey.currentContext!.findRenderObject()!
+          as RenderRepaintBoundary;
+      final image = await tester.runAsync(() => captureShareCard(boundary));
+      await tester.runAsync(() async {
+        final directory = Directory('build/visual-verification-v2');
+        await directory.create(recursive: true);
+        await File('${directory.path}/$filename')
+            .writeAsBytes(image!.bytes, flush: true);
+      });
+      expect(image!.pixelWidth, 1080);
+      expect(image.pixelHeight, 1920);
+    }
+
+    testWidgets('4-3-3 has zero collisions and boundary violations',
+        (tester) async {
+      await verifyDenseShape(
+        tester,
+        defence: 4,
+        midfield: 3,
+        attack: 3,
+        filename: 'share_11_433.png',
+      );
+    });
+
+    testWidgets('4-4-2 has zero collisions and boundary violations',
+        (tester) async {
+      await verifyDenseShape(
+        tester,
+        defence: 4,
+        midfield: 4,
+        attack: 2,
+        filename: 'share_11_442.png',
+      );
+    });
+
+    testWidgets('3-4-3 has zero collisions and boundary violations',
+        (tester) async {
+      await verifyDenseShape(
+        tester,
+        defence: 3,
+        midfield: 4,
+        attack: 3,
+        filename: 'share_11_343.png',
+      );
+    });
+  });
+
   group('who won', () {
     test('Team A takes the higher score', () {
       final data = cardData(teamAScore: 3, teamBScore: 1);
@@ -132,19 +559,19 @@ void main() {
       expect(data.isDraw, isTrue);
     });
 
-    testWidgets('the winning side is named, once', (tester) async {
+    testWidgets('the winning side is marked once inside the strip',
+        (tester) async {
       await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
 
-      // One tag, beside one heading. The score above has already said who won;
-      // this names it for a reader scanning the two sides, and saying it twice
-      // would be saying it worse.
-      expect(find.text('Winner'), findsOneWidget);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget);
+      expect(find.text('Winner'), findsNothing);
     });
 
-    testWidgets('a win the other way is named just the same', (tester) async {
+    testWidgets('a win the other way is marked just the same', (tester) async {
       await pumpCard(tester, cardData(teamAScore: 0, teamBScore: 2));
 
-      expect(find.text('Winner'), findsOneWidget);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget);
+      expect(find.text('Winner'), findsNothing);
     });
 
     testWidgets('a draw names nobody and picks out neither score',
@@ -152,16 +579,13 @@ void main() {
       await pumpCard(tester, cardData(teamAScore: 2, teamBScore: 2));
 
       expect(find.text('Winner'), findsNothing);
-      // Neither numeral is in the winner's green: on a level score the two are
-      // drawn identically, so the card cannot be misread at a glance as a
-      // narrow win for whichever side happens to be drawn first.
-      expect(_emphasisedNumerals(tester), 0);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
     });
 
-    testWidgets('a win picks out exactly one numeral', (tester) async {
+    testWidgets('a win carries exactly one trophy', (tester) async {
       await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
 
-      expect(_emphasisedNumerals(tester), 1);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget);
     });
   });
 
@@ -238,10 +662,13 @@ void main() {
         (tester) async {
       await pumpCard(tester, cardData(goals: {'u3': 2}, mvp: 'u3'));
 
-      // Both, on one player, in one pill: star, ball, 2.
+      // Both remain independently readable beside the same player's avatar.
       expect(find.byIcon(Icons.star_rounded), findsOneWidget);
       expect(_goalBadges(), findsOneWidget);
       expect(find.text('2'), findsWidgets);
+      final goal = tester.getRect(find.byKey(PitchView.goalKey('u3')));
+      final mvp = tester.getRect(find.byKey(PitchView.mvpKey('u3')));
+      expect(goal.overlaps(mvp), isFalse);
       expect(tester.takeException(), isNull);
     });
 
@@ -282,7 +709,7 @@ void main() {
             .where((text) => int.tryParse(text.data ?? '') != null)
             .map((text) => text.style?.fontSize)
             .toSet(),
-        {58.0},
+        {55 * MatchStage.canonicalXScale},
       );
       // Community, match and date share one compact line of context above the
       // score, so they are asserted as parts of it rather than as three
@@ -296,7 +723,49 @@ void main() {
     testWidgets('it signs itself, once', (tester) async {
       await pumpCard(tester, cardData());
 
-      expect(find.text('GO PLAY'), findsOneWidget);
+      const sx = 1080 / 941.0;
+      const sy = 1920 / 1672.0;
+      final footer = find.byKey(const ValueKey('share-footer'));
+      expect(footer, findsOneWidget);
+      expect(
+        tester.getSize(footer),
+        const Size(941 * sx, 134 * sy),
+      );
+      final logo = tester.getRect(
+        find.byKey(const ValueKey('share-footer-logo')),
+      );
+      expect(logo.left, closeTo(319 * sx, .1));
+      expect(logo.top, closeTo((1538 + 32) * sy, .1));
+      expect(logo.width, closeTo(295 * sx, .1));
+      expect(logo.height, closeTo(60 * sy, .1));
+      expect(
+        find.byKey(const ValueKey('share-footer-stripes-left')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('share-footer-stripes-right')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: footer,
+          matching: find.byIcon(Icons.sports_soccer),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('restores both subtle header footballs', (tester) async {
+      await pumpCard(tester, cardData());
+
+      expect(
+        find.byKey(const ValueKey('share-header-ball-left')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('share-header-ball-right')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('it holds together in Arabic', (tester) async {
@@ -304,7 +773,8 @@ void main() {
 
       expect(find.text('الفريق أ'), findsWidgets);
       expect(find.text('الفريق أ (2)'), findsNothing);
-      expect(find.text('الفائز'), findsOneWidget);
+      expect(find.text('الفائز'), findsNothing);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget);
       // The score keeps its own order whatever the paragraph does around it.
       expect(_scoreNumerals(tester), ['3', '1']);
       expect(tester.takeException(), isNull);
@@ -316,31 +786,36 @@ void main() {
         (tester) async {
       await pumpCard(tester, cardData());
 
-      final pitchFinders = find.byKey(const ValueKey('match-pitch'));
-      expect(pitchFinders, findsNWidgets(2));
-      for (final element in pitchFinders.evaluate()) {
-        final size = tester.getSize(find.byWidget(element.widget));
-        expect(size.width, closeTo(MatchResultCard.sharePitchWidth, 0.01));
-        expect(
-          size.height,
-          closeTo(MatchResultCard.shareResultPitchHeight, 0.01),
-        );
-        expect(
-          size.width / size.height,
-          closeTo(PitchView.shareResultAspectRatio, 0.001),
-        );
-      }
+      final teamAPitch =
+          tester.getSize(find.byKey(const ValueKey('team-a-pitch')));
+      final teamBPitch =
+          tester.getSize(find.byKey(const ValueKey('team-b-pitch')));
+      expect(
+          teamAPitch.width, closeTo(842.09 * MatchStage.canonicalXScale, .02));
+      expect(
+          teamAPitch.height, closeTo(502.90 * MatchStage.canonicalYScale, .02));
+      expect(
+          teamBPitch.width, closeTo(838.88 * MatchStage.canonicalXScale, .02));
+      expect(
+          teamBPitch.height, closeTo(502.90 * MatchStage.canonicalYScale, .02));
 
-      for (final avatar
-          in find.byKey(const ValueKey('player-avatar')).evaluate()) {
+      final avatars = find.byWidgetPredicate((widget) {
+        final key = widget.key;
+        return key is ValueKey<String> &&
+            key.value.startsWith('player-avatar-');
+      });
+      for (final avatar in avatars.evaluate()) {
         expect(
           tester.getSize(find.byWidget(avatar.widget)).width,
-          PitchView.shareResultAvatarDiameter,
+          anyOf(
+            closeTo(50 * MatchStage.canonicalXScale, .02),
+            closeTo(50 * 838.88 / 842.09 * MatchStage.canonicalXScale, .02),
+          ),
         );
       }
     });
 
-    testWidgets('before-result share uses independent larger geometry',
+    testWidgets('before-result share keeps the approved pitch geometry',
         (tester) async {
       await pumpCard(
         tester,
@@ -352,23 +827,31 @@ void main() {
         ),
       );
 
-      final pitchFinders = find.byKey(const ValueKey('match-pitch'));
-      expect(pitchFinders, findsNWidgets(2));
-      for (final element in pitchFinders.evaluate()) {
-        final size = tester.getSize(find.byWidget(element.widget));
-        expect(size.width, MatchResultCard.sharePitchWidth);
-        expect(size.height, MatchResultCard.shareBeforePitchHeight);
-        expect(
-          size.width / size.height,
-          closeTo(PitchView.shareBeforeAspectRatio, 0.001),
-        );
-      }
+      final teamAPitch =
+          tester.getSize(find.byKey(const ValueKey('team-a-pitch')));
+      final teamBPitch =
+          tester.getSize(find.byKey(const ValueKey('team-b-pitch')));
+      expect(
+          teamAPitch.width, closeTo(842.09 * MatchStage.canonicalXScale, .02));
+      expect(
+          teamAPitch.height, closeTo(502.90 * MatchStage.canonicalYScale, .02));
+      expect(
+          teamBPitch.width, closeTo(838.88 * MatchStage.canonicalXScale, .02));
+      expect(
+          teamBPitch.height, closeTo(502.90 * MatchStage.canonicalYScale, .02));
 
-      for (final avatar
-          in find.byKey(const ValueKey('player-avatar')).evaluate()) {
+      final avatars = find.byWidgetPredicate((widget) {
+        final key = widget.key;
+        return key is ValueKey<String> &&
+            key.value.startsWith('player-avatar-');
+      });
+      for (final avatar in avatars.evaluate()) {
         expect(
           tester.getSize(find.byWidget(avatar.widget)).width,
-          PitchView.shareBeforeAvatarDiameter,
+          anyOf(
+            closeTo(50 * MatchStage.canonicalXScale, .02),
+            closeTo(50 * 838.88 / 842.09 * MatchStage.canonicalXScale, .02),
+          ),
         );
       }
     });
@@ -615,20 +1098,6 @@ final _png = Uint8List.fromList(const [
   0x60,
   0x82,
 ]);
-
-/// How many of the two score numerals are picked out in the winner's green.
-///
-/// One on a win, none on a draw. Counted rather than described, because the
-/// colour is the whole of the emphasis on the numerals themselves.
-int _emphasisedNumerals(WidgetTester tester) => tester
-    .widgetList<Text>(find.descendant(
-      of: find.byType(MatchStageHeader),
-      matching: find.byType(Text),
-    ))
-    .where((text) =>
-        int.tryParse(text.data ?? '') != null &&
-        text.style?.color == MatchStage.accent)
-    .length;
 
 /// A lineup dense enough to squeeze the badges: five a side, which is where the
 /// solver has least room under each name.
