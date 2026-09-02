@@ -2153,10 +2153,195 @@ void main() {
           reason: 'a fresh search discards the adjustments around the old one');
     });
 
-    test('a guest who did not play is taken out of the record', () async {
+    // --- the played removal corrects one participant and nothing else --------
+
+    /// Every lineup row of a match, keyed by whichever participant it names.
+    Future<Map<String, Map<String, dynamic>>> lineupByParticipant(
+        String matchId) async {
+      final rows = List<Map<String, dynamic>>.from(await owner.client
+          .from('match_team_assignments')
+          .select('user_id, professional_guest_id, team, assigned_position, '
+              'assignment_basis, team_manually_overridden')
+          .eq('match_id', matchId));
+      return {
+        for (final row in rows)
+          (row['user_id'] ?? row['professional_guest_id']) as String: row,
+      };
+    }
+
+    Future<String> statusOf(String matchId) async {
+      final row = await owner.client
+          .from('matches')
+          .select('status')
+          .eq('id', matchId)
+          .single();
+      return row['status'] as String;
+    }
+
+    /// A match that has already ended, with a community lineup stored and
+    /// [guestCount] starting guests placed around it.
+    Future<(String, List<String>)> playedMatchWithGuests(
+      List<TestUser> squad,
+      int guestCount,
+    ) async {
+      final matchId = await createMatch(
+        owner,
+        communityId,
+        startsIn: const Duration(days: 9),
+        startingPlayers: 8,
+      );
+      for (final user in squad) {
+        await user.client
+            .rpc('register_for_match', params: {'p_match_id': matchId});
+      }
+      await saveCommunityLineup(matchId, squad);
+      final ids = <String>[];
+      for (var i = 1; i <= guestCount; i++) {
+        ids.add(await addGuest(owner, matchId, 'Guest $i'));
+      }
+      // Played only after everything is in place: registration is closed to a
+      // match that has ended, so the roster is built first and the clock moved
+      // afterwards.
+      await owner.client
+          .from('matches')
+          .update({
+            'start_at':
+                DateTime.now().toUtc().subtract(const Duration(hours: 4))
+                    .toIso8601String(),
+            'end_at': DateTime.now().toUtc().subtract(const Duration(hours: 2))
+                .toIso8601String(),
+          })
+          .eq('id', matchId);
+      return (matchId, ids);
+    }
+
+    test('a match still to come refuses the played correction', () async {
+      // The screen only offers this on a played match, but the screen is not
+      // what decides: the function is callable directly.
       final squad = [owner, admin, player, player2];
       final matchId = await startedMatchWithSquad(squad);
       final guestId = await addGuest(owner, matchId, 'Guest 1');
+      final before = await lineupByParticipant(matchId);
+      final statusBefore = await statusOf(matchId);
+
+      await expectLater(
+        owner.client.rpc('remove_played_professional_guest', params: {
+          'p_match_id': matchId,
+          'p_guest_id': guestId,
+        }),
+        throwsA(predicate(
+          (e) => e.toString().contains('MATCH_NOT_COMPLETED'),
+          'MATCH_NOT_COMPLETED',
+        )),
+      );
+
+      // And it changed nothing on the way to refusing.
+      expect(await lineupByParticipant(matchId), before);
+      expect(await statusOf(matchId), statusBefore);
+      expect(
+        (await roster(matchId))
+            .where((r) => r['professional_guest_id'] == guestId),
+        hasLength(1),
+      );
+    });
+
+    test('removing one guest leaves every surviving guest exactly as it was',
+        () async {
+      // The bug this closes: `assign_professional_guest_teams` recomputes
+      // A, B, A from the current registration order, so removing the first of
+      // three guests re-alternated the other two — changing the historical side
+      // of somebody the correction was never asked about. There is no result
+      // row here, which is the case where that recomputation is not skipped.
+      final squad = [owner, admin, player, player2];
+      final (matchId, ids) = await playedMatchWithGuests(squad, 3);
+
+      // Give the survivors distinguishing state: a chosen side and a chosen
+      // position, so a re-alternation would be visible in more than one column.
+      await owner.client.rpc('replace_match_lineup', params: {
+        'p_match_id': matchId,
+        'p_assignments': [
+          for (final (index, user) in squad.indexed)
+            {
+              'user_id': user.id,
+              'team': index.isEven ? 'A' : 'B',
+              'assigned_position': const ['DEF', 'MID', 'FWD'][index % 3],
+              'assignment_basis': 'TRANSITION',
+            },
+          {
+            'professional_guest_id': ids[1],
+            'team': 'A',
+            'assigned_position': 'GK',
+            'assignment_basis': 'GUEST',
+            'team_manually_overridden': true,
+          },
+          {
+            'professional_guest_id': ids[2],
+            'team': 'A',
+            'assigned_position': 'FWD',
+            'assignment_basis': 'GUEST',
+          },
+        ],
+      });
+
+      final before = await lineupByParticipant(matchId);
+      final statusBefore = await statusOf(matchId);
+
+      await owner.client.rpc('remove_played_professional_guest', params: {
+        'p_match_id': matchId,
+        'p_guest_id': ids[0],
+      });
+
+      final after = await lineupByParticipant(matchId);
+
+      // The target is gone, from the lineup and from the roster.
+      expect(after.containsKey(ids[0]), isFalse);
+      expect(
+        (await roster(matchId))
+            .where((r) => r['professional_guest_id'] == ids[0]),
+        isEmpty,
+      );
+
+      // And everybody else is untouched — team, position and the manual
+      // override flag, row for row.
+      for (final id in before.keys.where((k) => k != ids[0])) {
+        expect(after[id], isNotNull, reason: '$id should still be in the lineup');
+        expect(after[id]!['team'], before[id]!['team'],
+            reason: '$id must keep the side they played on');
+        expect(after[id]!['assigned_position'],
+            before[id]!['assigned_position'],
+            reason: '$id must keep the position they played');
+        expect(after[id]!['team_manually_overridden'],
+            before[id]!['team_manually_overridden'],
+            reason: '$id must keep whether their side was chosen by hand');
+      }
+
+      // The lifecycle is not a participant record, and was not recomputed.
+      expect(await statusOf(matchId), statusBefore);
+    });
+
+    test('the guest identity goes when nothing historical refers to it',
+        () async {
+      final squad = [owner, admin, player, player2];
+      final (matchId, ids) = await playedMatchWithGuests(squad, 2);
+
+      await owner.client.rpc('remove_played_professional_guest', params: {
+        'p_match_id': matchId,
+        'p_guest_id': ids[0],
+      });
+
+      final identities = List<Map<String, dynamic>>.from(await owner.client
+          .from('match_professional_guests')
+          .select('id')
+          .eq('match_id', matchId));
+      expect(identities.map((r) => r['id']), isNot(contains(ids[0])));
+      expect(identities.map((r) => r['id']), contains(ids[1]),
+          reason: 'only the guest named is removed');
+    });
+
+    test('a guest who did not play is taken out of the record', () async {
+      final squad = [owner, admin, player, player2];
+      final (matchId, ids) = await playedMatchWithGuests(squad, 1);
+      final guestId = ids.single;
       expect(await guestRow(matchId, guestId), isNotNull);
 
       await owner.client.rpc('remove_played_professional_guest', params: {
@@ -2176,8 +2361,8 @@ void main() {
 
     test('a guest who scored is refused, and nothing is edited', () async {
       final squad = [owner, admin, player, player2];
-      final matchId = await startedMatchWithSquad(squad);
-      final guestId = await addGuest(owner, matchId, 'Guest 1');
+      final (matchId, ids) = await playedMatchWithGuests(squad, 1);
+      final guestId = ids.single;
 
       await owner.client.rpc('record_match_result', params: {
         'p_match_id': matchId,

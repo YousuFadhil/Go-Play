@@ -436,17 +436,27 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     setState(() => _busy = true);
 
     final added = <RegistrationStatus>[];
-    // Insertion-ordered and de-duplicated: two players refused for the same
-    // reason say it once.
-    final refusals = <String>{};
+
+    // **Two separate quantities, and they are not the same number.** How many
+    // players were refused is one count; how many different things there are to
+    // say about it is another. Three players refused for the same clash are
+    // three failures and one sentence — counting the sentences would have
+    // reported one, which is untrue about the roster and about what the
+    // organizer has left to do.
+    var failed = 0;
+    // Insertion-ordered and de-duplicated, for the *wording* only: two players
+    // refused for the same reason say it once.
+    final reasons = <String>{};
 
     for (final userId in picked) {
       try {
         added.add(await _service.addPlayerToMatch(widget.matchId, userId));
       } on Failure catch (failure) {
-        refusals.add(_addErrorMessage(l10n, failure));
+        failed++;
+        reasons.add(_addErrorMessage(l10n, failure));
       } catch (_) {
-        refusals.add(l10n.addPlayerFailed);
+        failed++;
+        reasons.add(l10n.addPlayerFailed);
       }
     }
 
@@ -454,7 +464,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     setState(() => _busy = false);
     if (added.isNotEmpty) _changed = true;
 
-    _showMessage(_batchSummary(l10n, picked.length, added, refusals));
+    _showMessage(_batchSummary(l10n, added, failed, reasons));
 
     // Once, after the batch, rather than after each player. A stale picker is
     // still the server's to refuse, and this is what lets the next attempt see
@@ -463,25 +473,29 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
   }
 
   /// What the batch did, in one sentence plus what was refused.
+  ///
+  /// [failed] is a count of **players**; [reasons] is the set of distinct
+  /// sentences explaining why. The counts in the summary come from the former
+  /// and the wording from the latter, so five players refused for one reason
+  /// read as five failures and one explanation.
   String _batchSummary(
     AppLocalizations l10n,
-    int attempted,
     List<RegistrationStatus> added,
-    Set<String> refusals,
+    int failed,
+    Set<String> reasons,
   ) {
-    final reasons = refusals.join(' ');
+    final explanation = reasons.join(' ');
     if (added.isEmpty) {
-      return '${l10n.playersAddedNone(attempted)} $reasons'.trim();
+      return '${l10n.playersAddedNone(failed)} $explanation'.trim();
     }
-    if (refusals.isEmpty) {
+    if (failed == 0) {
       // How many, and not which list each landed in. That is the server's
       // answer and it is already on screen: the reload below puts each of them
       // under Players or under Reserve, which says it better than a sentence
       // summarising a split would.
       return l10n.playersAddedSummary(added.length);
     }
-    return '${l10n.playersAddedPartial(added.length, refusals.length)} '
-            '$reasons'
+    return '${l10n.playersAddedPartial(added.length, failed)} $explanation'
         .trim();
   }
 

@@ -72,6 +72,21 @@
 -- there is nothing of theirs to take back -- reversal logic here would be
 -- reversing something that was never applied.
 --
+-- ## It corrects one participant, and touches nothing else
+--
+-- It is modelled on `set_completed_match_player` (0029, 0044), which is the
+-- same correction for a community player: the same completion guard, the same
+-- `assert_result_survives_lineup` before any write, and -- just as importantly
+-- -- the same silence afterwards. That function does not re-place anybody, does
+-- not rebalance the roster and does not recompute the match's status, and
+-- neither does this one.
+--
+-- The temptation was `assign_professional_guest_teams`, and it is wrong here.
+-- It recomputes A, B, A, B from the current registration order, so removing one
+-- of three guests would move the other two to different historical sides. A
+-- correction that says "this guest did not play" must not change what is
+-- recorded about anybody else.
+--
 -- ## Forward-only
 --
 -- One new function and one replaced function. No table is altered, no column
@@ -228,6 +243,20 @@ begin
     raise exception 'NOT_AUTHORIZED';
   end if;
 
+  -- The match must actually have been played. This is a correction to a
+  -- record, and a match still to come has no record to correct: taking a guest
+  -- off one is the roster's operation, `remove_professional_guest`, which frees
+  -- the seat and lets the reserve move up.
+  --
+  -- The condition is `set_completed_match_player`'s, character for character
+  -- (0029, 0044): stored `completed`, or an end time that has passed. The
+  -- screen only offers this on a played match, but the screen is not what
+  -- decides -- the function is callable directly, and a state rule that lives
+  -- only in the client is not a rule.
+  if v_match.status <> 'completed' and v_match.end_at > now() then
+    raise exception 'MATCH_NOT_COMPLETED';
+  end if;
+
   -- Both halves, as `remove_professional_guest` asks them: the guest must
   -- exist, and must belong to *this* match. A guest is match-scoped, so an id
   -- from another match is not one this caller may name.
@@ -283,23 +312,34 @@ begin
     where id = p_guest_id and match_id = p_match_id;
   end if;
 
-  -- No `detach_match_effects` / `attach_match_effects`: migration `0046` gives
-  -- a guest no rating, no player counter and no community figure, so there is
-  -- nothing of theirs to take back.
+  -- **And nothing else happens.** Three things this deliberately does not do,
+  -- each of which would make it something other than a correction about one
+  -- participant:
   --
-  -- No `rebalance_roster` on a played match either, for the reason `0047`
-  -- gives: there is no reserve to promote out of, and re-cutting the roster
-  -- would rewrite the record of a match that has already happened. On a match
-  -- still to come the roster screen's own removal is the path, and this one is
-  -- offered only where the correction makes sense.
-  if not (v_match.status = 'completed' or v_match.end_at <= now()) then
-    perform rebalance_roster(p_match_id);
-  end if;
-
-  -- The guests left behind re-alternate around whoever is still starting, which
-  -- is `assign_professional_guest_teams`'s own rule and not this function's.
-  perform assign_professional_guest_teams(p_match_id);
-  perform recompute_match_status(p_match_id);
+  --   * **No `assign_professional_guest_teams`.** It recomputes A, B, A, B from
+  --     the *current* registration order, so removing the first of three guests
+  --     re-alternates the two who are left -- and this function would then have
+  --     changed the historical side of somebody it was never asked about. On a
+  --     match with a recorded result that call returns early and the bug is
+  --     invisible; on a played match with no result yet it silently rewrites the
+  --     record. Saying "this guest did not play" must alter the target and
+  --     nobody else, so every surviving row keeps its team, its position and its
+  --     `team_manually_overridden` exactly as they were.
+  --
+  --   * **No `rebalance_roster`.** There is no reserve to promote out of on a
+  --     match that has been played, and re-cutting the roster would rewrite the
+  --     record of who was in it.
+  --
+  --   * **No `recompute_match_status`.** A correction to who played is not a
+  --     lifecycle event, and recomputing could take a match that has ended back
+  --     to `open` or `full` because a seat is now free. `set_completed_match_
+  --     player` -- the same correction for a community player, and the
+  --     authoritative one -- does not call it either. The lifecycle is left
+  --     exactly where it was.
+  --
+  -- No `detach_match_effects` / `attach_match_effects` either: migration `0046`
+  -- gives a guest no rating, no player counter and no community figure, so
+  -- there is nothing of theirs to take back and nothing to reapply.
 end;
 $$;
 

@@ -337,6 +337,10 @@ void main() {
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();
       for (final name in names) {
+        // The sheet scrolls once there are more members than fit, so a row is
+        // brought into view before it is tapped.
+        await tester.ensureVisible(find.text(name));
+        await tester.pumpAndSettle();
         await tester.tap(find.text(name));
         await tester.pumpAndSettle();
       }
@@ -487,6 +491,131 @@ void main() {
         hasLength(1),
         reason: 'the same refusal twice is still one thing to say',
       );
+    });
+
+    // How many players were refused, and how many different things there are to
+    // say about it, are two quantities. Counting the sentences instead of the
+    // players under-reported every batch where refusals shared a reason.
+    group('the failure count is players, not reasons', () {
+      testWidgets('three refused for one reason is three, said once',
+          (tester) async {
+        final matches = FakeMatchAdapter(registrations: const [])
+          ..addFailures['c'] =
+              const ConflictFailure(FailureReason.overlappingMatch)
+          ..addFailures['d'] =
+              const ConflictFailure(FailureReason.overlappingMatch)
+          ..addFailures['e'] =
+              const ConflictFailure(FailureReason.overlappingMatch);
+        await pumpRoster(
+          tester,
+          matches: matches,
+          members: FakeMemberAdapter(members: [
+            member('b'),
+            member('c'),
+            member('d'),
+            member('e'),
+            member('f'),
+          ]),
+        );
+
+        await pickAndAddMany(tester, [
+          'Member b',
+          'Member c',
+          'Member d',
+          'Member e',
+          'Member f',
+        ]);
+
+        expect(matches.added, [(matchId, 'b'), (matchId, 'f')]);
+
+        final text = ((tester.widget<SnackBar>(find.byType(SnackBar)).content)
+                as Text)
+            .data!;
+        expect(text, contains('2 added, 3 could not be.'),
+            reason: 'three players failed, however few reasons they share');
+        expect(
+          'That player is registered in another match at the same time.'
+              .allMatches(text),
+          hasLength(1),
+          reason: 'and the reason they share is still said once',
+        );
+      });
+
+      testWidgets('failures with different reasons are all counted',
+          (tester) async {
+        final matches = FakeMatchAdapter(registrations: const [])
+          ..addFailures['c'] =
+              const ConflictFailure(FailureReason.overlappingMatch)
+          ..addFailures['d'] =
+              const ConflictFailure(FailureReason.alreadyRegistered);
+        await pumpRoster(
+          tester,
+          matches: matches,
+          members: FakeMemberAdapter(
+            members: [member('b'), member('c'), member('d')],
+          ),
+        );
+
+        await pickAndAddMany(tester, ['Member b', 'Member c', 'Member d']);
+
+        final text = ((tester.widget<SnackBar>(find.byType(SnackBar)).content)
+                as Text)
+            .data!;
+        expect(text, contains('1 added, 2 could not be.'));
+        expect(
+          text,
+          contains(
+              'That player is registered in another match at the same time.'),
+        );
+        expect(text, contains('That player is already in this match.'),
+            reason: 'each distinct reason is rendered, once each');
+      });
+
+      testWidgets('all refused for one reason counts every player',
+          (tester) async {
+        // The count in "None of the N players could be added." is the players
+        // that failed, not the sentences describing it.
+        final matches = FakeMatchAdapter(
+          registrations: const [],
+          addFailure: const ConflictFailure(FailureReason.overlappingMatch),
+        );
+        await pumpRoster(
+          tester,
+          matches: matches,
+          members: FakeMemberAdapter(
+            members: [member('b'), member('c'), member('d')],
+          ),
+        );
+
+        await pickAndAddMany(tester, ['Member b', 'Member c', 'Member d']);
+
+        expect(matches.added, isEmpty);
+        final text = ((tester.widget<SnackBar>(find.byType(SnackBar)).content)
+                as Text)
+            .data!;
+        expect(text, contains('None of the 3 players could be added.'));
+        expect(
+          'That player is registered in another match at the same time.'
+              .allMatches(text),
+          hasLength(1),
+        );
+      });
+
+      testWidgets('a clean batch still reports no failures at all',
+          (tester) async {
+        await pumpRoster(
+          tester,
+          matches: FakeMatchAdapter(registrations: const []),
+          members: FakeMemberAdapter(
+            members: [member('b'), member('c')],
+          ),
+        );
+
+        await pickAndAddMany(tester, ['Member b', 'Member c']);
+
+        expect(find.text('2 players were added.'), findsOneWidget);
+        expect(find.textContaining('could not be'), findsNothing);
+      });
     });
 
     testWidgets('the roster is re-read once, after the batch', (tester) async {
