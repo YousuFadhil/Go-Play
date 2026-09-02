@@ -809,6 +809,25 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
   ) =>
       throw UnimplementedError('the Community Dashboard reads no roster');
 
+  /// When each player last achieved each measure. Empty means nobody has any
+  /// recency, which is the state before a test says otherwise — every tie then
+  /// falls through to the name, exactly as it did before Cycle B1.
+  Map<String, PlayerAchievementRecency> recency = const {};
+
+  @override
+  Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
+    String communityId,
+    StatisticsPeriod period,
+  ) async {
+    recencyReads++;
+    lastRecencyPeriod = period;
+    return recency;
+  }
+
+  int recencyReads = 0;
+  StatisticsPeriod? lastRecencyPeriod;
+
+
   /// The dashboard is a community's figures, never one player's own totals.
   @override
   Future<List<CommunityPlayerStatistics>> fetchPlayerPeriodStatistics(

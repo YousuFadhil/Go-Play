@@ -102,6 +102,42 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
         ];
       });
 
+  /// Tie-break recency through `community_statistics_recency` (migration
+  /// `0060`).
+  ///
+  /// One call for every player and all five measures — the alternative was a
+  /// read per board row, which is what the function exists to avoid.
+  ///
+  /// The same `period_type` / `period_key` pair the counters were read with, so
+  /// the recency describes the week the numbers describe. The function calls
+  /// the database's own `statistics_period_key` to bucket matches, so the
+  /// boundary is decided once, in the place migration `0028` froze it, rather
+  /// than twice.
+  ///
+  /// Authorization is the database's, as everywhere else in this class: the
+  /// function is `security invoker`, so a non-member reads no matches and gets
+  /// an empty map — the same shape a community with no football has.
+  @override
+  Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
+    String communityId,
+    StatisticsPeriod period,
+  ) =>
+      guarded(() async {
+        final rows = await _client.rpc(
+          'community_statistics_recency',
+          params: {
+            'p_community_id': communityId,
+            'p_period_type': StatisticsPeriodWindow.periodType(period),
+            'p_period_key': StatisticsPeriodWindow.periodKey(period),
+          },
+        ) as List<dynamic>;
+
+        return {
+          for (final row in rows.cast<Map<String, dynamic>>())
+            row['user_id'] as String: playerAchievementRecencyFromRow(row),
+        };
+      });
+
   /// Reads the roster from `v_community_members` (migration `0025`).
   ///
   /// The view already inner-joins the roster to the profiles, so it answers

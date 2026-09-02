@@ -63,6 +63,26 @@ abstract interface class StatisticsAdapter {
     String communityId,
   );
 
+  /// When each player last achieved each ranked measure, in one community and
+  /// [period], keyed by user id.
+  ///
+  /// The evidence tie-breaking needs, and a read model rather than stored
+  /// state: migration `0060` derives it from the results, lineups, goals and
+  /// rating history that are already authoritative. Nothing persists a "latest
+  /// achievement", so a corrected or undone result simply stops being evidence
+  /// — there is no field left holding the old answer.
+  ///
+  /// One read for all five measures and every player. Asking per player, or per
+  /// board row, is what this deliberately avoids.
+  ///
+  /// A player absent from the map has achieved none of it; so does a player
+  /// present with null fields. Both mean the same thing and the repository
+  /// treats them the same.
+  Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
+    String communityId,
+    StatisticsPeriod period,
+  );
+
   /// One player's records for [period], one row per community they hold one in.
   ///
   /// The rows the Player Statistics screen sums for a week or a month. It is

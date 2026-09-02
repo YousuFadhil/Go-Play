@@ -747,6 +747,14 @@ class _DashboardAdapter implements StatisticsAdapter {
       throw UnimplementedError('the Community Dashboard reads no roster');
 
   @override
+  Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
+    String communityId,
+    StatisticsPeriod period,
+  ) async =>
+      const {};
+
+
+  @override
   Future<List<CommunityPlayerStatistics>> fetchPlayerPeriodStatistics(
     String userId,
     StatisticsPeriod period,

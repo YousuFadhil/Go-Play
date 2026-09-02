@@ -240,3 +240,51 @@ class CommunityDashboard {
   final StatisticLeader? mostActivePlayer;
   final StatisticLeader? mostMvp;
 }
+
+/// When a player last did each of the things the boards rank.
+///
+/// The evidence behind tie-breaking, and nothing else: it never changes what a
+/// player's value *is*, only which of two equal players is shown first.
+///
+/// Every field is `matches.start_at` — when the football happened, not when the
+/// row was written. Recording last season's match today must not make it a more
+/// recent achievement than yesterday's.
+///
+/// **Null means the measure has never happened to this player**, which sorts
+/// after every real timestamp. A player with no goals has no last goal; a
+/// player still on the opening 5.00 with no effective rating event has no
+/// rating recency. Absence is not a very old date and is not treated as one.
+///
+/// [lastRatingAt] is global and periodless, because the rating it breaks ties
+/// for is: Highest Rated shows the Global Rating in every period. The other
+/// four describe the same period as the counter they order.
+class PlayerAchievementRecency {
+  const PlayerAchievementRecency({
+    this.lastGoalAt,
+    this.lastMvpAt,
+    this.lastPlayedAt,
+    this.lastWinAt,
+    this.lastRatingAt,
+  });
+
+  /// A player nothing is known about. Every measure sorts last.
+  static const none = PlayerAchievementRecency();
+
+  final DateTime? lastGoalAt;
+  final DateTime? lastMvpAt;
+  final DateTime? lastPlayedAt;
+  final DateTime? lastWinAt;
+  final DateTime? lastRatingAt;
+
+  /// The timestamp that breaks a tie on [kind].
+  ///
+  /// One place mapping measures to their evidence, so a board and a dashboard
+  /// leader asking about the same measure cannot consult different fields.
+  DateTime? forKind(LeaderboardKind kind) => switch (kind) {
+        LeaderboardKind.topScorer => lastGoalAt,
+        LeaderboardKind.mostMvp => lastMvpAt,
+        LeaderboardKind.mostActive => lastPlayedAt,
+        LeaderboardKind.mostWins => lastWinAt,
+        LeaderboardKind.highestRated => lastRatingAt,
+      };
+}

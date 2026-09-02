@@ -784,6 +784,14 @@ class _PeriodAdapter implements StatisticsAdapter {
     String communityId,
   ) =>
       throw UnimplementedError('the player screen reads no roster');
+
+  @override
+  Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
+    String communityId,
+    StatisticsPeriod period,
+  ) async =>
+      const {};
+
 }
 
 /// The session profile source.

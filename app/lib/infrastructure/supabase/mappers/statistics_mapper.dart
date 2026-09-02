@@ -69,3 +69,30 @@ CommunityMemberRating communityMemberRatingFromRow(
 /// crashing a screen, and the totals it produces are visibly wrong rather than
 /// silently plausible.
 int _counter(Object? value) => (value as num?)?.toInt() ?? 0;
+
+/// One player's tie-break timestamps, as `community_statistics_recency`
+/// (migration `0060`) returns them.
+///
+/// Every field is nullable in the result and nullable here: the function
+/// returns null where the measure has never happened to the player, and that is
+/// the answer rather than a gap.
+///
+/// The timestamps arrive as `timestamptz` text and are read as UTC, so two of
+/// them compare by the instant the football happened rather than by whatever
+/// offset the string was written in.
+PlayerAchievementRecency playerAchievementRecencyFromRow(
+  Map<String, dynamic> row,
+) =>
+    PlayerAchievementRecency(
+      lastGoalAt: _timestamp(row['last_goal_at']),
+      lastMvpAt: _timestamp(row['last_mvp_at']),
+      lastPlayedAt: _timestamp(row['last_played_at']),
+      lastWinAt: _timestamp(row['last_win_at']),
+      lastRatingAt: _timestamp(row['last_rating_at']),
+    );
+
+DateTime? _timestamp(Object? value) {
+  if (value == null) return null;
+  final parsed = DateTime.tryParse(value as String);
+  return parsed?.toUtc();
+}

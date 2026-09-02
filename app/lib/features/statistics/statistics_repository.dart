@@ -48,17 +48,25 @@ class StatisticsRepository {
     final results = await Future.wait([
       _adapter.fetchCommunityPlayerStatistics(communityId, period),
       _adapter.fetchCompletedMatches(communityId, period),
+      _adapter.fetchAchievementRecency(communityId, period),
     ]);
     final players = results[0] as List<CommunityPlayerStatistics>;
     final completedMatches = results[1] as int;
+    final recency = results[2] as Map<String, PlayerAchievementRecency>;
 
+    // The population is unchanged: these are the community's records for the
+    // period, players who have since left included. Recency decides which of
+    // two equal players leads, and nothing about who is eligible to.
     return CommunityDashboard(
       completedMatches: completedMatches,
       totalPlayers: players.length,
       totalGoals: players.fold(0, (sum, player) => sum + player.goals),
-      topScorer: _leaderBy(players, (player) => player.goals),
-      mostActivePlayer: _leaderBy(players, (player) => player.matchesPlayed),
-      mostMvp: _leaderBy(players, (player) => player.mvpCount),
+      topScorer: _leaderBy(players, recency, LeaderboardKind.topScorer,
+          (player) => player.goals),
+      mostActivePlayer: _leaderBy(players, recency, LeaderboardKind.mostActive,
+          (player) => player.matchesPlayed),
+      mostMvp: _leaderBy(players, recency, LeaderboardKind.mostMvp,
+          (player) => player.mvpCount),
     );
   }
 
@@ -88,8 +96,10 @@ class StatisticsRepository {
     final results = await Future.wait([
       _adapter.fetchCommunityMemberRatings(communityId),
       _adapter.fetchCommunityPlayerStatistics(communityId, period),
+      _adapter.fetchAchievementRecency(communityId, period),
     ]);
     final members = results[0] as List<CommunityMemberRating>;
+    final recency = results[2] as Map<String, PlayerAchievementRecency>;
     final counters = {
       for (final row in results[1] as List<CommunityPlayerStatistics>)
         row.userId: row,
@@ -110,7 +120,8 @@ class StatisticsRepository {
 
     final boards = <Leaderboard>[];
     for (final kind in LeaderboardKind.values) {
-      final board = _buildBoard(kind, members, (m) => measure(m, kind));
+      final board =
+          _buildBoard(kind, members, recency, (m) => measure(m, kind));
       if (board != null) boards.add(board);
     }
     return boards;
@@ -180,20 +191,26 @@ class StatisticsRepository {
   static Leaderboard? _buildBoard(
     LeaderboardKind kind,
     List<CommunityMemberRating> members,
+    Map<String, PlayerAchievementRecency> recency,
     num Function(CommunityMemberRating) measure,
   ) {
     final ranked = [
       for (final member in members)
         if (measure(member) > 0) member,
     ]..sort((a, b) {
-        // Highest first. The rest of the comparison decides nothing about who
-        // is better — it exists so that two players on the same value come
-        // back in the same order every time the board is read, rather than
-        // swapping places between refreshes.
+        // Highest first, then the shared tie-break. The comparison below the
+        // value decides display order only: equal values still share a rank,
+        // which `_rankOf` computes from the value alone.
         final byValue = measure(b).compareTo(measure(a));
         if (byValue != 0) return byValue;
-        final byName = a.fullName.compareTo(b.fullName);
-        return byName != 0 ? byName : a.userId.compareTo(b.userId);
+        return _breakTie(
+          kind,
+          recency,
+          aId: a.userId,
+          aName: a.fullName,
+          bId: b.userId,
+          bName: b.fullName,
+        );
       });
 
     if (ranked.isEmpty) return null;
@@ -229,17 +246,22 @@ class StatisticsRepository {
   /// of ties by nothing more than the order rows came back in. Absence is the
   /// honest answer, and the screen says so.
   ///
-  /// Ties are broken by name, then by id. Neither is meaningful — the point is
-  /// only that repeated reads of unchanged data name the same player, rather
-  /// than swapping between equals every time the screen is opened.
+  /// Ties go to whoever did it most recently, through the same [_breakTie] the
+  /// boards use. That is what makes the dashboard's Top Scorer and the Top
+  /// Scorer board name the same player out of a tie: one rule, asked twice,
+  /// rather than two rules that happen to agree.
   static StatisticLeader? _leaderBy(
     List<CommunityPlayerStatistics> players,
+    Map<String, PlayerAchievementRecency> recency,
+    LeaderboardKind kind,
     int Function(CommunityPlayerStatistics) measure,
   ) {
     CommunityPlayerStatistics? best;
     for (final player in players) {
       if (measure(player) <= 0) continue;
-      if (best == null || _beats(player, best, measure)) best = player;
+      if (best == null || _beats(player, best, recency, kind, measure)) {
+        best = player;
+      }
     }
     if (best == null) return null;
     return StatisticLeader(
@@ -253,13 +275,70 @@ class StatisticsRepository {
   static bool _beats(
     CommunityPlayerStatistics candidate,
     CommunityPlayerStatistics incumbent,
+    Map<String, PlayerAchievementRecency> recency,
+    LeaderboardKind kind,
     int Function(CommunityPlayerStatistics) measure,
   ) {
     final difference = measure(candidate) - measure(incumbent);
     if (difference != 0) return difference > 0;
-    final byName =
-        (candidate.fullName ?? '').compareTo(incumbent.fullName ?? '');
-    if (byName != 0) return byName < 0;
-    return candidate.userId.compareTo(incumbent.userId) < 0;
+    // A dashboard record may carry no name (`CommunityPlayerStatistics.fullName`
+    // is nullable where the profile could not be read); the boards' names never
+    // are. Empty stands in so the same comparison serves both.
+    return _breakTie(
+          kind,
+          recency,
+          aId: candidate.userId,
+          aName: candidate.fullName ?? '',
+          bId: incumbent.userId,
+          bName: incumbent.fullName ?? '',
+        ) <
+        0;
+  }
+
+  /// **The tie-break, and the only one.** Both the dashboard leaders and the
+  /// five boards come through here, so a value that is level in one place is
+  /// ordered the same way in the other — and a share surface reading either
+  /// gets that ordering without asking for it.
+  ///
+  /// Returns a comparator result for two players already known to be level on
+  /// the measure. It decides **display order only**: ranks are computed from
+  /// the value alone, so nothing here can turn equals into different places.
+  ///
+  /// In order:
+  ///
+  ///   1. the newer achievement of *this* measure first;
+  ///   2. `fullName`, when the two achieved it in the same match or neither
+  ///      ever has;
+  ///   3. `userId`, so the answer is total and repeated reads never swap.
+  ///
+  /// **Null sorts last.** A missing timestamp means the measure has never
+  /// happened to that player — a rating still at its opening 5.00 with no
+  /// effective event behind it — and "never" is not a very old date. A player
+  /// with a real event therefore comes before one without, and two players with
+  /// neither fall through to the name.
+  static int _breakTie(
+    LeaderboardKind kind,
+    Map<String, PlayerAchievementRecency> recency,
+    {
+    required String aId,
+    required String aName,
+    required String bId,
+    required String bName,
+  }) {
+    final a = (recency[aId] ?? PlayerAchievementRecency.none).forKind(kind);
+    final b = (recency[bId] ?? PlayerAchievementRecency.none).forKind(kind);
+
+    if (a != null && b != null) {
+      // Newest first.
+      final byRecency = b.compareTo(a);
+      if (byRecency != 0) return byRecency;
+    } else if (a != null) {
+      return -1;
+    } else if (b != null) {
+      return 1;
+    }
+
+    final byName = aName.compareTo(bName);
+    return byName != 0 ? byName : aId.compareTo(bId);
   }
 }

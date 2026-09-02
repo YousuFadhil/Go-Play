@@ -545,6 +545,14 @@ class FakePlayerPeriodAdapter implements StatisticsAdapter {
     String communityId,
   ) =>
       throw UnimplementedError('the player screen reads no roster');
+
+  @override
+  Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
+    String communityId,
+    StatisticsPeriod period,
+  ) async =>
+      const {};
+
 }
 
 /// The result port, answering a career from memory and counting what it was

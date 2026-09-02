@@ -935,6 +935,25 @@ class FakeLeaderboardAdapter implements StatisticsAdapter {
     StatisticsPeriod period,
   ) =>
       throw UnimplementedError('the leaderboards read no player totals');
+
+  /// When each player last achieved each measure. Empty means nobody has any
+  /// recency, which is the state before a test says otherwise — every tie then
+  /// falls through to the name, exactly as it did before Cycle B1.
+  Map<String, PlayerAchievementRecency> recency = const {};
+
+  @override
+  Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
+    String communityId,
+    StatisticsPeriod period,
+  ) async {
+    recencyReads++;
+    lastRecencyPeriod = period;
+    return recency;
+  }
+
+  int recencyReads = 0;
+  StatisticsPeriod? lastRecencyPeriod;
+
 }
 
 /// Records a pushed route without letting it build: `ProfileScreen` makes the
@@ -954,4 +973,5 @@ class _BoardRouteRecorder extends NavigatorObserver {
     }
     pushed.clear();
   }
+
 }
