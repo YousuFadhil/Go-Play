@@ -1,68 +1,71 @@
-import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/sharing/share_card_canvas.dart';
-import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
-import 'package:go_play/features/statistics/community_dashboard_tab.dart';
 import 'package:go_play/features/statistics/community_statistics_card.dart';
+import 'package:go_play/features/statistics/community_statistics_tab.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
 import 'package:go_play/features/statistics/statistics_period.dart';
 import 'package:go_play/features/statistics/statistics_repository.dart';
 
-/// The Community Statistics share card, and the Dashboard action that makes
-/// one.
+/// The one Community Statistics card.
 ///
-/// Two things are asserted and they are deliberately separate: what the card
-/// draws when handed a period's figures, and that the Dashboard hands it the
-/// figures and the period the reader is actually looking at. The Share Card
-/// Engine is not retested here; it has its own suite.
+/// There used to be two: the Dashboard's, carrying three totals and three
+/// leaders, and the Leaderboards', carrying five boards three deep. Each tab
+/// had its own period, so one community could be sent two pictures of itself
+/// describing two different weeks. What is asserted here is the card that
+/// replaced them — the three totals and the one player at the top of each of
+/// the five measures, in the period the reader had selected and no other.
 void main() {
-  StatisticLeader leader(String id, String? name, int value, {String? avatar}) =>
-      StatisticLeader(
-        userId: id,
+  CommunityStatisticsLeader leader(
+    LeaderboardKind kind,
+    String name,
+    num value, {
+    String? avatar,
+  }) =>
+      CommunityStatisticsLeader(
+        kind: kind,
         fullName: name,
         value: value,
         avatarUrl: avatar,
       );
 
+  /// A card with all five measures led, which is the shape the contract names.
   CommunityStatisticsCardData data({
     StatisticsPeriod period = StatisticsPeriod.allTime,
+    String communityName = 'Al Amerat FC',
     int matches = 6,
     int players = 3,
     int goals = 7,
-    StatisticLeader? topScorer,
-    StatisticLeader? mostActive,
-    StatisticLeader? mostMvp,
-    bool leaders = true,
+    List<CommunityStatisticsLeader>? leaders,
   }) =>
       CommunityStatisticsCardData(
-        communityName: 'Al Amerat FC',
+        communityName: communityName,
         period: period,
         completedMatches: matches,
         totalPlayers: players,
         totalGoals: goals,
-        topScorer: leaders
-            ? topScorer ??
-                leader('u1', 'Ali', 5, avatar: 'https://example.test/u1.jpg')
-            : null,
-        mostActivePlayer: leaders ? mostActive ?? leader('u2', 'Sara', 4) : null,
-        mostMvp: leaders ? mostMvp ?? leader('u2', 'Sara', 2) : null,
+        leaders: leaders ??
+            [
+              leader(LeaderboardKind.highestRated, 'Ali', 7.4,
+                  avatar: 'https://example.test/u1.jpg'),
+              leader(LeaderboardKind.topScorer, 'Ali', 5),
+              leader(LeaderboardKind.mostMvp, 'Sara', 2),
+              leader(LeaderboardKind.mostActive, 'Sara', 4),
+              leader(LeaderboardKind.mostWins, 'Omar', 3),
+            ],
       );
 
   Future<void> pumpCard(
     WidgetTester tester,
     CommunityStatisticsCardData card, {
     Locale locale = const Locale('en'),
-    GlobalKey? boundaryKey,
   }) async {
     tester.view.physicalSize = const Size(2400, 2400);
     tester.view.devicePixelRatio = 1;
@@ -75,7 +78,6 @@ void main() {
       home: Align(
         alignment: Alignment.topLeft,
         child: RepaintBoundary(
-          key: boundaryKey ?? GlobalKey(),
           child: ShareCardSurface(child: CommunityStatisticsCard(data: card)),
         ),
       ),
@@ -83,13 +85,13 @@ void main() {
     await tester.pump();
   }
 
-  // --- the three totals, exactly as the Dashboard has them --------------------
+  // --- the three totals ------------------------------------------------------
 
   group('the totals are passed through untouched', () {
     testWidgets('each figure appears as given, and none is derived',
         (tester) async {
-      // Deliberately three values that cannot be confused for one another, and
-      // none of which is the sum or difference of the others.
+      // Three values that cannot be confused for one another, and none of which
+      // is the sum or difference of the others.
       await pumpCard(tester, data(matches: 6, players: 3, goals: 7));
 
       expect(find.text('6'), findsOneWidget);
@@ -100,21 +102,24 @@ void main() {
       expect(find.text('GOALS'), findsOneWidget);
     });
 
-    testWidgets('it reads them off the Dashboard model the screen is showing',
+    testWidgets('they are read off the snapshot the tab is showing',
         (tester) async {
       // The card and the screen cannot report different numbers, because there
-      // is one model and the card copies it rather than recomputing anything.
-      const dashboard = CommunityDashboard(
-        completedMatches: 11,
-        totalPlayers: 4,
-        totalGoals: 19,
-        topScorer: null,
-        mostActivePlayer: null,
-        mostMvp: null,
+      // is one snapshot and the card copies it rather than recomputing.
+      const statistics = CommunityStatistics(
+        dashboard: CommunityDashboard(
+          completedMatches: 11,
+          totalPlayers: 4,
+          totalGoals: 19,
+          topScorer: null,
+          mostActivePlayer: null,
+          mostMvp: null,
+        ),
+        boards: [],
       );
 
       final card = CommunityStatisticsCardData.of(
-        dashboard,
+        statistics,
         communityName: 'Al Amerat FC',
         period: StatisticsPeriod.monthly,
       );
@@ -123,345 +128,288 @@ void main() {
       expect(card.totalPlayers, 4);
       expect(card.totalGoals, 19);
       expect(card.period, StatisticsPeriod.monthly);
-      expect(card.communityName, 'Al Amerat FC');
       expect(card.hasLeaders, isFalse);
     });
+  });
 
-    testWidgets('a community name is on the card', (tester) async {
+  // --- five leaders, first place only ---------------------------------------
+
+  group('all five measures, and only their leaders', () {
+    testWidgets('every measure the tab ranks is named on the card',
+        (tester) async {
       await pumpCard(tester, data());
 
-      expect(find.text('Al Amerat FC'), findsOneWidget);
-      // The mark opens and closes the card.
-      expect(find.text('GO PLAY'), findsNWidgets(2));
-    });
-  });
-
-  // --- the period -------------------------------------------------------------
-
-  group('the card names the period it was given', () {
-    testWidgets('All Time', (tester) async {
-      await pumpCard(tester, data(period: StatisticsPeriod.allTime));
-      expect(find.text('All time'), findsOneWidget);
-      expect(find.text('Weekly'), findsNothing);
-      expect(find.text('Monthly'), findsNothing);
-    });
-
-    testWidgets('Weekly, with the week\'s figures', (tester) async {
-      await pumpCard(
-        tester,
-        data(period: StatisticsPeriod.weekly, matches: 1, players: 2, goals: 2),
-      );
-
-      expect(find.text('Weekly'), findsOneWidget);
-      expect(find.text('1'), findsOneWidget);
-      expect(find.text('2'), findsNWidgets(2));
-      // The season's figures are nowhere on a weekly card.
-      expect(find.text('6'), findsNothing);
-      expect(find.text('7'), findsNothing);
-    });
-
-    testWidgets('Monthly, with the month\'s figures', (tester) async {
-      await pumpCard(
-        tester,
-        data(period: StatisticsPeriod.monthly, matches: 4, players: 5, goals: 9),
-      );
-
-      expect(find.text('Monthly'), findsOneWidget);
-      expect(find.text('4'), findsOneWidget);
-      expect(find.text('5'), findsOneWidget);
-      expect(find.text('9'), findsOneWidget);
-      expect(find.text('All time'), findsNothing);
-    });
-  });
-
-  // --- leaders ----------------------------------------------------------------
-
-  group('the players who led', () {
-    testWidgets('each leader is named, with the figure in its own words',
-        (tester) async {
-      await pumpCard(
-        tester,
-        data(
-          topScorer: leader('u1', 'Ali', 5),
-          mostActive: leader('u2', 'Sara', 4),
-          mostMvp: leader('u3', 'Omar', 2),
-        ),
-      );
-
+      expect(find.text('HIGHEST RATED'), findsOneWidget);
       expect(find.text('TOP SCORER'), findsOneWidget);
-      expect(find.text('Ali'), findsOneWidget);
-      expect(find.text('5 goals'), findsOneWidget);
-
-      expect(find.text('MOST ACTIVE PLAYER'), findsOneWidget);
-      expect(find.text('Sara'), findsOneWidget);
-      expect(find.text('4 matches'), findsOneWidget);
-
       expect(find.text('MOST VALUABLE PLAYER'), findsOneWidget);
-      expect(find.text('Omar'), findsOneWidget);
+      expect(find.text('MOST ACTIVE'), findsOneWidget);
+      expect(find.text('MOST WINS'), findsOneWidget);
+    });
+
+    testWidgets('each figure is stated in its own words', (tester) async {
+      await pumpCard(tester, data());
+
+      // A rating is written as a rating — one decimal, no unit, because it is
+      // not a count of anything.
+      expect(find.text('7.4'), findsOneWidget);
+      expect(find.text('5 goals'), findsOneWidget);
       expect(find.text('2 times'), findsOneWidget);
+      expect(find.text('4 matches'), findsOneWidget);
+      expect(find.text('3 wins'), findsOneWidget);
     });
 
-    testWidgets('the faces come from the existing avatar', (tester) async {
-      await pumpCard(
-        tester,
-        data(
-          topScorer:
-              leader('u1', 'Ali', 5, avatar: 'https://example.test/u1.jpg'),
-          mostActive: leader('u2', 'Sara', 4),
-          mostMvp: leader('u2', 'Sara', 2),
-        ),
-      );
-
-      final avatars =
-          tester.widgetList<PlayerAvatar>(find.byType(PlayerAvatar)).toList();
-      expect(avatars, hasLength(3));
-      // Ali has a picture; Sara has not, so both the photo and the fallback are
-      // on the same card — and both through the app's own avatar rather than a
-      // second implementation built for cards.
-      expect(avatars.first.avatarUrl, 'https://example.test/u1.jpg');
-      expect(avatars.first.fullName, 'Ali');
-      expect(avatars[1].avatarUrl, isNull);
-      expect(find.text('S'), findsWidgets, reason: 'the existing initials');
-      // Circular, and at card scale rather than list scale.
-      expect(avatars.first.radius, greaterThan(40));
-    });
-
-    testWidgets('a measure nobody leads is left off, not filled in',
-        (tester) async {
-      // The Dashboard carries null where a measure has not happened; a row
-      // saying "Not yet" on a picture sent to other people is an absence
-      // nobody can act on.
-      // Built directly rather than through the helper: the helper fills in
-      // defaults, and what this test needs is the absences themselves.
-      await pumpCard(
-        tester,
-        CommunityStatisticsCardData(
-          communityName: 'Al Amerat FC',
-          period: StatisticsPeriod.allTime,
+    testWidgets('only the first place, never a runner-up', (tester) async {
+      // The board behind Top Scorer is three deep on screen. The card takes the
+      // top of it and nothing else — this is what makes it a picture rather
+      // than a table.
+      const statistics = CommunityStatistics(
+        dashboard: CommunityDashboard(
           completedMatches: 6,
           totalPlayers: 3,
-          totalGoals: 7,
-          topScorer: leader('u1', 'Ali', 5),
+          totalGoals: 12,
+          topScorer: null,
+          mostActivePlayer: null,
+          mostMvp: null,
         ),
+        boards: [
+          Leaderboard(
+            kind: LeaderboardKind.topScorer,
+            entries: [
+              LeaderboardEntry(
+                  userId: 'u1', fullName: 'Ali', rank: 1, value: 7),
+              LeaderboardEntry(
+                  userId: 'u2', fullName: 'Sara', rank: 2, value: 4),
+              LeaderboardEntry(
+                  userId: 'u3', fullName: 'Omar', rank: 3, value: 1),
+            ],
+          ),
+        ],
+      );
+
+      final card = CommunityStatisticsCardData.of(
+        statistics,
+        communityName: 'Al Amerat FC',
+        period: StatisticsPeriod.allTime,
+      );
+
+      expect(card.leaders, hasLength(1));
+      expect(card.leaders.single.fullName, 'Ali');
+      expect(card.leaders.single.value, 7);
+
+      await pumpCard(tester, card);
+      expect(find.text('Ali'), findsOneWidget);
+      expect(find.text('Sara'), findsNothing);
+      expect(find.text('Omar'), findsNothing);
+    });
+
+    testWidgets('a measure nobody leads is left off rather than filled in',
+        (tester) async {
+      await pumpCard(
+        tester,
+        data(leaders: [leader(LeaderboardKind.topScorer, 'Ali', 5)]),
       );
 
       expect(find.text('TOP SCORER'), findsOneWidget);
-      expect(find.text('MOST ACTIVE PLAYER'), findsNothing);
-      expect(find.text('MOST VALUABLE PLAYER'), findsNothing);
-      expect(find.text('Not yet'), findsNothing);
-      expect(find.byType(PlayerAvatar), findsOneWidget);
+      expect(find.text('MOST WINS'), findsNothing);
+      expect(find.text('HIGHEST RATED'), findsNothing);
     });
 
-    testWidgets('a community with no leaders drops the whole section',
+    testWidgets('a record that outlived its profile still counts',
         (tester) async {
-      await pumpCard(tester, data(leaders: false));
-
-      expect(find.text('LEADERS'), findsNothing);
-      expect(find.byType(PlayerAvatar), findsNothing);
-      // The totals are still the card.
-      expect(find.text('6'), findsOneWidget);
-      expect(find.text('Al Amerat FC'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('a record that outlived its profile keeps the app\'s wording',
-        (tester) async {
-      // A soft-deleted account keeps its figures and loses its name. The goals
-      // still happened, so the measure stays and the player is labelled.
       await pumpCard(
         tester,
-        CommunityStatisticsCardData(
-          communityName: 'Al Amerat FC',
-          period: StatisticsPeriod.allTime,
-          completedMatches: 6,
-          totalPlayers: 3,
-          totalGoals: 9,
-          topScorer: leader('gone', null, 9),
-        ),
+        data(leaders: const [
+          CommunityStatisticsLeader(
+            kind: LeaderboardKind.topScorer,
+            fullName: null,
+            value: 9,
+          ),
+        ]),
       );
 
       expect(find.text('Former player'), findsOneWidget);
       expect(find.text('9 goals'), findsOneWidget);
     });
 
-    testWidgets('no leaderboard is on the card', (tester) async {
-      // A summary, not the Leaderboards tab: three leaders, never five boards
-      // and never a ranking.
+    testWidgets('a leader carries their face', (tester) async {
       await pumpCard(tester, data());
-
-      expect(find.text('HIGHEST RATED'), findsNothing);
-      expect(find.text('MOST WINS'), findsNothing);
-      expect(find.text('Show more'), findsNothing);
+      expect(find.byType(PlayerAvatar), findsNWidgets(5));
     });
   });
 
-  // --- geometry ---------------------------------------------------------------
+  // --- the period the reader chose ------------------------------------------
 
-  group('the card is the engine\'s card', () {
-    testWidgets('it fills the 1080x1920 surface and nothing overflows',
+  group('the card names the period it is a picture of', () {
+    testWidgets('a week says so', (tester) async {
+      await pumpCard(tester, data(period: StatisticsPeriod.weekly));
+      expect(find.text('Weekly'), findsOneWidget);
+    });
+
+    testWidgets('all time says so', (tester) async {
+      await pumpCard(tester, data(period: StatisticsPeriod.allTime));
+      expect(find.text('All time'), findsOneWidget);
+    });
+  });
+
+  // --- the approved branding contract ---------------------------------------
+
+  group('the branding is a signature, not a masthead', () {
+    testWidgets('the wordmark appears once, and not above the community',
         (tester) async {
+      // The card used to open on a large GO PLAY mark over an accent bar, which
+      // said whose software this is before it said whose football it is.
       await pumpCard(tester, data());
 
-      expect(tester.getSize(find.byType(ShareCardSurface)),
-          ShareCardCanvas.designSize);
-      expect(tester.takeException(), isNull,
-          reason: 'a card that overflows its own surface is a broken picture');
+      expect(find.text('GO PLAY'), findsOneWidget);
+
+      final mark = tester.getCenter(find.text('GO PLAY'));
+      final name = tester.getCenter(find.text('Al Amerat FC'));
+      expect(mark.dy, greaterThan(name.dy),
+          reason: 'the signature closes the card rather than opening it');
     });
 
-    testWidgets('captured through the engine it is a 9:16 PNG', (tester) async {
-      final key = GlobalKey();
-      await pumpCard(tester, data(), boundaryKey: key);
-
-      final boundary =
-          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      final image = await tester.runAsync(() => captureShareCard(boundary));
-
-      expect(image!.pixelWidth, 1080);
-      expect(image.pixelHeight, 1920);
-      expect(image.isShareCardShape, isTrue);
-      expect(image.bytes, isNotEmpty);
-    });
-
-    testWidgets('nothing in it measures the device', (tester) async {
+    testWidgets('the decorative accent bar is gone', (tester) async {
+      // A 132×6 block of accent green sat under the wordmark. It was the
+      // masthead's underline, and it went with the masthead — there is no
+      // accent-filled bar left anywhere on the card.
       await pumpCard(tester, data());
-      final composed = tester.getSize(find.byType(CommunityStatisticsCard));
 
-      tester.view.physicalSize = const Size(1200, 3000);
-      await tester.pump();
+      final accentBars = find.byWidgetPredicate(
+        (widget) =>
+            widget is Container && widget.color == const Color(0xFF3DDC84),
+      );
+      expect(accentBars, findsNothing);
+    });
 
-      expect(tester.getSize(find.byType(CommunityStatisticsCard)), composed);
-      expect(composed, ShareCardCanvas.designSize);
+    testWidgets('but the green that structures content stays', (tester) async {
+      // Not a monochrome redesign. The accent still names the leaders section,
+      // and the rules bracketing the totals are still drawn — what was removed
+      // is the branding above the community, not the card's own structure.
+      await pumpCard(tester, data());
+
+      final heading = tester.widget<Text>(find.text('LEADERS'));
+      expect(heading.style?.color, const Color(0xFF3DDC84));
+
+      final rules = find.byWidgetPredicate(
+        (widget) => widget is Container && widget.constraints?.maxHeight == 2,
+      );
+      expect(rules, findsWidgets,
+          reason: 'the totals keep the rules that bracket them');
     });
   });
 
-  // --- localization -----------------------------------------------------------
+  // --- long names and Arabic -------------------------------------------------
 
-  group('English and Arabic', () {
-    testWidgets('English draws the card left to right', (tester) async {
-      await pumpCard(tester, data());
-
-      expect(
-        Directionality.of(tester.element(find.text('MATCHES'))),
-        TextDirection.ltr,
-      );
-    });
-
-    testWidgets('Arabic draws the same hierarchy right to left',
+  group('long names and Arabic', () {
+    testWidgets('a long community name and long players do not overflow',
         (tester) async {
       await pumpCard(
         tester,
-        CommunityStatisticsCardData(
-          communityName: 'نادي العامرات',
+        data(
+          communityName:
+              'The Extremely Long Community Name Football Association Of Muscat',
+          leaders: [
+            leader(LeaderboardKind.highestRated,
+                'Abdulrahman Bin Sulaiman Al Harthy', 7.4),
+            leader(LeaderboardKind.topScorer,
+                'Mohammed Bin Abdullah Al Balushi', 12),
+            leader(LeaderboardKind.mostMvp, 'Yousuf Al Amri', 3),
+            leader(LeaderboardKind.mostActive, 'Salim Al Harthy', 9),
+            leader(LeaderboardKind.mostWins, 'Ahmed Al Balushi', 6),
+          ],
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the Arabic card is the same card, read the other way',
+        (tester) async {
+      await pumpCard(
+        tester,
+        data(
+          communityName: 'نادي المجتمع الرياضي لكرة القدم في ولاية العامرات',
           period: StatisticsPeriod.weekly,
-          completedMatches: 6,
-          totalPlayers: 3,
-          totalGoals: 7,
-          topScorer: leader('u1', 'علي', 5),
-          mostActivePlayer: leader('u2', 'سارة', 4),
-          mostMvp: leader('u2', 'سارة', 2),
+          leaders: [
+            leader(LeaderboardKind.highestRated, 'عبدالرحمن بن سليمان الحارثي',
+                7.4),
+            leader(LeaderboardKind.topScorer, 'محمد بن عبدالله البلوشي', 12),
+            leader(LeaderboardKind.mostMvp, 'يوسف العامري', 3),
+            leader(LeaderboardKind.mostActive, 'سالم الحارثي', 9),
+            leader(LeaderboardKind.mostWins, 'أحمد البلوشي', 6),
+          ],
         ),
         locale: const Locale('ar'),
       );
 
-      expect(find.text('نادي العامرات'), findsOneWidget);
-      expect(find.text('أسبوعي'), findsOneWidget);
-      expect(find.text('المباريات'), findsOneWidget);
-      expect(find.text('اللاعبون'), findsOneWidget);
-      expect(find.text('الأهداف'), findsOneWidget);
-      expect(find.text('علي'), findsOneWidget);
-      expect(
-        Directionality.of(tester.element(find.text('المباريات'))),
-        TextDirection.rtl,
-        reason: 'the direction is inherited, not mirrored element by element',
-      );
       expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('each period is named in Arabic', (tester) async {
-      for (final (period, arabic) in [
-        (StatisticsPeriod.weekly, 'أسبوعي'),
-        (StatisticsPeriod.monthly, 'شهري'),
-        (StatisticsPeriod.allTime, 'الكل'),
-      ]) {
-        await pumpCard(tester, data(period: period),
-            locale: const Locale('ar'));
-        expect(find.text(arabic), findsOneWidget);
-      }
-    });
-
-    testWidgets('the mark reads Go Play in both languages', (tester) async {
-      await pumpCard(tester, data(), locale: const Locale('ar'));
-
-      expect(find.text('GO PLAY'), findsNWidgets(2));
+      expect(find.text('نادي المجتمع الرياضي لكرة القدم في ولاية العامرات'),
+          findsOneWidget);
+      expect(
+        Directionality.of(tester.element(find.byType(CommunityStatisticsCard))),
+        TextDirection.rtl,
+      );
     });
   });
 
-  // --- the template depends on nothing ----------------------------------------
+  // --- the one action, and what it hands the engine --------------------------
 
-  group('the template is presentation only', () {
-    test('it imports no repository, adapter or data provider', () {
-      // If this file could fetch, the card would become a second source for
-      // figures the Dashboard already has, free to disagree with the screen.
-      final imports =
-          File('lib/features/statistics/community_statistics_card.dart')
-              .readAsLinesSync()
-              .where((line) => line.startsWith('import '))
-              .toList();
-
-      for (final line in imports) {
-        for (final word in const [
-          'repository',
-          'adapter',
-          'supabase',
-          'infrastructure',
-          'auth_service',
-        ]) {
-          expect(line.contains(word), isFalse,
-              reason: 'the card imports "$word" — it must be handed resolved '
-                  'figures, never fetch them');
-        }
-      }
-    });
-  });
-
-  // --- the Dashboard's Share action -------------------------------------------
-
-  group('sharing from the Community Dashboard', () {
-    final squad = [
-      _player('u1', 'Ali', played: 3, goals: 5, mvp: 1),
-      _player('u2', 'Sara', played: 4, goals: 2, mvp: 2),
-      _player('u3', 'Omar', played: 1),
+  group('the tab shares what it is showing', () {
+    const roster = [
+      CommunityMemberRating(userId: 'u1', fullName: 'Ali', rating: 7.4),
+      CommunityMemberRating(userId: 'u2', fullName: 'Sara', rating: 6.1),
     ];
 
-    Future<CapturingRenderer> pumpDashboard(
+    CommunityPlayerStatistics record(
+      String id,
+      String name, {
+      int played = 0,
+      int goals = 0,
+      int mvp = 0,
+      int wins = 0,
+    }) =>
+        CommunityPlayerStatistics(
+          userId: id,
+          fullName: name,
+          matchesPlayed: played,
+          wins: wins,
+          losses: 0,
+          draws: 0,
+          goals: goals,
+          mvpCount: mvp,
+        );
+
+    Future<_CapturingRenderer> pumpTab(
       WidgetTester tester, {
       String? communityName = 'Al Amerat FC',
-      Map<StatisticsPeriod, List<CommunityPlayerStatistics>> periodPlayers =
+      Map<StatisticsPeriod, List<CommunityPlayerStatistics>> periodRecords =
           const {},
       Map<StatisticsPeriod, int> periodMatches = const {},
-      Completer<void>? gate,
     }) async {
       tester.view.physicalSize = const Size(1000, 1800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
-      final renderer = CapturingRenderer();
+      final renderer = _CapturingRenderer();
       await tester.pumpWidget(MaterialApp(
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: Scaffold(
-          body: CommunityDashboardTab(
+          body: CommunityStatisticsTab(
             communityId: 'c1',
             communityName: communityName,
-            repository: StatisticsRepository(_DashboardAdapter(
-              players: squad,
+            repository: StatisticsRepository(_Adapter(
+              members: roster,
+              records: [
+                record('u1', 'Ali', played: 3, goals: 5, mvp: 1, wins: 2),
+                record('u2', 'Sara', played: 4, goals: 2, mvp: 2, wins: 1),
+              ],
               completedMatches: 6,
-              periodPlayers: periodPlayers,
+              periodRecords: periodRecords,
               periodMatches: periodMatches,
-              gate: gate,
             )),
             renderer: renderer,
-            shareService: FakeShareService(),
+            shareService: _FakeShareService(),
           ),
         ),
       ));
@@ -469,17 +417,15 @@ void main() {
       return renderer;
     }
 
-    /// Builds whatever template the Dashboard handed the engine.
     Future<void> pumpTemplate(
       WidgetTester tester,
-      CapturingRenderer renderer,
+      _CapturingRenderer renderer,
     ) async {
       // Torn down first: pumping another `MaterialApp` would update the one
       // already mounted, keeping its Navigator and the preview route on top —
       // and everything under an opaque route is offstage, where `find.byType`
       // does not look.
       await tester.pumpWidget(const SizedBox.shrink());
-
       await tester.pumpWidget(MaterialApp(
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -491,61 +437,50 @@ void main() {
       await tester.pump();
     }
 
-    CommunityStatisticsCard shownCard(WidgetTester tester) =>
-        tester.widget<CommunityStatisticsCard>(
-            find.byType(CommunityStatisticsCard));
+    CommunityStatisticsCard shownCard(WidgetTester tester) => tester
+        .widget<CommunityStatisticsCard>(find.byType(CommunityStatisticsCard));
 
-    testWidgets('the Dashboard offers a Share action beside the period',
+    testWidgets('there is exactly one Community Statistics share action',
         (tester) async {
-      await pumpDashboard(tester);
+      // Two tabs meant two buttons and two cards. One tab means one of each.
+      await pumpTab(tester);
 
       expect(find.byTooltip('Share community statistics'), findsOneWidget);
-      // And the period selector is not duplicated by it.
-      expect(find.text('Weekly'), findsOneWidget);
-      expect(find.text('All time'), findsOneWidget);
+      expect(find.byIcon(Icons.ios_share), findsOneWidget);
+      expect(find.byTooltip('Share leaderboards'), findsNothing);
     });
 
-    testWidgets('Share hands the engine a Community Statistics card',
+    testWidgets('it shares the totals and the five leaders on screen',
         (tester) async {
-      final renderer = await pumpDashboard(tester);
+      final renderer = await pumpTab(tester);
 
       await tester.tap(find.byTooltip('Share community statistics'));
       await tester.pumpAndSettle();
-
-      // The existing engine composed it and the existing preview opened.
-      expect(renderer.renders, 1);
-      expect(find.byType(ShareCardPreviewScreen), findsOneWidget);
-    });
-
-    testWidgets('the card carries the figures and leaders on screen',
-        (tester) async {
-      final renderer = await pumpDashboard(tester);
-      await tester.tap(find.byTooltip('Share community statistics'));
-      await tester.pumpAndSettle();
-
       await pumpTemplate(tester, renderer);
 
       final card = shownCard(tester).data;
-      expect(card.period, StatisticsPeriod.allTime);
       expect(card.communityName, 'Al Amerat FC');
+      expect(card.period, StatisticsPeriod.allTime);
       expect(card.completedMatches, 6);
-      expect(card.totalPlayers, 3);
+      expect(card.totalPlayers, 2);
       expect(card.totalGoals, 7);
-      // The leaders the repository picked, with their own values.
-      expect(card.topScorer?.fullName, 'Ali');
-      expect(card.topScorer?.value, 5);
-      expect(card.mostActivePlayer?.fullName, 'Sara');
-      expect(card.mostActivePlayer?.value, 4);
-      expect(card.mostMvp?.fullName, 'Sara');
-      expect(card.mostMvp?.value, 2);
+
+      // One row per measure, in the order the tab lists them, each a first
+      // place.
+      expect(card.leaders.map((l) => l.kind).toList(), LeaderboardKind.values);
+      expect(card.leaders.map((l) => l.fullName).toList(),
+          ['Ali', 'Ali', 'Sara', 'Sara', 'Ali']);
     });
 
-    testWidgets('the card is the period the reader selected', (tester) async {
-      // The whole point of the entry point: no second period selector.
-      final renderer = await pumpDashboard(
+    testWidgets('a week shares the week, without asking again', (tester) async {
+      // The whole point of the one selector: the share flow never offers a
+      // second period.
+      final renderer = await pumpTab(
         tester,
-        periodPlayers: {
-          StatisticsPeriod.weekly: [_player('u1', 'Ali', played: 1, goals: 2)],
+        periodRecords: {
+          StatisticsPeriod.weekly: [
+            record('u1', 'Ali', played: 1, goals: 2, wins: 1),
+          ],
         },
         periodMatches: {StatisticsPeriod.weekly: 1},
       );
@@ -554,7 +489,6 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Share community statistics'));
       await tester.pumpAndSettle();
-
       await pumpTemplate(tester, renderer);
 
       final card = shownCard(tester).data;
@@ -562,189 +496,81 @@ void main() {
       expect(card.completedMatches, 1);
       expect(card.totalPlayers, 1);
       expect(card.totalGoals, 2);
-      expect(card.topScorer?.value, 2);
     });
 
-    testWidgets('a month shares the month', (tester) async {
-      final renderer = await pumpDashboard(
-        tester,
-        periodPlayers: {
-          StatisticsPeriod.monthly: [
-            _player('u2', 'Sara', played: 3, goals: 4, mvp: 1),
-          ],
-        },
-        periodMatches: {StatisticsPeriod.monthly: 3},
-      );
+    testWidgets('an empty period invents no leaders', (tester) async {
+      final renderer = await pumpTab(tester);
 
       await tester.tap(find.text('Monthly'));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Share community statistics'));
       await tester.pumpAndSettle();
-
       await pumpTemplate(tester, renderer);
 
       final card = shownCard(tester).data;
       expect(card.period, StatisticsPeriod.monthly);
-      expect(card.completedMatches, 3);
-      expect(card.totalGoals, 4);
-      expect(card.mostMvp?.fullName, 'Sara');
-    });
-
-    testWidgets('an empty period shares a card with no invented leaders',
-        (tester) async {
-      final renderer = await pumpDashboard(tester);
-
-      await tester.tap(find.text('Monthly'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Share community statistics'));
-      await tester.pumpAndSettle();
-
-      await pumpTemplate(tester, renderer);
-
-      final card = shownCard(tester).data;
       expect(card.completedMatches, 0);
-      expect(card.totalPlayers, 0);
-      expect(card.hasLeaders, isFalse);
-      expect(find.byType(PlayerAvatar), findsNothing);
+      expect(card.totalGoals, 0);
+      // Highest Rated survives an empty month: the rating is the Global Rating
+      // and has no periodic form, so the roster still ranks. The four counted
+      // measures do not.
+      expect(card.leaders.map((l) => l.kind).toList(),
+          [LeaderboardKind.highestRated]);
     });
 
-    testWidgets('Share waits until there are figures to share', (tester) async {
-      final gate = Completer<void>();
-      final renderer = await pumpDashboard(
-        tester,
-        periodPlayers: {
-          StatisticsPeriod.weekly: [_player('u1', 'Ali', played: 1, goals: 2)],
-        },
-        periodMatches: {StatisticsPeriod.weekly: 1},
-        gate: gate,
-      );
-      IconButton shareButton() => tester
-          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.ios_share));
-
-      expect(shareButton().onPressed, isNotNull);
-
-      await tester.tap(find.text('Weekly'));
-      await tester.pump();
-      expect(shareButton().onPressed, isNull,
-          reason: 'the week has not arrived yet');
-
-      gate.complete();
-      await tester.pumpAndSettle();
-      expect(shareButton().onPressed, isNotNull);
-      expect(renderer.renders, 0);
-    });
-
-    testWidgets('without a community name there is nothing to picture',
+    testWidgets('nothing can be shared without a community to put on it',
         (tester) async {
-      // A community's figures with no community on them belong to nobody.
-      await pumpDashboard(tester, communityName: null);
+      await pumpTab(tester, communityName: null);
 
-      expect(
-        tester
-            .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.ios_share))
-            .onPressed,
-        isNull,
+      final button = tester.widget<IconButton>(
+        find.byKey(const Key('shareCommunityStatisticsButton')),
       );
-    });
-
-    testWidgets('the Share action does not crowd a narrow phone',
-        (tester) async {
-      tester.view.physicalSize = const Size(320, 640);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(MaterialApp(
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Scaffold(
-          body: CommunityDashboardTab(
-            communityId: 'c1',
-            communityName: 'Al Amerat FC',
-            repository: StatisticsRepository(
-              _DashboardAdapter(players: squad, completedMatches: 6),
-            ),
-          ),
-        ),
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.byTooltip('Share community statistics'), findsOneWidget);
-      expect(find.text('Weekly'), findsOneWidget);
-      expect(tester.takeException(), isNull,
-          reason: 'the period labels shrink; nothing overflows');
+      expect(button.onPressed, isNull,
+          reason: 'disabled rather than hidden — an action that comes and goes '
+              'reads as a bug');
     });
   });
 }
 
-CommunityPlayerStatistics _player(
-  String id,
-  String? name, {
-  int played = 0,
-  int goals = 0,
-  int mvp = 0,
-}) =>
-    CommunityPlayerStatistics(
-      userId: id,
-      fullName: name,
-      matchesPlayed: played,
-      wins: 0,
-      losses: 0,
-      draws: 0,
-      goals: goals,
-      mvpCount: mvp,
-    );
-
-/// The statistics port, answering the Dashboard's two reads from memory.
-///
-/// Behind a real [StatisticsRepository], so the card is built from the figures
-/// the product's own reasoning produced — including which player leads a
-/// measure and when nobody does.
-class _DashboardAdapter implements StatisticsAdapter {
-  _DashboardAdapter({
-    required this.players,
+/// The statistics port, answering from memory.
+class _Adapter implements StatisticsAdapter {
+  _Adapter({
+    required this.members,
+    required this.records,
     required this.completedMatches,
-    this.periodPlayers = const {},
+    this.periodRecords = const {},
     this.periodMatches = const {},
-    this.gate,
   });
 
-  final List<CommunityPlayerStatistics> players;
+  final List<CommunityMemberRating> members;
+  final List<CommunityPlayerStatistics> records;
   final int completedMatches;
-  final Map<StatisticsPeriod, List<CommunityPlayerStatistics>> periodPlayers;
+  final Map<StatisticsPeriod, List<CommunityPlayerStatistics>> periodRecords;
   final Map<StatisticsPeriod, int> periodMatches;
 
-  /// Held open to keep a period read pending while a test looks at the screen
-  /// mid-load. Without it a fake answers on the next microtask and the loading
-  /// window never exists to be observed.
-  final Completer<void>? gate;
+  @override
+  Future<List<CommunityMemberRating>> fetchCommunityMemberRatings(
+    String communityId,
+  ) async =>
+      members;
 
   @override
   Future<List<CommunityPlayerStatistics>> fetchCommunityPlayerStatistics(
     String communityId,
     StatisticsPeriod period,
-  ) async {
-    if (period.isBounded && gate != null) await gate!.future;
-    return period == StatisticsPeriod.allTime
-        ? players
-        : periodPlayers[period] ?? const [];
-  }
+  ) async =>
+      period == StatisticsPeriod.allTime
+          ? records
+          : periodRecords[period] ?? const [];
 
   @override
   Future<int> fetchCompletedMatches(
     String communityId,
     StatisticsPeriod period,
-  ) async {
-    if (period.isBounded && gate != null) await gate!.future;
-    return period == StatisticsPeriod.allTime
-        ? completedMatches
-        : periodMatches[period] ?? 0;
-  }
-
-  @override
-  Future<List<CommunityMemberRating>> fetchCommunityMemberRatings(
-    String communityId,
-  ) =>
-      throw UnimplementedError('the Community Dashboard reads no roster');
+  ) async =>
+      period == StatisticsPeriod.allTime
+          ? completedMatches
+          : periodMatches[period] ?? 0;
 
   @override
   Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
@@ -753,17 +579,16 @@ class _DashboardAdapter implements StatisticsAdapter {
   ) async =>
       const {};
 
-
   @override
   Future<List<CommunityPlayerStatistics>> fetchPlayerPeriodStatistics(
     String userId,
     StatisticsPeriod period,
   ) =>
-      throw UnimplementedError('the Community Dashboard reads no player totals');
+      throw UnimplementedError('the Statistics tab reads no player totals');
 }
 
-/// The Share Card Engine's renderer port, keeping the template it was given.
-class CapturingRenderer implements ShareCardRenderer {
+/// Keeps whatever template the tab handed the engine.
+class _CapturingRenderer implements ShareCardRenderer {
   ShareCardTemplate? captured;
   int renders = 0;
 
@@ -796,7 +621,7 @@ const _pixel = <int>[
 ];
 
 /// The share port, sharing nothing.
-class FakeShareService implements ShareService {
+class _FakeShareService implements ShareService {
   final List<ShareCardImage> shared = [];
 
   @override

@@ -2132,6 +2132,12 @@ abstract class AppLocalizations {
   /// **'Dashboard'**
   String get dashboardTab;
 
+  /// No description provided for @statisticsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get statisticsTab;
+
   /// No description provided for @communityStatisticsTitle.
   ///
   /// In en, this message translates to:
@@ -2311,6 +2317,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Most wins'**
   String get leaderboardMostWins;
+
+  /// No description provided for @leaderboardWinsValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No wins} =1{1 win} other{{count} wins}}'**
+  String leaderboardWinsValue(num count);
 
   /// No description provided for @leaderboardsEmpty.
   ///

@@ -1184,6 +1184,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardTab => 'Dashboard';
 
   @override
+  String get statisticsTab => 'Statistics';
+
+  @override
   String get communityStatisticsTitle => 'Community statistics';
 
   @override
@@ -1294,6 +1297,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leaderboardMostWins => 'Most wins';
+
+  @override
+  String leaderboardWinsValue(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wins',
+      one: '1 win',
+      zero: 'No wins',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get leaderboardsEmpty =>

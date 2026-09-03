@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/statistics/community_leaderboards_tab.dart';
+import 'package:go_play/features/statistics/community_statistics_tab.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
 import 'package:go_play/features/statistics/statistics_period.dart';
@@ -126,20 +127,23 @@ void main() {
         FakeLeaderboardAdapter(members: tied, records: const []),
       );
 
-      expect(boardOf(boards, LeaderboardKind.highestRated).entries
-          .map((e) => e.rank), [1, 1, 1]);
+      expect(
+          boardOf(boards, LeaderboardKind.highestRated)
+              .entries
+              .map((e) => e.rank),
+          [1, 1, 1]);
     });
 
     test('only the top three appear', () async {
       final crowd = [
-        for (var i = 0; i < 8; i++)
-          member('u$i', 'P$i', 9.0 - i),
+        for (var i = 0; i < 8; i++) member('u$i', 'P$i', 9.0 - i),
       ];
       final boards = await boardsFrom(
         FakeLeaderboardAdapter(members: crowd, records: const []),
       );
 
-      expect(boardOf(boards, LeaderboardKind.highestRated).entries, hasLength(3));
+      expect(
+          boardOf(boards, LeaderboardKind.highestRated).entries, hasLength(3));
     });
 
     test('a tie renders the same way whatever order the rows arrive in',
@@ -262,7 +266,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         navigatorObservers: observer == null ? const [] : [observer],
         home: Scaffold(
-          body: CommunityLeaderboardsTab(
+          body: CommunityStatisticsTab(
             communityId: 'c1',
             repository: StatisticsRepository(adapter),
           ),
@@ -271,112 +275,112 @@ void main() {
       if (settle) await tester.pumpAndSettle();
     }
 
-  // --- player identity on a board -----------------------------------------------
+    // --- player identity on a board -----------------------------------------------
 
-  group('a board row is a player identity', () {
-    testWidgets('the leader and the runners-up all carry a face',
-        (tester) async {
-      await pumpBoards(
-        tester,
-        FakeLeaderboardAdapter(members: roster, records: records),
-      );
+    group('a board row is a player identity', () {
+      testWidgets('the leader and the runners-up all carry a face',
+          (tester) async {
+        await pumpBoards(
+          tester,
+          FakeLeaderboardAdapter(members: roster, records: records),
+        );
 
-      final board = find.widgetWithText(LeaderboardCard, 'Highest rated');
-      await tester.tap(
-          find.descendant(of: board, matching: find.text('Show more')));
-      await tester.pumpAndSettle();
+        final board = find.widgetWithText(LeaderboardCard, 'Highest rated');
+        await tester
+            .tap(find.descendant(of: board, matching: find.text('Show more')));
+        await tester.pumpAndSettle();
 
-      // Scoped to one card: a player who leads three measures has an identity
-      // on each of them, and the same key on all three.
-      PlayerAvatar avatarOn(String userId) => tester.widget<PlayerAvatar>(
-            find.descendant(
-              of: find.descendant(
-                of: board,
-                matching: find.byKey(Key('boardIdentity_$userId')),
+        // Scoped to one card: a player who leads three measures has an identity
+        // on each of them, and the same key on all three.
+        PlayerAvatar avatarOn(String userId) => tester.widget<PlayerAvatar>(
+              find.descendant(
+                of: find.descendant(
+                  of: board,
+                  matching: find.byKey(Key('boardIdentity_$userId')),
+                ),
+                matching: find.byType(PlayerAvatar),
               ),
-              matching: find.byType(PlayerAvatar),
+            );
+
+        // Ali leads with a picture; Sara and Omar are behind him with none, and
+        // fall back to the initials every other surface uses.
+        expect(avatarOn('u1').avatarUrl, 'https://example.test/u1.jpg');
+        expect(avatarOn('u1').isProfessionalGuest, isFalse);
+        expect(avatarOn('u2').avatarUrl, isNull);
+        expect(
+          find.descendant(
+            of: find.descendant(
+              of: board,
+              matching: find.byKey(const Key('boardIdentity_u2')),
             ),
-          );
-
-      // Ali leads with a picture; Sara and Omar are behind him with none, and
-      // fall back to the initials every other surface uses.
-      expect(avatarOn('u1').avatarUrl, 'https://example.test/u1.jpg');
-      expect(avatarOn('u1').isProfessionalGuest, isFalse);
-      expect(avatarOn('u2').avatarUrl, isNull);
-      expect(
-        find.descendant(
-          of: find.descendant(
-            of: board,
-            matching: find.byKey(const Key('boardIdentity_u2')),
+            matching: find.text('S'),
           ),
-          matching: find.text('S'),
-        ),
-        findsOneWidget,
-        reason: 'the existing initials fallback, not a new one',
-      );
+          findsOneWidget,
+          reason: 'the existing initials fallback, not a new one',
+        );
+      });
+
+      testWidgets('the identity opens that player', (tester) async {
+        final observer = _BoardRouteRecorder();
+        await pumpBoards(
+          tester,
+          FakeLeaderboardAdapter(members: roster, records: records),
+          observer: observer,
+        );
+        observer.pushed.clear();
+
+        await tester.tap(find.byKey(const Key('boardIdentity_u1')).first);
+
+        final screen = observer.pushed.single
+            .builder(tester.element(find.byType(CommunityStatisticsTab)));
+        expect((screen as ProfileScreen).userId, 'u1');
+        observer.discard();
+      });
+
+      testWidgets('the rank and the value are not tappable', (tester) async {
+        final observer = _BoardRouteRecorder();
+        await pumpBoards(
+          tester,
+          FakeLeaderboardAdapter(members: roster, records: records),
+          observer: observer,
+        );
+        observer.pushed.clear();
+
+        // The value beside the leader of Top Scorer: five goals, and not a
+        // player identity.
+        await tester.tap(find
+            .descendant(
+              of: find.widgetWithText(LeaderboardCard, 'Top scorer'),
+              matching: find.text('5'),
+            )
+            .first);
+        await tester.pumpAndSettle();
+
+        expect(observer.pushed, isEmpty,
+            reason: 'only the identity is the control');
+      });
+
+      testWidgets('the ranking and the figures are unchanged', (tester) async {
+        await pumpBoards(
+          tester,
+          FakeLeaderboardAdapter(members: roster, records: records),
+        );
+
+        // The same assertions the board made before it carried faces.
+        final topScorer = find.widgetWithText(LeaderboardCard, 'Top scorer');
+        expect(find.descendant(of: topScorer, matching: find.text('Ali')),
+            findsOneWidget);
+        expect(find.descendant(of: topScorer, matching: find.text('5')),
+            findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.widgetWithText(LeaderboardCard, 'Highest rated'),
+            matching: find.text('6.0'),
+          ),
+          findsOneWidget,
+        );
+      });
     });
-
-    testWidgets('the identity opens that player', (tester) async {
-      final observer = _BoardRouteRecorder();
-      await pumpBoards(
-        tester,
-        FakeLeaderboardAdapter(members: roster, records: records),
-        observer: observer,
-      );
-      observer.pushed.clear();
-
-      await tester.tap(find.byKey(const Key('boardIdentity_u1')).first);
-
-      final screen = observer.pushed.single
-          .builder(tester.element(find.byType(CommunityLeaderboardsTab)));
-      expect((screen as ProfileScreen).userId, 'u1');
-      observer.discard();
-    });
-
-    testWidgets('the rank and the value are not tappable', (tester) async {
-      final observer = _BoardRouteRecorder();
-      await pumpBoards(
-        tester,
-        FakeLeaderboardAdapter(members: roster, records: records),
-        observer: observer,
-      );
-      observer.pushed.clear();
-
-      // The value beside the leader of Top Scorer: five goals, and not a
-      // player identity.
-      await tester.tap(find
-          .descendant(
-            of: find.widgetWithText(LeaderboardCard, 'Top scorer'),
-            matching: find.text('5'),
-          )
-          .first);
-      await tester.pumpAndSettle();
-
-      expect(observer.pushed, isEmpty,
-          reason: 'only the identity is the control');
-    });
-
-    testWidgets('the ranking and the figures are unchanged', (tester) async {
-      await pumpBoards(
-        tester,
-        FakeLeaderboardAdapter(members: roster, records: records),
-      );
-
-      // The same assertions the board made before it carried faces.
-      final topScorer = find.widgetWithText(LeaderboardCard, 'Top scorer');
-      expect(find.descendant(of: topScorer, matching: find.text('Ali')),
-          findsOneWidget);
-      expect(find.descendant(of: topScorer, matching: find.text('5')),
-          findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.widgetWithText(LeaderboardCard, 'Highest rated'),
-          matching: find.text('6.0'),
-        ),
-        findsOneWidget,
-      );
-    });
-  });
 
     testWidgets('shows the indicator until the boards arrive', (tester) async {
       final gate = Completer<void>();
@@ -649,7 +653,8 @@ void main() {
 
     test('All Time is what it always was', () async {
       final adapter = seasonAndWeek();
-      final boards = await StatisticsRepository(adapter).fetchLeaderboards('c1');
+      final boards =
+          await StatisticsRepository(adapter).fetchLeaderboards('c1');
 
       expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
       expect(boardOf(boards, LeaderboardKind.topScorer).entries.first.fullName,
@@ -772,7 +777,7 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: Scaffold(
-          body: CommunityLeaderboardsTab(
+          body: CommunityStatisticsTab(
             communityId: 'c1',
             repository: StatisticsRepository(adapter),
           ),
@@ -827,7 +832,8 @@ void main() {
       expect(find.textContaining('Weeks run Monday to Sunday'), findsOneWidget);
     });
 
-    testWidgets('a period with nothing in it shows no counted board and no '
+    testWidgets(
+        'a period with nothing in it shows no counted board and no '
         'invented leader', (tester) async {
       final adapter = seasonAndWeek();
       await pumpBoards(tester, adapter);
@@ -926,7 +932,11 @@ class FakeLeaderboardAdapter implements StatisticsAdapter {
     String communityId,
     StatisticsPeriod period,
   ) =>
-      throw UnimplementedError('the leaderboards read no match totals');
+      // The Statistics tab draws the community's totals above the boards, so
+      // this port is asked for a match count the Leaderboards tab never wanted.
+      // Zero: this file is about ranking, and a total it does not assert must
+      // not be the reason a board fails to draw.
+      Future.value(0);
 
   /// A board is a community's ranking, never one player's own totals.
   @override
@@ -953,7 +963,6 @@ class FakeLeaderboardAdapter implements StatisticsAdapter {
 
   int recencyReads = 0;
   StatisticsPeriod? lastRecencyPeriod;
-
 }
 
 /// Records a pushed route without letting it build: `ProfileScreen` makes the
@@ -973,5 +982,4 @@ class _BoardRouteRecorder extends NavigatorObserver {
     }
     pushed.clear();
   }
-
 }

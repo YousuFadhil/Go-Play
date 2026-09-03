@@ -6,17 +6,47 @@ import 'statistics_models.dart';
 import 'statistics_period.dart';
 import 'statistics_period_selector.dart';
 
+/// One measure, and the single player at the top of it.
+///
+/// **First place, and no other place.** The card carries five of these because
+/// the Statistics tab ranks five measures; it carries one player each because a
+/// picture sent to a group chat is glanced at, and fifteen names is a table
+/// somebody has to sit down with. The runner-ups stay on the screen the card was
+/// taken from, which is where reading happens.
+@immutable
+class CommunityStatisticsLeader {
+  const CommunityStatisticsLeader({
+    required this.kind,
+    required this.fullName,
+    required this.value,
+    this.avatarUrl,
+  });
+
+  /// Which board this player is top of.
+  final LeaderboardKind kind;
+
+  /// Null for a record that outlived the profile it describes — a soft-deleted
+  /// account whose figures stayed. The measure still happened, and the card
+  /// says so in the words every other surface uses.
+  final String? fullName;
+
+  final String? avatarUrl;
+
+  /// `double` for a rating, `int` for a count, exactly as the board carries it.
+  final num value;
+}
+
 /// Everything the Community Statistics card draws, resolved before it is drawn.
 ///
-/// **A summary, not the Dashboard.** Six figures and a name: the three totals,
-/// and the three players who lead a measure. The five leaderboards are not here
-/// and are not meant to be — a board is a ranking somebody reads, and this is a
-/// picture somebody sends.
+/// **One card where there were two.** The Dashboard's card carried three totals
+/// and three leaders; the Leaderboards' card carried five boards three deep.
+/// Between them a reader could send two pictures of the same community for two
+/// different stretches of time. This is the one card: the three totals, and the
+/// one player at the top of each of the five measures.
 ///
 /// The card is handed this and nothing else. No repository, no community id, no
-/// period to work out — the Dashboard already has all of it, and a template
-/// that could fetch would be a second source for figures the reader is looking
-/// at.
+/// period to work out — the tab already has all of it, and a template that could
+/// fetch would be a second source for figures the reader is looking at.
 @immutable
 class CommunityStatisticsCardData {
   const CommunityStatisticsCardData({
@@ -25,23 +55,47 @@ class CommunityStatisticsCardData {
     required this.completedMatches,
     required this.totalPlayers,
     required this.totalGoals,
-    this.topScorer,
-    this.mostActivePlayer,
-    this.mostMvp,
+    this.leaders = const [],
   });
 
-  /// Reads the figures straight off the model the Dashboard is already showing,
-  /// so the card and the screen cannot report different numbers.
-  CommunityStatisticsCardData.of(
-    CommunityDashboard dashboard, {
-    required this.communityName,
-    required this.period,
-  })  : completedMatches = dashboard.completedMatches,
-        totalPlayers = dashboard.totalPlayers,
-        totalGoals = dashboard.totalGoals,
-        topScorer = dashboard.topScorer,
-        mostActivePlayer = dashboard.mostActivePlayer,
-        mostMvp = dashboard.mostMvp;
+  /// Reads straight off the snapshot the Statistics tab is already showing, so
+  /// the card and the screen cannot report different figures.
+  ///
+  /// **The leaders come from the boards, not from the dashboard's own three.**
+  /// They are what is on screen, and the two populations are not the same: a
+  /// statistics record survives a player leaving, so the dashboard's top scorer
+  /// can be somebody who has left while a board ranks current members only. The
+  /// card has to show the community the reader is looking at.
+  ///
+  /// A measure nobody has achieved yet has no board and therefore no row here.
+  /// An absence is left off rather than filled in — a leader at zero was picked
+  /// out of a table of ties by nothing.
+  factory CommunityStatisticsCardData.of(
+    CommunityStatistics statistics, {
+    required String communityName,
+    required StatisticsPeriod period,
+  }) {
+    final dashboard = statistics.dashboard;
+    return CommunityStatisticsCardData(
+      communityName: communityName,
+      period: period,
+      completedMatches: dashboard.completedMatches,
+      totalPlayers: dashboard.totalPlayers,
+      totalGoals: dashboard.totalGoals,
+      leaders: [
+        // `LeaderboardKind.values` order, so the card names the measures in the
+        // order the tab lists them.
+        for (final kind in LeaderboardKind.values)
+          if (statistics.leaderOf(kind) case final entry?)
+            CommunityStatisticsLeader(
+              kind: kind,
+              fullName: entry.fullName,
+              avatarUrl: entry.avatarUrl,
+              value: entry.value,
+            ),
+      ],
+    );
+  }
 
   final String communityName;
 
@@ -53,17 +107,11 @@ class CommunityStatisticsCardData {
   final int totalPlayers;
   final int totalGoals;
 
-  /// Null where the measure has not happened yet — the same absence the
-  /// Dashboard carries, and for the same reason: a leader at zero was picked
-  /// out of a table of ties by nothing. A measure nobody leads is left off the
-  /// card rather than filled in.
-  final StatisticLeader? topScorer;
-  final StatisticLeader? mostActivePlayer;
-  final StatisticLeader? mostMvp;
+  /// At most five, one per measure, first place only.
+  final List<CommunityStatisticsLeader> leaders;
 
   /// Whether anybody leads anything yet.
-  bool get hasLeaders =>
-      topScorer != null || mostActivePlayer != null || mostMvp != null;
+  bool get hasLeaders => leaders.isNotEmpty;
 }
 
 /// The Community Statistics share card: a community's period, as a picture.
@@ -120,9 +168,12 @@ class CommunityStatisticsCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(_margin, 96, _margin, 84),
             child: Column(
               children: [
-                const _Wordmark(size: 44, spacing: 14),
-                const SizedBox(height: 18),
-                Container(width: 132, height: 6, color: _accent),
+                // **The card opens on the community, not on the product.** It
+                // used to carry a large GO PLAY wordmark and an accent bar above
+                // the name, which said whose software this is before it said
+                // whose football it is. The small mark at the foot is the
+                // signature, and one signature is enough.
+                //
                 // With leaders, fixed gaps down to the totals and the leaders
                 // take the rest: before this, four elastic gaps shared the
                 // slack and left a band of empty green between every pair.
@@ -131,7 +182,7 @@ class CommunityStatisticsCard extends StatelessWidget {
                 // above it and below — because pinning it to the top would
                 // leave the whole lower half of the frame empty.
                 if (!data.hasLeaders) const Spacer(),
-                const SizedBox(height: 76),
+                const SizedBox(height: 40),
                 _CommunityName(name: data.communityName),
                 const SizedBox(height: 28),
                 _PeriodBadge(
@@ -140,7 +191,7 @@ class CommunityStatisticsCard extends StatelessWidget {
                     data.period,
                   ),
                 ),
-                const SizedBox(height: 76),
+                const SizedBox(height: 56),
                 _Totals(data: data),
                 // A community with nothing to show leaves the section out
                 // rather than printing three empty rows: an absence stated
@@ -151,11 +202,11 @@ class CommunityStatisticsCard extends StatelessWidget {
                 // goes above and below the totals instead, so the figures sit
                 // in the middle of the frame rather than clinging to the top.
                 if (data.hasLeaders) ...[
-                  const SizedBox(height: 56),
+                  const SizedBox(height: 40),
                   Expanded(child: _Leaders(data: data)),
                 ] else
                   const Spacer(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
                 const _Wordmark(size: 30, spacing: 10, muted: true),
               ],
             ),
@@ -315,23 +366,11 @@ class _Leaders extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              if (data.topScorer != null)
+              for (final leader in data.leaders)
                 _LeaderRow(
-                  label: l10n.statTopScorer,
-                  leader: data.topScorer!,
-                  describeValue: l10n.goalsScoredLabel,
-                ),
-              if (data.mostActivePlayer != null)
-                _LeaderRow(
-                  label: l10n.statMostActivePlayer,
-                  leader: data.mostActivePlayer!,
-                  describeValue: l10n.statMatchesPlayedValue,
-                ),
-              if (data.mostMvp != null)
-                _LeaderRow(
-                  label: l10n.statMostMvp,
-                  leader: data.mostMvp!,
-                  describeValue: l10n.statMvpValue,
+                  label: labelOf(l10n, leader.kind),
+                  leader: leader,
+                  describeValue: describeOf(l10n, leader.kind),
                 ),
             ],
           ),
@@ -339,6 +378,39 @@ class _Leaders extends StatelessWidget {
       ],
     );
   }
+
+  /// What to call a measure. The Statistics tab's own board titles, so the card
+  /// and the screen name the five things the same way.
+  static String labelOf(AppLocalizations l10n, LeaderboardKind kind) =>
+      switch (kind) {
+        LeaderboardKind.highestRated => l10n.leaderboardHighestRated,
+        LeaderboardKind.topScorer => l10n.leaderboardTopScorer,
+        LeaderboardKind.mostMvp => l10n.leaderboardMostMvp,
+        LeaderboardKind.mostActive => l10n.leaderboardMostActive,
+        LeaderboardKind.mostWins => l10n.leaderboardMostWins,
+      };
+
+  /// The figure in the measure's own words, so a row never shows a bare number
+  /// whose unit the reader has to infer from the label above it.
+  ///
+  /// A rating keeps its one decimal (`OP-1`) and is written on its own: it is
+  /// the player's rating, not a count of anything, and "5.0 rating" would be
+  /// the only row on the card claiming a unit that does not exist.
+  static String Function(num) describeOf(
+    AppLocalizations l10n,
+    LeaderboardKind kind,
+  ) =>
+      switch (kind) {
+        LeaderboardKind.highestRated => (value) =>
+            (value as double).toStringAsFixed(1),
+        LeaderboardKind.topScorer => (value) =>
+            l10n.goalsScoredLabel(value.toInt()),
+        LeaderboardKind.mostMvp => (value) => l10n.statMvpValue(value.toInt()),
+        LeaderboardKind.mostActive => (value) =>
+            l10n.statMatchesPlayedValue(value.toInt()),
+        LeaderboardKind.mostWins => (value) =>
+            l10n.leaderboardWinsValue(value.toInt()),
+      };
 }
 
 /// One leader: the measure, their face, their name, and the figure in the
@@ -351,8 +423,11 @@ class _LeaderRow extends StatelessWidget {
   });
 
   final String label;
-  final StatisticLeader leader;
-  final String Function(int) describeValue;
+  final CommunityStatisticsLeader leader;
+
+  /// Takes a `num` because one of the five measures is a rating and the other
+  /// four are counts, and the row draws whichever it is given.
+  final String Function(num) describeValue;
 
   @override
   Widget build(BuildContext context) {

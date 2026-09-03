@@ -196,6 +196,24 @@ void main() {
           greaterThan(tester.getCenter(find.text('GOALS')).dy));
     });
 
+    testWidgets('and no decorative rule where the mark used to be',
+        (tester) async {
+      // The wordmark went first and the accent bar under it stayed behind, which
+      // left a green line opening a card with nothing to open. The player is
+      // what the card opens on now.
+      await pumpCard(tester, six);
+
+      final accentBars = find.byWidgetPredicate(
+        (widget) =>
+            widget is Container && widget.color == const Color(0xFF3DDC84),
+      );
+      expect(accentBars, findsNothing);
+
+      // The accent itself is untouched where it means something: it is still
+      // what the rating is drawn in.
+      expect(find.text('7.4'), findsOneWidget);
+    });
+
     testWidgets('a long name does not push the six off the card',
         (tester) async {
       await pumpCard(
@@ -575,10 +593,11 @@ void main() {
       // still be inert. If this file ever reached for a repository, the card
       // would become a second source for figures the screen already has, free
       // to disagree with what the reader is looking at.
-      final imports = File('lib/features/statistics/player_statistics_card.dart')
-          .readAsLinesSync()
-          .where((line) => line.startsWith('import '))
-          .toList();
+      final imports =
+          File('lib/features/statistics/player_statistics_card.dart')
+              .readAsLinesSync()
+              .where((line) => line.startsWith('import '))
+              .toList();
 
       for (final line in imports) {
         for (final word in const [
@@ -653,8 +672,7 @@ void main() {
         home: PlayerStatisticsScreen(
           userId: 'u1',
           repository: ResultRepository(_StaticResultAdapter(played)),
-          statistics:
-              StatisticsRepository(_PeriodAdapter(periods, gate: gate)),
+          statistics: StatisticsRepository(_PeriodAdapter(periods, gate: gate)),
           renderer: renderer,
           shareService: FakeShareService(),
         ),
@@ -715,8 +733,8 @@ void main() {
 
       await pumpTemplate(tester, renderer);
 
-      final card =
-          tester.widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
+      final card = tester
+          .widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
       expect(card.data.period, StatisticsPeriod.allTime);
       expect(card.data.matchesPlayed, 9);
       expect(card.data.wins, 5);
@@ -744,8 +762,8 @@ void main() {
 
       await pumpTemplate(tester, renderer);
 
-      final card =
-          tester.widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
+      final card = tester
+          .widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
       expect(card.data.period, StatisticsPeriod.weekly);
       expect(card.data.matchesPlayed, 3);
       expect(card.data.wins, 1);
@@ -769,8 +787,8 @@ void main() {
 
       await pumpTemplate(tester, renderer);
 
-      final card =
-          tester.widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
+      final card = tester
+          .widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
       expect(card.data.period, StatisticsPeriod.monthly);
       expect(card.data.matchesPlayed, 8);
       expect(card.data.goals, 11);
@@ -809,7 +827,8 @@ void main() {
 
       expect(
         tester
-            .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.ios_share))
+            .widget<IconButton>(
+                find.widgetWithIcon(IconButton, Icons.ios_share))
             .onPressed,
         isNull,
       );
@@ -960,7 +979,6 @@ class _PeriodAdapter implements StatisticsAdapter {
     StatisticsPeriod period,
   ) async =>
       const {};
-
 }
 
 /// The session profile source.

@@ -490,6 +490,7 @@
   "errResultNeedsLineup": "Teams have not been generated for this match yet. The result needs to know which side each player was on.",
   "errInvalidResultNumbers": "The result could not be saved. Check the scores and the goals.",
   "dashboardTab": "Dashboard",
+  "statisticsTab": "Statistics",
   "communityStatisticsTitle": "Community statistics",
   "statTotalMatches": "Total matches",
   "statTotalPlayers": "Total players",
@@ -534,6 +535,7 @@
   "leaderboardMostMvp": "Most valuable player",
   "leaderboardMostActive": "Most active",
   "leaderboardMostWins": "Most wins",
+  "leaderboardWinsValue": "{count, plural, =0{No wins} =1{1 win} other{{count} wins}}",
   "leaderboardsEmpty": "No leaderboards yet. Once a match result is recorded, this is where the community sees who is leading.",
   "leaderboardRatingNote": "Highest rated ranks by the player's overall rating across every community.",
 

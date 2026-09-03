@@ -288,3 +288,59 @@ class PlayerAchievementRecency {
         LeaderboardKind.highestRated => lastRatingAt,
       };
 }
+
+/// Everything the Statistics tab shows for one community over one period.
+///
+/// **One snapshot, because there is one period.** The Dashboard and the
+/// Leaderboards used to be two tabs, each with its own selector and its own
+/// load, and a reader could leave one on the month and the other on the week.
+/// They are one tab now, so the figures and the boards describe the same
+/// stretch of time by construction rather than by the reader remembering to set
+/// both — and the share card is made of this object, so a picture cannot
+/// disagree with the screen it was taken from either.
+///
+/// The two halves are still the two models they were. Nothing was merged into a
+/// new shape: [dashboard] is what `fetchDashboard` builds and [boards] is what
+/// `fetchLeaderboards` builds, assembled from one set of reads instead of two.
+class CommunityStatistics {
+  const CommunityStatistics({required this.dashboard, required this.boards});
+
+  /// The three community totals, and the three leaders the old Dashboard drew.
+  ///
+  /// Only the totals reach the screen now — the leader highlights were the same
+  /// three players the boards below them already name, and saying it twice was
+  /// the duplication this tab exists to end. They are still built because the
+  /// share card names five leaders and two of them, Highest Rated and Most
+  /// Wins, come from the boards; the other three are cheaper read from here
+  /// than re-derived.
+  final CommunityDashboard dashboard;
+
+  /// The five boards, in the repository's order, exactly as the Leaderboards
+  /// tab received them. A measure nobody has achieved yet produces no board,
+  /// so this can be shorter than five and can be empty.
+  final List<Leaderboard> boards;
+
+  /// The board for [kind], or null where the measure has not happened yet.
+  ///
+  /// The one place that looks a board up by measure, so the tab and the share
+  /// card cannot answer "who leads this" differently.
+  Leaderboard? boardFor(LeaderboardKind kind) {
+    for (final board in boards) {
+      if (board.kind == kind) return board;
+    }
+    return null;
+  }
+
+  /// Whoever is first on [kind]'s board, or null where there is no board.
+  ///
+  /// First place only. This is what the share card carries: the runner-ups are
+  /// on the screen, where somebody is reading, and off the card, which somebody
+  /// is glancing at in a group chat.
+  LeaderboardEntry? leaderOf(LeaderboardKind kind) {
+    final entries = boardFor(kind)?.entries;
+    return (entries == null || entries.isEmpty) ? null : entries.first;
+  }
+
+  /// Whether any measure has a leader at all.
+  bool get hasLeaders => boards.any((board) => board.entries.isNotEmpty);
+}

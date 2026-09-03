@@ -236,13 +236,18 @@ void main() {
   });
 
   group('destinations survive the redesign', () {
-    testWidgets('all four tabs are still there', (tester) async {
+    testWidgets('three tabs: matches, members, statistics', (tester) async {
+      // Four became three. The Dashboard and the Leaderboards were one subject
+      // split across two destinations, each with its own period and its own
+      // Share action; they are one Statistics tab now.
       await pumpCommunity(tester);
 
-      expect(find.byType(Tab), findsNWidgets(4));
-      for (final label in ['Matches', 'Members', 'Dashboard', 'Leaderboards']) {
+      expect(find.byType(Tab), findsNWidgets(3));
+      for (final label in ['Matches', 'Members', 'Statistics']) {
         expect(find.widgetWithText(Tab, label), findsOneWidget);
       }
+      expect(find.widgetWithText(Tab, 'Dashboard'), findsNothing);
+      expect(find.widgetWithText(Tab, 'Leaderboards'), findsNothing);
     });
 
     testWidgets('the matches tab still lists the community matches',
@@ -338,7 +343,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.byType(ClubHero), findsOneWidget);
-      expect(find.byType(Tab), findsNWidgets(4));
+      expect(find.byType(Tab), findsNWidgets(3));
     });
   });
 

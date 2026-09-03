@@ -1,23 +1,21 @@
-import 'dart:async';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
-import 'package:go_play/core/l10n.dart';
-import 'package:go_play/features/statistics/community_dashboard_tab.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
 import 'package:go_play/features/statistics/statistics_period.dart';
-import 'package:go_play/features/statistics/statistics_period_selector.dart';
-import 'package:go_play/features/profile/player_identity.dart';
-import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/statistics/statistics_repository.dart';
 
-/// The Community Dashboard, against a fake port.
+/// What the repository makes of a community's rows.
 ///
-/// Two things are asserted here and they are deliberately separate: what the
-/// repository makes of a set of rows — which is where every product decision
-/// about leaders lives — and what the screen shows of the result.
+/// Every product decision about a leader lives here: that a zero is not a
+/// leader, that ties go to whoever did it most recently, and that a bounded
+/// period counts who played in it rather than who is on the roster.
+///
+/// **The screen half of this file is gone, and deliberately.** The Community
+/// Dashboard was a tab and is not one any more — its totals and its boards are
+/// the one Statistics tab, which is tested in
+/// `test/community_statistics_tab_test.dart`. What the repository builds did
+/// not change with it, so this stayed exactly as it was.
 void main() {
   CommunityPlayerStatistics player(
     String id,
@@ -93,8 +91,10 @@ void main() {
       // it waits for its result. The port answers that single question, and
       // there is no other total for the repository to fall back on -- the count
       // is taken from the completed-matches read and never derived here.
-      final adapter = FakeStatisticsAdapter(players: squad, completedMatches: 6);
-      final dashboard = await StatisticsRepository(adapter).fetchDashboard('c1');
+      final adapter =
+          FakeStatisticsAdapter(players: squad, completedMatches: 6);
+      final dashboard =
+          await StatisticsRepository(adapter).fetchDashboard('c1');
 
       expect(adapter.completedMatchReads, 1);
       expect(dashboard.completedMatches, 6);
@@ -144,7 +144,8 @@ void main() {
         FakeStatisticsAdapter(players: tied, completedMatches: 1),
       ).fetchDashboard('c1');
       final second = await StatisticsRepository(
-        FakeStatisticsAdapter(players: tied.reversed.toList(), completedMatches: 1),
+        FakeStatisticsAdapter(
+            players: tied.reversed.toList(), completedMatches: 1),
       ).fetchDashboard('c1');
 
       expect(first.topScorer?.fullName, 'Ali');
@@ -203,7 +204,8 @@ void main() {
     test('All Time is what it always was', () async {
       // The default, and the figures the app has always shown first.
       final adapter = seasonAndWeek();
-      final dashboard = await StatisticsRepository(adapter).fetchDashboard('c1');
+      final dashboard =
+          await StatisticsRepository(adapter).fetchDashboard('c1');
 
       expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
       expect(dashboard.completedMatches, 6);
@@ -261,7 +263,10 @@ void main() {
           players: squad,
           completedMatches: 6,
           periodPlayers: {
-            StatisticsPeriod.weekly: [player('u1', 'Ali'), player('u2', 'Sara')],
+            StatisticsPeriod.weekly: [
+              player('u1', 'Ali'),
+              player('u2', 'Sara')
+            ],
           },
           periodMatches: {StatisticsPeriod.weekly: 1},
         ),
@@ -270,470 +275,6 @@ void main() {
       expect(dashboard.totalPlayers, 2);
       expect(dashboard.topScorer, isNull);
       expect(dashboard.mostMvp, isNull);
-    });
-  });
-
-  group('the screen', () {
-    Future<void> pumpDashboard(
-      WidgetTester tester,
-      FakeStatisticsAdapter adapter, {
-      Locale locale = const Locale('en'),
-      bool settle = true,
-      NavigatorObserver? observer,
-    }) async {
-      tester.view.physicalSize = const Size(1000, 1600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(MaterialApp(
-        locale: locale,
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        navigatorObservers: observer == null ? const [] : [observer],
-        home: Scaffold(
-          body: CommunityDashboardTab(
-            communityId: 'c1',
-            repository: StatisticsRepository(adapter),
-          ),
-        ),
-      ));
-      if (settle) await tester.pumpAndSettle();
-    }
-
-    // --- player identity on a leader tile ---------------------------------------
-
-    testWidgets('a leader tile carries a face', (tester) async {
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(players: squad, completedMatches: 6),
-      );
-
-      // Ali leads Top scorer with a picture; Sara leads Most MVP without one
-      // and falls back to the initials every other surface uses.
-      final ali = tester.widget<PlayerAvatar>(find.descendant(
-        of: find.byKey(const Key('leaderIdentity_u1')).first,
-        matching: find.byType(PlayerAvatar),
-      ));
-      expect(ali.avatarUrl, 'https://example.test/u1.jpg');
-      expect(ali.isProfessionalGuest, isFalse);
-
-      final sara = tester.widget<PlayerAvatar>(find.descendant(
-        of: find.byKey(const Key('leaderIdentity_u2')).first,
-        matching: find.byType(PlayerAvatar),
-      ));
-      expect(sara.avatarUrl, isNull);
-    });
-
-    testWidgets('the leader identity opens that player', (tester) async {
-      final observer = _DashboardRouteRecorder();
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(players: squad, completedMatches: 6),
-        observer: observer,
-      );
-      observer.pushed.clear();
-
-      await tester.tap(find.byKey(const Key('leaderIdentity_u1')).first);
-
-      final screen = observer.pushed.single
-          .builder(tester.element(find.byType(CommunityDashboardTab)));
-      expect((screen as ProfileScreen).userId, 'u1');
-      observer.discard();
-    });
-
-    testWidgets('a record that outlived its profile opens nothing',
-        (tester) async {
-      final observer = _DashboardRouteRecorder();
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(
-          players: [player('gone', null, played: 2, goals: 9)],
-          completedMatches: 2,
-        ),
-        observer: observer,
-      );
-      observer.pushed.clear();
-
-      // The label itself is covered by 'an unnamed leader is labelled rather
-      // than blank'; what is new here is that it leads nowhere.
-      await tester.tap(find.byKey(const Key('leaderIdentity_gone')).first);
-      await tester.pumpAndSettle();
-
-      expect(observer.pushed, isEmpty,
-          reason: 'the account is gone, so there is no record to open and no '
-              'link certain to be refused');
-    });
-
-    testWidgets('a measure nobody leads still says so, with no player on it',
-        (tester) async {
-      // Ali has played and scored but has never been named best player, so two
-      // measures have a leader and the third has none.
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(
-          players: [player('u1', 'Ali', played: 2, goals: 3)],
-          completedMatches: 2,
-        ),
-      );
-
-      final mvpTile = find.widgetWithText(LeaderTile, 'Most valuable player');
-      expect(find.descendant(of: mvpTile, matching: find.text('Not yet')),
-          findsOneWidget);
-      expect(find.descendant(of: mvpTile, matching: find.byType(PlayerAvatar)),
-          findsNothing,
-          reason: 'an absence is not a player');
-
-      // And the measures that do have one still draw them.
-      expect(
-        find.descendant(
-          of: find.widgetWithText(LeaderTile, 'Top scorer'),
-          matching: find.byType(PlayerAvatar),
-        ),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('the figures are unchanged', (tester) async {
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(players: squad, completedMatches: 6),
-      );
-
-      // The same numbers the tiles carried before they carried faces.
-      expect(find.text('5 goals'), findsOneWidget);
-      expect(find.text('4 matches'), findsOneWidget);
-      expect(find.text('2 times'), findsOneWidget);
-    });
-
-    testWidgets('shows the indicator until the figures arrive', (tester) async {
-      final gate = Completer<void>();
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(players: squad, completedMatches: 6, gate: gate.future),
-        settle: false,
-      );
-
-      await tester.pump();
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-      gate.complete();
-      await tester.pumpAndSettle();
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-    });
-
-    testWidgets('the six figures are on the screen', (tester) async {
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(players: squad, completedMatches: 6),
-      );
-
-      // The three community totals.
-      expect(find.text('Completed matches'), findsOneWidget);
-      expect(find.text('6'), findsOneWidget);
-      expect(find.text('Total players'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
-      expect(find.text('Total goals'), findsOneWidget);
-      expect(find.text('7'), findsOneWidget);
-
-      // The three leaders, each with its value in its own words.
-      expect(find.text('Top scorer'), findsOneWidget);
-      expect(find.text('5 goals'), findsOneWidget);
-      expect(find.text('Most active player'), findsOneWidget);
-      expect(find.text('4 matches'), findsOneWidget);
-      expect(find.text('Most valuable player'), findsOneWidget);
-      expect(find.text('2 times'), findsOneWidget);
-
-      expect(find.text('Ali'), findsOneWidget);
-      expect(find.text('Sara'), findsNWidgets(2));
-    });
-
-    testWidgets('a community with no results says so rather than inventing one',
-        (tester) async {
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(
-          players: [player('u1', 'Ali'), player('u2', 'Sara')],
-          completedMatches: 2,
-        ),
-      );
-
-      // One empty state where the three leader rows would be, rather than
-      // three rows each saying "Not yet" in its own words.
-      expect(find.text('Ali'), findsNothing,
-          reason: 'nobody is named the leader of a measure at zero');
-      expect(find.text('Top scorer'), findsNothing);
-      expect(
-        find.textContaining('No results have been recorded'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('an unnamed leader is labelled rather than blank',
-        (tester) async {
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(
-          players: [player('u1', null, played: 2, goals: 9)],
-          completedMatches: 2,
-        ),
-      );
-
-      expect(find.text('Former player'), findsWidgets);
-      expect(find.text('9 goals'), findsOneWidget);
-    });
-
-    testWidgets('the scope of the figures is stated on the screen',
-        (tester) async {
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(players: squad, completedMatches: 6),
-      );
-
-      // Every figure counts completed matches only, and the player figures
-      // narrow that further to matches with a recorded result. The screen says
-      // both, because the two can differ and nothing else explains why.
-      expect(find.textContaining('completed matches only'), findsOneWidget);
-      expect(
-        find.textContaining('result has been recorded'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('a load that fails offers a retry', (tester) async {
-      final adapter = FakeStatisticsAdapter(
-        players: squad,
-        completedMatches: 6,
-        failure: const NetworkFailure(),
-      );
-      await pumpDashboard(tester, adapter);
-
-      expect(find.text('Failed to load data.'), findsOneWidget);
-      await tester.tap(find.text('Retry'));
-      await tester.pumpAndSettle();
-
-      expect(adapter.reads, 2);
-    });
-
-    testWidgets('nothing on it is editable', (tester) async {
-      // Every counter is a consequence of a recorded result. There is no
-      // client write path, so there is nothing here to type into or submit.
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(players: squad, completedMatches: 6),
-      );
-
-      expect(find.byType(TextField), findsNothing);
-      expect(find.byType(TextFormField), findsNothing);
-      expect(find.byType(FilledButton), findsNothing);
-    });
-
-    testWidgets('Arabic renders the dashboard in Arabic', (tester) async {
-      await pumpDashboard(
-        tester,
-        FakeStatisticsAdapter(players: squad, completedMatches: 6),
-        locale: const Locale('ar'),
-      );
-
-      expect(find.text('إحصائيات المجتمع'), findsOneWidget);
-      expect(find.text('المباريات المكتملة'), findsOneWidget);
-      expect(find.text('الهدّاف'), findsOneWidget);
-      expect(find.text('المتصدّرون'), findsOneWidget);
-      expect(
-        Directionality.of(tester.element(find.text('إحصائيات المجتمع'))),
-        TextDirection.rtl,
-      );
-    });
-  });
-
-  group('choosing a period on the dashboard', () {
-    final thisWeek = [
-      player('u1', 'Ali', played: 1, wins: 1, goals: 2, mvp: 1),
-    ];
-
-    FakeStatisticsAdapter seasonAndWeek() => FakeStatisticsAdapter(
-          players: squad,
-          completedMatches: 6,
-          periodPlayers: {StatisticsPeriod.weekly: thisWeek},
-          periodMatches: {StatisticsPeriod.weekly: 1},
-        );
-
-    Future<void> pumpDashboard(
-      WidgetTester tester,
-      FakeStatisticsAdapter adapter, {
-      Locale locale = const Locale('en'),
-      Size size = const Size(1000, 1600),
-    }) async {
-      tester.view.physicalSize = size;
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(MaterialApp(
-        locale: locale,
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Scaffold(
-          body: CommunityDashboardTab(
-            communityId: 'c1',
-            repository: StatisticsRepository(adapter),
-          ),
-        ),
-      ));
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('all three periods are offered, and it opens on All time',
-        (tester) async {
-      final adapter = seasonAndWeek();
-      await pumpDashboard(tester, adapter);
-
-      expect(find.text('Weekly'), findsOneWidget);
-      expect(find.text('Monthly'), findsOneWidget);
-      expect(find.text('All time'), findsOneWidget);
-
-      final selector = tester.widget<StatisticsPeriodSelector>(
-        find.byType(StatisticsPeriodSelector),
-      );
-      expect(selector.selected, StatisticsPeriod.allTime);
-      expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
-    });
-
-    testWidgets('choosing a week reads the week and shows its figures',
-        (tester) async {
-      final adapter = seasonAndWeek();
-      await pumpDashboard(tester, adapter);
-
-      // The season's figures first.
-      expect(find.text('7'), findsOneWidget);
-
-      await tester.tap(find.text('Weekly'));
-      await tester.pumpAndSettle();
-
-      // A fresh read of the week, not a filter over rows already held.
-      expect(adapter.periodsAsked,
-          [StatisticsPeriod.allTime, StatisticsPeriod.weekly]);
-      expect(
-        tester
-            .widget<StatisticsPeriodSelector>(
-                find.byType(StatisticsPeriodSelector))
-            .selected,
-        StatisticsPeriod.weekly,
-      );
-
-      // One completed match, one player, two goals -- and the season's totals
-      // are gone rather than sitting alongside them.
-      expect(find.text('2 goals'), findsOneWidget);
-      expect(find.text('5 goals'), findsNothing);
-      expect(find.textContaining('Weeks run Monday to Sunday'), findsOneWidget);
-    });
-
-    testWidgets('and back again', (tester) async {
-      final adapter = seasonAndWeek();
-      await pumpDashboard(tester, adapter);
-
-      await tester.tap(find.text('Weekly'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('All time'));
-      await tester.pumpAndSettle();
-
-      expect(adapter.periodsAsked, [
-        StatisticsPeriod.allTime,
-        StatisticsPeriod.weekly,
-        StatisticsPeriod.allTime,
-      ]);
-      expect(find.text('5 goals'), findsOneWidget);
-      expect(find.textContaining('Weeks run Monday to Sunday'), findsNothing);
-    });
-
-    testWidgets('tapping the period already showing reads nothing again',
-        (tester) async {
-      final adapter = seasonAndWeek();
-      await pumpDashboard(tester, adapter);
-
-      await tester.tap(find.text('All time'));
-      await tester.pumpAndSettle();
-
-      expect(adapter.periodsAsked, [StatisticsPeriod.allTime]);
-    });
-
-    testWidgets('an empty period says so without saying the community is new',
-        (tester) async {
-      final adapter = seasonAndWeek();
-      await pumpDashboard(tester, adapter);
-
-      await tester.tap(find.text('Monthly'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('in this period'), findsOneWidget);
-      expect(find.textContaining('yet'), findsNothing,
-          reason: 'a quiet month in a community that has played for a season '
-              'is not a community waiting for its first result');
-      // And no leader is invented out of the emptiness.
-      expect(find.text('Ali'), findsNothing);
-      expect(find.text('Sara'), findsNothing);
-    });
-
-    testWidgets('the selector stays put while a period loads', (tester) async {
-      // A control that disappears into a spinner is one the reader cannot use
-      // to get out of the state they are in.
-      final gate = Completer<void>();
-      final adapter = FakeStatisticsAdapter(
-        players: squad,
-        completedMatches: 6,
-        gate: gate.future,
-      );
-      tester.view.physicalSize = const Size(1000, 1600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(MaterialApp(
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Scaffold(
-          body: CommunityDashboardTab(
-            communityId: 'c1',
-            repository: StatisticsRepository(adapter),
-          ),
-        ),
-      ));
-      await tester.pump();
-
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.byType(StatisticsPeriodSelector), findsOneWidget);
-      expect(find.text('Weekly'), findsOneWidget);
-
-      gate.complete();
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('the selector survives a narrow screen in English and Arabic',
-        (tester) async {
-      // 320 logical points is the narrowest phone the product targets, and the
-      // Arabic labels are the longer set.
-      for (final locale in const [Locale('en'), Locale('ar')]) {
-        await pumpDashboard(
-          tester,
-          seasonAndWeek(),
-          locale: locale,
-          size: const Size(320, 640),
-        );
-
-        expect(find.byType(StatisticsPeriodSelector), findsOneWidget);
-        expect(tester.takeException(), isNull,
-            reason: 'a period label must shrink rather than overflow');
-      }
-    });
-
-    testWidgets('Arabic names all three periods in Arabic', (tester) async {
-      await pumpDashboard(tester, seasonAndWeek(), locale: const Locale('ar'));
-
-      expect(find.text('أسبوعي'), findsOneWidget);
-      expect(find.text('شهري'), findsOneWidget);
-      expect(find.text('الكل'), findsOneWidget);
-
-      await tester.tap(find.text('أسبوعي'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('بتوقيت عُمان'), findsOneWidget);
     });
   });
 }
@@ -827,31 +368,12 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
   int recencyReads = 0;
   StatisticsPeriod? lastRecencyPeriod;
 
-
   /// The dashboard is a community's figures, never one player's own totals.
   @override
   Future<List<CommunityPlayerStatistics>> fetchPlayerPeriodStatistics(
     String userId,
     StatisticsPeriod period,
   ) =>
-      throw UnimplementedError('the Community Dashboard reads no player totals');
-}
-
-/// Records a pushed route without letting it build: `ProfileScreen` makes the
-/// production repositories when nobody injects any, and this suite has no data
-/// provider.
-class _DashboardRouteRecorder extends NavigatorObserver {
-  final List<MaterialPageRoute<dynamic>> pushed = [];
-
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    if (route is MaterialPageRoute) pushed.add(route);
-  }
-
-  void discard() {
-    for (final route in pushed) {
-      navigator?.removeRoute(route);
-    }
-    pushed.clear();
-  }
+      throw UnimplementedError(
+          'the Community Dashboard reads no player totals');
 }

@@ -126,7 +126,11 @@ class PlayerStatisticsCard extends StatelessWidget {
             // bar used to sit under now opens the card on its own.
             child: Column(
               children: [
-                Container(width: 132, height: 6, color: _accent),
+                // No mark and no rule at the top. The card used to open on an
+                // accent bar under a wordmark; the wordmark went first, and the
+                // bar went with it — a decoration that survives the thing it was
+                // decorating is just a line. The player is what opens the card
+                // now, and the muted mark at the foot is the only branding.
                 const Spacer(flex: 3),
                 _Identity(data: data),
                 const Spacer(flex: 2),
@@ -449,9 +453,8 @@ class _Wordmark extends StatelessWidget {
       // sentence, and the product is called Go Play in Arabic too.
       textDirection: TextDirection.ltr,
       style: TextStyle(
-        color: muted
-            ? PlayerStatisticsCard._inkMuted
-            : PlayerStatisticsCard._ink,
+        color:
+            muted ? PlayerStatisticsCard._inkMuted : PlayerStatisticsCard._ink,
         fontSize: size,
         fontWeight: FontWeight.w800,
         letterSpacing: spacing,

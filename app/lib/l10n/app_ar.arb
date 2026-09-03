@@ -413,6 +413,7 @@
   "errResultNeedsLineup": "لم تُولَّد فرق هذه المباراة بعد. تحتاج النتيجة إلى معرفة فريق كل لاعب.",
   "errInvalidResultNumbers": "تعذّر حفظ النتيجة. تحقّق من النتيجة ومن الأهداف.",
   "dashboardTab": "لوحة المعلومات",
+  "statisticsTab": "الإحصائيات",
   "communityStatisticsTitle": "إحصائيات المجتمع",
   "statTotalMatches": "إجمالي المباريات",
   "statTotalPlayers": "إجمالي اللاعبين",
@@ -457,6 +458,7 @@
   "leaderboardMostMvp": "الأكثر اختياراً كأفضل لاعب",
   "leaderboardMostActive": "الأكثر مشاركة",
   "leaderboardMostWins": "الأكثر فوزاً",
+  "leaderboardWinsValue": "{count, plural, zero{لا انتصارات} one{انتصار واحد} two{انتصاران} few{{count} انتصارات} many{{count} انتصاراً} other{{count} انتصار}}",
   "leaderboardsEmpty": "لا توجد لوحات صدارة بعد. بمجرّد تسجيل نتيجة مباراة، سيظهر هنا من يتصدّر المجتمع.",
   "leaderboardRatingNote": "يعتمد ترتيب «الأعلى تقييماً» على التقييم العام للاعب في كل المجتمعات.",
 

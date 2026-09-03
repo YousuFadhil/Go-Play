@@ -127,6 +127,96 @@ class StatisticsRepository {
     return boards;
   }
 
+  /// The whole Statistics tab for [period]: the totals and the five boards.
+  ///
+  /// **Four reads, where the two calls above make six between them.** Asked
+  /// separately, [fetchDashboard] and [fetchLeaderboards] each fetch the
+  /// community's player counters and each fetch the achievement recency for the
+  /// same period — the same two questions, asked twice, because they were two
+  /// tabs that did not know about each other. One tab asks once.
+  ///
+  /// **Nothing about the answers changes.** The counters, the totals, the
+  /// leaders and the boards are built by the same helpers from the same rows,
+  /// so this returns exactly what the two calls returned; it is the asking that
+  /// was consolidated, not the arithmetic. That matters more than the saved
+  /// round trips: a reader who compares the totals with the boards must not be
+  /// comparing two reads taken a moment apart.
+  Future<CommunityStatistics> fetchCommunityStatistics(
+    String communityId, [
+    StatisticsPeriod period = StatisticsPeriod.allTime,
+  ]) async {
+    final results = await Future.wait([
+      _adapter.fetchCommunityPlayerStatistics(communityId, period),
+      _adapter.fetchCompletedMatches(communityId, period),
+      _adapter.fetchAchievementRecency(communityId, period),
+      // Periodless, exactly as it is in `fetchLeaderboards`: membership is a
+      // fact about now, and the rating it carries is the Global Rating, which
+      // has no weekly form.
+      _adapter.fetchCommunityMemberRatings(communityId),
+    ]);
+    final players = results[0] as List<CommunityPlayerStatistics>;
+    final completedMatches = results[1] as int;
+    final recency = results[2] as Map<String, PlayerAchievementRecency>;
+    final members = results[3] as List<CommunityMemberRating>;
+
+    return CommunityStatistics(
+      dashboard: _dashboardOf(players, completedMatches, recency),
+      boards: _boardsOf(members, players, recency),
+    );
+  }
+
+  /// The totals and the three counted leaders, from rows already read.
+  ///
+  /// Extracted so [fetchDashboard] and [fetchCommunityStatistics] compose the
+  /// same figures out of the same rows rather than two similar blocks that
+  /// could drift.
+  static CommunityDashboard _dashboardOf(
+    List<CommunityPlayerStatistics> players,
+    int completedMatches,
+    Map<String, PlayerAchievementRecency> recency,
+  ) =>
+      CommunityDashboard(
+        completedMatches: completedMatches,
+        totalPlayers: players.length,
+        totalGoals: players.fold(0, (sum, player) => sum + player.goals),
+        topScorer: _leaderBy(
+            players, recency, LeaderboardKind.topScorer, (p) => p.goals),
+        mostActivePlayer: _leaderBy(players, recency,
+            LeaderboardKind.mostActive, (p) => p.matchesPlayed),
+        mostMvp: _leaderBy(
+            players, recency, LeaderboardKind.mostMvp, (p) => p.mvpCount),
+      );
+
+  /// The five boards, from rows already read. The counterpart of [_dashboardOf].
+  static List<Leaderboard> _boardsOf(
+    List<CommunityMemberRating> members,
+    List<CommunityPlayerStatistics> players,
+    Map<String, PlayerAchievementRecency> recency,
+  ) {
+    final counters = {for (final row in players) row.userId: row};
+
+    num measure(CommunityMemberRating member, LeaderboardKind kind) {
+      if (kind == LeaderboardKind.highestRated) return member.rating;
+      final row = counters[member.userId];
+      if (row == null) return 0;
+      return switch (kind) {
+        LeaderboardKind.topScorer => row.goals,
+        LeaderboardKind.mostMvp => row.mvpCount,
+        LeaderboardKind.mostActive => row.matchesPlayed,
+        LeaderboardKind.mostWins => row.wins,
+        LeaderboardKind.highestRated => 0,
+      };
+    }
+
+    final boards = <Leaderboard>[];
+    for (final kind in LeaderboardKind.values) {
+      final board =
+          _buildBoard(kind, members, recency, (m) => measure(m, kind));
+      if (board != null) boards.add(board);
+    }
+    return boards;
+  }
+
   /// One player's totals for [period], across every community they play in.
   ///
   /// **A career already has a source, and this is not a second one.** The Result
@@ -318,8 +408,7 @@ class StatisticsRepository {
   /// neither fall through to the name.
   static int _breakTie(
     LeaderboardKind kind,
-    Map<String, PlayerAchievementRecency> recency,
-    {
+    Map<String, PlayerAchievementRecency> recency, {
     required String aId,
     required String aName,
     required String bId,

@@ -1163,6 +1163,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get dashboardTab => 'لوحة المعلومات';
 
   @override
+  String get statisticsTab => 'الإحصائيات';
+
+  @override
   String get communityStatisticsTitle => 'إحصائيات المجتمع';
 
   @override
@@ -1277,6 +1280,21 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get leaderboardMostWins => 'الأكثر فوزاً';
+
+  @override
+  String leaderboardWinsValue(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count انتصار',
+      many: '$count انتصاراً',
+      few: '$count انتصارات',
+      two: 'انتصاران',
+      one: 'انتصار واحد',
+      zero: 'لا انتصارات',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get leaderboardsEmpty =>

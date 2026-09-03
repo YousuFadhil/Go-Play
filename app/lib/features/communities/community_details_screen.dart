@@ -16,8 +16,7 @@ import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../invitations/community_invitation_screen.dart';
 import '../members/member_management_screen.dart';
-import '../statistics/community_dashboard_tab.dart';
-import '../statistics/community_leaderboards_tab.dart';
+import '../statistics/community_statistics_tab.dart';
 import '../statistics/statistics_repository.dart';
 import 'community_models.dart';
 import '../members/member_repository.dart';
@@ -42,7 +41,7 @@ class CommunityDetailsScreen extends StatefulWidget {
   final MemberRepository? memberRepository;
   final MatchService? matchService;
 
-  /// Handed to the two statistics tabs, which already take one of their own.
+  /// Handed to the Statistics tab, which already takes one of its own.
   final StatisticsRepository? statisticsRepository;
 
   @override
@@ -403,7 +402,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
         final played = matches.length - upcoming;
 
         return DefaultTabController(
-          length: 4,
+          length: 3,
           child: Scaffold(
             // The ground behind the sheet's rounded top corners, and what makes
             // the sheet read as riding up over the hero.
@@ -515,16 +514,18 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                     child: Column(
                       children: [
                         TabBar(
-                          // Four destinations still, and four labels do not fit
-                          // side by side on a phone — so the strip scrolls
-                          // rather than squeezing each into a quarter width.
+                          // Three destinations now that the Dashboard and the
+                          // Leaderboards are one Statistics tab. The strip
+                          // still scrolls: three Arabic labels are wider than
+                          // three English ones, and a strip that scrolls in one
+                          // language and not the other is a strip that has to
+                          // be checked in both.
                           isScrollable: true,
                           tabAlignment: TabAlignment.start,
                           tabs: [
                             Tab(text: l10n.matchesTitle),
                             Tab(text: l10n.membersTitle),
-                            Tab(text: l10n.dashboardTab),
-                            Tab(text: l10n.leaderboardsTab),
+                            Tab(text: l10n.statisticsTab),
                           ],
                         ),
                         Expanded(
@@ -547,21 +548,11 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                                 positionLabel: _positionLabel,
                                 onCopyJoinCode: _copyJoinCode,
                               ),
-                              CommunityDashboardTab(
+                              CommunityStatisticsTab(
                                 communityId: widget.communityId,
                                 // Already loaded and already on this screen's
                                 // hero; the tab needs it for the card it can
                                 // share and reads nothing of its own to get it.
-                                communityName: community.name,
-                                repository: widget.statisticsRepository,
-                              ),
-                              CommunityLeaderboardsTab(
-                                communityId: widget.communityId,
-                                // The same name the Dashboard tab is given, and
-                                // for the same reason: it is already loaded and
-                                // already on this screen's hero, so the tab
-                                // reads nothing of its own to put a community
-                                // on the card it can share.
                                 communityName: community.name,
                                 repository: widget.statisticsRepository,
                               ),
