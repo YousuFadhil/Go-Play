@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/l10n.dart';
@@ -875,6 +877,24 @@ void main() {
   group('previous results are behind a disclosure', () {
     Finder toggle() => find.byKey(const Key('discoverPreviousResultsToggle'));
 
+    /// The refresh the screen already offers, driven through its own
+    /// `RefreshIndicator` — the same `onRefresh` a pull down runs.
+    ///
+    /// Pumped in bounded steps rather than settled: the indicator's own
+    /// animation and the feed's `AnimatedSwitcher` keep a frame scheduled, so
+    /// `pumpAndSettle` never returns here.
+    Future<void> pullToRefresh(WidgetTester tester) async {
+      final indicator = tester.state<RefreshIndicatorState>(
+        find.byType(RefreshIndicator).first,
+      );
+      unawaited(indicator.show());
+      // Enough frames for the read to resolve, the switcher's 180ms crossfade
+      // to finish and the indicator to retract.
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 400));
+      }
+    }
+
     List<CompletedMatch> feed(int count) => [
           for (var i = 1; i <= count; i++)
             completed('p$i',
@@ -965,6 +985,71 @@ void main() {
           reason: 'no reload, no refetch, no repository call at all');
     });
 
+    testWidgets('a refreshed feed leaves the list collapsed and honest',
+        (tester) async {
+      // The refresh keeps five results and keeps the newest one, and replaces
+      // one of the *hidden* ones — the case a length-and-newest comparison
+      // cannot see.
+      //
+      // Note what this does and does not prove. On this screen the expansion is
+      // reset twice over: `_ResultsList.didUpdateWidget` compares the ordered
+      // ids, and the screen's own `AnimatedSwitcher` keys on load state, so a
+      // refresh passes through `loading` and disposes the subtree before that
+      // comparison is ever consulted. What is pinned here is the behaviour the
+      // reader gets. See the note on `_feedChanged` for the comparison itself.
+      final ports = await pumpDiscover(
+        tester,
+        signedIn: true,
+        results: feed(5),
+      );
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      expect(find.text('Result 2'), findsOneWidget);
+      expect(find.text('Hide previous results'), findsOneWidget);
+
+      // Same length, same newest match, one hidden result replaced.
+      ports.football.results = [
+        completed('p1', title: 'Result 1', start: DateTime(2026, 8, 29)),
+        completed('p8', title: 'Result 8', start: DateTime(2026, 8, 24)),
+        completed('p3', title: 'Result 3', start: DateTime(2026, 8, 27)),
+        completed('p4', title: 'Result 4', start: DateTime(2026, 8, 26)),
+        completed('p5', title: 'Result 5', start: DateTime(2026, 8, 25)),
+      ];
+
+      await pullToRefresh(tester);
+
+      // Collapsed again, and honest about what is behind the control.
+      expect(find.text('Result 1'), findsOneWidget);
+      expect(find.text('Result 8'), findsNothing);
+      expect(find.text('Result 2'), findsNothing);
+      expect(find.text('Show previous results (4)'), findsOneWidget);
+      expect(find.text('Hide previous results'), findsNothing);
+    });
+
+    testWidgets('a refresh is one read, and toggling is still none',
+        (tester) async {
+      final ports =
+          await pumpDiscover(tester, signedIn: true, results: feed(5));
+      expect(ports.football.completedCalls, 1);
+      expect(ports.football.lastLimit, 5);
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      expect(ports.football.completedCalls, 1,
+          reason: 'opening the list asks for nothing');
+
+      await pullToRefresh(tester);
+
+      expect(ports.football.completedCalls, 2,
+          reason: 'the refresh is the only new read');
+      expect(ports.football.lastLimit, 5, reason: 'and still capped at five');
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      expect(ports.football.completedCalls, 2);
+    });
+
     testWidgets('the read is still capped at five', (tester) async {
       final ports =
           await pumpDiscover(tester, signedIn: true, results: feed(5));
@@ -1041,7 +1126,9 @@ class _FakeFootballAdapter implements FootballAdapter {
     this.failure,
   });
 
-  final List<CompletedMatch> results;
+  /// Not final: a refresh can legitimately answer a different feed, and the
+  /// collapse rule is about exactly that.
+  List<CompletedMatch> results;
   final List<CommunityPlayerStats> players;
   final List<LineupSlot> lineup;
   final List<MatchRosterEntry> roster;

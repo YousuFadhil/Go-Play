@@ -45,7 +45,7 @@ class PlayerStatisticsCardData {
   /// the things that actually belong to a week.
   final double rating;
 
-  /// Which stretch the four counters below describe. Comes from the selector
+  /// Which stretch the six counters below describe. Comes from the selector
   /// the reader already used; the card never asks again.
   final StatisticsPeriod period;
 
@@ -65,7 +65,7 @@ class PlayerStatisticsCardData {
 /// **A graphic, not a screenshot.** The statistics screen is a list of cards
 /// built to be scrolled and refreshed; this is one image somebody sends to a
 /// group chat, so it is composed rather than captured — a single hierarchy
-/// running down the frame, four figures given equal weight, and nothing on it
+/// running down the frame, six figures given equal weight, and nothing on it
 /// that a reader would try to tap.
 ///
 /// **Presentation only.** It takes [PlayerStatisticsCardData] and draws it. It
@@ -215,7 +215,7 @@ class _Identity extends StatelessWidget {
           // "Period · Weekly" rather than a bare "Weekly": on a card that
           // leaves the app the word alone does not say what it qualifies.
           label: l10n.shareCardPeriodBadge(
-            StatisticsPeriodSelector.label(l10n, data.period),
+            StatisticsPeriodSelector.shareLabel(l10n, data.period),
           ),
         ),
       ],
@@ -226,7 +226,7 @@ class _Identity extends StatelessWidget {
 /// Which period the counters below describe.
 ///
 /// It sits with the player rather than over the figures because it qualifies
-/// all four of them at once — and deliberately *not* beside the rating, which
+/// all six of them at once — and deliberately *not* beside the rating, which
 /// is the one thing on this card that no period applies to.
 class _PeriodBadge extends StatelessWidget {
   const _PeriodBadge({required this.label});
@@ -301,7 +301,7 @@ class _Rating extends StatelessWidget {
   }
 }
 
-/// The four figures, two by two.
+/// The six figures, two by three.
 ///
 /// Equal blocks rather than a ranked list: none of these four is the headline —
 /// the rating above is — and sizing one of them larger would be a claim about

@@ -2372,6 +2372,12 @@ abstract class AppLocalizations {
   /// **'Wins'**
   String get shareCardStatWins;
 
+  /// No description provided for @shareCardPeriodAllTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get shareCardPeriodAllTime;
+
   /// No description provided for @shareCardStatDraws.
   ///
   /// In en, this message translates to:

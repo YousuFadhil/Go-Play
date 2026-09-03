@@ -1329,6 +1329,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareCardStatWins => 'Wins';
 
   @override
+  String get shareCardPeriodAllTime => 'All time';
+
+  @override
   String get shareCardStatDraws => 'Draws';
 
   @override

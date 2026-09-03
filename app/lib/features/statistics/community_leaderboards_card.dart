@@ -110,7 +110,7 @@ class CommunityLeaderboardsCard extends StatelessWidget {
             Center(
               child: _PeriodBadge(
                 label: l10n.shareCardPeriodBadge(
-                  StatisticsPeriodSelector.label(l10n, data.period),
+                  StatisticsPeriodSelector.shareLabel(l10n, data.period),
                 ),
               ),
             ),

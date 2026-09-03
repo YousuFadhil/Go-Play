@@ -46,6 +46,25 @@ class StatisticsPeriodSelector extends StatelessWidget {
         StatisticsPeriod.allTime => l10n.statPeriodAllTime,
       };
 
+  /// The same period, named for a share card rather than for this control.
+  ///
+  /// Only All Time differs, and only in Arabic. The segment on screen says
+  /// «الكل» — correct there, where three chips sit side by side and the
+  /// shortest word that separates them wins. A card that leaves the app has no
+  /// neighbouring chips to be short against, and «الفترة · الكل» reads as "the
+  /// period · everything" rather than as the name of a period. The card says
+  /// «كل الفترات».
+  ///
+  /// It lives beside [label] rather than inside the two cards because both
+  /// cards need it, and two switches would be two places for the wording to
+  /// drift apart.
+  static String shareLabel(AppLocalizations l10n, StatisticsPeriod period) =>
+      switch (period) {
+        StatisticsPeriod.weekly => l10n.statPeriodWeekly,
+        StatisticsPeriod.monthly => l10n.statPeriodMonthly,
+        StatisticsPeriod.allTime => l10n.shareCardPeriodAllTime,
+      };
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;

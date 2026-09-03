@@ -77,6 +77,55 @@ void main() {
 
   // --- what the card draws ----------------------------------------------------
 
+  group('the period the share card names', () {
+    // The selector on screen and the card that leaves the phone do not want the
+    // same words for All Time. «الكل» is right between three chips and wrong on
+    // its own: «الفترة · الكل» reads as "the period · everything".
+    PlayerStatisticsCardData at(StatisticsPeriod period) =>
+        PlayerStatisticsCardData(
+          fullName: 'Salim Al Harthy',
+          rating: 7.42,
+          period: period,
+          matchesPlayed: 17,
+          wins: 9,
+          draws: 5,
+          losses: 3,
+          goals: 21,
+          mvpCount: 4,
+        );
+
+    testWidgets('English names all three exactly', (tester) async {
+      for (final (period, expected) in [
+        (StatisticsPeriod.allTime, 'Period · All time'),
+        (StatisticsPeriod.weekly, 'Period · Weekly'),
+        (StatisticsPeriod.monthly, 'Period · Monthly'),
+      ]) {
+        await pumpCard(tester, at(period));
+        expect(find.text(expected), findsOneWidget, reason: '$period');
+      }
+    });
+
+    testWidgets('Arabic names all three exactly', (tester) async {
+      for (final (period, expected) in [
+        (StatisticsPeriod.allTime, 'الفترة · كل الفترات'),
+        (StatisticsPeriod.weekly, 'الفترة · أسبوعي'),
+        (StatisticsPeriod.monthly, 'الفترة · شهري'),
+      ]) {
+        await pumpCard(tester, at(period), locale: const Locale('ar'));
+        expect(find.text(expected), findsOneWidget, reason: '$period');
+      }
+    });
+
+    testWidgets('the card never uses the selector short All Time word',
+        (tester) async {
+      await pumpCard(tester, at(StatisticsPeriod.allTime),
+          locale: const Locale('ar'));
+
+      expect(find.text('الفترة · الكل'), findsNothing);
+      expect(find.text('الكل'), findsNothing);
+    });
+  });
+
   group('the six counters the screen shows', () {
     /// Distinct values, so a figure found on the card can only have come from
     /// the counter it belongs to.
@@ -237,8 +286,10 @@ void main() {
       expect(find.text('Period · All time'), findsNothing);
     });
 
-    testWidgets('a period the player sat out is four zeros, not an empty card',
+    testWidgets('a period the player sat out is six zeros, not an empty card',
         (tester) async {
+      // Sat out means sat out: a week with three draws and four losses in it is
+      // not a week nobody played. My own fixture said so until this was fixed.
       await pumpCard(
         tester,
         const PlayerStatisticsCardData(
@@ -247,14 +298,14 @@ void main() {
           period: StatisticsPeriod.weekly,
           matchesPlayed: 0,
           wins: 0,
-          draws: 3,
-          losses: 4,
+          draws: 0,
+          losses: 0,
           goals: 0,
           mvpCount: 0,
         ),
       );
 
-      expect(find.text('0'), findsNWidgets(4));
+      expect(find.text('0'), findsNWidgets(6));
       // And the rating is still nine matches old, because it is not a week's.
       expect(find.text('7.4'), findsOneWidget);
     });
@@ -478,7 +529,9 @@ void main() {
       for (final (period, arabic) in [
         (StatisticsPeriod.weekly, 'الفترة · أسبوعي'),
         (StatisticsPeriod.monthly, 'الفترة · شهري'),
-        (StatisticsPeriod.allTime, 'الفترة · الكل'),
+        // CHANGED: the share card says «كل الفترات»; «الكل» stays the
+        // selector's word on screen.
+        (StatisticsPeriod.allTime, 'الفترة · كل الفترات'),
       ]) {
         await pumpCard(
           tester,

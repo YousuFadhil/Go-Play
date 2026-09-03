@@ -1311,6 +1311,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shareCardStatWins => 'الانتصارات';
 
   @override
+  String get shareCardPeriodAllTime => 'كل الفترات';
+
+  @override
   String get shareCardStatDraws => 'التعادلات';
 
   @override

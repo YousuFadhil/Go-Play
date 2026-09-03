@@ -154,6 +154,42 @@ void main() {
     });
   });
 
+  group('the period the card names', () {
+    testWidgets('English names all three exactly', (tester) async {
+      for (final (period, expected) in [
+        (StatisticsPeriod.allTime, 'Period · All time'),
+        (StatisticsPeriod.weekly, 'Period · Weekly'),
+        (StatisticsPeriod.monthly, 'Period · Monthly'),
+      ]) {
+        await pumpCard(tester, data(period: period));
+        expect(find.text(expected), findsOneWidget, reason: '$period');
+      }
+    });
+
+    testWidgets('Arabic names all three exactly', (tester) async {
+      // The same share wording the Player Statistics card uses, from the same
+      // helper — «كل الفترات» rather than the selector's «الكل».
+      for (final (period, expected) in [
+        (StatisticsPeriod.allTime, 'الفترة · كل الفترات'),
+        (StatisticsPeriod.weekly, 'الفترة · أسبوعي'),
+        (StatisticsPeriod.monthly, 'الفترة · شهري'),
+      ]) {
+        await pumpCard(tester, data(period: period),
+            locale: const Locale('ar'));
+        expect(find.text(expected), findsOneWidget, reason: '$period');
+      }
+    });
+
+    testWidgets('it never uses the selector short All Time word',
+        (tester) async {
+      await pumpCard(tester, data(period: StatisticsPeriod.allTime),
+          locale: const Locale('ar'));
+
+      expect(find.text('الفترة · الكل'), findsNothing);
+      expect(find.text('الكل'), findsNothing);
+    });
+  });
+
   group('the order is the repository\'s', () {
     testWidgets('rows appear in the order supplied, not alphabetically',
         (tester) async {

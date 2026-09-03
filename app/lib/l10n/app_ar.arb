@@ -469,6 +469,7 @@
 
   "shareCardStatMatches": "المباريات",
   "shareCardStatWins": "الانتصارات",
+  "shareCardPeriodAllTime": "كل الفترات",
   "shareCardStatDraws": "التعادلات",
   "shareCardStatLosses": "الخسارات",
   "shareCardPeriodBadge": "الفترة · {period}",

@@ -546,6 +546,7 @@
 
   "shareCardStatMatches": "Matches",
   "shareCardStatWins": "Wins",
+  "shareCardPeriodAllTime": "All time",
   "shareCardStatDraws": "Draws",
   "shareCardStatLosses": "Losses",
   "shareCardPeriodBadge": "Period · {period}",
