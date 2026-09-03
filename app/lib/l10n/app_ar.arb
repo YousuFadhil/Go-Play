@@ -469,6 +469,18 @@
 
   "shareCardStatMatches": "المباريات",
   "shareCardStatWins": "الانتصارات",
+  "shareCardStatDraws": "التعادلات",
+  "shareCardStatLosses": "الخسارات",
+  "shareCardPeriodBadge": "الفترة · {period}",
+  "@shareCardPeriodBadge": {
+    "placeholders": { "period": { "type": "String" } }
+  },
+  "shareLeaderboardsAction": "مشاركة لوحات الصدارة",
+  "showPreviousResults": "عرض النتائج السابقة ({count})",
+  "@showPreviousResults": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "hidePreviousResults": "إخفاء النتائج السابقة",
   "shareCardStatGoals": "الأهداف",
   "shareCardStatMvp": "أفضل لاعب",
   "shareMyStatisticsAction": "مشاركة إحصائياتي",

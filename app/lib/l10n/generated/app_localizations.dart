@@ -2372,6 +2372,42 @@ abstract class AppLocalizations {
   /// **'Wins'**
   String get shareCardStatWins;
 
+  /// No description provided for @shareCardStatDraws.
+  ///
+  /// In en, this message translates to:
+  /// **'Draws'**
+  String get shareCardStatDraws;
+
+  /// No description provided for @shareCardStatLosses.
+  ///
+  /// In en, this message translates to:
+  /// **'Losses'**
+  String get shareCardStatLosses;
+
+  /// No description provided for @shareCardPeriodBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Period · {period}'**
+  String shareCardPeriodBadge(String period);
+
+  /// No description provided for @shareLeaderboardsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share leaderboards'**
+  String get shareLeaderboardsAction;
+
+  /// No description provided for @showPreviousResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Show previous results ({count})'**
+  String showPreviousResults(int count);
+
+  /// No description provided for @hidePreviousResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide previous results'**
+  String get hidePreviousResults;
+
   /// No description provided for @shareCardStatGoals.
   ///
   /// In en, this message translates to:

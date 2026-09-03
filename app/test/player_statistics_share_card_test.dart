@@ -40,6 +40,8 @@ void main() {
     period: StatisticsPeriod.allTime,
     matchesPlayed: 9,
     wins: 5,
+    draws: 3,
+    losses: 4,
     goals: 12,
     mvpCount: 2,
   );
@@ -75,12 +77,105 @@ void main() {
 
   // --- what the card draws ----------------------------------------------------
 
+  group('the six counters the screen shows', () {
+    /// Distinct values, so a figure found on the card can only have come from
+    /// the counter it belongs to.
+    const six = PlayerStatisticsCardData(
+      fullName: 'Salim Al Harthy',
+      rating: 7.42,
+      period: StatisticsPeriod.allTime,
+      matchesPlayed: 17,
+      wins: 9,
+      draws: 5,
+      losses: 3,
+      goals: 21,
+      mvpCount: 4,
+    );
+
+    testWidgets('all six are on the card, with the rating above them',
+        (tester) async {
+      // The card carried four and left draws and losses out, which made a
+      // record of played football that could not be reconciled: wins and
+      // matches with the two results in between missing.
+      await pumpCard(tester, six);
+
+      // The card prints the rating to one decimal.
+      expect(find.text('7.4'), findsOneWidget);
+      for (final (label, value) in [
+        ('MATCHES', '17'),
+        ('WINS', '9'),
+        ('DRAWS', '5'),
+        ('LOSSES', '3'),
+        ('GOALS', '21'),
+        ('MVP', '4'),
+      ]) {
+        expect(find.text(label), findsOneWidget, reason: '$label is missing');
+        expect(find.text(value), findsOneWidget,
+            reason: 'the value for $label is missing');
+      }
+    });
+
+    testWidgets('they are laid out two across and three down', (tester) async {
+      await pumpCard(tester, six);
+
+      Offset at(String label) => tester.getCenter(find.text(label));
+
+      // Two columns: the left of each pair sits left of the right one, and the
+      // three pairs share their two x positions.
+      expect(at('MATCHES').dx, lessThan(at('WINS').dx));
+      expect(at('DRAWS').dx, closeTo(at('MATCHES').dx, 1));
+      expect(at('LOSSES').dx, closeTo(at('WINS').dx, 1));
+      expect(at('GOALS').dx, closeTo(at('MATCHES').dx, 1));
+      expect(at('MVP').dx, closeTo(at('WINS').dx, 1));
+
+      // Three rows, in the order the screen reads them.
+      expect(at('MATCHES').dy, lessThan(at('DRAWS').dy));
+      expect(at('DRAWS').dy, lessThan(at('GOALS').dy));
+      expect(at('WINS').dy, closeTo(at('MATCHES').dy, 1));
+      expect(at('LOSSES').dy, closeTo(at('DRAWS').dy, 1));
+      expect(at('MVP').dy, closeTo(at('GOALS').dy, 1));
+    });
+
+    testWidgets('exactly one Go Play mark, and it is at the foot',
+        (tester) async {
+      await pumpCard(tester, six);
+
+      final marks = find.text('GO PLAY');
+      expect(marks, findsOneWidget);
+      // Below the figures: the card is signed, not headed.
+      expect(tester.getCenter(marks).dy,
+          greaterThan(tester.getCenter(find.text('GOALS')).dy));
+    });
+
+    testWidgets('a long name does not push the six off the card',
+        (tester) async {
+      await pumpCard(
+        tester,
+        const PlayerStatisticsCardData(
+          fullName: 'عبدالرحمن بن سليمان بن خميس الحارثي المعمري',
+          rating: 7.42,
+          period: StatisticsPeriod.weekly,
+          matchesPlayed: 17,
+          wins: 9,
+          draws: 5,
+          losses: 3,
+          goals: 21,
+          mvpCount: 4,
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('LOSSES'), findsOneWidget);
+      expect(find.text('GO PLAY'), findsOneWidget);
+    });
+  });
+
   group('the card shows the period it was given', () {
     testWidgets('All Time shows the career figures and names the period',
         (tester) async {
       await pumpCard(tester, career);
 
-      expect(find.text('All time'), findsOneWidget);
+      expect(find.text('Period · All time'), findsOneWidget);
       expect(find.text('9'), findsOneWidget);
       expect(find.text('5'), findsOneWidget);
       expect(find.text('12'), findsOneWidget);
@@ -102,12 +197,14 @@ void main() {
           period: StatisticsPeriod.weekly,
           matchesPlayed: 3,
           wins: 1,
+          draws: 5,
+          losses: 7,
           goals: 4,
-          mvpCount: 1,
+          mvpCount: 2,
         ),
       );
 
-      expect(find.text('Weekly'), findsOneWidget);
+      expect(find.text('Period · Weekly'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
       expect(find.text('4'), findsOneWidget);
       // The career's figures are nowhere on a weekly card.
@@ -124,18 +221,20 @@ void main() {
           period: StatisticsPeriod.monthly,
           matchesPlayed: 8,
           wins: 6,
+          draws: 5,
+          losses: 7,
           goals: 11,
           mvpCount: 3,
         ),
       );
 
-      expect(find.text('Monthly'), findsOneWidget);
+      expect(find.text('Period · Monthly'), findsOneWidget);
       expect(find.text('8'), findsOneWidget);
       expect(find.text('6'), findsOneWidget);
       expect(find.text('11'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
-      expect(find.text('Weekly'), findsNothing);
-      expect(find.text('All time'), findsNothing);
+      expect(find.text('Period · Weekly'), findsNothing);
+      expect(find.text('Period · All time'), findsNothing);
     });
 
     testWidgets('a period the player sat out is four zeros, not an empty card',
@@ -148,6 +247,8 @@ void main() {
           period: StatisticsPeriod.weekly,
           matchesPlayed: 0,
           wins: 0,
+          draws: 3,
+          losses: 4,
           goals: 0,
           mvpCount: 0,
         ),
@@ -172,6 +273,8 @@ void main() {
             period: period,
             matchesPlayed: 1,
             wins: 1,
+            draws: 3,
+            losses: 4,
             goals: 1,
             mvpCount: 1,
           ),
@@ -201,6 +304,8 @@ void main() {
           period: StatisticsPeriod.allTime,
           matchesPlayed: 0,
           wins: 0,
+          draws: 3,
+          losses: 4,
           goals: 0,
           mvpCount: 0,
         ),
@@ -213,13 +318,15 @@ void main() {
   // --- identity ---------------------------------------------------------------
 
   group('the player on the card', () {
-    testWidgets('the name is drawn, and the Go Play mark with it',
+    testWidgets('the name is drawn, and the Go Play mark once with it',
         (tester) async {
       await pumpCard(tester, career);
 
       expect(find.text('Salim Al Harthy'), findsOneWidget);
-      // Top and bottom: the mark opens and closes the card.
-      expect(find.text('GO PLAY'), findsNWidgets(2));
+      // CHANGED (B2): once, at the foot. The card used to carry the mark twice
+      // — large at the top and muted at the bottom — which read as the product
+      // signing its own picture twice.
+      expect(find.text('GO PLAY'), findsOneWidget);
     });
 
     testWidgets('the photo is passed to the existing avatar', (tester) async {
@@ -232,6 +339,8 @@ void main() {
           period: StatisticsPeriod.allTime,
           matchesPlayed: 9,
           wins: 5,
+          draws: 3,
+          losses: 4,
           goals: 12,
           mvpCount: 2,
         ),
@@ -267,6 +376,8 @@ void main() {
           period: StatisticsPeriod.allTime,
           matchesPlayed: 9,
           wins: 5,
+          draws: 3,
+          losses: 4,
           goals: 12,
           mvpCount: 2,
         ),
@@ -341,6 +452,8 @@ void main() {
           period: StatisticsPeriod.weekly,
           matchesPlayed: 3,
           wins: 1,
+          draws: 3,
+          losses: 4,
           goals: 4,
           mvpCount: 1,
         ),
@@ -348,7 +461,7 @@ void main() {
       );
 
       expect(find.text('سالم الحارثي'), findsOneWidget);
-      expect(find.text('أسبوعي'), findsOneWidget);
+      expect(find.text('الفترة · أسبوعي'), findsOneWidget);
       expect(find.text('المباريات'), findsOneWidget);
       expect(find.text('الانتصارات'), findsOneWidget);
       expect(find.text('الأهداف'), findsOneWidget);
@@ -363,9 +476,9 @@ void main() {
 
     testWidgets('each period is named in Arabic', (tester) async {
       for (final (period, arabic) in [
-        (StatisticsPeriod.weekly, 'أسبوعي'),
-        (StatisticsPeriod.monthly, 'شهري'),
-        (StatisticsPeriod.allTime, 'الكل'),
+        (StatisticsPeriod.weekly, 'الفترة · أسبوعي'),
+        (StatisticsPeriod.monthly, 'الفترة · شهري'),
+        (StatisticsPeriod.allTime, 'الفترة · الكل'),
       ]) {
         await pumpCard(
           tester,
@@ -375,6 +488,8 @@ void main() {
             period: period,
             matchesPlayed: 1,
             wins: 1,
+            draws: 3,
+            losses: 4,
             goals: 1,
             mvpCount: 1,
           ),
@@ -389,7 +504,8 @@ void main() {
       // Arabic too.
       await pumpCard(tester, career, locale: const Locale('ar'));
 
-      expect(find.text('GO PLAY'), findsNWidgets(2));
+      // One mark, at the foot (B2).
+      expect(find.text('GO PLAY'), findsOneWidget);
       expect(
         Directionality.of(tester.element(find.text('GO PLAY').first)),
         TextDirection.rtl,

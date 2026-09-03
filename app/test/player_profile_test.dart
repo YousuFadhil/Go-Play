@@ -569,6 +569,99 @@ void main() {
       );
     });
   });
+  group('the way back out of a profile', () {
+    /// The profile as the shell opens it: the root of its own stack, with
+    /// nothing beneath it to return to.
+    Future<void> pumpAsRoot(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(900, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(MaterialApp(
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: ProfileScreen(
+          profileRepository:
+              ProfileRepository(FakeProfileAdapter(player: viewOf())),
+          resultRepository: ResultRepository(_FakeResultAdapter(stats())),
+          communityRepository: CommunityRepository(_FakeCommunityAdapter()),
+          authService: AuthService(_StubAuthAdapter()),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    /// The profile as a name on a pitch opens it: pushed onto a stack that has
+    /// somewhere to go back to.
+    Future<void> pumpPushed(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(900, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(MaterialApp(
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ProfileScreen(
+                      userId: 'u9',
+                      profileRepository: ProfileRepository(
+                          FakeProfileAdapter(player: viewOf())),
+                      resultRepository:
+                          ResultRepository(_FakeResultAdapter(stats())),
+                      communityRepository:
+                          CommunityRepository(_FakeCommunityAdapter()),
+                      authService: AuthService(_StubAuthAdapter()),
+                    ),
+                  ),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a pushed profile offers Back', (tester) async {
+      await pumpPushed(tester);
+
+      expect(find.byType(BackButtonIcon), findsOneWidget);
+    });
+
+    testWidgets('tapping Back returns to where it was opened from',
+        (tester) async {
+      await pumpPushed(tester);
+      expect(find.text('open'), findsNothing);
+
+      await tester.tap(find.byType(BackButtonIcon));
+      await tester.pumpAndSettle();
+
+      expect(find.text('open'), findsOneWidget,
+          reason: 'the arrow pops the route it was pushed onto');
+    });
+
+    testWidgets('a root profile shows no arrow at all', (tester) async {
+      // An arrow that pops nothing is worse than no arrow: it looks like a way
+      // out and is not one.
+      await pumpAsRoot(tester);
+
+      expect(find.byType(BackButtonIcon), findsNothing);
+    });
+
+    testWidgets('the profile keeps its own action either way', (tester) async {
+      // Route awareness decides the back affordance and nothing else.
+      await pumpAsRoot(tester);
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    });
+  });
+
 }
 
 // --- Fake ports -------------------------------------------------------------

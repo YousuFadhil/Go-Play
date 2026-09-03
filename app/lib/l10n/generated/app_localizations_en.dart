@@ -1329,6 +1329,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareCardStatWins => 'Wins';
 
   @override
+  String get shareCardStatDraws => 'Draws';
+
+  @override
+  String get shareCardStatLosses => 'Losses';
+
+  @override
+  String shareCardPeriodBadge(String period) {
+    return 'Period · $period';
+  }
+
+  @override
+  String get shareLeaderboardsAction => 'Share leaderboards';
+
+  @override
+  String showPreviousResults(int count) {
+    return 'Show previous results ($count)';
+  }
+
+  @override
+  String get hidePreviousResults => 'Hide previous results';
+
+  @override
   String get shareCardStatGoals => 'Goals';
 
   @override

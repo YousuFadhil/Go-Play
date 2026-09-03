@@ -581,14 +581,98 @@ class _FootballFeed extends StatelessWidget {
                 message: l10n.latestResultsEmpty,
               )
             else
-              for (final match in results)
-                FootballResultCard(
-                  match: match,
-                  onOpen: () => onOpen(match),
-                ),
+              _ResultsList(results: results, onOpen: onOpen),
           ],
         );
       },
+    );
+  }
+}
+
+/// The results themselves: the newest one, and the rest behind a disclosure.
+///
+/// **Only the newest is shown at first.** Five results is a wall of scores
+/// under a section a reader came to for "what has just been played"; the one
+/// that just happened is the answer, and the four before it are context they
+/// can ask for. Asking is one tap and costs nothing — the whole list is already
+/// in memory, fetched by the read this widget was handed.
+///
+/// Stateful for that reason and no other: the flag lives here because it
+/// describes this widget on this screen. Nothing about it is worth a repository
+/// call, a route argument or app-level state, and it deliberately does not
+/// survive leaving Discover.
+class _ResultsList extends StatefulWidget {
+  const _ResultsList({required this.results, required this.onOpen});
+
+  /// Newest first, exactly as the repository returned them. Never re-ordered
+  /// here.
+  final List<CompletedMatch> results;
+  final void Function(CompletedMatch) onOpen;
+
+  @override
+  State<_ResultsList> createState() => _ResultsListState();
+}
+
+class _ResultsListState extends State<_ResultsList> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant _ResultsList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A pull-to-refresh can replace the feed under an expansion that described
+    // the previous one. Collapsing is the honest reset: "four more" that now
+    // means a different four, or a list that is shorter than the one the reader
+    // opened, would be a presentation of something they never asked to see.
+    final before = oldWidget.results;
+    final now = widget.results;
+    final changed = now.length != before.length ||
+        (now.isNotEmpty && before.isNotEmpty &&
+            now.first.matchId != before.first.matchId);
+    if (changed && _expanded) _expanded = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final results = widget.results;
+    // Everything behind the newest. Zero when there is only one result, and
+    // then there is no control at all — a disclosure that reveals nothing is
+    // noise.
+    final hidden = results.length - 1;
+    final visible = _expanded ? results : results.take(1);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final match in visible)
+          FootballResultCard(
+            match: match,
+            onOpen: () => widget.onOpen(match),
+          ),
+        if (hidden > 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin,
+                Gap.sm),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                key: const Key('discoverPreviousResultsToggle'),
+                // Local state only: no read, no reload, no repository. The
+                // matches are the ones already handed to this widget.
+                onPressed: () => setState(() => _expanded = !_expanded),
+                icon: Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  size: IconSize.action,
+                ),
+                label: Text(
+                  _expanded
+                      ? l10n.hidePreviousResults
+                      : l10n.showPreviousResults(hidden),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

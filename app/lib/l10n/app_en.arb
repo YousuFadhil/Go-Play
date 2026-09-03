@@ -546,6 +546,18 @@
 
   "shareCardStatMatches": "Matches",
   "shareCardStatWins": "Wins",
+  "shareCardStatDraws": "Draws",
+  "shareCardStatLosses": "Losses",
+  "shareCardPeriodBadge": "Period · {period}",
+  "@shareCardPeriodBadge": {
+    "placeholders": { "period": { "type": "String" } }
+  },
+  "shareLeaderboardsAction": "Share leaderboards",
+  "showPreviousResults": "Show previous results ({count})",
+  "@showPreviousResults": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "hidePreviousResults": "Hide previous results",
   "shareCardStatGoals": "Goals",
   "shareCardStatMvp": "MVP",
   "shareMyStatisticsAction": "Share my statistics",

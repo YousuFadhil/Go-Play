@@ -22,6 +22,8 @@ class PlayerStatisticsCardData {
     required this.period,
     required this.matchesPlayed,
     required this.wins,
+    required this.draws,
+    required this.losses,
     required this.goals,
     required this.mvpCount,
     this.avatarUrl,
@@ -47,8 +49,13 @@ class PlayerStatisticsCardData {
   /// the reader already used; the card never asks again.
   final StatisticsPeriod period;
 
+  /// The six the screen itself shows. The card carried four of them and left
+  /// draws and losses out, which made a record of played football that could
+  /// not be reconciled: wins and matches without the two results in between.
   final int matchesPlayed;
   final int wins;
+  final int draws;
+  final int losses;
   final int goals;
   final int mvpCount;
 }
@@ -113,18 +120,24 @@ class PlayerStatisticsCard extends StatelessWidget {
           const Positioned.fill(child: _PitchMarkings()),
           Padding(
             padding: const EdgeInsets.fromLTRB(_margin, 96, _margin, 84),
+            // One wordmark, at the foot. The card used to carry it twice —
+            // once large at the top and once muted at the bottom — which read
+            // as the product signing its own picture twice. The rule the accent
+            // bar used to sit under now opens the card on its own.
             child: Column(
               children: [
-                const _Wordmark(size: 44, spacing: 14),
-                const SizedBox(height: 18),
                 Container(width: 132, height: 6, color: _accent),
                 const Spacer(flex: 3),
                 _Identity(data: data),
                 const Spacer(flex: 2),
                 _Rating(rating: data.rating, label: l10n.statCurrentRating),
+                // Two counters became six, so the block below is taller and the
+                // slack around it is redistributed rather than the padding
+                // grown: identity and rating keep the upper third, the grid
+                // takes the middle, and the wordmark keeps a clear foot.
                 const Spacer(flex: 3),
                 _Counters(data: data),
-                const Spacer(flex: 3),
+                const Spacer(flex: 4),
                 const _Wordmark(size: 30, spacing: 10, muted: true),
               ],
             ),
@@ -199,7 +212,11 @@ class _Identity extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         _PeriodBadge(
-          label: StatisticsPeriodSelector.label(l10n, data.period),
+          // "Period · Weekly" rather than a bare "Weekly": on a card that
+          // leaves the app the word alone does not say what it qualifies.
+          label: l10n.shareCardPeriodBadge(
+            StatisticsPeriodSelector.label(l10n, data.period),
+          ),
         ),
       ],
     );
@@ -306,37 +323,48 @@ class _Counters extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const _Rule(),
-        const SizedBox(height: 40),
-        Row(
-          children: [
-            Expanded(
-              child: _Counter(
-                value: data.matchesPlayed,
-                label: l10n.shareCardStatMatches,
-              ),
-            ),
-            Expanded(
-              child: _Counter(value: data.wins, label: l10n.shareCardStatWins),
-            ),
-          ],
+        const SizedBox(height: 28),
+        // Two columns, three rows, in the order the screen reads them: what was
+        // played, then how it went, then what came of it.
+        _CounterRow(
+          left: _Counter(
+            value: data.matchesPlayed,
+            label: l10n.shareCardStatMatches,
+          ),
+          right: _Counter(value: data.wins, label: l10n.shareCardStatWins),
         ),
-        const SizedBox(height: 52),
-        Row(
-          children: [
-            Expanded(
-              child: _Counter(value: data.goals, label: l10n.shareCardStatGoals),
-            ),
-            Expanded(
-              child:
-                  _Counter(value: data.mvpCount, label: l10n.shareCardStatMvp),
-            ),
-          ],
+        const SizedBox(height: 32),
+        _CounterRow(
+          left: _Counter(value: data.draws, label: l10n.shareCardStatDraws),
+          right: _Counter(value: data.losses, label: l10n.shareCardStatLosses),
         ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 32),
+        _CounterRow(
+          left: _Counter(value: data.goals, label: l10n.shareCardStatGoals),
+          right: _Counter(value: data.mvpCount, label: l10n.shareCardStatMvp),
+        ),
+        const SizedBox(height: 28),
         const _Rule(),
       ],
     );
   }
+}
+
+/// Two figures side by side, each taking half the width whatever its label.
+class _CounterRow extends StatelessWidget {
+  const _CounterRow({required this.left, required this.right});
+
+  final Widget left;
+  final Widget right;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: left),
+          Expanded(child: right),
+        ],
+      );
 }
 
 /// One figure and what it counts.
@@ -355,13 +383,17 @@ class _Counter extends StatelessWidget {
           '$value',
           style: const TextStyle(
             color: PlayerStatisticsCard._ink,
-            fontSize: 104,
+            // 104 when there were four of these. Six rows of that height do not
+            // fit the frame, and the answer is the figure's own scale rather
+            // than a smaller margin: at 88 the grid still leads the lower half
+            // of the card and the numbers still read at a glance.
+            fontSize: 88,
             fontWeight: FontWeight.w800,
             height: 1,
             letterSpacing: -2,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(

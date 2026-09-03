@@ -245,6 +245,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: _isOwnProfile
                           ? l10n.profileTitle
                           : l10n.playerProfileTitle,
+                      // A back button where there is somewhere to go back to,
+                      // and none where there is not.
+                      //
+                      // This screen is reached two ways: pushed — from a name on
+                      // a pitch, a roster, a leaderboard — and opened from the
+                      // shell's own identity menu, where it is the root of its
+                      // stack. `ClubHeroBar` draws the affordance only when it
+                      // is given a callback, so asking the Navigator is the
+                      // whole of the rule. An arrow that pops nothing is worse
+                      // than no arrow: it looks like a way out and is not one.
+                      onBack: Navigator.of(context).canPop()
+                          ? () => Navigator.of(context).pop()
+                          : null,
                       actions: [
                         if (_isOwnProfile)
                           IconButton(

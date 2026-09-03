@@ -217,8 +217,13 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
       avatarUrl: profile.avatarUrl,
       rating: record.rating,
       period: _period,
+      // All six, the same six the screen above is showing. The card used to
+      // take four and leave draws and losses behind, which made its record of
+      // played football impossible to reconcile.
       matchesPlayed: record.counters.matchesPlayed,
       wins: record.counters.wins,
+      draws: record.counters.draws,
+      losses: record.counters.losses,
       goals: record.counters.goals,
       mvpCount: record.counters.mvpCount,
     );

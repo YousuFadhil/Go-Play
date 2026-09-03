@@ -213,6 +213,11 @@ void main() {
         ],
       );
 
+      // Only the newest is shown until the reader asks for the rest (Cycle
+      // B2); the order under that disclosure is what this test owns.
+      await tester.tap(find.byKey(const Key('discoverPreviousResultsToggle')));
+      await tester.pumpAndSettle();
+
       // The repository preserves the order the read model returns, which is
       // most recent first; the screen must not re-sort it.
       expect(tester.getTopLeft(find.text('Newer')).dy,
@@ -865,6 +870,160 @@ void main() {
       expect(ranked.first.displayName, 'p0');
     });
   });
+  // --- how many results are shown before the reader asks for more -----------
+
+  group('previous results are behind a disclosure', () {
+    Finder toggle() => find.byKey(const Key('discoverPreviousResultsToggle'));
+
+    List<CompletedMatch> feed(int count) => [
+          for (var i = 1; i <= count; i++)
+            completed('p$i',
+                title: 'Result $i',
+                start: DateTime(2026, 8, 30 - i)),
+        ];
+
+    testWidgets('nothing played yet keeps the empty state and offers no control',
+        (tester) async {
+      await pumpDiscover(tester, signedIn: true, results: const []);
+
+      expect(find.text('No results yet. Once a match is played it shows up '
+          'here.'), findsOneWidget);
+      expect(toggle(), findsNothing);
+    });
+
+    testWidgets('a single result shows alone, with no control', (tester) async {
+      // A disclosure that reveals nothing is noise.
+      await pumpDiscover(tester, signedIn: true, results: feed(1));
+
+      expect(find.text('Result 1'), findsOneWidget);
+      expect(toggle(), findsNothing);
+    });
+
+    testWidgets('two results show the newest and offer the other',
+        (tester) async {
+      await pumpDiscover(tester, signedIn: true, results: feed(2));
+
+      expect(find.text('Result 1'), findsOneWidget);
+      expect(find.text('Result 2'), findsNothing);
+      expect(find.text('Show previous results (1)'), findsOneWidget);
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      expect(find.text('Result 2'), findsOneWidget);
+      expect(find.text('Hide previous results'), findsOneWidget);
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      expect(find.text('Result 2'), findsNothing);
+      expect(find.text('Show previous results (1)'), findsOneWidget);
+    });
+
+    testWidgets('five results count the four behind the newest',
+        (tester) async {
+      await pumpDiscover(tester, signedIn: true, results: feed(5));
+
+      expect(find.text('Result 1'), findsOneWidget);
+      for (final hidden in ['Result 2', 'Result 3', 'Result 4', 'Result 5']) {
+        expect(find.text(hidden), findsNothing);
+      }
+      expect(find.text('Show previous results (4)'), findsOneWidget);
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      for (final shown in [
+        'Result 1',
+        'Result 2',
+        'Result 3',
+        'Result 4',
+        'Result 5',
+      ]) {
+        expect(find.text(shown), findsOneWidget);
+      }
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      expect(find.text('Result 1'), findsOneWidget);
+      expect(find.text('Result 5'), findsNothing);
+    });
+
+    testWidgets('expanding asks the repository for nothing', (tester) async {
+      // The whole list is already in memory, fetched by the read that built
+      // this section. Opening it is presentation, not a request.
+      final ports =
+          await pumpDiscover(tester, signedIn: true, results: feed(5));
+      final callsAfterLoad = ports.football.completedCalls;
+      expect(callsAfterLoad, 1);
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+
+      expect(ports.football.completedCalls, callsAfterLoad,
+          reason: 'no reload, no refetch, no repository call at all');
+    });
+
+    testWidgets('the read is still capped at five', (tester) async {
+      final ports =
+          await pumpDiscover(tester, signedIn: true, results: feed(5));
+
+      expect(ports.football.lastLimit, 5,
+          reason: 'Cycle B2 changed presentation, not the read');
+    });
+
+    testWidgets('the newest result still opens from its card', (tester) async {
+      final observer = _RouteRecorder();
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        results: feed(3),
+        joined: const ['c1'],
+        observers: [observer],
+      );
+      observer.pushes.clear();
+
+      await tester.tap(find.text('Result 1'));
+      await tester.pumpAndSettle();
+
+      expect(observer.pushes, isNotEmpty,
+          reason: 'the card still navigates');
+    });
+
+    testWidgets('a revealed result opens from its card too', (tester) async {
+      final observer = _RouteRecorder();
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        results: feed(3),
+        joined: const ['c1'],
+        observers: [observer],
+      );
+
+      await tester.tap(toggle());
+      await tester.pumpAndSettle();
+      observer.pushes.clear();
+
+      await tester.tap(find.text('Result 3'));
+      await tester.pumpAndSettle();
+
+      expect(observer.pushes, isNotEmpty);
+    });
+
+    testWidgets('a failed read is unchanged and offers no control',
+        (tester) async {
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        footballFailure: StateError('offline'),
+      );
+
+      expect(find.text('Could not load recent football.'), findsOneWidget);
+      expect(toggle(), findsNothing);
+    });
+  });
+
 }
 
 // ---------------------------------------------------------------------------
@@ -892,12 +1051,16 @@ class _FakeFootballAdapter implements FootballAdapter {
 
   var completedCalls = 0;
 
+  /// The cap the screen asked for, so a test can show the read is unchanged.
+  int? lastLimit;
+
   @override
   Future<List<CompletedMatch>> fetchCompletedMatches({
     String? communityId,
     int limit = 50,
   }) async {
     completedCalls++;
+    lastLimit = limit;
     if (failure != null) throw failure!;
     return results;
   }

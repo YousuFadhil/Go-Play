@@ -1311,6 +1311,28 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shareCardStatWins => 'الانتصارات';
 
   @override
+  String get shareCardStatDraws => 'التعادلات';
+
+  @override
+  String get shareCardStatLosses => 'الخسارات';
+
+  @override
+  String shareCardPeriodBadge(String period) {
+    return 'الفترة · $period';
+  }
+
+  @override
+  String get shareLeaderboardsAction => 'مشاركة لوحات الصدارة';
+
+  @override
+  String showPreviousResults(int count) {
+    return 'عرض النتائج السابقة ($count)';
+  }
+
+  @override
+  String get hidePreviousResults => 'إخفاء النتائج السابقة';
+
+  @override
   String get shareCardStatGoals => 'الأهداف';
 
   @override

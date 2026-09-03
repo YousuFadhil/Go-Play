@@ -556,6 +556,12 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                               ),
                               CommunityLeaderboardsTab(
                                 communityId: widget.communityId,
+                                // The same name the Dashboard tab is given, and
+                                // for the same reason: it is already loaded and
+                                // already on this screen's hero, so the tab
+                                // reads nothing of its own to put a community
+                                // on the card it can share.
+                                communityName: community.name,
                                 repository: widget.statisticsRepository,
                               ),
                             ],
