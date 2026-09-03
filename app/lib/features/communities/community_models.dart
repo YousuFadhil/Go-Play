@@ -60,6 +60,7 @@ class Community {
     required this.name,
     required this.joinPolicy,
     this.description,
+    this.logoUrl,
   });
 
   final String id;
@@ -69,6 +70,34 @@ class Community {
   final String name;
   final String? description;
   final JoinPolicy joinPolicy;
+
+  /// Where the community's picture is, when it has one.
+  ///
+  /// Null is the ordinary case and not a missing value: a community without a
+  /// picture is drawn as its initials, which is what a community's crest has
+  /// always been. Every community that predates migration `0061` has null here
+  /// and is unaffected.
+  ///
+  /// A URL rather than a storage path, unlike a player's avatar. A logo is
+  /// versioned — a new object name on every replacement, so that a cache cannot
+  /// keep serving the old picture — and a versioned name cannot be derived from
+  /// the community's id the way an avatar's path can be derived from a player's.
+  final String? logoUrl;
+
+  /// The same community with a different picture, or with none.
+  ///
+  /// Only the logo, because only the logo can be changed without generic
+  /// community UPDATE: an admin may set this and may not touch the name, the
+  /// description or the join policy. A general `copyWith` would suggest
+  /// otherwise.
+  Community withLogo(String? url) => Community(
+        id: id,
+        ownerId: ownerId,
+        name: name,
+        joinPolicy: joinPolicy,
+        description: description,
+        logoUrl: url,
+      );
 }
 
 /// A membership row inside a community, joined with the player profile.
@@ -103,11 +132,17 @@ class CommunityInvitePreview {
     required this.isValid,
     this.communityId,
     this.communityName,
+    this.communityLogoUrl,
     this.isMember = false,
   });
 
   final bool isValid;
   final String? communityId;
   final String? communityName;
+
+  /// The community's picture, so the landing page shows the community somebody
+  /// was actually invited to rather than two letters standing in for it.
+  final String? communityLogoUrl;
+
   final bool isMember;
 }

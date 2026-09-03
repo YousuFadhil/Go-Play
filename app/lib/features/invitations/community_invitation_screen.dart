@@ -21,12 +21,18 @@ class CommunityInvitationScreen extends StatefulWidget {
     super.key,
     required this.communityId,
     required this.communityName,
+    this.communityLogoUrl,
     required this.joinCode,
     this.communityRepository,
   });
 
   final String communityId;
   final String communityName;
+
+  /// The community's picture, handed down rather than read again: the screen
+  /// that opens this one already has the community on its hero.
+  final String? communityLogoUrl;
+
   final String joinCode;
 
   /// Supplied only by tests. Every sibling screen carries the same seam.
@@ -114,7 +120,11 @@ class _CommunityInvitationScreenState extends State<CommunityInvitationScreen> {
               ),
               identity: Row(
                 children: [
-                  CommunityCrest(name: widget.communityName, onHero: true),
+                  CommunityCrest(
+                    name: widget.communityName,
+                    logoUrl: widget.communityLogoUrl,
+                    onHero: true,
+                  ),
                   const SizedBox(width: Gap.md),
                   Expanded(
                     child: Text(
@@ -194,8 +204,7 @@ class _CommunityInvitationScreenState extends State<CommunityInvitationScreen> {
                                               widget.communityName,
                                               _link,
                                             ),
-                                            confirmation:
-                                                l10n.inviteLinkCopied,
+                                            confirmation: l10n.inviteLinkCopied,
                                           ),
                                   icon: const Icon(Icons.ios_share),
                                   label: Text(l10n.shareInvitation),
@@ -246,7 +255,8 @@ class _CommunityInvitationScreenState extends State<CommunityInvitationScreen> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     textAlign: TextAlign.start,
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
                                   ),
                                 ),
                               ),

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/failures.dart';
@@ -5,6 +7,7 @@ import '../../features/communities/community_adapter.dart';
 import '../../features/communities/community_models.dart';
 import 'mappers/community_mapper.dart';
 import 'supabase_bootstrap.dart';
+import 'supabase_community_logos.dart';
 import 'supabase_failure_mapper.dart';
 
 /// Supabase implementation of the community port.
@@ -23,8 +26,13 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
   /// revoked SELECT on the column for both client roles, so a request naming it
   /// is refused by the server rather than filtered here. The organizer's read is
   /// [fetchJoinCode].
+  ///
+  /// `logo_url` is named here and is granted by migration `0061`: `0056`
+  /// revoked table SELECT and granted columns one at a time, so a column that
+  /// is not on this list is a column the server refuses rather than one the
+  /// client merely forgot to ask for.
   static const _columns =
-      'id, owner_id, name, description, join_policy';
+      'id, owner_id, name, description, join_policy, logo_url';
 
   @override
   Future<List<Community>> fetchMyCommunities() => guarded(() async {
@@ -126,7 +134,8 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
       );
 
   @override
-  Future<CommunityInvitePreview> previewInvite(String code) => guarded(() async {
+  Future<CommunityInvitePreview> previewInvite(String code) =>
+      guarded(() async {
         final rows = await _client.rpc('preview_community_invite', params: {
           'p_code': code,
         }) as List<dynamic>;
@@ -147,5 +156,66 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
         await _client.rpc('delete_community', params: {
           'p_community_id': communityId,
         });
+      });
+
+  // --- the community's picture ----------------------------------------------
+
+  /// Writes a new object into `community-logos`.
+  ///
+  /// `upsert: false`, unlike the avatar upload. An avatar overwrites one fixed
+  /// name; a logo's name carries a timestamp and is new every time, so an
+  /// upsert here would only mean "silently overwrite whatever happened to
+  /// collide" — which, if it ever did, is a bug worth hearing about.
+  ///
+  /// The write is authorized by `community_logos_insert_organizer`, which reads
+  /// the community out of the object's first folder and asks the caller's role
+  /// in it. This layer sends no role and could not: there is nowhere to put one.
+  @override
+  Future<String> uploadCommunityLogo({
+    required String communityId,
+    required Uint8List bytes,
+    required String fileExtension,
+  }) =>
+      guarded(() async {
+        final path = SupabaseCommunityLogos.pathFor(communityId, fileExtension);
+        await _client.storage.from(SupabaseCommunityLogos.bucket).uploadBinary(
+              path,
+              bytes,
+              fileOptions: FileOptions(
+                contentType:
+                    SupabaseCommunityLogos.contentTypeFor(fileExtension),
+              ),
+            );
+        return SupabaseCommunityLogos.publicUrl(_client, path);
+      });
+
+  /// The only write to `communities.logo_url` there is.
+  ///
+  /// An RPC rather than an update, and not for convenience: generic UPDATE on
+  /// the table is owner-only (`communities_update_owner`) and an admin may
+  /// still change the picture. `set_community_logo` is the narrow authority
+  /// that difference requires — it checks `auth.uid()`'s community role itself
+  /// and writes one column.
+  @override
+  Future<void> setCommunityLogo(String communityId, String? logoUrl) =>
+      guarded(() async {
+        await _client.rpc('set_community_logo', params: {
+          'p_community_id': communityId,
+          'p_logo_url': logoUrl,
+        });
+      });
+
+  /// Removes the object, when the URL names one of ours.
+  ///
+  /// A URL this app did not write returns no path and nothing is deleted. That
+  /// is the safe direction: a stray object costs storage, and deleting the
+  /// wrong one costs somebody their picture.
+  @override
+  Future<void> deleteCommunityLogoObject(String logoUrl) => guarded(() async {
+        final path = SupabaseCommunityLogos.pathOf(logoUrl);
+        if (path == null) return;
+        await _client.storage
+            .from(SupabaseCommunityLogos.bucket)
+            .remove([path]);
       });
 }

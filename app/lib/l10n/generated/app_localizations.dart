@@ -2672,6 +2672,24 @@ abstract class AppLocalizations {
   /// **'Remove photo'**
   String get avatarRemoveAction;
 
+  /// No description provided for @communityLogoChangeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change community photo'**
+  String get communityLogoChangeAction;
+
+  /// No description provided for @communityLogoRemoveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove community photo'**
+  String get communityLogoRemoveAction;
+
+  /// No description provided for @communityLogoFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update the community photo. Please try again.'**
+  String get communityLogoFailed;
+
   /// No description provided for @avatarUpdated.
   ///
   /// In en, this message translates to:

@@ -42,6 +42,9 @@ Community communityFromRow(Map<String, dynamic> row) => Community(
       name: row['name'] as String,
       description: row['description'] as String?,
       joinPolicy: joinPolicyFromDb(row['join_policy'] as String),
+      // Absent on a row read before migration `0061`, and null on a community
+      // that has no picture. Both are the same thing here: no logo.
+      logoUrl: row['logo_url'] as String?,
     );
 
 /// Reads a membership row joined with the player profile.
@@ -68,5 +71,8 @@ CommunityInvitePreview invitePreviewFromRow(Map<String, dynamic> row) =>
       isValid: row['state'] == 'valid',
       communityId: row['community_id'] as String?,
       communityName: row['community_name'] as String?,
+      // Appended by migration `0061`. Absent on a response from before it,
+      // which is the same thing as a community with no picture.
+      communityLogoUrl: row['community_logo_url'] as String?,
       isMember: row['is_member'] as bool? ?? false,
     );

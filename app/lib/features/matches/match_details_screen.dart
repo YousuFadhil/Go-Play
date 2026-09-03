@@ -659,6 +659,7 @@ class _MatchHeroIdentity extends StatelessWidget {
       children: [
         CommunityCrest(
           name: match.communityName ?? match.displayName,
+          logoUrl: match.communityLogoUrl,
           size: 54,
           onHero: true,
         ),

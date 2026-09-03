@@ -14,6 +14,7 @@ PublicCommunity publicCommunityFromRow(Map<String, dynamic> row) =>
       id: row['id'] as String,
       name: row['name'] as String,
       description: row['description'] as String?,
+      logoUrl: row['logo_url'] as String?,
       memberCount: row['member_count'] as int,
       upcomingMatchCount: row['upcoming_match_count'] as int,
     );

@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/club_place.dart';
+import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/theme.dart';
 import 'package:go_play/features/communities/member_card.dart';
@@ -86,6 +89,8 @@ void main() {
     // A roster of the caller's own, for the tests that need more than two
     // people to see how the member grid lays them out.
     List<CommunityMember>? roster,
+    // A port of the caller's own, for the tests that write through it.
+    _FakeCommunityAdapter? adapter,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -98,7 +103,8 @@ void main() {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: CommunityDetailsScreen(
         communityId: 'c1',
-        communityRepository: CommunityRepository(_FakeCommunityAdapter(which)),
+        communityRepository:
+            CommunityRepository(adapter ?? _FakeCommunityAdapter(which)),
         memberRepository: MemberRepository(
           _FakeMemberAdapter(members: roster ?? members, role: role),
         ),
@@ -347,6 +353,124 @@ void main() {
     });
   });
 
+  group("the community's picture", () {
+    const withLogo = Community(
+      id: 'c1',
+      ownerId: 'u9',
+      name: 'Al Amerat FC',
+      description: 'Friday football in Al Amerat.',
+      joinPolicy: JoinPolicy.open,
+      logoUrl: 'https://example.test/community-logos/c1/logo-7.png',
+    );
+
+    /// Opens the actions sheet, which is where the two controls live.
+    Future<void> openActions(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the hero draws it where the initials were', (tester) async {
+      await pumpCommunity(tester, which: withLogo);
+
+      final crest = tester.widget<CommunityCrest>(find.byType(CommunityCrest));
+      expect(crest.logoUrl, withLogo.logoUrl);
+    });
+
+    testWidgets('and the initials where there is none', (tester) async {
+      await pumpCommunity(tester);
+
+      final crest = tester.widget<CommunityCrest>(find.byType(CommunityCrest));
+      expect(crest.logoUrl, isNull);
+      expect(find.text('AA'), findsWidgets);
+    });
+
+    testWidgets('an owner may change it', (tester) async {
+      await pumpCommunity(tester, role: CommunityRole.owner);
+      await openActions(tester);
+
+      expect(find.byKey(const Key('communityChangeLogo')), findsOneWidget);
+    });
+
+    testWidgets('an admin may change it too', (tester) async {
+      // The reason `set_community_logo` exists: an admin gets this without
+      // being handed generic community UPDATE.
+      await pumpCommunity(tester, role: CommunityRole.admin);
+      await openActions(tester);
+
+      expect(find.byKey(const Key('communityChangeLogo')), findsOneWidget);
+    });
+
+    testWidgets('a player is offered neither control', (tester) async {
+      // Absent, not disabled — and the server refuses them regardless: this
+      // gating is convenience, and the function and the storage policies are
+      // the security.
+      await pumpCommunity(tester, which: withLogo, role: CommunityRole.player);
+      await openActions(tester);
+
+      expect(find.byKey(const Key('communityChangeLogo')), findsNothing);
+      expect(find.byKey(const Key('communityRemoveLogo')), findsNothing);
+    });
+
+    testWidgets('remove is not offered when there is nothing to remove',
+        (tester) async {
+      // A row that clears something already empty is a row that does nothing.
+      await pumpCommunity(tester, role: CommunityRole.owner);
+      await openActions(tester);
+
+      expect(find.byKey(const Key('communityChangeLogo')), findsOneWidget);
+      expect(find.byKey(const Key('communityRemoveLogo')), findsNothing);
+    });
+
+    testWidgets('and is offered when there is', (tester) async {
+      await pumpCommunity(tester, which: withLogo, role: CommunityRole.owner);
+      await openActions(tester);
+
+      expect(find.byKey(const Key('communityRemoveLogo')), findsOneWidget);
+    });
+
+    testWidgets('removing it returns the community to its initials',
+        (tester) async {
+      final adapter = _FakeCommunityAdapter(withLogo);
+      await pumpCommunity(
+        tester,
+        which: withLogo,
+        role: CommunityRole.owner,
+        adapter: adapter,
+      );
+      await openActions(tester);
+
+      await tester.tap(find.byKey(const Key('communityRemoveLogo')));
+      await tester.pumpAndSettle();
+
+      expect(adapter.logoWrites, [null]);
+      // The screen reloaded, and the port now answers with no picture.
+      final crest = tester.widget<CommunityCrest>(find.byType(CommunityCrest));
+      expect(crest.logoUrl, isNull);
+      expect(find.text('AA'), findsWidgets);
+    });
+
+    testWidgets('a refusal leaves the picture it had', (tester) async {
+      final adapter = _FakeCommunityAdapter(
+        withLogo,
+        setLogoFailure: const AuthorizationFailure(),
+      );
+      await pumpCommunity(
+        tester,
+        which: withLogo,
+        role: CommunityRole.owner,
+        adapter: adapter,
+      );
+      await openActions(tester);
+
+      await tester.tap(find.byKey(const Key('communityRemoveLogo')));
+      await tester.pumpAndSettle();
+
+      final crest = tester.widget<CommunityCrest>(find.byType(CommunityCrest));
+      expect(crest.logoUrl, withLogo.logoUrl,
+          reason: 'a failed removal is not a community with no picture');
+    });
+  });
+
   group('the tabs lay their content out in a grid', () {
     /// How many cards share the topmost row.
     int columnsOf(WidgetTester tester, Finder cards) {
@@ -466,12 +590,20 @@ void main() {
 // --- Fake ports -------------------------------------------------------------
 
 class _FakeCommunityAdapter implements CommunityAdapter {
-  _FakeCommunityAdapter(this.community);
+  _FakeCommunityAdapter(this._community, {this.setLogoFailure});
 
-  final Community community;
+  Community _community;
+
+  /// What the port refuses with, where a test is about a refusal.
+  final Failure? setLogoFailure;
+
+  /// Every value written to `logo_url`, in order. Null is a reset.
+  final List<String?> logoWrites = [];
+
+  Community get community => _community;
 
   @override
-  Future<Community> fetchCommunity(String communityId) async => community;
+  Future<Community> fetchCommunity(String communityId) async => _community;
 
   @override
   Future<List<Community>> fetchMyCommunities() => throw UnimplementedError();
@@ -522,6 +654,27 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   @override
   Future<void> deleteCommunity(String communityId) =>
       throw UnimplementedError();
+
+  @override
+  Future<String> uploadCommunityLogo({
+    required String communityId,
+    required Uint8List bytes,
+    required String fileExtension,
+  }) async =>
+      'https://example.test/community-logos/$communityId/logo-new.$fileExtension';
+
+  /// Writes the column, so that the screen's reload sees what it just set —
+  /// which is what makes "the crest went back to initials" a real assertion
+  /// rather than a restated expectation.
+  @override
+  Future<void> setCommunityLogo(String communityId, String? logoUrl) async {
+    if (setLogoFailure != null) throw setLogoFailure!;
+    logoWrites.add(logoUrl);
+    _community = _community.withLogo(logoUrl);
+  }
+
+  @override
+  Future<void> deleteCommunityLogoObject(String logoUrl) async {}
 }
 
 class _FakeMemberAdapter implements MemberAdapter {

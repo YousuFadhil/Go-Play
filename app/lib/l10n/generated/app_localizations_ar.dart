@@ -1482,6 +1482,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get avatarRemoveAction => 'إزالة الصورة';
 
   @override
+  String get communityLogoChangeAction => 'تغيير صورة المجتمع';
+
+  @override
+  String get communityLogoRemoveAction => 'إزالة صورة المجتمع';
+
+  @override
+  String get communityLogoFailed => 'تعذّر تحديث صورة المجتمع. حاول مرة أخرى.';
+
+  @override
   String get avatarUpdated => 'تم تحديث الصورة.';
 
   @override

@@ -25,7 +25,7 @@ class SupabaseDiscoverAdapter implements DiscoverAdapter {
   final SupabaseClient _client;
 
   static const _communityColumns =
-      'id, name, description, member_count, upcoming_match_count';
+      'id, name, description, member_count, upcoming_match_count, logo_url';
 
   static const _matchColumns =
       'id, community_id, community_name, title, location, start_at, end_at, '

@@ -1500,6 +1500,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get avatarRemoveAction => 'Remove photo';
 
   @override
+  String get communityLogoChangeAction => 'Change community photo';
+
+  @override
+  String get communityLogoRemoveAction => 'Remove community photo';
+
+  @override
+  String get communityLogoFailed =>
+      'Could not update the community photo. Please try again.';
+
+  @override
   String get avatarUpdated => 'Photo updated.';
 
   @override

@@ -330,7 +330,11 @@ class _CommunityCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              CommunityCrest(name: community.name, size: 46),
+              CommunityCrest(
+                name: community.name,
+                logoUrl: community.logoUrl,
+                size: 46,
+              ),
               const SizedBox(width: Gap.md),
               Expanded(
                 child: Column(

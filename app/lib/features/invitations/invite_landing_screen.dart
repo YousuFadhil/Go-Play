@@ -170,6 +170,7 @@ class _InviteLandingScreenState extends State<InviteLandingScreen> {
                       children: [
                         CommunityCrest(
                           name: preview.communityName ?? '',
+                          logoUrl: preview.communityLogoUrl,
                           size: 66,
                           onHero: true,
                         ),

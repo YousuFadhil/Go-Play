@@ -25,59 +25,6 @@ import 'discover_repository.dart';
 /// the same measurement as the page's margin rather than a number that happened
 /// to look right in one place.
 
-/// A community's mark: its initials, in the app's colours.
-///
-/// Not a placeholder for a picture. The schema has no logo column and this
-/// sprint adds none, so this is what a community's logo is — which is why it is
-/// sized and coloured deliberately rather than being a grey circle waiting to be
-/// replaced.
-class CommunityLogo extends StatelessWidget {
-  const CommunityLogo({super.key, required this.community, this.radius = 26});
-
-  final PublicCommunity community;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final initials = community.initials;
-
-    return Container(
-      width: radius * 2,
-      height: radius * 2,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        // A soft vertical gradient rather than a flat fill: at this size a flat
-        // circle reads as a missing image, and this reads as a mark.
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            scheme.primaryContainer,
-            Color.lerp(scheme.primaryContainer, scheme.primary, 0.22)!,
-          ],
-        ),
-      ),
-      child: initials.isEmpty
-          ? Icon(Icons.groups, size: radius, color: scheme.onPrimaryContainer)
-          : Text(
-              initials,
-              style: TextStyle(
-                fontSize: radius * 0.68,
-                fontWeight: FontWeight.w700,
-                height: 1,
-                color: scheme.onPrimaryContainer,
-                // The initials of an Arabic name and of a Latin one are set the
-                // same way round, so the mark is not mirrored by the layout.
-                letterSpacing: 0.5,
-              ),
-              textDirection: TextDirection.ltr,
-            ),
-    );
-  }
-}
-
 /// The banner at the top of Discover: what this app is, what is happening on it
 /// right now, and the one thing to do about that.
 ///
@@ -764,9 +711,16 @@ class PublicCommunityCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    clubStyle
-                        ? CommunityCrest(name: community.name, size: 46)
-                        : CommunityLogo(community: community),
+                    // One shape for a community, in both card styles. The
+                    // public card used to draw a circle here, which is the
+                    // player's shape — the two sit beside each other often
+                    // enough that the difference has to be the shape. Only the
+                    // size still differs, exactly as it did.
+                    CommunityCrest(
+                      name: community.name,
+                      logoUrl: community.logoUrl,
+                      size: clubStyle ? 46 : 52,
+                    ),
                     const SizedBox(width: Gap.md),
                     Expanded(
                       child: Column(
@@ -894,7 +848,11 @@ class CompactPublicCommunityCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CommunityCrest(name: community.name, size: 42),
+              CommunityCrest(
+                name: community.name,
+                logoUrl: community.logoUrl,
+                size: 42,
+              ),
               const SizedBox(height: Gap.sm),
               // Two lines. A community name is the thing being chosen between,
               // so it wraps where the description below it merely shortens.

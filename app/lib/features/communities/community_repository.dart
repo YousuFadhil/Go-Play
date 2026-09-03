@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_community_adapter.dart';
 import 'community_adapter.dart';
@@ -112,4 +114,88 @@ class CommunityRepository {
   /// Owner only. Removes the community and everything belonging to it.
   Future<void> deleteCommunity(String communityId) =>
       _adapter.deleteCommunity(communityId);
+
+  // --- the community's picture ----------------------------------------------
+
+  /// Gives the community a new picture, and answers where it is.
+  ///
+  /// **The order is the product rule, and it is this:**
+  ///
+  ///   1. upload the new object, under a name nothing is pointing at yet;
+  ///   2. point the community at it;
+  ///   3. only then remove the old object.
+  ///
+  /// Every other order has a window in which the community shows nothing.
+  /// Deleting first and uploading second leaves a broken picture if the upload
+  /// fails; overwriting the same object name leaves the previous picture in
+  /// caches with no way to tell them otherwise. This way the community is
+  /// showing a real picture at every instant — the old one until step 2
+  /// commits, the new one after.
+  ///
+  /// **If step 2 fails the community keeps the picture it had.** The new object
+  /// is then an orphan nobody is pointing at, and it is removed on a best-effort
+  /// basis before the failure is passed on. The failure is what the caller
+  /// hears: the change did not happen.
+  ///
+  /// Owner and admin, decided by `set_community_logo` on the server.
+  Future<String> changeCommunityLogo({
+    required String communityId,
+    required Uint8List bytes,
+    required String fileExtension,
+    String? previousLogoUrl,
+  }) async {
+    final url = await _adapter.uploadCommunityLogo(
+      communityId: communityId,
+      bytes: bytes,
+      fileExtension: fileExtension,
+    );
+
+    try {
+      await _adapter.setCommunityLogo(communityId, url);
+    } catch (_) {
+      // Nothing points at what was just uploaded, so removing it loses nothing
+      // — and leaving it would accumulate a file per failed attempt. The
+      // original failure is what matters, so a failure to tidy up is swallowed.
+      await _forget(url);
+      rethrow;
+    }
+
+    // Last, and only once the community is demonstrably showing the new one.
+    if (previousLogoUrl != null && previousLogoUrl != url) {
+      await _forget(previousLogoUrl);
+    }
+    return url;
+  }
+
+  /// Takes the community's picture away, leaving its initials.
+  ///
+  /// The reverse order, for the same reason: the column is cleared first, so
+  /// the moment the object goes there is already nothing pointing at it. A
+  /// community that fails to clear the column keeps a picture that still works.
+  ///
+  /// **A failed cleanup does not undo the removal.** Restoring the URL to make
+  /// storage tidy would put back a picture the organizer asked to be rid of,
+  /// and would point at an object that may or may not still exist. A stray file
+  /// is the cheaper of the two problems.
+  Future<void> removeCommunityLogo({
+    required String communityId,
+    String? previousLogoUrl,
+  }) async {
+    await _adapter.setCommunityLogo(communityId, null);
+    if (previousLogoUrl != null) await _forget(previousLogoUrl);
+  }
+
+  /// Removes an object nobody is pointing at any more, and does not care
+  /// whether it worked.
+  ///
+  /// Cleanup is never the operation the caller asked for. Letting it fail the
+  /// call would turn "your picture was changed" into "that did not work" over a
+  /// file the reader will never see.
+  Future<void> _forget(String url) async {
+    try {
+      await _adapter.deleteCommunityLogoObject(url);
+    } catch (_) {
+      // Deliberately swallowed. See above.
+    }
+  }
 }

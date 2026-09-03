@@ -22,11 +22,22 @@ class PublicCommunity {
     required this.memberCount,
     required this.upcomingMatchCount,
     this.description,
+    this.logoUrl,
   });
 
   final String id;
   final String name;
   final String? description;
+
+  /// The community's picture, when it has one.
+  ///
+  /// Public, and deliberately: a community's logo is its identity, and the
+  /// pages a visitor sees before signing in are exactly where an identity has
+  /// the most work to do. The object it names lives in a public bucket, so this
+  /// exposes nothing that having the address did not already.
+  ///
+  /// Null is the initials crest, here as everywhere else.
+  final String? logoUrl;
 
   /// How many players are in it. An aggregate, never the roster: who they are
   /// is not a guest's to read.

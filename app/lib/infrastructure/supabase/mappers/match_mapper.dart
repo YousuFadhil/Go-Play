@@ -46,9 +46,12 @@ Match matchFromRow(Map<String, dynamic> row) => Match(
       title: row['title'] as String?,
       description: row['description'] as String?,
       // Present only when the query joins the community.
-      communityName: (row['community'] as Map<String, dynamic>?)?['name']
-          as String?,
-      rosterOrderMode: rosterOrderModeFromDb(row['roster_order_mode'] as String?),
+      communityLogoUrl:
+          (row['community'] as Map<String, dynamic>?)?['logo_url'] as String?,
+      communityName:
+          (row['community'] as Map<String, dynamic>?)?['name'] as String?,
+      rosterOrderMode:
+          rosterOrderModeFromDb(row['roster_order_mode'] as String?),
       // Absent from a row read by a build that predates migration `0054`, and
       // false is what such a row means: before the column existed no match
       // could be created in the past.

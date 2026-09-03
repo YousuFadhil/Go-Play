@@ -373,7 +373,7 @@ class _Identity extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        CommunityCrest(name: community.name),
+        CommunityCrest(name: community.name, logoUrl: community.logoUrl),
         const SizedBox(width: Gap.md),
         Expanded(
           child: Column(
@@ -417,7 +417,8 @@ class _RecordRow extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.md),
       child: Row(
         children: [
-          _Figure(value: stats.completedMatches, label: l10n.completedMatchesTitle),
+          _Figure(
+              value: stats.completedMatches, label: l10n.completedMatchesTitle),
           _Figure(value: stats.players, label: l10n.statPlayersWithRecord),
           _Figure(value: stats.goals, label: l10n.statGoals),
           _Figure(value: stats.mvpCount, label: l10n.statMvps),

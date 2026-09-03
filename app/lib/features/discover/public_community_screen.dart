@@ -1,3 +1,4 @@
+import '../../core/club_place.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/design.dart';
@@ -125,7 +126,13 @@ class _PublicCommunityScreenState extends State<PublicCommunityScreen> {
                   ),
                   child: Column(
                     children: [
-                      CommunityLogo(community: community, radius: 36),
+                      // The community's own shape: a rounded square, the
+                      // same 72 across the circular mark used to be.
+                      CommunityCrest(
+                        name: community.name,
+                        logoUrl: community.logoUrl,
+                        size: 72,
+                      ),
                       const SizedBox(height: Gap.md),
                       Text(
                         community.name,

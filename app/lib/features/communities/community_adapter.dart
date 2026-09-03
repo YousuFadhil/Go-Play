@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'community_models.dart';
 
 /// The community aggregate's port into the data provider.
@@ -52,4 +54,39 @@ abstract interface class CommunityAdapter {
   Future<String> regenerateJoinCode(String communityId);
 
   Future<void> deleteCommunity(String communityId);
+
+  // --- the community's picture ----------------------------------------------
+  //
+  // Three operations rather than one, because they are three different things
+  // to the server: an object written into a bucket, a column written through a
+  // function, and an object removed. The order they are used in is a product
+  // decision and belongs to the repository, which is the only place that knows
+  // what a *replacement* is.
+
+  /// Uploads [bytes] as the community's picture and answers where it now is.
+  ///
+  /// A new object each time — the name carries a version — so this never
+  /// overwrites the picture the community is currently showing. Nothing about
+  /// the community row changes here: until [setLogoUrl] is called this is an
+  /// object nobody is pointing at.
+  Future<String> uploadCommunityLogo({
+    required String communityId,
+    required Uint8List bytes,
+    required String fileExtension,
+  });
+
+  /// Points the community at [logoUrl], or at nothing when it is null.
+  ///
+  /// Goes through `set_community_logo`, which is the only path there is: the
+  /// table's UPDATE policy is owner-only and an admin may still do this. The
+  /// server decides whether the caller may, and refuses with an
+  /// [AuthorizationFailure] when they may not.
+  Future<void> setCommunityLogo(String communityId, String? logoUrl);
+
+  /// Removes the object [logoUrl] names, if it names one in this app's bucket.
+  ///
+  /// Separate from [setCommunityLogo] because tidying up storage is not the
+  /// same event as changing what a community shows, and must never be able to
+  /// undo it. A URL from anywhere else is left alone.
+  Future<void> deleteCommunityLogoObject(String logoUrl);
 }

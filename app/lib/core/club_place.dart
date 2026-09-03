@@ -198,21 +198,34 @@ class ClubHeroBar extends StatelessWidget {
   }
 }
 
-/// A community's mark: its initials in a rounded square.
+/// A community's mark: its picture, or its initials, in a rounded square.
 ///
-/// Not a circle. A circle is a person in this product and the two appear beside
-/// each other often enough that the shape has to carry the difference — the
-/// schema has no logo column, so this *is* a community's crest rather than a
-/// placeholder for one that has not been uploaded.
+/// **Still not a circle, and that has not changed now that there is a picture.**
+/// A circle is a person in this product and the two appear beside each other
+/// constantly — a community crest above a roster of faces, a community card
+/// beside a player's. The shape is what carries the difference, so a logo is
+/// clipped into the rounded square rather than being allowed to bring its own
+/// outline.
+///
+/// **Initials are not a placeholder.** A community with no picture is the
+/// ordinary case, not an unfinished one: it shows its letters, exactly as every
+/// community did before migration `0061`. The same is true of a picture that
+/// will not load — a URL that 404s, a device with no connection — which falls
+/// back to the letters rather than to a broken-image glyph.
 class CommunityCrest extends StatelessWidget {
   const CommunityCrest({
     super.key,
     required this.name,
+    this.logoUrl,
     this.size = 56,
     this.onHero = false,
   });
 
   final String name;
+
+  /// The community's picture, when it has one. Null is the initials crest.
+  final String? logoUrl;
+
   final double size;
 
   /// The translucent treatment for a crest sitting on the green hero.
@@ -226,7 +239,9 @@ class CommunityCrest extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = initialsOf(name);
+    final radius = BorderRadius.circular(size * 0.34);
+    final url = logoUrl;
+    final hasLogo = url != null && url.isNotEmpty;
 
     return Container(
       width: size,
@@ -236,7 +251,7 @@ class CommunityCrest extends StatelessWidget {
         color: onHero
             ? Colors.white.withValues(alpha: 0.15)
             : GoColors.statusOpenBg,
-        borderRadius: BorderRadius.circular(size * 0.34),
+        borderRadius: radius,
         border: onHero
             ? Border.all(
                 color: Colors.white.withValues(alpha: 0.3),
@@ -244,23 +259,69 @@ class CommunityCrest extends StatelessWidget {
               )
             : null,
       ),
-      child: initials.isEmpty
-          ? Icon(
-              Icons.groups,
-              size: size * 0.46,
-              color: onHero ? Colors.white : GoColors.primaryDeep,
-            )
-          : Text(
-              initials,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: size * 0.34,
-                height: 1,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
-                color: onHero ? Colors.white : GoColors.primaryDeep,
+      // Clipped to the crest's own corners rather than given its own shape: the
+      // picture takes the mark's outline, so a community with a logo and one
+      // without are the same object on the page.
+      child: hasLogo
+          ? ClipRRect(
+              borderRadius: radius,
+              child: Image.network(
+                url,
+                width: size,
+                height: size,
+                // Cover, so a picture of any proportion fills the square
+                // without being stretched into a different one.
+                fit: BoxFit.cover,
+                // A picture that will not load is a community with no picture,
+                // which the product already knows how to draw. Never a broken
+                // image, and never an empty box.
+                errorBuilder: (context, error, stack) => _Initials(
+                  name: name,
+                  size: size,
+                  onHero: onHero,
+                ),
               ),
-            ),
+            )
+          : _Initials(name: name, size: size, onHero: onHero),
+    );
+  }
+}
+
+/// The letters a community is known by, or a group glyph when it has no name to
+/// take letters from.
+///
+/// Its own widget because it is drawn from two places now — as the crest itself,
+/// and as what a picture falls back to when it fails — and those two must not be
+/// allowed to differ.
+class _Initials extends StatelessWidget {
+  const _Initials({
+    required this.name,
+    required this.size,
+    required this.onHero,
+  });
+
+  final String name;
+  final double size;
+  final bool onHero;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = CommunityCrest.initialsOf(name);
+    final color = onHero ? Colors.white : GoColors.primaryDeep;
+
+    if (initials.isEmpty) {
+      return Icon(Icons.groups, size: size * 0.46, color: color);
+    }
+    return Text(
+      initials,
+      maxLines: 1,
+      style: TextStyle(
+        fontSize: size * 0.34,
+        height: 1,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.5,
+        color: color,
+      ),
     );
   }
 }

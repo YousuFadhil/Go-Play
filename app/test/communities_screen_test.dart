@@ -289,6 +289,22 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   @override
   Future<void> deleteCommunity(String communityId) =>
       throw UnimplementedError();
+
+  @override
+  Future<String> uploadCommunityLogo({
+    required String communityId,
+    required Uint8List bytes,
+    required String fileExtension,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> setCommunityLogo(String communityId, String? logoUrl) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deleteCommunityLogoObject(String logoUrl) =>
+      throw UnimplementedError();
 }
 
 /// A loaded session, so [CurrentUserMenu] has a player to name rather than a

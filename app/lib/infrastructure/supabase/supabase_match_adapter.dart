@@ -36,7 +36,7 @@ class SupabaseMatchAdapter implements MatchAdapter {
   Future<List<Match>> fetchUpcomingMatches() => guarded(() async {
         final rows = await _client
             .from('matches')
-            .select('$_columns, community:communities(name)')
+            .select('$_columns, community:communities(name, logo_url)')
             .gt('end_at', DateTime.now().toUtc().toIso8601String())
             .order('start_at', ascending: true);
         return [for (final row in rows) matchFromRow(row)];
@@ -46,7 +46,7 @@ class SupabaseMatchAdapter implements MatchAdapter {
   Future<Match> fetchMatch(String matchId) => guarded(() async {
         final row = await _client
             .from('matches')
-            .select('$_columns, community:communities(name)')
+            .select('$_columns, community:communities(name, logo_url)')
             .eq('id', matchId)
             .single();
         return matchFromRow(row);
@@ -155,12 +155,13 @@ class SupabaseMatchAdapter implements MatchAdapter {
   @override
   Future<void> deleteMatch(String matchId) => guarded(
         () async {
-          final response =
-              await _client.rpc('delete_match', params: {'p_match_id': matchId});
+          final response = await _client
+              .rpc('delete_match', params: {'p_match_id': matchId});
           // `delete_match` returns void, so the body is null. Traced anyway:
           // "the RPC came back, and this is what it came back with" is exactly
           // the fact that separates a server refusal from a client-side fault.
-          Diagnostics.trace('rpc', 'delete_match returned ${response.runtimeType}');
+          Diagnostics.trace(
+              'rpc', 'delete_match returned ${response.runtimeType}');
         },
         operation: 'rpc delete_match',
       );

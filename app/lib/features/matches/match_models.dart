@@ -152,6 +152,7 @@ class Match {
     this.title,
     this.description,
     this.communityName,
+    this.communityLogoUrl,
     this.rosterOrderMode = RosterOrderMode.registration,
     this.isHistorical = false,
   });
@@ -173,6 +174,14 @@ class Match {
 
   /// Present only when the query joins the community (e.g. Home screen).
   final String? communityName;
+
+  /// The community's picture, carried on the same join that carries its name.
+  ///
+  /// One read, not two: the match query already embeds the community, so the
+  /// crest on a match screen costs nothing extra. Null where the query did not
+  /// join the community, and null where the community has no picture — the
+  /// crest draws initials for both.
+  final String? communityLogoUrl;
 
   /// Whether an owner or admin has arranged this match's roster. Shown to the
   /// organizer so an arrangement is a visible state and not a silent one; it

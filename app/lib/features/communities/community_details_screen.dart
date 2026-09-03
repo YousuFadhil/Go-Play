@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/club_place.dart';
 import '../../core/design.dart';
@@ -30,6 +31,7 @@ class CommunityDetailsScreen extends StatefulWidget {
     this.memberRepository,
     this.matchService,
     this.statisticsRepository,
+    this.imagePicker,
   });
 
   final String communityId;
@@ -40,6 +42,10 @@ class CommunityDetailsScreen extends StatefulWidget {
   final CommunityRepository? communityRepository;
   final MemberRepository? memberRepository;
   final MatchService? matchService;
+
+  /// Supplied only by tests, exactly as the profile screen takes one: the
+  /// picker reaches the platform, which a widget test has none of.
+  final ImagePicker? imagePicker;
 
   /// Handed to the Statistics tab, which already takes one of its own.
   final StatisticsRepository? statisticsRepository;
@@ -68,7 +74,14 @@ typedef _Data = (
 /// An enum rather than callbacks passed into the sheet: the sheet is a menu and
 /// nothing more, so it closes with an answer and the screen — which owns the
 /// busy flag, the reload and the messenger — is what acts on it.
-enum _CommunityAction { invitation, joinPolicy, members, delete }
+enum _CommunityAction {
+  invitation,
+  joinPolicy,
+  members,
+  changeLogo,
+  removeLogo,
+  delete,
+}
 
 class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
   late final CommunityRepository _communityRepository =
@@ -76,6 +89,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
   late final MemberRepository _memberRepository =
       widget.memberRepository ?? MemberRepository();
   late final MatchService _matchService = widget.matchService ?? MatchService();
+  late final ImagePicker _picker = widget.imagePicker ?? ImagePicker();
   late Future<_Data> _dataFuture;
   bool _busy = false;
 
@@ -180,12 +194,131 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
         builder: (_) => CommunityInvitationScreen(
           communityId: community.id,
           communityName: community.name,
+          communityLogoUrl: community.logoUrl,
           joinCode: joinCode,
         ),
       ),
     );
     // The code may have been regenerated behind that screen.
     _refresh();
+  }
+
+  // --- the community's picture ------------------------------------------------
+
+  /// Picks an image and makes it the community's picture.
+  ///
+  /// The picker is asked for a bounded image rather than the original, exactly
+  /// as the avatar flow asks: a phone camera produces several megabytes, the
+  /// bucket refuses anything over five, and nothing draws a crest larger than
+  /// 58 points. 512 square at quality 85 is what the profile screen already
+  /// settled on, and one rule is better than two.
+  ///
+  /// The ordering — upload, then persist, then delete the old — belongs to
+  /// [CommunityRepository.changeCommunityLogo] and not here. This screen picks
+  /// an image, reports what happened, and reloads.
+  Future<void> _changeLogo(Community community) async {
+    if (_busy) return;
+    final l10n = context.l10n;
+
+    final source = await _askImageSource();
+    if (source == null || !mounted) return;
+
+    final XFile? picked;
+    try {
+      picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+    } catch (_) {
+      // A camera the device does not have, or a permission that was refused.
+      // Both are the same thing here: no picture was chosen.
+      _say(l10n.communityLogoFailed);
+      return;
+    }
+    if (picked == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await _communityRepository.changeCommunityLogo(
+        communityId: community.id,
+        bytes: await picked.readAsBytes(),
+        fileExtension: _imageExtensionOf(picked.name),
+        previousLogoUrl: community.logoUrl,
+      );
+      if (!mounted) return;
+      _say(l10n.avatarUpdated);
+      _refresh();
+    } on AuthorizationFailure {
+      _say(l10n.permissionOwnerOnly);
+    } catch (_) {
+      // The repository has already preserved the picture the community had:
+      // a failed persist leaves the old URL authoritative.
+      _say(l10n.communityLogoFailed);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Takes the community's picture away, leaving its initials.
+  Future<void> _removeLogo(Community community) async {
+    if (_busy) return;
+    final l10n = context.l10n;
+
+    setState(() => _busy = true);
+    try {
+      await _communityRepository.removeCommunityLogo(
+        communityId: community.id,
+        previousLogoUrl: community.logoUrl,
+      );
+      if (!mounted) return;
+      _say(l10n.avatarRemoved);
+      _refresh();
+    } on AuthorizationFailure {
+      _say(l10n.permissionOwnerOnly);
+    } catch (_) {
+      _say(l10n.communityLogoFailed);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Camera or gallery, worded as the profile screen words it.
+  Future<ImageSource?> _askImageSource() => showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: Text(sheetContext.l10n.avatarSourceCamera),
+                onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(sheetContext.l10n.avatarSourceGallery),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  /// The encoding the bytes are in, taken from what the picker named the file.
+  ///
+  /// The same allow-list the bucket accepts and the same fallback the avatar
+  /// flow uses: anything unrecognised is treated as JPEG, which is what the
+  /// picker re-encodes to when it resizes.
+  String _imageExtensionOf(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot < 0) return 'jpg';
+    final extension = fileName.substring(dot + 1).toLowerCase();
+    return const {'png', 'webp', 'jpg', 'jpeg'}.contains(extension)
+        ? (extension == 'jpeg' ? 'jpg' : extension)
+        : 'jpg';
   }
 
   Future<void> _openMembers(String name) async {
@@ -222,70 +355,108 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     final action = await showModalBottomSheet<_CommunityAction>(
       context: context,
       builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                kPageMargin,
-                Gap.sm,
-                kPageMargin,
-                Gap.md,
+        // Scrollable, because the sheet grew. An owner of a community that has
+        // a picture is now offered seven rows, and on a short screen — or with
+        // the reader's text scaled up — seven do not fit. `MainAxisSize.min`
+        // still makes it exactly as tall as it needs to be when they do; this
+        // is only what happens when they do not.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  kPageMargin,
+                  Gap.sm,
+                  kPageMargin,
+                  Gap.md,
+                ),
+                child: Text(
+                  community.name,
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
               ),
-              child: Text(
-                community.name,
-                style: Theme.of(sheetContext).textTheme.titleMedium,
-              ),
-            ),
-            // Sharing an invitation means showing the join code, so it is
-            // offered to the owner and admins and to nobody else.
-            if (isOrganizer)
-              ListTile(
-                leading: const Icon(Icons.ios_share),
-                title: Text(l10n.shareInvitation),
-                subtitle: Text(l10n.communityInvitationTitle),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_CommunityAction.invitation),
-              ),
-            if (isOwner)
-              ListTile(
-                leading: Icon(codeRequired ? Icons.password : Icons.public),
-                title: Text(l10n.joinPolicyLabel),
-                subtitle: Text(codeRequired
-                    ? l10n.joinPolicyCodeRequired
-                    : l10n.joinPolicyOpen),
-                trailing: Switch(
-                  value: codeRequired,
-                  // The switch does not write from inside the sheet. It reports
-                  // the tap the same way the row does, so there is one path out
-                  // of here and one place the write happens.
-                  onChanged: (_) => Navigator.of(sheetContext)
+              // Sharing an invitation means showing the join code, so it is
+              // offered to the owner and admins and to nobody else.
+              if (isOrganizer)
+                ListTile(
+                  leading: const Icon(Icons.ios_share),
+                  title: Text(l10n.shareInvitation),
+                  subtitle: Text(l10n.communityInvitationTitle),
+                  onTap: () => Navigator.of(sheetContext)
+                      .pop(_CommunityAction.invitation),
+                ),
+              if (isOwner)
+                ListTile(
+                  leading: Icon(codeRequired ? Icons.password : Icons.public),
+                  title: Text(l10n.joinPolicyLabel),
+                  subtitle: Text(codeRequired
+                      ? l10n.joinPolicyCodeRequired
+                      : l10n.joinPolicyOpen),
+                  trailing: Switch(
+                    value: codeRequired,
+                    // The switch does not write from inside the sheet. It reports
+                    // the tap the same way the row does, so there is one path out
+                    // of here and one place the write happens.
+                    onChanged: (_) => Navigator.of(sheetContext)
+                        .pop(_CommunityAction.joinPolicy),
+                  ),
+                  onTap: () => Navigator.of(sheetContext)
                       .pop(_CommunityAction.joinPolicy),
                 ),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_CommunityAction.joinPolicy),
-              ),
-            ListTile(
-              leading: const Icon(Icons.group_outlined),
-              title: Text(l10n.manageMembersTitle),
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(_CommunityAction.members),
-            ),
-            if (isOwner) ...[
-              const Divider(),
               ListTile(
-                leading: Icon(Icons.delete_outline, color: scheme.error),
-                title: Text(
-                  l10n.deleteCommunityButton,
-                  style: TextStyle(color: scheme.error),
-                ),
+                leading: const Icon(Icons.group_outlined),
+                title: Text(l10n.manageMembersTitle),
                 onTap: () =>
-                    Navigator.of(sheetContext).pop(_CommunityAction.delete),
+                    Navigator.of(sheetContext).pop(_CommunityAction.members),
               ),
+              // The community's picture, to an owner or an admin.
+              //
+              // **Here rather than behind a screen of its own**, and to organizers
+              // rather than to the owner alone. Both are the approved product
+              // rule, and the second is the reason `set_community_logo` exists:
+              // generic community UPDATE is owner-only and stays that way, so an
+              // admin reaching this row is authorized by that one narrow function
+              // rather than by being handed the community's other fields.
+              //
+              // This gating is convenience, not security. A player who never sees
+              // these rows is refused by the server anyway, twice — by the
+              // function and by the storage policies.
+              if (isOrganizer) ...[
+                ListTile(
+                  key: const Key('communityChangeLogo'),
+                  leading: const Icon(Icons.image_outlined),
+                  title: Text(l10n.communityLogoChangeAction),
+                  onTap: () => Navigator.of(sheetContext)
+                      .pop(_CommunityAction.changeLogo),
+                ),
+                // Only where there is one to remove. A row that clears something
+                // already empty is a row that does nothing.
+                if (community.logoUrl != null)
+                  ListTile(
+                    key: const Key('communityRemoveLogo'),
+                    leading: const Icon(Icons.hide_image_outlined),
+                    title: Text(l10n.communityLogoRemoveAction),
+                    onTap: () => Navigator.of(sheetContext)
+                        .pop(_CommunityAction.removeLogo),
+                  ),
+              ],
+              if (isOwner) ...[
+                const Divider(),
+                ListTile(
+                  leading: Icon(Icons.delete_outline, color: scheme.error),
+                  title: Text(
+                    l10n.deleteCommunityButton,
+                    style: TextStyle(color: scheme.error),
+                  ),
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_CommunityAction.delete),
+                ),
+              ],
+              const SizedBox(height: Gap.sm),
             ],
-            const SizedBox(height: Gap.sm),
-          ],
+          ),
         ),
       ),
     );
@@ -298,6 +469,10 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
         await _setJoinPolicy(
           codeRequired ? JoinPolicy.open : JoinPolicy.codeRequired,
         );
+      case _CommunityAction.changeLogo:
+        await _changeLogo(community);
+      case _CommunityAction.removeLogo:
+        await _removeLogo(community);
       case _CommunityAction.members:
         await _openMembers(community.name);
       case _CommunityAction.delete:
@@ -888,7 +1063,12 @@ class _HeroIdentity extends StatelessWidget {
 
     return Row(
       children: [
-        CommunityCrest(name: community.name, size: 58, onHero: true),
+        CommunityCrest(
+          name: community.name,
+          logoUrl: community.logoUrl,
+          size: 58,
+          onHero: true,
+        ),
         const SizedBox(width: Gap.sm + 6),
         Expanded(
           child: Column(
