@@ -16,7 +16,7 @@ import '../sharing/share_card_flow.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import 'match_stage.dart';
-import 'pitch_view.dart';
+import 'match_stage_board.dart';
 import 'team_generation_settings.dart';
 import 'team_models.dart';
 import 'team_repository.dart';
@@ -331,35 +331,25 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
   /// Loads the lineup's pictures into the image cache.
   ///
-  /// Best effort, and issued together because they are independent. A picture
-  /// that will not load is not an error anywhere else in the app either, and
-  /// the pitch already falls back to a plain disc. `onError` is what keeps that
-  /// true: without a handler `precacheImage` reports the failure to
-  /// `FlutterError`, turning a missing photograph into an app-level error.
-  ///
-  /// A Professional Guest holds no account, so there is no picture of theirs to
-  /// fetch — the pitch draws them their own way.
-  Future<void> _precacheFaces(_TeamsView view) async {
-    final urls = <String>{
-      for (final assignment in view.lineup)
-        if (!assignment.isProfessionalGuest)
-          if (view.players[assignment.participantId]?.avatarUrl
-              case final String url)
-            url,
-    };
-    if (urls.isEmpty) return;
-
-    await Future.wait([
-      for (final url in urls)
-        precacheImage(NetworkImage(url), context, onError: (_, __) {}),
-    ]);
-  }
+  /// The work is [precacheShareCardFaces]'s, which the public completed-match
+  /// screen calls with its own lineup's pictures; what is decided here is
+  /// *which* pictures. A Professional Guest holds no account, so there is no
+  /// picture of theirs to fetch — the pitch draws them their own way.
+  Future<void> _precacheFaces(_TeamsView view) => precacheShareCardFaces(
+        context,
+        <String>{
+          for (final assignment in view.lineup)
+            if (!assignment.isProfessionalGuest)
+              if (view.players[assignment.participantId]?.avatarUrl
+                  case final String url)
+                url,
+        },
+      );
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final screenScale =
-        MediaQuery.sizeOf(context).width / MatchStage.referenceWidth;
+    final screenScale = matchStageScreenScale(context);
 
     // **This screen is dark, and it is the only one that is.** A lineup is a
     // pitch, and a pitch on the app's pale page reads as a picture pasted onto a
@@ -368,38 +358,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // feature's own, and nothing about the other five task screens changes.
     return Scaffold(
       backgroundColor: MatchStage.ground,
-      appBar: AppBar(
+      appBar: matchStageAppBar(
+        context,
         key: const ValueKey('teams-app-bar'),
-        toolbarHeight: 82 * screenScale,
-        backgroundColor: MatchStage.ground,
-        foregroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actionsIconTheme: const IconThemeData(color: Colors.white),
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leadingWidth: 82 * screenScale,
-        titleSpacing: 0,
-        title: Text(
-          l10n.teamsTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 35 * screenScale,
-            height: 1.25,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
-            color: MatchStage.ink,
-          ),
-        ),
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          icon: Icon(Icons.arrow_back, size: 34 * screenScale),
-          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-        ),
-        // The one share control in the product. There is no second one at the
-        // foot of this screen and none on Match Details.
+        title: l10n.teamsTitle,
+        // The one share control on this screen. There is no second one at its
+        // foot and none on Match Details.
         actions: [
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 4),
@@ -424,47 +388,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
           final view = snapshot.data!;
           return RefreshIndicator(
             onRefresh: () async => _reload(),
-            // The watermark is the one decoration on the ground: a ball, large,
-            // cropped by the corner and barely lighter than what it sits on. It
-            // says "football" without competing with a single player.
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF063126), MatchStage.ground],
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    key: const ValueKey('teams-header-ball-right'),
-                    top: -72,
-                    right: -64,
-                    child: Icon(
-                      Icons.sports_soccer,
-                      size: 230,
-                      color: Colors.white.withValues(alpha: 0.055),
-                    ),
-                  ),
-                  Positioned(
-                    key: const ValueKey('teams-header-ball-left'),
-                    top: -82,
-                    left: -84,
-                    child: Icon(
-                      Icons.sports_soccer,
-                      size: 210,
-                      color: Colors.white.withValues(alpha: 0.045),
-                    ),
-                  ),
-                  ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 20),
-                    children: view.lineup.isEmpty
-                        ? _emptyState(l10n, view)
-                        : _generatedTeams(l10n, view, screenScale),
-                  ),
-                ],
+            child: MatchStageGround(
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 20),
+                children: view.lineup.isEmpty
+                    ? _emptyState(l10n, view)
+                    : _generatedTeams(l10n, view),
               ),
             ),
           );
@@ -506,39 +436,53 @@ class _TeamsScreenState extends State<TeamsScreen> {
         if (view.canGenerate) ..._generateAction(l10n, view),
       ];
 
+  /// The match itself, and then whatever this reader may do to it.
+  ///
+  /// The drawing is [MatchStageBoard]'s, and it is the same drawing the public
+  /// completed-match screen renders — the header, the two sides and each
+  /// player where they played, with the score, the winner and the marks on it
+  /// once a result exists. What is appended below it is what this screen has
+  /// and the public one must not: the organizer's controls, each still gated on
+  /// the role `_TeamsView` read.
   List<Widget> _generatedTeams(
     AppLocalizations l10n,
     _TeamsView view,
-    double screenScale,
   ) =>
       [
-        // The one header, in both states. Before a result it is the community,
-        // the match and the date; after one it grows the score strip, and
-        // nothing else about the screen changes.
-        SizedBox(height: 8 * screenScale),
-        MatchStageHeader(
-          community: view.match.communityName,
-          title: view.match.displayName,
+        MatchStageBoard(
+          lineup: view.lineup,
+          players: view.players,
+          nameOf: (participantId) => _nameOf(view, participantId),
+          hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
+          communityName: view.match.communityName,
+          matchTitle: view.match.displayName,
           playedAt: view.match.startAt,
           teamAScore: view.result?.teamAScore,
           teamBScore: view.result?.teamBScore,
-        ),
-        SizedBox(height: (view.hasResult ? 17 : 50) * screenScale),
-        ..._teamSection(
-          l10n,
-          view,
-          l10n.teamAName,
-          TeamId.a,
-          bottomGap: view.hasResult ? 14 : 28,
-          screenScale: screenScale,
-        ),
-        ..._teamSection(
-          l10n,
-          view,
-          l10n.teamBName,
-          TeamId.b,
-          bottomGap: 20,
-          screenScale: screenScale,
+          goalsOf: view.goalsOf,
+          isMvpOf: view.isMvpOf,
+          // Who a card belongs to decides what tapping it does, and the
+          // management action wins where there is one.
+          //
+          //   * owner/admin  -> the manual-override sheet, exactly as before. A
+          //                     card is 82 pixels wide and cannot carry a second
+          //                     hit target, so the organizer keeps the one they
+          //                     came for.
+          //   * anybody else -> the player's profile, which is the rule
+          //                     everywhere a name is shown.
+          //
+          // A Professional Guest is neither: `_editPlayer` already returns for
+          // one, and they have no profile to open.
+          onTapPlayer: _busy
+              ? null
+              : (assignment) {
+                  if (view.canGenerate) {
+                    _editPlayer(l10n, view, assignment);
+                    return;
+                  }
+                  final userId = assignment.userId;
+                  if (userId != null) openPlayerProfile(context, userId);
+                },
         ),
         if (view.canEditPlayed) ...[
           const Divider(height: 32),
@@ -771,82 +715,6 @@ class _TeamsScreenState extends State<TeamsScreen> {
           label: Text(replacing
               ? l10n.regenerateTeamsButton
               : l10n.generateTeamsButton),
-        ),
-      ),
-    ];
-  }
-
-  /// One side of the lineup: its label, then the pitch it lines up on.
-  ///
-  /// `A` and `B` distinguish the two sides and mean nothing else (`KB-D6`), so
-  /// neither is presented as the stronger or the first-choice team.
-  List<Widget> _teamSection(
-    AppLocalizations l10n,
-    _TeamsView view,
-    String title,
-    TeamId team, {
-    required double bottomGap,
-    required double screenScale,
-  }) {
-    final assignments = [
-      for (final assignment in view.lineup)
-        if (assignment.team == team) assignment,
-    ];
-
-    final won = view.result?.winner == team;
-
-    // One section per side: heading, winner mark and pitch inside a single dark
-    // block, so a team reads as one thing rather than as a title floating over
-    // a detached pitch.
-    return [
-      Padding(
-        padding: EdgeInsets.fromLTRB(
-          21 * screenScale,
-          0,
-          22 * screenScale,
-          bottomGap * screenScale,
-        ),
-        child: MatchStageSection(
-          title: title,
-          won: won,
-          team: team,
-          child: PitchView(
-            assignments: assignments,
-            players: view.players,
-            hasNaturalGoalkeeper: view.hasNaturalGoalkeeper,
-            nameOf: (userId) => _nameOf(view, userId),
-            // Null before a result exists, which leaves every card exactly what it
-            // was. The same pitch, drawn after the match, carries what each player
-            // did on the player.
-            goalsOf: view.hasResult ? view.goalsOf : null,
-            isMvpOf: view.hasResult ? view.isMvpOf : null,
-            team: team,
-            pitchKey: ValueKey(
-              team == TeamId.a ? 'team-a-pitch' : 'team-b-pitch',
-            ),
-            // Who a card belongs to decides what tapping it does, and the
-            // management action wins where there is one.
-            //
-            //   * owner/admin  -> the manual-override sheet, exactly as before. A
-            //                     card is 82 pixels wide and cannot carry a second
-            //                     hit target, so the organizer keeps the one they
-            //                     came for.
-            //   * anybody else -> the player's profile, which is the rule
-            //                     everywhere a name is shown.
-            //
-            // A Professional Guest is neither: `_editPlayer` already returns for
-            // one, and they have no profile to open.
-            onTapPlayer: _busy
-                ? null
-                : (assignment) {
-                    if (view.canGenerate) {
-                      _editPlayer(l10n, view, assignment);
-                      return;
-                    }
-                    final userId = assignment.userId;
-                    if (userId != null) openPlayerProfile(context, userId);
-                  },
-          ),
         ),
       ),
     ];

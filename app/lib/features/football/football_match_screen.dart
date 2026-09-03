@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../../core/club_task.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../../core/time_format.dart';
-import '../../core/tokens.dart';
 import '../profile/player_identity.dart';
+import '../results/match_result_card.dart';
+import '../sharing/share_card_flow.dart';
+import '../sharing/share_card_renderer.dart';
+import '../sharing/share_service.dart';
 import '../teams/match_stage.dart';
+import '../teams/match_stage_board.dart';
+import 'completed_match_presentation.dart';
 import 'football_models.dart';
 import 'football_repository.dart';
 
@@ -18,24 +22,38 @@ import 'football_repository.dart';
 /// hidden behind a role check, but absent from the file. A reader who is not in
 /// this community reaches this screen from Discover, and viewing football that
 /// has been played must not be a way to acquire a capability that membership
-/// grants. The screen holds a [FootballRepository] and nothing else; there is no
-/// write path in reach of it.
+/// grants. The screen holds a [FootballRepository] and the Share Card Engine's
+/// two ports, and nothing else; there is no write path in reach of it. That
+/// stays true for an owner who arrives here: this route offers what it offers
+/// to everybody, and managing a match lives on the member-only Teams screen
+/// where the role that permits it is read.
 ///
-/// The visual language is the one the Teams screen already established:
-/// [MatchStageHeader] for the scoreline and [MatchStageSection] for each side.
-/// Reused rather than restated, so a match reads the same whether a member is
-/// looking at their own or a visitor is looking at somebody else's.
+/// **The drawing is the product's, not this screen's.** A match looks the same
+/// whether a member is looking at their own on the Teams screen or a visitor is
+/// looking at somebody else's here: the same dark ground, the same score
+/// header, the same two team blocks with the players standing where they
+/// played. None of that is restated in this file — [MatchStageBoard] owns it,
+/// and both screens hand it a lineup. What differs between them is what may be
+/// *done*, which is the difference that ought to differ.
 class FootballMatchScreen extends StatefulWidget {
   const FootballMatchScreen({
     super.key,
     required this.matchId,
     this.repository,
+    this.renderer,
+    this.shareService,
   });
 
   final String matchId;
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final FootballRepository? repository;
+
+  /// The Share Card Engine's two ports, passed straight through to
+  /// [presentShareCard]. Supplied only by tests; this screen composes no card
+  /// of its own and adds no renderer, preview or share service.
+  final ShareCardRenderer? renderer;
+  final ShareService? shareService;
 
   @override
   State<FootballMatchScreen> createState() => _FootballMatchScreenState();
@@ -45,30 +63,130 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
   late final FootballRepository _football =
       widget.repository ?? FootballRepository();
 
-  late Future<CompletedMatchDetail> _future;
+  late Future<_MatchView> _future;
+
+  /// The match as it is on screen, or null while one is loading. What the Share
+  /// button pictures, and the reason tapping it reads nothing: the adaptation
+  /// happened when the match arrived.
+  _MatchView? _shown;
 
   @override
   void initState() {
     super.initState();
-    _future = _football.fetchMatchDetail(widget.matchId);
+    _future = _track(_load());
+  }
+
+  Future<_MatchView> _load() async {
+    final detail = await _football.fetchMatchDetail(widget.matchId);
+    return _MatchView(
+      detail: detail,
+      presentation: CompletedMatchPresentation.of(detail),
+    );
+  }
+
+  /// Keeps [_shown] in step with whichever load is current.
+  Future<_MatchView> _track(Future<_MatchView> load) {
+    load.then(
+      (view) {
+        if (!mounted || _future != load) return;
+        setState(() => _shown = view);
+      },
+      // Already reported by the builder, which shows the retry.
+      onError: (_) {
+        if (!mounted || _future != load) return;
+        setState(() => _shown = null);
+      },
+    );
+    return load;
   }
 
   void _refresh() {
+    final load = _load();
     setState(() {
-      _future = _football.fetchMatchDetail(widget.matchId);
+      _future = load;
+      _shown = null;
     });
+    _track(load);
+  }
+
+  /// Whether there is a lineup to picture right now.
+  ///
+  /// A match with no stored lineup has nothing on it to send, so the action is
+  /// offered but not armed — exactly as it is on the Teams screen before a
+  /// lineup exists.
+  bool get _canShare => _shown?.presentation.hasLineup ?? false;
+
+  /// Composes the card for what is on screen and hands it to the engine.
+  ///
+  /// **The same card the Teams screen sends.** [MatchResultCard] is the one
+  /// picture of a match the product makes; this reuses it rather than inventing
+  /// a public variant, so a result shared from Discover and the same result
+  /// shared by a member are the same image.
+  ///
+  /// **Nothing here reads a repository.** Every value was resolved by
+  /// [CompletedMatchPresentation.of] when the match loaded, and the names are
+  /// the ones the pitch is already showing.
+  Future<void> _shareResult() async {
+    final view = _shown;
+    if (view == null || !view.presentation.hasLineup) return;
+
+    final presentation = view.presentation;
+    final match = view.detail.match;
+
+    // The faces are fetched before the card is composed, not while it is —
+    // the same step, and the same helper, that the Teams screen's share takes.
+    await precacheShareCardFaces(context, presentation.avatarUrls);
+    if (!mounted) return;
+
+    final data = MatchResultCardData(
+      lineup: presentation.lineup,
+      players: presentation.players,
+      names: presentation.names,
+      teamAScore: match.teamAScore,
+      teamBScore: match.teamBScore,
+      goals: presentation.goals,
+      mvpParticipantId: presentation.mvpParticipantId,
+      communityName: match.communityName,
+      matchTitle: match.displayName,
+      playedAt: match.startAt,
+      hasNaturalGoalkeeper: presentation.hasNaturalGoalkeeper,
+    );
+
+    await presentShareCard(
+      context,
+      template: (context) => MatchResultCard(data: data),
+      renderer: widget.renderer,
+      shareService: widget.shareService,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final screenScale = matchStageScreenScale(context);
 
+    // Dark, because a lineup is a pitch and the Match Stage is where the
+    // product draws one. The Club task shell is not used here, for the same
+    // reason it is not used on the Teams screen.
     return Scaffold(
-      appBar: ClubTaskBar(
+      backgroundColor: MatchStage.ground,
+      appBar: matchStageAppBar(
+        context,
+        key: const ValueKey('football-match-app-bar'),
         title: l10n.footballMatchTitle,
-        onBack: () => Navigator.of(context).maybePop(),
+        actions: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 4),
+            child: IconButton(
+              key: const ValueKey('shareCompletedMatchButton'),
+              icon: Icon(Icons.ios_share, size: 34 * screenScale),
+              tooltip: l10n.shareTeamLineupAction,
+              onPressed: _canShare ? _shareResult : null,
+            ),
+          ),
+        ],
       ),
-      body: FutureBuilder<CompletedMatchDetail>(
+      body: FutureBuilder<_MatchView>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -77,180 +195,202 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
           if (snapshot.hasError || !snapshot.hasData) {
             return ErrorState(onRetry: _refresh);
           }
-          return _Loaded(detail: snapshot.data!);
+
+          final view = snapshot.data!;
+          return MatchStageGround(
+            child: ListView(
+              padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 20),
+              children: view.presentation.hasLineup
+                  ? _board(l10n, view)
+                  : _withoutLineup(l10n, view),
+            ),
+          );
         },
       ),
     );
   }
+
+  /// The match, drawn the way the product draws a match.
+  List<Widget> _board(AppLocalizations l10n, _MatchView view) {
+    final match = view.detail.match;
+    final presentation = view.presentation;
+
+    return [
+      MatchStageBoard(
+        lineup: presentation.lineup,
+        players: presentation.players,
+        nameOf: presentation.nameOf,
+        hasNaturalGoalkeeper: presentation.hasNaturalGoalkeeper,
+        communityName: match.communityName,
+        matchTitle: match.displayName,
+        playedAt: match.startAt,
+        teamAScore: match.teamAScore,
+        teamBScore: match.teamBScore,
+        goalsOf: presentation.goalsOf,
+        isMvpOf: presentation.isMvpOf,
+        // The public-football identity rule, and the whole of what tapping a
+        // player does on this route. A registered player opens their hardened
+        // football profile; a Professional Guest has no account and opens
+        // nothing. There is no management sheet to reach instead — this screen
+        // has none, for any reader.
+        onTapPlayer: (assignment) {
+          final userId = assignment.userId;
+          if (userId != null) openPlayerProfile(context, userId);
+        },
+      ),
+      ..._matchFacts(l10n, view),
+    ];
+  }
+
+  /// When and where it was played, and whether anybody has written it up yet.
+  ///
+  /// The header already carries the community, the match and the date; this is
+  /// the rest of what a reader who was not there needs, set in the stage's own
+  /// muted ink so it belongs to the surface rather than to a document pasted
+  /// onto it.
+  List<Widget> _matchFacts(AppLocalizations l10n, _MatchView view) {
+    final match = view.detail.match;
+
+    return [
+      if (!match.hasResult)
+        _StageNote(
+          l10n.resultPendingLabel,
+          color: MatchStage.ink,
+          padding: const EdgeInsets.fromLTRB(
+            kPageMargin,
+            Gap.sm,
+            kPageMargin,
+            0,
+          ),
+        ),
+      _StageNote(
+        formatDayAndTimeRange(context, match.startAt, match.endAt),
+        padding: const EdgeInsets.fromLTRB(kPageMargin, Gap.sm, kPageMargin, 0),
+      ),
+      if (match.location.isNotEmpty)
+        _StageNote(
+          match.location,
+          padding: const EdgeInsets.fromLTRB(
+            kPageMargin,
+            Gap.xs,
+            kPageMargin,
+            0,
+          ),
+        ),
+    ];
+  }
+
+  /// A completed match whose lineup did not survive.
+  ///
+  /// **No pitch.** An empty one would report that nobody turned up, which is a
+  /// different claim from "the teams were not saved". So this state keeps the
+  /// roster it has always kept and says plainly why there is no lineup; nothing
+  /// assembles two sides out of a roster to fill the space, because who played
+  /// beside whom is exactly what was lost.
+  List<Widget> _withoutLineup(AppLocalizations l10n, _MatchView view) {
+    final match = view.detail.match;
+
+    return [
+      const SizedBox(height: Gap.md),
+      MatchStageHeader(
+        community: match.communityName,
+        title: match.displayName,
+        playedAt: match.startAt,
+        teamAScore: match.teamAScore,
+        teamBScore: match.teamBScore,
+      ),
+      ..._matchFacts(l10n, view),
+      if (match.mvp != null) ...[
+        const SizedBox(height: Gap.lg),
+        _StageHeading(l10n.mvpLabel),
+        _ParticipantRow(participant: match.mvp!),
+      ],
+      const SizedBox(height: Gap.lg),
+      _StageHeading(l10n.rosterTitle),
+      _StageNote(
+        l10n.lineupUnavailable,
+        padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.sm),
+        align: TextAlign.start,
+      ),
+      if (view.detail.roster.isEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            kPageMargin,
+            Gap.lg,
+            kPageMargin,
+            0,
+          ),
+          child: Text(
+            l10n.latestResultsEmpty,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: MatchStage.ink),
+          ),
+        )
+      else
+        for (final entry in view.detail.roster)
+          _ParticipantRow(participant: entry.participant),
+    ];
+  }
 }
 
-class _Loaded extends StatelessWidget {
-  const _Loaded({required this.detail});
+/// One completed match and the presentation view built from it, held together
+/// so a load delivers both or neither.
+class _MatchView {
+  const _MatchView({required this.detail, required this.presentation});
 
   final CompletedMatchDetail detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final match = detail.match;
-
-    return ClubTaskBody(
-      // Horizontal padding is zero because every row and card below already
-      // carries `kPageMargin`; the gutter would otherwise be applied twice.
-      padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xxl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // The scoreline, in the Teams screen's own header. It takes nullable
-          // scores already, which is exactly the "played but not written up"
-          // state this screen has to be able to show.
-          MatchStageHeader(
-            community: match.communityName,
-            title: match.displayName,
-            playedAt: match.startAt,
-            teamAScore: match.teamAScore,
-            teamBScore: match.teamBScore,
-          ),
-
-          if (!match.hasResult)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                kPageMargin,
-                Gap.md,
-                kPageMargin,
-                0,
-              ),
-              child: Text(
-                l10n.resultPendingLabel,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              kPageMargin,
-              Gap.md,
-              kPageMargin,
-              0,
-            ),
-            child: Text(
-              formatDayAndTimeRange(context, match.startAt, match.endAt),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
-          if (match.location.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                kPageMargin,
-                Gap.xs,
-                kPageMargin,
-                0,
-              ),
-              child: Text(
-                match.location,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ),
-
-          if (match.mvp != null) ...[
-            const SizedBox(height: Gap.lg),
-            SectionHeading(title: l10n.mvpLabel),
-            _ParticipantRow(participant: match.mvp!),
-          ],
-
-          const SizedBox(height: Gap.lg),
-
-          // The saved lineup where there is one, and the roster where there is
-          // not. A match can be played and recorded without a lineup surviving,
-          // and an empty pitch would report that as though nobody turned up.
-          if (detail.lineup.isNotEmpty) ...[
-            _TeamBlock(
-              title: l10n.teamAName,
-              slots: detail.teamA,
-              won: _won(match, isTeamA: true),
-            ),
-            const SizedBox(height: Gap.md),
-            _TeamBlock(
-              title: l10n.teamBName,
-              slots: detail.teamB,
-              won: _won(match, isTeamA: false),
-            ),
-          ] else ...[
-            SectionHeading(title: l10n.rosterTitle),
-            FootNote(
-              l10n.lineupUnavailable,
-              padding: const EdgeInsets.fromLTRB(
-                kPageMargin,
-                0,
-                kPageMargin,
-                Gap.sm,
-              ),
-            ),
-            if (detail.roster.isEmpty)
-              EmptyState(
-                icon: Icons.groups_outlined,
-                message: l10n.latestResultsEmpty,
-              )
-            else
-              for (final entry in detail.roster)
-                _ParticipantRow(participant: entry.participant),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Which side won, for the section's own emphasis. False for both when the
-  /// result is not recorded or the match was drawn — there is nothing to mark.
-  bool _won(CompletedMatch match, {required bool isTeamA}) {
-    final a = match.teamAScore;
-    final b = match.teamBScore;
-    if (!match.hasResult || a == null || b == null || a == b) return false;
-    return isTeamA ? a > b : b > a;
-  }
+  final CompletedMatchPresentation presentation;
 }
 
-/// One side of the stored lineup.
-class _TeamBlock extends StatelessWidget {
-  const _TeamBlock({
-    required this.title,
-    required this.slots,
-    required this.won,
-  });
+/// A heading on the dark ground.
+class _StageHeading extends StatelessWidget {
+  const _StageHeading(this.title);
 
   final String title;
-  final List<LineupSlot> slots;
-  final bool won;
 
   @override
-  Widget build(BuildContext context) {
-    return MatchStageSection(
-      title: title,
-      won: won,
-      child: Column(
-        children: [
-          for (final slot in slots)
-            _ParticipantRow(
-              participant: slot.participant,
-              position: slot.assignedPosition,
-              goals: slot.goals,
-              isMvp: slot.isMvp,
-            ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.sm),
+        child: Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: MatchStage.ink,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      );
 }
 
-/// A participant, drawn the one way the product draws participants.
+/// A line of secondary text on the dark ground.
+///
+/// The stage's own foreground rather than the theme's: this is the one dark
+/// surface in the product and the text theme it inherits is the light one, so a
+/// colour left to default comes out near-black on deep green.
+class _StageNote extends StatelessWidget {
+  const _StageNote(
+    this.text, {
+    required this.padding,
+    this.color = MatchStage.inkMuted,
+    this.align = TextAlign.center,
+  });
+
+  final String text;
+  final EdgeInsets padding;
+  final Color color;
+  final TextAlign align;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: padding,
+        child: Text(
+          text,
+          textAlign: align,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+        ),
+      );
+}
+
+/// A participant, drawn the one way the product draws participants off a pitch.
 ///
 /// A registered player opens their hardened football profile; a Professional
 /// Guest opens nothing. That distinction is not restated here — it is
@@ -258,21 +398,12 @@ class _TeamBlock extends StatelessWidget {
 /// there is no user id. Passing `participant.userId` through is the whole of the
 /// rule, and a guest's is null.
 class _ParticipantRow extends StatelessWidget {
-  const _ParticipantRow({
-    required this.participant,
-    this.position,
-    this.goals = 0,
-    this.isMvp = false,
-  });
+  const _ParticipantRow({required this.participant});
 
   final FootballParticipant participant;
-  final String? position;
-  final int goals;
-  final bool isMvp;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final theme = Theme.of(context);
     final isGuest = participant.type == ParticipantType.professionalGuest;
 
@@ -294,45 +425,14 @@ class _ParticipantRow extends StatelessWidget {
             ),
             const SizedBox(width: Gap.md),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    participant.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  if (position != null)
-                    Text(
-                      position!,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                ],
+              child: Text(
+                participant.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    theme.textTheme.bodyMedium?.copyWith(color: MatchStage.ink),
               ),
             ),
-            if (isMvp)
-              const Padding(
-                padding: EdgeInsetsDirectional.only(end: Gap.sm),
-                child: Icon(
-                  Icons.workspace_premium_outlined,
-                  size: IconSize.row,
-                  color: GoColors.primaryDeep,
-                ),
-              ),
-            // The goals the read model attributed to this participant, and
-            // nothing derived from them. Zero is drawn as nothing rather than
-            // as "0 goals", which would be a fact nobody is asserting.
-            if (goals > 0)
-              Text(
-                l10n.goalsShort(goals),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: GoColors.primaryDeep,
-                ),
-              ),
           ],
         ),
       ),

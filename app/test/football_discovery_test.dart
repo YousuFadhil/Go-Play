@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'dart:async';
 
+import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/l10n.dart';
@@ -22,7 +23,12 @@ import 'package:go_play/features/football/football_models.dart';
 import 'package:go_play/features/football/football_repository.dart';
 import 'package:go_play/features/matches/match_details_screen.dart';
 import 'package:go_play/features/profile/profile_screen.dart';
+import 'package:go_play/features/results/match_result_card.dart';
+import 'package:go_play/features/sharing/share_card_renderer.dart';
+import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/features/teams/match_stage.dart';
+import 'package:go_play/features/teams/match_stage_board.dart';
+import 'package:go_play/features/teams/pitch_view.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
@@ -60,11 +66,16 @@ void main() {
         title: 'Friday night',
       );
 
-  FootballParticipant player(String id, String name) => FootballParticipant(
+  FootballParticipant player(
+    String id,
+    String name, {
+    String? position = 'MID',
+  }) =>
+      FootballParticipant(
         type: ParticipantType.user,
         displayName: name,
         userId: id,
-        primaryPosition: 'MID',
+        primaryPosition: position,
         overallRating: 6.4,
       );
 
@@ -510,11 +521,13 @@ void main() {
   group('the read-only football match screen', () {
     late _RouteRecorder routes;
 
-    Future<void> pumpMatch(
+    Future<_FakeFootballAdapter> pumpMatch(
       WidgetTester tester, {
       required CompletedMatch match,
       List<LineupSlot> lineup = const [],
       List<MatchRosterEntry> roster = const [],
+      ShareCardRenderer? renderer,
+      ShareService? shareService,
     }) async {
       routes = _RouteRecorder();
       tester.view.physicalSize = const Size(900, 3000);
@@ -522,16 +535,20 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      final adapter = _FakeFootballAdapter(
+        results: [match],
+        detail: match,
+        lineup: lineup,
+        roster: roster,
+      );
       await tester.pumpWidget(wrap(FootballMatchScreen(
         matchId: match.matchId,
-        repository: FootballRepository(_FakeFootballAdapter(
-          results: [match],
-          detail: match,
-          lineup: lineup,
-          roster: roster,
-        )),
+        repository: FootballRepository(adapter),
+        renderer: renderer,
+        shareService: shareService,
       ), observers: [routes]));
       await tester.pumpAndSettle();
+      return adapter;
     }
 
     LineupSlot slot(
@@ -598,8 +615,10 @@ void main() {
         ],
       );
 
-      expect(find.text('2 goals'), findsOneWidget);
-      expect(find.textContaining('0 goal'), findsNothing,
+      // The mark is the pitch's, on the player, exactly as the Teams screen
+      // draws it — not a line of prose beside a name.
+      expect(find.byKey(PitchView.goalKey('u1')), findsOneWidget);
+      expect(find.byKey(PitchView.goalKey('u2')), findsNothing,
           reason: 'zero goals is drawn as nothing, not asserted as a fact');
     });
 
@@ -623,6 +642,10 @@ void main() {
       expect(find.text('Registered Player'), findsOneWidget);
       expect(find.byType(MatchStageSection), findsNothing,
           reason: 'an empty pitch would report a saved lineup that is not there');
+      expect(find.byType(MatchStageBoard), findsNothing);
+      expect(find.byType(PitchView), findsNothing);
+      expect(find.textContaining('No lineup was saved'), findsOneWidget,
+          reason: 'the reader is told why, rather than shown two empty sides');
     });
 
     testWidgets('a professional guest is drawn and opens nothing',
@@ -679,6 +702,244 @@ void main() {
         expect(find.text(label), findsNothing, reason: label);
       }
       expect(find.byType(FloatingActionButton), findsNothing);
+    });
+
+    // ------------------------------------------------------------------------
+    // The unification. A completed match opened from Latest Results is the same
+    // drawing the Teams screen makes once a result exists — not a second
+    // football-results page that happens to share a header.
+    // ------------------------------------------------------------------------
+
+    /// Seven on one side, in the shape the approved pitch draws exactly.
+    List<LineupSlot> approvedSeven() => [
+          slot(player('gk', 'Keeper', position: 'GK'), position: 'GK'),
+          slot(player('d1', 'Back One', position: 'DEF'), position: 'DEF'),
+          slot(player('d2', 'Back Two', position: 'DEF'), position: 'DEF'),
+          slot(player('m1', 'Middle One'), position: 'MID'),
+          slot(player('m2', 'Middle Two'), position: 'MID'),
+          slot(player('m3', 'Middle Three'), position: 'MID'),
+          slot(player('f1', 'Front One', position: 'FWD'), position: 'FWD'),
+        ];
+
+    testWidgets('draws the match on the pitch, not as two lists of names',
+        (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 3, b: 1),
+        lineup: [
+          slot(player('u1', 'Player A')),
+          slot(player('u2', 'Player B'), team: FootballTeam.b),
+        ],
+      );
+
+      // The shared presentation, and both of its sides.
+      expect(find.byType(MatchStageBoard), findsOneWidget,
+          reason: 'the drawing is the one the Teams screen makes');
+      expect(find.byKey(const ValueKey('team-a-section')), findsOneWidget);
+      expect(find.byKey(const ValueKey('team-b-section')), findsOneWidget);
+
+      // Placement goes through PitchView, which is what makes a player stand
+      // where they played rather than sit in a row.
+      expect(find.byType(PitchView), findsNWidgets(2));
+      expect(find.byKey(const ValueKey('team-a-pitch')), findsOneWidget);
+      expect(find.byKey(const ValueKey('team-b-pitch')), findsOneWidget);
+      expect(find.byKey(PitchView.avatarKey('u1')), findsOneWidget);
+      expect(find.byKey(PitchView.avatarKey('u2')), findsOneWidget);
+    });
+
+    testWidgets('stands every player where they were assigned', (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 2, b: 0),
+        lineup: approvedSeven(),
+      );
+
+      for (final id in const ['gk', 'd1', 'd2', 'm1', 'm2', 'm3', 'f1']) {
+        expect(find.byKey(PitchView.avatarKey(id)), findsOneWidget, reason: id);
+      }
+
+      // The assigned position is what decides where a card goes: the keeper,
+      // the defence and the attack are three distinct lines, not one list in
+      // the order the rows arrived.
+      final keeper = tester.getCenter(find.byKey(PitchView.avatarKey('gk'))).dy;
+      final back = tester.getCenter(find.byKey(PitchView.avatarKey('d1'))).dy;
+      final front = tester.getCenter(find.byKey(PitchView.avatarKey('f1'))).dy;
+      expect(keeper, isNot(closeTo(back, 1)));
+      expect(back, isNot(closeTo(front, 1)));
+      expect(keeper, isNot(closeTo(front, 1)));
+    });
+
+    testWidgets('carries the goals, the MVP and the winning side',
+        (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 3, b: 1),
+        lineup: [
+          slot(player('u1', 'Scorer'), goals: 2),
+          slot(player('u2', 'Best'), isMvp: true),
+          slot(player('u3', 'Loser'), team: FootballTeam.b),
+        ],
+      );
+
+      // On the players, exactly as the Teams screen marks them.
+      expect(find.byKey(PitchView.goalKey('u1')), findsOneWidget);
+      expect(find.byKey(PitchView.mvpKey('u2')), findsOneWidget);
+      expect(find.byKey(PitchView.mvpKey('u1')), findsNothing);
+
+      // And the result decoration: the score strip, and the trophy on the side
+      // that won it.
+      expect(find.byKey(const ValueKey('result-strip')), findsOneWidget);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget,
+          reason: 'one side won, so exactly one side is marked');
+    });
+
+    testWidgets('a drawn match marks neither side', (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 2, b: 2),
+        lineup: [slot(player('u1', 'Player A'))],
+      );
+
+      expect(find.byKey(const ValueKey('result-strip')), findsOneWidget);
+      expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
+    });
+
+    // The whole point of sharing the drawing rather than the screen: none of
+    // the Teams screen's capabilities came with it. This holds for every
+    // reader, an owner of this community included, because the route offers
+    // the same nothing to all of them.
+    testWidgets('reaches no Teams management action from this route',
+        (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 3, b: 1),
+        lineup: approvedSeven(),
+      );
+
+      for (final label in const [
+        'Generate teams',
+        'Regenerate teams',
+        'Add a player who played',
+        'Add professional guest',
+        'Add a professional guest',
+        'Move to the other team',
+        'Swap with a player',
+        'Change position',
+        'Assigned position',
+        'Remove',
+        'Record result',
+        'Save',
+      ]) {
+        expect(find.text(label), findsNothing, reason: label);
+      }
+    });
+
+    testWidgets('tapping a player opens their profile and no override sheet',
+        (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 3, b: 1),
+        lineup: approvedSeven(),
+      );
+
+      await tester.tap(find.byKey(PitchView.avatarKey('m1')));
+      await tester.pumpAndSettle();
+
+      expect(routes.lastPushedWidget(tester), isA<ProfileScreen>());
+      expect(find.byType(BottomSheet), findsNothing,
+          reason: 'the manual-override sheet belongs to the Teams screen');
+      expect(find.text('Move to the other team'), findsNothing);
+    });
+
+    testWidgets('a guest on the pitch still opens nothing', (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 3, b: 1),
+        lineup: [slot(guest, position: null), slot(player('u1', 'Player A'))],
+      );
+
+      await tester.tap(find.byKey(PitchView.avatarKey('g1')));
+      await tester.pumpAndSettle();
+
+      expect(routes.pushes, isEmpty,
+          reason: 'a guest has no account and therefore no profile');
+    });
+
+    // ------------------------------------------------------------------------
+    // Share, approved for anybody who can open the match.
+    // ------------------------------------------------------------------------
+
+    testWidgets('offers Share on a completed match', (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 3, b: 1),
+        lineup: [slot(player('u1', 'Player A'))],
+      );
+
+      final button = tester.widget<IconButton>(
+        find.byKey(const ValueKey('shareCompletedMatchButton')),
+      );
+      expect(button.onPressed, isNotNull,
+          reason: 'this route is open to any signed-in reader, member or not');
+    });
+
+    testWidgets('sends the existing match result card', (tester) async {
+      final renderer = _Renderer();
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 3, b: 1),
+        lineup: [
+          slot(player('u1', 'Scorer'), goals: 2),
+          slot(player('u2', 'Best'), isMvp: true),
+          slot(player('u3', 'Loser'), team: FootballTeam.b),
+        ],
+        renderer: renderer,
+        shareService: _Share(),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('shareCompletedMatchButton')));
+      await tester.pumpAndSettle();
+
+      // The product's one match picture, not a public variant of it.
+      expect(renderer.templates, hasLength(1));
+      expect(renderer.lastBuilt, isA<MatchResultCard>());
+
+      final data = (renderer.lastBuilt! as MatchResultCard).data;
+      expect(data.hasResult, isTrue);
+      expect(data.winner, TeamId.a);
+      expect(data.goalsOf('u1'), 2);
+      expect(data.isMvp('u2'), isTrue);
+      expect(data.of(TeamId.a), hasLength(2));
+      expect(data.of(TeamId.b), hasLength(1));
+      expect(data.names['u1'], 'Scorer');
+      expect(data.communityName, 'Muscat United');
+      expect(data.playedAt, isNotNull);
+    });
+
+    testWidgets('sharing what is on screen reads nothing', (tester) async {
+      final adapter = await pumpMatch(
+        tester,
+        match: completed('p1', a: 3, b: 1),
+        lineup: [slot(player('u1', 'Player A'))],
+        renderer: _Renderer(),
+        shareService: _Share(),
+      );
+
+      final before = adapter.matchDetailReads;
+      await tester.tap(find.byKey(const ValueKey('shareCompletedMatchButton')));
+      await tester.pumpAndSettle();
+
+      expect(adapter.matchDetailReads, before,
+          reason: 'every value was resolved when the match loaded');
+    });
+
+    testWidgets('a match with no lineup has nothing to send', (tester) async {
+      await pumpMatch(tester, match: completed('p1'), lineup: const []);
+
+      final button = tester.widget<IconButton>(
+        find.byKey(const ValueKey('shareCompletedMatchButton')),
+      );
+      expect(button.onPressed, isNull);
     });
   });
 
@@ -1140,6 +1401,10 @@ class _FakeFootballAdapter implements FootballAdapter {
 
   var completedCalls = 0;
 
+  /// Reads that opening one completed match costs. Counted so a test can show
+  /// that sharing what is already on screen costs none.
+  var matchDetailReads = 0;
+
   /// The cap the screen asked for, so a test can show the read is unchanged.
   int? lastLimit;
 
@@ -1156,18 +1421,21 @@ class _FakeFootballAdapter implements FootballAdapter {
 
   @override
   Future<CompletedMatch> fetchCompletedMatch(String matchId) async {
+    matchDetailReads++;
     if (failure != null) throw failure!;
     return detail ?? results.first;
   }
 
   @override
   Future<List<MatchRosterEntry>> fetchMatchRoster(String matchId) async {
+    matchDetailReads++;
     if (failure != null) throw failure!;
     return roster;
   }
 
   @override
   Future<List<LineupSlot>> fetchMatchLineup(String matchId) async {
+    matchDetailReads++;
     if (failure != null) throw failure!;
     return lineup;
   }
@@ -1397,3 +1665,47 @@ class _RouteRecorder extends NavigatorObserver {
     return route.builder(tester.element(find.byType(Navigator).first));
   }
 }
+
+/// Captures which template the screen handed the engine, which is the whole of
+/// what "the same card, from either screen" means.
+class _Renderer implements ShareCardRenderer {
+  final List<ShareCardTemplate> templates = [];
+  Widget? lastBuilt;
+
+  @override
+  Future<ShareCardImage> render(
+    ShareCardTemplate template, {
+    double pixelRatio = 1.0,
+  }) async {
+    templates.add(template);
+    lastBuilt = template(_StubContext());
+    return ShareCardImage(bytes: _png, pixelWidth: 1080, pixelHeight: 1920);
+  }
+}
+
+/// The template is a function of a context it does not read until it builds, so
+/// calling it with a stub is enough to learn which widget it makes.
+class _StubContext implements BuildContext {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+class _Share implements ShareService {
+  @override
+  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async =>
+      ShareOutcome.shared;
+}
+
+/// A one-pixel PNG. The preview screen decodes whatever it is handed, so the
+/// bytes have to be a real picture even though nothing here looks at it.
+final _png = Uint8List.fromList(const [
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, //
+  0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, //
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, //
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, //
+  0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, //
+  0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, //
+  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, //
+  0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, //
+  0x42, 0x60, 0x82, //
+]);

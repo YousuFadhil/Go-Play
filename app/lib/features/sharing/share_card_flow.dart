@@ -115,3 +115,30 @@ class _ComposingDialog extends StatelessWidget {
     );
   }
 }
+
+/// Loads a card's faces into the image cache before the card is composed.
+///
+/// **The engine gives a template two frames to settle**, which is ample for
+/// layout and nowhere near enough for a network image — so a card composed
+/// without this shows a blank disc for every player who has a picture. Calling
+/// it is the caller's business; every card that draws faces needs it, and the
+/// two that draw the same lineup need the same one, which is why it is here
+/// rather than beside either of them.
+///
+/// Best effort, and issued together because the fetches are independent. A
+/// picture that will not load is not an error anywhere else in the app either,
+/// and the pitch already falls back to a plain disc. `onError` is what keeps
+/// that true: without a handler `precacheImage` reports the failure to
+/// `FlutterError`, turning a missing photograph into an app-level error.
+Future<void> precacheShareCardFaces(
+  BuildContext context,
+  Iterable<String> urls,
+) async {
+  final unique = urls.toSet();
+  if (unique.isEmpty) return;
+
+  await Future.wait([
+    for (final url in unique)
+      precacheImage(NetworkImage(url), context, onError: (_, __) {}),
+  ]);
+}
