@@ -5,6 +5,7 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/time_format.dart';
 import '../../core/tokens.dart';
+import '../matches/compact_match_card.dart';
 import '../profile/current_user.dart';
 import '../profile/profile_models.dart';
 import 'discover_models.dart';
@@ -535,6 +536,54 @@ class PublicMatchCard extends StatelessWidget {
   }
 }
 
+/// The same public match, drawn for a column.
+///
+/// Discover lays its upcoming matches out two across, so the card there cannot
+/// be [PublicMatchCard]: that one is a row, and a row does not halve. This
+/// borrows [CompactMatchShell] from the signed-in side rather than restating the
+/// arrangement, which is what keeps a match looking like the same object to a
+/// visitor and to a member reading the same page.
+///
+/// Both of the original's ways in survive. The card opens the match, as it did,
+/// and the named button under it does the same thing — kept for the reason it
+/// was put there: for a visitor it is the one place the word "join" appears
+/// before they have an account.
+class CompactPublicMatchCard extends StatelessWidget {
+  const CompactPublicMatchCard({
+    super.key,
+    required this.match,
+    required this.actionLabel,
+    required this.onAction,
+    this.showCommunityName = true,
+  });
+
+  final PublicMatch match;
+  final String actionLabel;
+  final VoidCallback onAction;
+  final bool showCommunityName;
+
+  @override
+  Widget build(BuildContext context) {
+    return CompactMatchShell(
+      onTap: onAction,
+      day: match.startAt,
+      badge: _SeatsBadge(match: match),
+      title: match.displayName,
+      subtitle: showCommunityName ? match.communityName : null,
+      time: formatTimeRange(context, match.startAt, match.endAt),
+      location: match.location,
+      action: FilledButton.tonal(
+        onPressed: onAction,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(Layout.buttonHeightSmall),
+          padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+        ),
+        child: Text(actionLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+}
+
 /// The day a match falls on, stacked: weekday, date, month.
 ///
 /// Reads at a glance from across a scrolling list, which the full "Sat, 6 Mar
@@ -791,6 +840,109 @@ class PublicCommunityCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The same community, drawn for a column.
+///
+/// Stacked rather than halved: the crest sits above the name instead of beside
+/// it, because a 46px mark and a wrapping community name cannot share the width
+/// of half a phone and both come out readable.
+///
+/// **The crest is the crest, not a slot.** A community's identity in this
+/// product is its initials in a rounded square, exactly as [CommunityCrest]
+/// draws them everywhere else — there is no logo column behind it, nothing here
+/// is holding space for a picture, and this card must not be read as preparing
+/// for one.
+///
+/// Both actions are kept and both are stacked. Opening stays the loud one, for
+/// the reason [PublicCommunityCard] gives; joining stays on the card because a
+/// member browsing should still not have to open a community to join it. Side by
+/// side they would each get about seventy pixels, which is not enough for either
+/// label in Arabic.
+class CompactPublicCommunityCard extends StatelessWidget {
+  const CompactPublicCommunityCard({
+    super.key,
+    required this.community,
+    required this.onOpen,
+    required this.onJoin,
+  });
+
+  final PublicCommunity community;
+  final VoidCallback onOpen;
+  final VoidCallback onJoin;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final description = community.description?.trim() ?? '';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      color: GoColors.surfaceCard,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CommunityCrest(name: community.name, size: 42),
+              const SizedBox(height: Gap.sm),
+              // Two lines. A community name is the thing being chosen between,
+              // so it wraps where the description below it merely shortens.
+              Text(
+                community.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoType.cardTitle.copyWith(color: GoColors.onSurface),
+              ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: GoColors.onSurfaceVariant),
+                ),
+              ],
+              const SizedBox(height: Gap.sm),
+              CommunityCounts(community: community),
+              const SizedBox(height: Gap.md),
+              FilledButton.tonal(
+                onPressed: onOpen,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(Layout.buttonHeightSmall),
+                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                ),
+                child: Text(
+                  l10n.viewCommunityAction,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: Gap.sm),
+              OutlinedButton(
+                onPressed: onJoin,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(Layout.buttonHeightSmall),
+                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                ),
+                child: Text(
+                  l10n.joinCommunityButton,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),

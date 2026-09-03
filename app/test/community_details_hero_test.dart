@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/club_place.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/theme.dart';
+import 'package:go_play/features/communities/member_card.dart';
+import 'package:go_play/features/matches/compact_match_card.dart';
 import 'package:go_play/core/tokens.dart';
 import 'package:go_play/features/communities/community_adapter.dart';
 import 'package:go_play/features/communities/community_details_screen.dart';
@@ -81,6 +83,9 @@ void main() {
     CommunityRole? role = CommunityRole.player,
     Locale locale = const Locale('en'),
     Size size = const Size(412, 900),
+    // A roster of the caller's own, for the tests that need more than two
+    // people to see how the member grid lays them out.
+    List<CommunityMember>? roster,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -93,10 +98,10 @@ void main() {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: CommunityDetailsScreen(
         communityId: 'c1',
-        communityRepository:
-            CommunityRepository(_FakeCommunityAdapter(which)),
-        memberRepository:
-            MemberRepository(_FakeMemberAdapter(members: members, role: role)),
+        communityRepository: CommunityRepository(_FakeCommunityAdapter(which)),
+        memberRepository: MemberRepository(
+          _FakeMemberAdapter(members: roster ?? members, role: role),
+        ),
         matchService: MatchService(_FakeMatchAdapter(matches)),
       ),
     ));
@@ -334,6 +339,121 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(ClubHero), findsOneWidget);
       expect(find.byType(Tab), findsNWidgets(4));
+    });
+  });
+
+  group('the tabs lay their content out in a grid', () {
+    /// How many cards share the topmost row.
+    int columnsOf(WidgetTester tester, Finder cards) {
+      final count = tester.widgetList(cards).length;
+      expect(count, greaterThan(0), reason: 'nothing was rendered');
+      var top = double.infinity;
+      for (var i = 0; i < count; i++) {
+        final dy = tester.getTopLeft(cards.at(i)).dy;
+        if (dy < top) top = dy;
+      }
+      var first = 0;
+      for (var i = 0; i < count; i++) {
+        if ((tester.getTopLeft(cards.at(i)).dy - top).abs() < 0.5) first++;
+      }
+      return first;
+    }
+
+    List<CommunityMember> squad(int n) => [
+          for (var i = 0; i < n; i++)
+            CommunityMember(
+              userId: 'u$i',
+              fullName: 'Player Number $i',
+              position: 'MID',
+              role: i == 0 ? CommunityRole.owner : CommunityRole.player,
+            ),
+        ];
+
+    testWidgets('matches sit two across, both the coming and the played',
+        (tester) async {
+      await pumpCommunity(tester);
+
+      // The fixture carries one of each, and the two lists stay separate: a
+      // plan and a record are different things to a member, so the played match
+      // must not come up beside the coming one on a shared row.
+      expect(find.byType(CompactMatchCard), findsNWidgets(2));
+      expect(columnsOf(tester, find.byType(CompactMatchCard)), 1,
+          reason: 'one upcoming and one played, in two sections');
+
+      expect(find.text('Friday Night'), findsOneWidget);
+      expect(find.text('Last Sunday'), findsOneWidget);
+      // `findsWidgets` and not `findsOneWidget`: each of these words the hero's
+      // count as well as the section below it, and that was true before the
+      // grid arrived.
+      expect(find.text('Upcoming matches'), findsWidgets);
+      expect(find.text('Completed matches'), findsWidgets);
+    });
+
+    testWidgets('members sit three across on a phone', (tester) async {
+      await pumpCommunity(tester, roster: squad(6));
+      await tester.tap(find.widgetWithText(Tab, 'Members'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(columnsOf(tester, find.byType(CommunityMemberCard)), 3);
+    });
+
+    testWidgets('and give up a column on a narrow one', (tester) async {
+      // 320 wide leaves 292 to the cards, which is not enough for three.
+      await pumpCommunity(
+        tester,
+        roster: squad(6),
+        size: const Size(320, 900),
+      );
+      await tester.tap(find.widgetWithText(Tab, 'Members'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(columnsOf(tester, find.byType(CommunityMemberCard)), 2);
+    });
+
+    testWidgets('a role marker survives the move off the list row',
+        (tester) async {
+      await pumpCommunity(tester, roster: squad(6));
+      await tester.tap(find.widgetWithText(Tab, 'Members'));
+      await tester.pumpAndSettle();
+
+      // One owner among six, exactly as the roster says — and no marker
+      // invented for the five who are players.
+      expect(find.text('OWNER'), findsOneWidget);
+      expect(find.text('PLAYER'), findsNothing);
+    });
+
+    testWidgets('a long Arabic roster stays inside its cards', (tester) async {
+      await pumpCommunity(
+        tester,
+        locale: const Locale('ar'),
+        roster: const [
+          CommunityMember(
+            userId: 'u1',
+            fullName: 'عبدالرحمن بن سليمان الحارثي',
+            position: 'MID',
+            role: CommunityRole.owner,
+          ),
+          CommunityMember(
+            userId: 'u2',
+            fullName: 'محمد بن عبدالله البلوشي',
+            position: 'DEF',
+            role: CommunityRole.player,
+          ),
+          CommunityMember(
+            userId: 'u3',
+            fullName: 'يوسف العامري',
+            position: 'FWD',
+            role: CommunityRole.player,
+          ),
+        ],
+      );
+      await tester.tap(find.widgetWithText(Tab, 'الأعضاء'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(columnsOf(tester, find.byType(CommunityMemberCard)), 3);
     });
   });
 }

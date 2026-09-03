@@ -464,6 +464,16 @@ class MatchStageSection extends StatelessWidget {
       );
 }
 
+/// "Team A", "Team B" — the words, and nothing beside them.
+///
+/// There used to be a short green bar tucked against each heading. It has been
+/// withdrawn, and withdrawn here rather than at either of the places that draw
+/// this: the Teams screen and the shared result card render the same heading,
+/// so a removal made on one of them would have left the other with a decoration
+/// nothing else on the page still answered to.
+///
+/// Nothing replaces it. The heading is anchored by its own end, so taking the
+/// bar out shortens the row without moving the words a reader is looking for.
 class _TeamHeading extends StatelessWidget {
   const _TeamHeading({required this.title, required this.sx});
 
@@ -484,15 +494,6 @@ class _TeamHeading extends StatelessWidget {
               fontSize: 35 * sx,
               fontWeight: FontWeight.w700,
               height: 1,
-            ),
-          ),
-          SizedBox(width: 15 * sx),
-          Container(
-            width: 42 * sx,
-            height: 5 * sx,
-            decoration: BoxDecoration(
-              color: MatchStage.accent,
-              borderRadius: BorderRadius.circular(4 * sx),
             ),
           ),
         ],

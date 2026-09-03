@@ -42,6 +42,16 @@ String formatMonthShort(BuildContext context, DateTime day) =>
 String formatWeekdayShort(BuildContext context, DateTime day) =>
     DateFormat.E(Localizations.localeOf(context).toString()).format(day);
 
+/// The day on one short line — "Sat 8 Aug".
+///
+/// For the compact card, where the stacked tile's three lines cost more height
+/// than a card in a column has to give. The same three parts from the same
+/// locale, laid along instead of down; stated here beside them rather than
+/// assembled inside the card, for the reason the range below is here.
+String formatDayShort(BuildContext context, DateTime day) =>
+    '${formatWeekdayShort(context, day)} ${formatDayNumber(context, day)} '
+    '${formatMonthShort(context, day)}';
+
 /// The day and the clock range together, which is how a match has always been
 /// written on a card. Stated here rather than in one of the cards that shows it,
 /// so the public and the signed-in listings cannot drift into two formats for

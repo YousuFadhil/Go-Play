@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/app_header.dart';
+import 'package:go_play/core/club_place.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/core/theme.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/profile/current_user.dart';
 import 'package:go_play/features/profile/profile_adapter.dart';
@@ -160,6 +162,65 @@ void main() {
       expect(CurrentUser.instance.profile.value, isNull,
           reason: 'the next account on this device must not be greeted by the '
               'previous one\'s name');
+    });
+  });
+
+  group('the name is legible on whatever it is put on', () {
+    /// The style the player's first name is actually drawn in.
+    TextStyle nameStyle(WidgetTester tester) =>
+        tester.widget<Text>(find.text('Salim')).style!;
+
+    /// The menu on a surface of the caller's choosing.
+    Future<void> pumpMenu(WidgetTester tester, Widget menu) async {
+      CurrentUser.instance
+          .useRepository(ProfileRepository(_StaticProfileAdapter(profile)));
+      addTearDown(() => CurrentUser.instance.useRepository(null));
+
+      await tester.pumpWidget(MaterialApp(
+        theme: buildAppTheme(),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(body: menu),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('white on the Club hero', (tester) async {
+      // The defect this fixes: everything else on the hero bar — the back
+      // arrow, the title — is reversed out, and the player's own name was
+      // taking dark ink from a theme built for light surfaces. On a green block
+      // it was the least readable word on the screen.
+      await pumpMenu(
+        tester,
+        const ClubHeroBar(title: 'A place', showCurrentUserMenu: true),
+      );
+
+      expect(nameStyle(tester).color, Colors.white);
+    });
+
+    testWidgets('the theme\'s own ink on a light surface', (tester) async {
+      // The default, and it has to stay the default: this menu closes an
+      // ordinary app bar far more often than it closes a hero.
+      await pumpMenu(tester, const CurrentUserMenu());
+
+      expect(
+          nameStyle(tester).color, buildAppTheme().textTheme.labelLarge?.color);
+      expect(nameStyle(tester).color, isNot(Colors.white));
+    });
+
+    testWidgets('and the header that carries it asks for nothing else',
+        (tester) async {
+      // [AppHeader] stands on a light bar, so it passes no colour and gets the
+      // theme's. Stated because the fix is a parameter, and a parameter is
+      // something a later caller could start passing by mistake.
+      await pumpHeader(tester);
+
+      expect(
+        tester
+            .widget<CurrentUserMenu>(find.byType(CurrentUserMenu))
+            .foregroundColor,
+        isNull,
+      );
     });
   });
 }

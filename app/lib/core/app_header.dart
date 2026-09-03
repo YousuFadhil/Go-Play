@@ -63,7 +63,21 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 /// and log out. The profile screen carries the same three, which is the second
 /// place the Product Owner asked for logout to be.
 class CurrentUserMenu extends StatefulWidget {
-  const CurrentUserMenu({super.key});
+  const CurrentUserMenu({super.key, this.foregroundColor});
+
+  /// What colour the player's name is drawn in.
+  ///
+  /// The reason this parameter exists: the same menu closes an [AppHeader],
+  /// which stands on a light surface, and a [ClubHeroBar], which stands on the
+  /// green hero. Left to itself the name takes `labelLarge` from the theme —
+  /// the dark ink that is right on a card and nearly unreadable on the hero.
+  ///
+  /// Null means the theme's own foreground, which is what a light surface wants
+  /// and therefore what the default has to be; a caller drawing this on a brand
+  /// background passes white. A colour rather than an `onHero` flag, because the
+  /// surface is the caller's fact — this widget should not have to hold a list
+  /// of the places it might be put.
+  final Color? foregroundColor;
 
   @override
   State<CurrentUserMenu> createState() => _CurrentUserMenuState();
@@ -157,7 +171,13 @@ class _CurrentUserMenuState extends State<CurrentUserMenu> {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge,
+                      // `copyWith(color: null)` keeps the style's own colour,
+                      // so the light-surface case is untouched by the presence
+                      // of this parameter rather than merely restored by it.
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge
+                          ?.copyWith(color: widget.foregroundColor),
                     ),
                   ),
                 ],

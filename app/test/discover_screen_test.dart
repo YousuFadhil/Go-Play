@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/app_header.dart';
 import 'package:go_play/core/club_place.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/core/skeleton.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
@@ -17,6 +18,7 @@ import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
 import 'package:go_play/features/discover/discover_screen.dart';
+import 'package:go_play/features/discover/discover_widgets.dart';
 import 'package:go_play/features/discover/public_community_screen.dart';
 import 'package:go_play/features/football/football_adapter.dart';
 import 'package:go_play/features/football/football_models.dart';
@@ -88,11 +90,17 @@ void main() {
     List<CompletedMatch>? results,
     Object? footballFailure,
     List<String> joinedCommunityIds = const [],
+    // Set together, these leave the screen standing in its loading state: the
+    // adapter has not answered yet and the pump does not wait for it.
+    Duration? delay,
+    bool settle = true,
   }) async {
     // The greeting reads the profile the session holds. Left null nothing is
     // loaded, which is the case the headline has to fall back for.
     CurrentUser.instance.useRepository(
-      profile == null ? null : ProfileRepository(_StaticProfileAdapter(profile)),
+      profile == null
+          ? null
+          : ProfileRepository(_StaticProfileAdapter(profile)),
     );
     addTearDown(() => CurrentUser.instance.useRepository(null));
 
@@ -105,6 +113,7 @@ void main() {
       communities: communities ?? [community('c1', 'Muscat United')],
       matches: matches ?? [match('m1')],
       failure: failure,
+      delay: delay,
     );
 
     await tester.pumpWidget(MaterialApp(
@@ -124,7 +133,12 @@ void main() {
             CommunityRepository(_JoinedCommunitiesAdapter(joinedCommunityIds)),
       ),
     ));
-    await tester.pumpAndSettle();
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      // One frame, which is the frame the skeleton is on.
+      await tester.pump();
+    }
   }
 
   group('the app opens on something to look at', () {
@@ -157,11 +171,13 @@ void main() {
       expect(find.text('Al Amerat Pitch 2'), findsOneWidget);
       expect(find.text('4 places left'), findsOneWidget);
 
-      // Sprint 2 replaced the "Sat, Mar 6, 2027" line with a date tile, so the
-      // day reads from across a scrolling list. Same fact, stacked.
-      expect(find.text('SAT'), findsOneWidget);
-      expect(find.text('6'), findsOneWidget);
-      expect(find.text('Mar'), findsOneWidget);
+      // The same three parts the stacked tile carried — weekday, day, month —
+      // on one line now that Discover lays its matches out two across. Sprint 2
+      // replaced "Sat, Mar 6, 2027" with the tile so the day read at a glance;
+      // the grid keeps the glance and gives the card back the two lines the
+      // stack was spending. The tile itself is unchanged where it still stands,
+      // on the community pages that remain a single column.
+      expect(find.text('Sat 6 Mar'), findsOneWidget);
     });
 
     testWidgets('a full match says so instead of offering places',
@@ -538,6 +554,143 @@ void main() {
           TextOverflow.ellipsis);
     });
   });
+
+  group('both sections are laid out as grids', () {
+    /// How many cards share the topmost row.
+    ///
+    /// Position rather than tree structure: the claim is that two cards ended
+    /// up beside each other, and a card's top edge says so however the rows
+    /// happen to be built.
+    int columnsOf(WidgetTester tester, Finder cards) {
+      final count = tester.widgetList(cards).length;
+      expect(count, greaterThan(0), reason: 'nothing was rendered');
+      var top = double.infinity;
+      for (var i = 0; i < count; i++) {
+        final dy = tester.getTopLeft(cards.at(i)).dy;
+        if (dy < top) top = dy;
+      }
+      var first = 0;
+      for (var i = 0; i < count; i++) {
+        if ((tester.getTopLeft(cards.at(i)).dy - top).abs() < 0.5) first++;
+      }
+      return first;
+    }
+
+    testWidgets('matches and communities both sit two across', (tester) async {
+      await pumpDiscover(
+        tester,
+        matches: [match('m1'), match('m2'), match('m3')],
+        communities: [
+          community('c1', 'Muscat United'),
+          community('c2', 'Al Amerat FC'),
+          community('c3', 'Seeb Rovers'),
+        ],
+      );
+
+      expect(columnsOf(tester, find.byType(CompactPublicMatchCard)), 2);
+      expect(columnsOf(tester, find.byType(CompactPublicCommunityCard)), 2);
+      // Two, and never three: these are read at a glance, and a wide window
+      // gets wider cards rather than more of them.
+      expect(find.byType(CompactPublicMatchCard), findsNWidgets(3));
+    });
+
+    testWidgets('and give the column up on a narrow phone', (tester) async {
+      // 320 wide leaves 292 to the cards once the sheet's gutters are taken,
+      // which is under the 310 two columns of match card need.
+      await pumpDiscover(
+        tester,
+        matches: [match('m1'), match('m2')],
+        communities: [
+          community('c1', 'Muscat United'),
+          community('c2', 'Al Amerat FC'),
+        ],
+        size: const Size(320, 900),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(columnsOf(tester, find.byType(CompactPublicMatchCard)), 1);
+      expect(columnsOf(tester, find.byType(CompactPublicCommunityCard)), 1);
+    });
+
+    testWidgets('the community pages keep the single-column card',
+        (tester) async {
+      // The grid was approved for Discover. `PublicMatchCard` is still what a
+      // community's own page draws, and this says so — the compact card is an
+      // addition, not a replacement.
+      await pumpDiscover(tester, matches: [match('m1')]);
+
+      expect(find.byType(PublicMatchCard), findsNothing,
+          reason: 'Discover uses the compact card now');
+      expect(find.byType(CompactPublicMatchCard), findsOneWidget);
+    });
+
+    testWidgets('no community picture is introduced anywhere', (tester) async {
+      // The community logo is a later phase. What identifies a community here
+      // is its crest — its initials — exactly as it did before the grid.
+      await pumpDiscover(
+        tester,
+        communities: [community('c1', 'Muscat United')],
+      );
+
+      expect(find.byType(CommunityCrest), findsWidgets);
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('the skeleton is laid out the way the cards will be',
+        (tester) async {
+      // Held mid-read, so this is the frame a visitor actually sees first. It
+      // used to be a column of row-shaped placeholders under a page that then
+      // arrived two across, and the page changed shape as it landed.
+      await pumpDiscover(
+        tester,
+        delay: const Duration(seconds: 1),
+        settle: false,
+      );
+
+      expect(find.byType(CompactMatchGridSkeleton), findsOneWidget);
+      expect(find.byType(CompactCommunityGridSkeleton), findsOneWidget);
+      expect(columnsOf(tester, find.byType(CompactMatchCardSkeleton)), 2);
+      expect(columnsOf(tester, find.byType(CompactCommunityCardSkeleton)), 2);
+      expect(tester.takeException(), isNull);
+
+      // Let the held read finish so the test leaves no timer behind.
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(find.byType(CompactPublicMatchCard), findsWidgets);
+    });
+
+    testWidgets('and gives up its column on a narrow phone too',
+        (tester) async {
+      await pumpDiscover(
+        tester,
+        size: const Size(320, 900),
+        delay: const Duration(seconds: 1),
+        settle: false,
+      );
+
+      expect(columnsOf(tester, find.byType(CompactMatchCardSkeleton)), 1);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+    });
+
+    testWidgets('and the page does not change shape when the read lands',
+        (tester) async {
+      // The correction, stated as the thing a reader would notice: the number
+      // of columns before and after are the same number.
+      await pumpDiscover(
+        tester,
+        matches: [match('m1'), match('m2'), match('m3')],
+        delay: const Duration(seconds: 1),
+        settle: false,
+      );
+      final loading = columnsOf(tester, find.byType(CompactMatchCardSkeleton));
+
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      final loaded = columnsOf(tester, find.byType(CompactPublicMatchCard));
+
+      expect(loading, loaded);
+    });
+  });
 }
 
 /// Answers from memory, with no session anywhere in sight.
@@ -546,6 +699,7 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
     required this.communities,
     required this.matches,
     this.failure,
+    this.delay,
   });
 
   final List<PublicCommunity> communities;
@@ -555,8 +709,18 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
   /// is reproduced.
   final Object? failure;
 
+  /// Held for this long before answering, so a test can look at the screen
+  /// while the read is still in flight. Null answers in the same turn, which is
+  /// what every test that is not about the loading state wants.
+  final Duration? delay;
+
+  Future<void> _hold() async {
+    if (delay != null) await Future<void>.delayed(delay!);
+  }
+
   @override
   Future<List<PublicCommunity>> fetchCommunities() async {
+    await _hold();
     if (failure != null) throw failure!;
     return communities;
   }
@@ -569,6 +733,7 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
 
   @override
   Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId}) async {
+    await _hold();
     if (failure != null) throw failure!;
     if (communityId == null) return matches;
     return [
@@ -613,7 +778,8 @@ class _StubAuthAdapter implements AuthAdapter {
       throw UnimplementedError();
 
   @override
-  Future<void> signIn({required String email, required String password}) async =>
+  Future<void> signIn(
+          {required String email, required String password}) async =>
       throw UnimplementedError();
 
   @override
@@ -672,7 +838,6 @@ class _StaticProfileAdapter implements ProfileAdapter {
   Future<void> updateMyPrivacy(ProfilePrivacy privacy) =>
       throw UnimplementedError();
 }
-
 
 /// A football port that answers from a list, or refuses.
 ///
@@ -751,8 +916,7 @@ class _JoinedCommunitiesAdapter implements CommunityAdapter {
   Future<String> joinCommunity(String communityId) =>
       throw UnimplementedError();
   @override
-  Future<String> joinCommunityByCode(String code) =>
-      throw UnimplementedError();
+  Future<String> joinCommunityByCode(String code) => throw UnimplementedError();
   @override
   Future<void> setJoinPolicy(String communityId,
           {required JoinPolicy joinPolicy}) =>

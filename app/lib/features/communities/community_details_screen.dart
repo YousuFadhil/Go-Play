@@ -6,11 +6,12 @@ import '../../core/design.dart';
 import '../../core/football_components.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../../core/responsive_grid.dart';
 import '../../core/states.dart';
 import '../../core/tokens.dart';
+import '../matches/compact_match_card.dart';
 import '../matches/create_match_screen.dart';
-import '../matches/match_card.dart';
-import '../profile/player_identity.dart';
+import 'member_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../invitations/community_invitation_screen.dart';
@@ -245,8 +246,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                 leading: const Icon(Icons.ios_share),
                 title: Text(l10n.shareInvitation),
                 subtitle: Text(l10n.communityInvitationTitle),
-                onTap: () => Navigator.of(sheetContext)
-                    .pop(_CommunityAction.invitation),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_CommunityAction.invitation),
               ),
             if (isOwner)
               ListTile(
@@ -263,8 +264,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                   onChanged: (_) => Navigator.of(sheetContext)
                       .pop(_CommunityAction.joinPolicy),
                 ),
-                onTap: () => Navigator.of(sheetContext)
-                    .pop(_CommunityAction.joinPolicy),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_CommunityAction.joinPolicy),
               ),
             ListTile(
               leading: const Icon(Icons.group_outlined),
@@ -389,8 +390,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
           );
         }
 
-        final (community, members, matches, myRole, joinCode) =
-            snapshot.data!;
+        final (community, members, matches, myRole, joinCode) = snapshot.data!;
         final isOwner = myRole == CommunityRole.owner;
         // Creating a match is an organizer action now (PD-06), and so is
         // everything to do with the join code (see `_MembersTab`).
@@ -434,9 +434,10 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                     ),
                     identity: _HeroIdentity(
                       community: community,
-                      roleLabel: myRole == null || myRole == CommunityRole.player
-                          ? null
-                          : _roleLabel(l10n, myRole),
+                      roleLabel:
+                          myRole == null || myRole == CommunityRole.player
+                              ? null
+                              : _roleLabel(l10n, myRole),
                     ),
                     counts: Row(
                       children: [
@@ -632,21 +633,48 @@ class _MatchesTab extends StatelessWidget {
               Gap.xs,
             ),
           ),
-          for (final match in upcoming)
-            MatchCard(match: match, onChanged: onChanged),
+          // A grid each, not one grid over both. The two lists are separate on
+          // purpose — a plan and a record are different things to a member —
+          // and a shared grid would let the last fixture of one share a row
+          // with the first of the other.
+          _MatchGrid(matches: upcoming, onChanged: onChanged),
         ],
         if (completed.isNotEmpty) ...[
           SectionHeading(
             title: l10n.completedMatchesTitle,
             count: completed.length,
           ),
-          for (final match in completed)
-            MatchCard(match: match, onChanged: onChanged),
+          _MatchGrid(matches: completed, onChanged: onChanged),
         ],
         if (permissionNote != null) FootNote(permissionNote!),
       ],
     );
   }
+}
+
+/// One run of matches, two across.
+class _MatchGrid extends StatelessWidget {
+  const _MatchGrid({required this.matches, required this.onChanged});
+
+  final List<Match> matches;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) => ResponsiveCardGrid(
+        maxColumns: 2,
+        minCardWidth: GridCard.matchMinWidth,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Layout.sheetGutter,
+          vertical: Gap.xs,
+        ),
+        children: [
+          for (final match in matches)
+            // The community's name is not repeated on a card inside that
+            // community's own screen, which is the rule the row card used here
+            // as well.
+            CompactMatchCard(match: match, onChanged: onChanged),
+        ],
+      );
 }
 
 /// Who is in the community — and, for an organizer, how to let more people in.
@@ -711,25 +739,29 @@ class _MembersTab extends StatelessWidget {
         if (members.isEmpty)
           EmptyState(icon: Icons.group_outlined, message: l10n.membersEmpty)
         else
-          SectionCard(
-            padding: EdgeInsets.zero,
+          // Three across, where three fit. A roster used to be a column of
+          // list rows, each spending a full line of the screen on a face and
+          // two short words; a squad of sixteen was most of a scroll. What each
+          // card carries is unchanged from the row it replaces — the face, the
+          // name, the position, the role where there is one — and so is what
+          // happens when it is touched.
+          ResponsiveCardGrid(
+            maxColumns: 3,
+            minCardWidth: GridCard.memberMinWidth,
+            padding: const EdgeInsets.symmetric(
+              horizontal: Layout.sheetGutter,
+              vertical: Gap.xs,
+            ),
             children: [
               for (final member in members)
-                ListTile(
-                  leading: PlayerAvatar(
-                    avatarUrl: member.avatarUrl,
-                    fullName: member.fullName,
-                  ),
-                  title: Text(member.fullName),
-                  subtitle: Text(positionLabel(context, member.position)),
-                  // A name in a roster is a player, and a player has a record.
-                  // Nothing else claims this row — the role chip is a label,
-                  // not a control — so the whole tile opens the profile, and
-                  // whether it may be read is the server's answer.
-                  onTap: () => openPlayerProfile(context, member.userId),
-                  trailing: member.role == CommunityRole.player
+                CommunityMemberCard(
+                  userId: member.userId,
+                  fullName: member.fullName,
+                  avatarUrl: member.avatarUrl,
+                  positionLabel: positionLabel(context, member.position),
+                  roleLabel: member.role == CommunityRole.player
                       ? null
-                      : GoRoleChip(label: _roleLabel(l10n, member.role)),
+                      : _roleLabel(l10n, member.role),
                 ),
             ],
           ),
@@ -779,8 +811,8 @@ class _JoinCodeCard extends StatelessWidget {
                     Text(
                       l10n.joinCodeLabel,
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: scheme.onPrimaryContainer
-                            .withValues(alpha: 0.85),
+                        color:
+                            scheme.onPrimaryContainer.withValues(alpha: 0.85),
                       ),
                     ),
                     const SizedBox(height: 2),

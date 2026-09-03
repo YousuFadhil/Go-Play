@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'design.dart';
+import 'responsive_grid.dart';
+import 'tokens.dart';
 
 /// What a screen shows while it is still reading.
 ///
@@ -177,6 +179,136 @@ class CommunityCardSkeleton extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// --- the compact grids ------------------------------------------------------
+//
+// The two above are shaped like the *row* cards, and they are still right where
+// a row card is what arrives — a community's own page, and the Latest Results
+// feed. Where a screen now lays its matches out two across, a column of
+// row-shaped placeholders promised a shape the page then did not take: the
+// skeleton and the content disagreed, and the disagreement was visible as the
+// layout changing shape the moment the read landed. These are the same
+// placeholders under the arrangement that actually turns up.
+
+/// A placeholder shaped like a compact match card.
+///
+/// The date pill, a two-line fixture name, the community under it, and the two
+/// meta lines — in the proportions the card draws them, not to the pixel. A
+/// skeleton is a promise about shape and size; matching a card's typography
+/// exactly would make it a second copy of that card, which is a thing to keep
+/// in step rather than a thing that helps.
+class CompactMatchCardSkeleton extends StatelessWidget {
+  const CompactMatchCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Skeleton(width: 84, height: 23, radius: Radii.dateTile),
+            SizedBox(height: Gap.sm),
+            Skeleton.line(width: 0.9),
+            SizedBox(height: Gap.xs),
+            Skeleton.line(width: 0.6),
+            SizedBox(height: Gap.sm),
+            Skeleton.line(width: 0.75),
+            SizedBox(height: Gap.xs),
+            Skeleton.line(width: 0.65),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A placeholder shaped like a compact community card.
+///
+/// The crest is a rounded square rather than the disc the row skeleton uses,
+/// because that is the difference the loaded card makes between a community and
+/// a person — a placeholder that got it the wrong way round would be the one
+/// thing on the page saying something untrue.
+class CompactCommunityCardSkeleton extends StatelessWidget {
+  const CompactCommunityCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Skeleton(width: 42, height: 42, radius: 14),
+            SizedBox(height: Gap.sm),
+            Skeleton.line(width: 0.85),
+            SizedBox(height: Gap.xs),
+            Skeleton.line(width: 0.5),
+            SizedBox(height: Gap.sm),
+            Skeleton.line(width: 0.7),
+            SizedBox(height: Gap.md),
+            Skeleton.expand(height: Layout.buttonHeightSmall),
+            SizedBox(height: Gap.sm),
+            Skeleton.expand(height: Layout.buttonHeightSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The loading state for a run of matches that will arrive in a compact grid.
+///
+/// Wrapped in the very same [ResponsiveCardGrid] the loaded cards use, with the
+/// same [GridCard.matchMinWidth] and the same gutters — so how many columns
+/// there are before the read lands and how many after it are one decision made
+/// once, rather than two rules that agree until somebody changes one of them.
+class CompactMatchGridSkeleton extends StatelessWidget {
+  const CompactMatchGridSkeleton({super.key, this.count = 4});
+
+  /// How many placeholders. Four fills two rows of two, which is about what a
+  /// phone shows before the fold; a screen expecting fewer can say so.
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return ResponsiveCardGrid(
+      maxColumns: 2,
+      minCardWidth: GridCard.matchMinWidth,
+      padding: const EdgeInsets.symmetric(
+        horizontal: Layout.sheetGutter,
+        vertical: Gap.xs,
+      ),
+      children: List.filled(count, const CompactMatchCardSkeleton()),
+    );
+  }
+}
+
+/// The same, for the communities a compact grid is about to hold.
+class CompactCommunityGridSkeleton extends StatelessWidget {
+  const CompactCommunityGridSkeleton({super.key, this.count = 2});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return ResponsiveCardGrid(
+      maxColumns: 2,
+      minCardWidth: GridCard.communityMinWidth,
+      padding: const EdgeInsets.symmetric(
+        horizontal: Layout.sheetGutter,
+        vertical: Gap.xs,
+      ),
+      children: List.filled(count, const CompactCommunityCardSkeleton()),
     );
   }
 }

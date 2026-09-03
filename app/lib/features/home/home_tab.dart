@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
+import '../../core/responsive_grid.dart';
 import '../../core/skeleton.dart';
 import '../../core/states.dart';
 import '../../core/tokens.dart';
@@ -11,7 +12,7 @@ import '../admin/admin_screen.dart';
 import '../auth/auth_service.dart';
 import '../discover/discover_widgets.dart';
 import '../matches/app_settings.dart';
-import '../matches/match_card.dart';
+import '../matches/compact_match_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
 import '../notifications/notification_service.dart';
@@ -106,37 +107,41 @@ class _HomeTabState extends State<HomeTab> {
                     // actions, which keep their places.
                     showCurrentUserMenu: true,
                     actions: [
-          // Only a System Admin ever sees this. Hiding it is a convenience:
-          // every admin RPC checks is_system_admin() server-side regardless.
-          FutureBuilder<bool>(
-            future: AdminRepository().isSystemAdmin(),
-            builder: (context, snapshot) {
-              if (snapshot.data != true) return const SizedBox.shrink();
-              return IconButton(
-                tooltip: l10n.adminTitle,
-                icon: const Icon(Icons.shield_outlined),
-                color: Colors.white,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AdminScreen()),
-                ),
-              );
-            },
-          ),
-          FutureBuilder<_HomeData>(
-            future: _future,
-            builder: (context, snapshot) {
-              final unread = snapshot.data?.unread ?? 0;
-              return IconButton(
-                tooltip: l10n.notificationsTitle,
-                onPressed: _openNotifications,
-                icon: Badge(
-                  isLabelVisible: unread > 0,
-                  label: Text('$unread'),
-                  child: const Icon(Icons.notifications_outlined, color: Colors.white),
-                ),
-              );
-            },
-          ),
+                      // Only a System Admin ever sees this. Hiding it is a convenience:
+                      // every admin RPC checks is_system_admin() server-side regardless.
+                      FutureBuilder<bool>(
+                        future: AdminRepository().isSystemAdmin(),
+                        builder: (context, snapshot) {
+                          if (snapshot.data != true) {
+                            return const SizedBox.shrink();
+                          }
+                          return IconButton(
+                            tooltip: l10n.adminTitle,
+                            icon: const Icon(Icons.shield_outlined),
+                            color: Colors.white,
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const AdminScreen()),
+                            ),
+                          );
+                        },
+                      ),
+                      FutureBuilder<_HomeData>(
+                        future: _future,
+                        builder: (context, snapshot) {
+                          final unread = snapshot.data?.unread ?? 0;
+                          return IconButton(
+                            tooltip: l10n.notificationsTitle,
+                            onPressed: _openNotifications,
+                            icon: Badge(
+                              isLabelVisible: unread > 0,
+                              label: Text('$unread'),
+                              child: const Icon(Icons.notifications_outlined,
+                                  color: Colors.white),
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                   identity: Text(
@@ -170,67 +175,77 @@ class _HomeTabState extends State<HomeTab> {
     AsyncSnapshot<_HomeData> snapshot,
   ) {
     final l10n = context.l10n;
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const SkeletonFade(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  kPageMargin,
-                  Gap.lg,
-                  kPageMargin,
-                  0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Skeleton(width: 200, height: 22),
-                    SizedBox(height: Gap.xl),
-                    MatchCardSkeleton(),
-                    SizedBox(height: Gap.md),
-                    MatchCardSkeleton(),
-                  ],
-                ),
+    if (snapshot.connectionState != ConnectionState.done) {
+      // The heading keeps the page margin and the cards take the sheet's
+      // gutters, because that is what the loaded state does — the padding is
+      // no longer shared, so the placeholders stand exactly where the matches
+      // will.
+      return const SkeletonFade(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(kPageMargin, Gap.lg, kPageMargin, 0),
+              child: Skeleton(width: 200, height: 22),
+            ),
+            SizedBox(height: Gap.xl),
+            CompactMatchGridSkeleton(),
+          ],
+        ),
+      );
+    }
+    if (snapshot.hasError) {
+      return ErrorState(onRetry: _refresh);
+    }
+
+    final matches = snapshot.data!.matches;
+
+    return RefreshIndicator(
+      onRefresh: () async => _refresh(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsetsDirectional.only(bottom: Layout.listBottom),
+        children: [
+          if (matches.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                kPageMargin,
+                Gap.xxl,
+                kPageMargin,
+                0,
               ),
-            );
-          }
-          if (snapshot.hasError) {
-            return ErrorState(onRetry: _refresh);
-          }
-
-          final matches = snapshot.data!.matches;
-
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsetsDirectional.only(bottom: Layout.listBottom),
+              child: DiscoverEmpty(
+                icon: Icons.sports_soccer,
+                message: l10n.upcomingMatchesEmpty,
+              ),
+            )
+          else ...[
+            DiscoverSectionHeader(
+              title: l10n.upcomingMatchesTitle,
+              subtitle: l10n.homeUpcomingSubtitle,
+            ),
+            // Two across. A player's own fixtures are what they open Home
+            // for, and a column of full-width rows put two of them on a
+            // phone before the fold.
+            ResponsiveCardGrid(
+              maxColumns: 2,
+              minCardWidth: GridCard.matchMinWidth,
+              padding: const EdgeInsets.symmetric(
+                horizontal: Layout.sheetGutter,
+                vertical: Gap.xs,
+              ),
               children: [
-                if (matches.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      kPageMargin,
-                      Gap.xxl,
-                      kPageMargin,
-                      0,
-                    ),
-                    child: DiscoverEmpty(
-                      icon: Icons.sports_soccer,
-                      message: l10n.upcomingMatchesEmpty,
-                    ),
-                  )
-                else ...[
-                  DiscoverSectionHeader(
-                    title: l10n.upcomingMatchesTitle,
-                    subtitle: l10n.homeUpcomingSubtitle,
+                for (final match in matches)
+                  CompactMatchCard(
+                    match: match,
+                    showCommunityName: true,
+                    onChanged: _refresh,
                   ),
-                  for (final match in matches)
-                    MatchCard(
-                      match: match,
-                      showCommunityName: true,
-                      onChanged: _refresh,
-                    ),
-                ],
               ],
             ),
-          );
+          ],
+        ],
+      ),
+    );
   }
 }

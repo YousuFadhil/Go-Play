@@ -185,7 +185,13 @@ class ClubHeroBar extends StatelessWidget {
                   ),
           ),
           ...actions,
-          if (showCurrentUserMenu) const CurrentUserMenu(),
+          // White, like the back arrow and the title beside it. This bar
+          // reverses everything out onto the hero, and the identity is the one
+          // thing on it that was still taking its colour from a theme built for
+          // light surfaces — so the player's own name was the least readable
+          // word on the screen.
+          if (showCurrentUserMenu)
+            const CurrentUserMenu(foregroundColor: Colors.white),
         ],
       ),
     );
@@ -360,7 +366,8 @@ abstract final class ClubHeroButtons {
         foregroundColor: Colors.white,
         minimumSize: const Size(0, Layout.buttonHeightCompact),
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+        side:
+            BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.control),
         ),

@@ -94,7 +94,20 @@ abstract final class GoColors {
   static const Color bgPage = Color(0xFFEEF3EB);
 
   /// The crest hero block. Flat — the hero is never a gradient.
-  static const Color bgHero = primaryDeep;
+  ///
+  /// [primary], not [primaryDeep]. This is the Light Club correction: the
+  /// deeper green held the hero honestly enough but weighed the top of every
+  /// place-screen down, and a product about turning up for a game should not
+  /// open dark. The identity is unchanged — it is the same green the filled
+  /// controls and the brand accents are drawn in, which is rather the point of
+  /// it being this one.
+  ///
+  /// [primaryDeep] is not retired and has not been replaced anywhere else. It
+  /// still carries the crest lettering, the hero's own filled button, the
+  /// selected navigation destination and the open-match glyph, each of which
+  /// wants the darker green *against* something — which is exactly what a
+  /// background cannot be.
+  static const Color bgHero = primary;
 
   /// Every card.
   static const Color surfaceCard = Color(0xFFFFFFFF);

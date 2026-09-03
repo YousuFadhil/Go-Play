@@ -4,6 +4,7 @@ import '../../core/app_header.dart';
 import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
+import '../../core/responsive_grid.dart';
 import '../../core/skeleton.dart';
 import '../../core/tokens.dart';
 import '../auth/auth_prompt.dart';
@@ -350,8 +351,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               builder: (context, snapshot) => DiscoverHero(
                 signedIn: _signedIn,
                 overview: snapshot.hasError ? null : snapshot.data,
-                onPrimaryAction:
-                    _signedIn ? _createCommunity : _openRegister,
+                onPrimaryAction: _signedIn ? _createCommunity : _openRegister,
                 onLogIn: _openLogin,
               ),
             ),
@@ -445,17 +445,31 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           message: l10n.discoverNoUpcomingMatches,
         )
       else
-        for (final match in overview.matches)
-          _MembershipAware(
-            future: _membershipFuture,
-            communityId: match.communityId,
-            builder: (isMember) => PublicMatchCard(
-              match: match,
-              actionLabel:
-                  _signedIn ? l10n.viewMatchAction : l10n.joinMatchButton,
-              onAction: () => _openMatch(match, isMember: isMember),
-            ),
+        // Two across, and one when two will not fit. The cards used to be a
+        // column of full-width rows, which put about two fixtures on a phone
+        // screen and made the communities below them something a reader had to
+        // go looking for.
+        ResponsiveCardGrid(
+          maxColumns: 2,
+          minCardWidth: GridCard.matchMinWidth,
+          padding: const EdgeInsets.symmetric(
+            horizontal: Layout.sheetGutter,
+            vertical: Gap.xs,
           ),
+          children: [
+            for (final match in overview.matches)
+              _MembershipAware(
+                future: _membershipFuture,
+                communityId: match.communityId,
+                builder: (isMember) => CompactPublicMatchCard(
+                  match: match,
+                  actionLabel:
+                      _signedIn ? l10n.viewMatchAction : l10n.joinMatchButton,
+                  onAction: () => _openMatch(match, isMember: isMember),
+                ),
+              ),
+          ],
+        ),
     ];
   }
 
@@ -474,17 +488,26 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           message: l10n.discoverNoCommunities,
         )
       else
-        for (final community in overview.communities)
-          _MembershipAware(
-            future: _membershipFuture,
-            communityId: community.id,
-            builder: (isMember) => PublicCommunityCard(
-              community: community,
-              onOpen: () => _openCommunity(community, isMember: isMember),
-              onJoin: () => _join(community),
-              clubStyle: true,
-            ),
+        ResponsiveCardGrid(
+          maxColumns: 2,
+          minCardWidth: GridCard.communityMinWidth,
+          padding: const EdgeInsets.symmetric(
+            horizontal: Layout.sheetGutter,
+            vertical: Gap.xs,
           ),
+          children: [
+            for (final community in overview.communities)
+              _MembershipAware(
+                future: _membershipFuture,
+                communityId: community.id,
+                builder: (isMember) => CompactPublicCommunityCard(
+                  community: community,
+                  onOpen: () => _openCommunity(community, isMember: isMember),
+                  onJoin: () => _join(community),
+                ),
+              ),
+          ],
+        ),
     ];
   }
 }
@@ -554,9 +577,7 @@ class _FootballFeed extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasError ||
-            !snapshot.hasData ||
-            snapshot.data!.failed) {
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.failed) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -683,8 +704,8 @@ class _ResultsListState extends State<_ResultsList> {
           ),
         if (hidden > 0)
           Padding(
-            padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin,
-                Gap.sm),
+            padding:
+                const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.sm),
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: TextButton.icon(
@@ -793,30 +814,16 @@ class _DiscoverSkeleton extends StatelessWidget {
             title: l10n.upcomingMatchesTitle,
             subtitle: l10n.discoverMatchesSubtitle,
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: kPageMargin),
-            child: Column(
-              children: [
-                MatchCardSkeleton(),
-                SizedBox(height: Gap.md),
-                MatchCardSkeleton(),
-              ],
-            ),
-          ),
+          // Both sections arrive as grids now, so both are placeholdered as
+          // grids. A column of row-shaped cards here meant the page was drawn
+          // one shape and then redrawn another the moment the read landed,
+          // which is the jump this skeleton exists to prevent.
+          const CompactMatchGridSkeleton(),
           DiscoverSectionHeader(
             title: l10n.communitiesTitle,
             subtitle: l10n.discoverCommunitiesSubtitle,
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: kPageMargin),
-            child: Column(
-              children: [
-                CommunityCardSkeleton(),
-                SizedBox(height: Gap.md),
-                CommunityCardSkeleton(),
-              ],
-            ),
-          ),
+          const CompactCommunityGridSkeleton(),
         ],
       ),
     );
