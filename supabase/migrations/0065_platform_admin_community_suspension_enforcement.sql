@@ -42,12 +42,16 @@
 --
 -- Where a function already distinguishes an inactive community with a stable
 -- code, that code is preserved and still fires -- `create_match`'s
--- `COMMUNITY_INACTIVE` (`0054`), `regenerate_join_code`'s and
--- `set_community_logo`'s `COMMUNITY_NOT_FOUND` (`0015`, `0061`), and the
--- `is_active` lookups inside `join_community` (`0016`) and
+-- `COMMUNITY_INACTIVE` (`0054`), `set_community_logo`'s `COMMUNITY_NOT_FOUND`
+-- (`0061`), and the `is_active` lookups inside `join_community` (`0016`) and
 -- `join_community_by_code` (`0007`). Those functions get the caller guard and
 -- nothing else. Nowhere is a new error code invented: `ACCOUNT_SUSPENDED` comes
 -- from `0064` and `COMMUNITY_INACTIVE` from `0026`.
+--
+-- `regenerate_join_code` (`0015`) looks like it belongs in that list and does
+-- not. It locks the community row but never reads `is_active`, and its
+-- `COMMUNITY_NOT_FOUND` only ever meant "no such row" -- so it needed the
+-- community test adding, not preserving. See its own section below.
 --
 -- ## WHAT IS DELIBERATELY NOT DONE
 --
@@ -1623,8 +1627,11 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- regenerate_join_code -- effective definition from `0015`.
--- Caller guard only: this function already refuses an inactive community with
--- its own stable error, which is preserved untouched.
+-- Caller guard, plus the community test this function never had. `0015` locks
+-- the row and raises COMMUNITY_NOT_FOUND when there is none, but it does not
+-- read `is_active` -- so without this an active organizer could reissue the
+-- join code of a suspended community. The existing admin-or-owner check is
+-- unchanged and still runs first.
 create or replace function public.regenerate_join_code(p_community_id uuid)
 returns text
 language plpgsql
@@ -1633,6 +1640,7 @@ set search_path = public
 as $$
 declare
   v_code text;
+  v_community_active boolean;
 begin
   if auth.uid() is null then
     raise exception 'NOT_AUTHENTICATED';
@@ -1646,9 +1654,22 @@ begin
     raise exception 'NOT_AUTHORIZED';
   end if;
 
-  perform 1 from communities where id = p_community_id for update;
+  -- Added by migration 0065. `0015` locked this row but never asked whether the
+  -- community was active, and `COMMUNITY_NOT_FOUND` only ever meant "no such
+  -- row". Reissuing a join code is join administration, and a suspended
+  -- community admits none of that until a Platform Admin reactivates it -- so
+  -- the same statement that takes the lock now also reads the state, and the
+  -- refusal happens before a code is generated or written.
+  select c.is_active
+    into v_community_active
+    from communities c
+   where c.id = p_community_id
+     for update;
   if not found then
     raise exception 'COMMUNITY_NOT_FOUND';
+  end if;
+  if not v_community_active then
+    raise exception 'COMMUNITY_INACTIVE';
   end if;
 
   update communities
