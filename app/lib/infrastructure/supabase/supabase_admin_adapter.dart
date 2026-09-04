@@ -68,20 +68,51 @@ class SupabaseAdminAdapter implements AdminAdapter {
         ];
       });
 
+  /// Suspension and reactivation, through the four `0064` / `0065` RPCs.
+  ///
+  /// Each checks `is_system_admin()` server-side and each is idempotent: asking
+  /// for a state a record is already in succeeds and writes nothing. Nothing
+  /// here is authorization, and nothing here decides what a valid reason is --
+  /// the reason arrives already trimmed and non-empty.
   @override
-  Future<void> deleteUser(String id) => guarded(() async {
-        await _client.rpc('admin_delete_user', params: {'p_user_id': id});
-      });
+  Future<void> suspendUser(String id, String reason) => guarded(
+        () async {
+          await _client.rpc('admin_suspend_user', params: {
+            'p_user_id': id,
+            'p_reason': reason,
+          });
+        },
+        operation: 'rpc admin_suspend_user',
+      );
 
   @override
-  Future<void> deleteCommunity(String id) => guarded(() async {
-        await _client.rpc('admin_delete_community', params: {
-          'p_community_id': id,
-        });
-      });
+  Future<void> reactivateUser(String id) => guarded(
+        () async {
+          await _client.rpc('admin_reactivate_user', params: {
+            'p_user_id': id,
+          });
+        },
+        operation: 'rpc admin_reactivate_user',
+      );
 
   @override
-  Future<void> deleteMatch(String id) => guarded(() async {
-        await _client.rpc('admin_delete_match', params: {'p_match_id': id});
-      });
+  Future<void> suspendCommunity(String id, String reason) => guarded(
+        () async {
+          await _client.rpc('admin_suspend_community', params: {
+            'p_community_id': id,
+            'p_reason': reason,
+          });
+        },
+        operation: 'rpc admin_suspend_community',
+      );
+
+  @override
+  Future<void> reactivateCommunity(String id) => guarded(
+        () async {
+          await _client.rpc('admin_reactivate_community', params: {
+            'p_community_id': id,
+          });
+        },
+        operation: 'rpc admin_reactivate_community',
+      );
 }

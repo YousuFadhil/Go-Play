@@ -902,13 +902,18 @@ class FakeAdminAdapter implements AdminAdapter {
       throw UnimplementedError();
 
   @override
-  Future<void> deleteUser(String id) => throw UnimplementedError();
+  Future<void> suspendUser(String id, String reason) =>
+      throw UnimplementedError();
 
   @override
-  Future<void> deleteCommunity(String id) => throw UnimplementedError();
+  Future<void> reactivateUser(String id) => throw UnimplementedError();
 
   @override
-  Future<void> deleteMatch(String id) => throw UnimplementedError();
+  Future<void> suspendCommunity(String id, String reason) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> reactivateCommunity(String id) => throw UnimplementedError();
 }
 
 class FakeProfileAdapter implements ProfileAdapter {
@@ -1054,6 +1059,9 @@ class FakeAuthAdapter implements AuthAdapter {
 
   @override
   Stream<bool> get signedInChanges => const Stream.empty();
+
+  @override
+  Future<bool> isCurrentUserActive() async => true;
 
   @override
   Future<void> signOut() => throw UnimplementedError();

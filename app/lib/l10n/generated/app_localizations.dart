@@ -63,7 +63,7 @@ import 'app_localizations_en.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('ar'),
-    Locale('en'),
+    Locale('en')
   ];
 
   /// No description provided for @appName.
@@ -1076,12 +1076,6 @@ abstract class AppLocalizations {
   /// **'{name} was added to the reserve list.'**
   String playerAddedReserve(String name);
 
-  /// No description provided for @addPlayerFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'That player could not be added. Try again.'**
-  String get addPlayerFailed;
-
   /// No description provided for @addSelectedPlayersButton.
   ///
   /// In en, this message translates to:
@@ -1105,6 +1099,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{That player could not be added.} other{None of the {count} players could be added.}}'**
   String playersAddedNone(int count);
+
+  /// No description provided for @addPlayerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That player could not be added. Try again.'**
+  String get addPlayerFailed;
 
   /// No description provided for @errPlayerAlreadyRegistered.
   ///
@@ -1891,6 +1891,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The match and its registrations are removed, and registered players are notified. This cannot be undone.'**
   String get adminDeleteMatchConfirmBody;
+
+  /// Admin list badge for an account or community that is not suspended
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get adminStatusActive;
+
+  /// Admin list badge for a suspended account or community
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get adminStatusSuspended;
+
+  /// Admin list badge for a protected System Admin account
+  ///
+  /// In en, this message translates to:
+  /// **'System Admin'**
+  String get adminStatusSystemAdmin;
+
+  /// No description provided for @adminSuspendButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend'**
+  String get adminSuspendButton;
+
+  /// No description provided for @adminReactivateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivate'**
+  String get adminReactivateButton;
+
+  /// No description provided for @adminSuspendUserConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend {name}?'**
+  String adminSuspendUserConfirmTitle(String name);
+
+  /// No description provided for @adminSuspendUserConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They keep their account and their football history, and stop being able to use Go Play until they are reactivated.'**
+  String get adminSuspendUserConfirmBody;
+
+  /// No description provided for @adminSuspendCommunityConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend {name}?'**
+  String adminSuspendCommunityConfirmTitle(String name);
+
+  /// No description provided for @adminSuspendCommunityConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It disappears from discovery and admits nobody new. Its matches, results and history are kept.'**
+  String get adminSuspendCommunityConfirmBody;
+
+  /// No description provided for @adminReactivateUserConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivate {name}?'**
+  String adminReactivateUserConfirmTitle(String name);
+
+  /// No description provided for @adminReactivateUserConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They can use Go Play again straight away.'**
+  String get adminReactivateUserConfirmBody;
+
+  /// No description provided for @adminReactivateCommunityConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivate {name}?'**
+  String adminReactivateCommunityConfirmTitle(String name);
+
+  /// No description provided for @adminReactivateCommunityConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It becomes discoverable and usable again straight away.'**
+  String get adminReactivateCommunityConfirmBody;
+
+  /// No description provided for @adminSuspensionReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get adminSuspensionReasonLabel;
+
+  /// No description provided for @adminSuspensionReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please give a reason.'**
+  String get adminSuspensionReasonRequired;
+
+  /// No description provided for @adminSuspendedFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended.'**
+  String get adminSuspendedFeedback;
+
+  /// No description provided for @adminReactivatedFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivated.'**
+  String get adminReactivatedFeedback;
+
+  /// No description provided for @accountSuspendedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account suspended'**
+  String get accountSuspendedTitle;
+
+  /// No description provided for @accountSuspendedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This account has been suspended, so Go Play is unavailable for now. Your profile, matches and football history are kept.'**
+  String get accountSuspendedBody;
+
+  /// No description provided for @accountSuspendedSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get accountSuspendedSignOut;
+
+  /// No description provided for @accountStatusRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get accountStatusRetry;
+
+  /// No description provided for @accountStatusUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not check your account right now.'**
+  String get accountStatusUnavailable;
 
   /// No description provided for @teamsTitle.
   ///
@@ -3282,9 +3414,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

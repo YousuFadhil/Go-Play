@@ -12,14 +12,29 @@ class AdminUserSummary {
     required this.fullName,
     required this.email,
     required this.isSystemAdmin,
+    required this.isActive,
+    this.suspendedAt,
+    this.suspensionReason,
   });
 
   final String id;
   final String fullName;
   final String email;
 
-  /// A System Admin account, which the app may not delete.
+  /// A System Admin account, which the normal Admin path may not suspend.
   final bool isSystemAdmin;
+
+  /// The authoritative account state. False means the account is suspended --
+  /// `users.is_active` is what every database rule reads, and the metadata
+  /// below only describes it.
+  final bool isActive;
+
+  /// When the suspension was recorded, or null when the account has never been
+  /// suspended through the Platform Admin path.
+  final DateTime? suspendedAt;
+
+  /// Why it was suspended, as the acting administrator wrote it.
+  final String? suspensionReason;
 }
 
 /// A community, as the administration list sees it.
@@ -29,7 +44,10 @@ class AdminCommunitySummary {
     required this.name,
     required this.memberCount,
     required this.matchCount,
+    required this.isActive,
     this.ownerName,
+    this.suspendedAt,
+    this.suspensionReason,
   });
 
   final String id;
@@ -37,6 +55,12 @@ class AdminCommunitySummary {
   final String? ownerName;
   final int memberCount;
   final int matchCount;
+
+  /// The authoritative community state. False means suspended.
+  final bool isActive;
+
+  final DateTime? suspendedAt;
+  final String? suspensionReason;
 }
 
 /// A match, as the administration list sees it.

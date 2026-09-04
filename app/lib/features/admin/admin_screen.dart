@@ -1,43 +1,71 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
+import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import 'admin_repository.dart';
 
-/// One line of an admin list, already worded. The three sections show
-/// different records, so each is reduced to a title, a subtitle and the id to
-/// delete — enough to find a record and remove it, which is all these screens
-/// are for. Composing that sentence is the screen's job, not the repository's.
+/// What a row lets an administrator do to the record behind it.
+enum AdminRowAction {
+  /// Nothing. A System Admin account, and the Matches list, which is read-only.
+  none,
+
+  /// The record is active and may be suspended. Needs a reason.
+  suspend,
+
+  /// The record is suspended and may be restored. Needs only a confirmation.
+  reactivate,
+}
+
+/// One line of an admin list, already worded.
+///
+/// The three sections show different records, so each is reduced to a title, a
+/// subtitle, a state and the one action that applies to it. Composing that
+/// sentence is the screen's job, not the repository's (OP-3).
 class _Row {
   const _Row({
     required this.id,
     required this.title,
     required this.subtitle,
-    this.isProtected = false,
+    required this.action,
+    this.isActive = true,
+    this.isSystemAdmin = false,
   });
 
   final String id;
   final String title;
   final String subtitle;
+  final AdminRowAction action;
 
-  /// A System Admin account, which the app may not delete.
-  final bool isProtected;
+  /// The authoritative state, straight from `is_active`.
+  final bool isActive;
+
+  /// A System Admin account. The normal path may not suspend one -- the
+  /// database refuses with `CANNOT_SUSPEND_SYSTEM_ADMIN`, and the screen does
+  /// not offer it either.
+  final bool isSystemAdmin;
 }
 
 /// Stands in for a name the record does not carry.
 const _missing = '—';
 
-/// The whole of internal administration: three lists, each with a search field
-/// and a delete action. Deliberately plain — no dashboard, no counts worth
-/// looking at, nothing to do but find a record and remove it.
+/// The whole of internal administration: three lists, each with a search field.
+///
+/// Users and Communities can be suspended and restored; Matches is inspection
+/// only. Permanent delete is deliberately absent -- suspension is reversible
+/// and is what the product asks for. The `admin_delete_*` RPCs still exist in
+/// the database, untouched, but nothing here calls them.
 class AdminScreen extends StatelessWidget {
-  const AdminScreen({super.key});
+  const AdminScreen({super.key, AdminRepository? repository})
+      : _repository = repository;
+
+  final AdminRepository? _repository;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final repository = AdminRepository();
+    final repository = _repository ?? AdminRepository();
 
     return DefaultTabController(
       length: 3,
@@ -61,11 +89,24 @@ class AdminScreen extends StatelessWidget {
                     id: user.id,
                     title: user.fullName,
                     subtitle: user.email,
-                    isProtected: user.isSystemAdmin,
+                    isActive: user.isActive,
+                    isSystemAdmin: user.isSystemAdmin,
+                    // A System Admin is protected: no action at all, rather
+                    // than a disabled one that invites a second try.
+                    action: user.isSystemAdmin
+                        ? AdminRowAction.none
+                        : user.isActive
+                            ? AdminRowAction.suspend
+                            : AdminRowAction.reactivate,
                   ),
               ],
-              remove: repository.deleteUser,
-              confirmBody: l10n.adminDeleteUserConfirmBody,
+              suspend: repository.suspendUser,
+              reactivate: repository.reactivateUser,
+              suspendTitle: (name) => l10n.adminSuspendUserConfirmTitle(name),
+              suspendBody: l10n.adminSuspendUserConfirmBody,
+              reactivateTitle: (name) =>
+                  l10n.adminReactivateUserConfirmTitle(name),
+              reactivateBody: l10n.adminReactivateUserConfirmBody,
             ),
             _AdminList(
               load: (search) async => [
@@ -76,11 +117,23 @@ class AdminScreen extends StatelessWidget {
                     title: community.name,
                     subtitle: '${community.ownerName ?? _missing} · '
                         '${community.memberCount} · ${community.matchCount}',
+                    isActive: community.isActive,
+                    action: community.isActive
+                        ? AdminRowAction.suspend
+                        : AdminRowAction.reactivate,
                   ),
               ],
-              remove: repository.deleteCommunity,
-              confirmBody: l10n.adminDeleteCommunityConfirmBody,
+              suspend: repository.suspendCommunity,
+              reactivate: repository.reactivateCommunity,
+              suspendTitle: (name) =>
+                  l10n.adminSuspendCommunityConfirmTitle(name),
+              suspendBody: l10n.adminSuspendCommunityConfirmBody,
+              reactivateTitle: (name) =>
+                  l10n.adminReactivateCommunityConfirmTitle(name),
+              reactivateBody: l10n.adminReactivateCommunityConfirmBody,
             ),
+            // Matches: operational inspection, and nothing else. There is no
+            // Suspend Match in the approved model and no delete here any more.
             _AdminList(
               load: (search) async => [
                 for (final match in await repository.listMatches(search))
@@ -89,10 +142,9 @@ class AdminScreen extends StatelessWidget {
                     title: match.title ?? '',
                     subtitle: '${match.communityName ?? _missing} · '
                         '${match.location} · ${match.registrationCount}',
+                    action: AdminRowAction.none,
                   ),
               ],
-              remove: repository.deleteMatch,
-              confirmBody: l10n.adminDeleteMatchConfirmBody,
             ),
           ],
         ),
@@ -104,13 +156,21 @@ class AdminScreen extends StatelessWidget {
 class _AdminList extends StatefulWidget {
   const _AdminList({
     required this.load,
-    required this.remove,
-    required this.confirmBody,
+    this.suspend,
+    this.reactivate,
+    this.suspendTitle,
+    this.suspendBody,
+    this.reactivateTitle,
+    this.reactivateBody,
   });
 
   final Future<List<_Row>> Function(String? search) load;
-  final Future<void> Function(String id) remove;
-  final String confirmBody;
+  final Future<void> Function(String id, String reason)? suspend;
+  final Future<void> Function(String id)? reactivate;
+  final String Function(String name)? suspendTitle;
+  final String? suspendBody;
+  final String Function(String name)? reactivateTitle;
+  final String? reactivateBody;
 
   @override
   State<_AdminList> createState() => _AdminListState();
@@ -119,6 +179,9 @@ class _AdminList extends StatefulWidget {
 class _AdminListState extends State<_AdminList> {
   final _searchController = TextEditingController();
   late Future<List<_Row>> _future = widget.load(null);
+
+  /// One request at a time. Set before the call and cleared after it, so a
+  /// second tap while the first is in flight finds every action disabled.
   bool _busy = false;
 
   @override
@@ -135,15 +198,50 @@ class _AdminListState extends State<_AdminList> {
     });
   }
 
-  Future<void> _delete(_Row row) async {
+  /// Suspends [row] after asking for a reason.
+  ///
+  /// The dialog refuses to submit a blank reason, so `REASON_REQUIRED` is a
+  /// server guarantee the ordinary screen never provokes. Nothing is shown as
+  /// succeeding until the RPC has returned.
+  Future<void> _suspend(_Row row) async {
+    final suspend = widget.suspend;
+    if (suspend == null) return;
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _SuspendDialog(
+        title: widget.suspendTitle!(row.title),
+        body: widget.suspendBody!,
+      ),
+    );
+    if (reason == null) return;
+
+    setState(() => _busy = true);
+    try {
+      await suspend(row.id, reason);
+      messenger
+          .showSnackBar(SnackBar(content: Text(l10n.adminSuspendedFeedback)));
+      _search();
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.genericError)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _reactivate(_Row row) async {
+    final reactivate = widget.reactivate;
+    if (reactivate == null) return;
     final l10n = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.adminDeleteConfirmTitle(row.title)),
-        content: Text(widget.confirmBody),
+        title: Text(widget.reactivateTitle!(row.title)),
+        content: Text(widget.reactivateBody!),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -151,7 +249,7 @@ class _AdminListState extends State<_AdminList> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.adminDeleteButton),
+            child: Text(l10n.adminReactivateButton),
           ),
         ],
       ),
@@ -160,8 +258,9 @@ class _AdminListState extends State<_AdminList> {
 
     setState(() => _busy = true);
     try {
-      await widget.remove(row.id);
-      messenger.showSnackBar(SnackBar(content: Text(l10n.adminDeleted)));
+      await reactivate(row.id);
+      messenger
+          .showSnackBar(SnackBar(content: Text(l10n.adminReactivatedFeedback)));
       _search();
     } catch (_) {
       messenger.showSnackBar(SnackBar(content: Text(l10n.genericError)));
@@ -210,26 +309,153 @@ class _AdminListState extends State<_AdminList> {
               return ListView.separated(
                 itemCount: rows.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final row = rows[index];
-                  return ListTile(
-                    title: Text(row.title,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(row.subtitle,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      // A System Admin account cannot be removed from here;
-                      // that lives outside the app, in SQL.
-                      onPressed: _busy || row.isProtected
-                          ? null
-                          : () => _delete(row),
-                    ),
-                  );
-                },
+                itemBuilder: (context, index) => _AdminTile(
+                  row: rows[index],
+                  busy: _busy,
+                  onSuspend: _suspend,
+                  onReactivate: _reactivate,
+                ),
               );
             },
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One record: who it is, what state it is in, and the one thing to do about it.
+class _AdminTile extends StatelessWidget {
+  const _AdminTile({
+    required this.row,
+    required this.busy,
+    required this.onSuspend,
+    required this.onReactivate,
+  });
+
+  final _Row row;
+  final bool busy;
+  final Future<void> Function(_Row row) onSuspend;
+  final Future<void> Function(_Row row) onReactivate;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return ListTile(
+      title: Text(row.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(row.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              // The state, said plainly, on every row that has one to say.
+              if (row.action != AdminRowAction.none || row.isSystemAdmin)
+                GoStatusChip(
+                  label: row.isActive
+                      ? l10n.adminStatusActive
+                      : l10n.adminStatusSuspended,
+                  tone: row.isActive ? GoChipTone.open : GoChipTone.danger,
+                ),
+              if (row.isSystemAdmin)
+                GoStatusChip(
+                  label: l10n.adminStatusSystemAdmin,
+                  tone: GoChipTone.neutral,
+                  icon: Icons.shield_outlined,
+                ),
+            ],
+          ),
+        ],
+      ),
+      isThreeLine: true,
+      trailing: switch (row.action) {
+        // A System Admin row, and every Matches row: nothing to press.
+        AdminRowAction.none => null,
+        AdminRowAction.suspend => TextButton(
+            onPressed: busy ? null : () => onSuspend(row),
+            child: Text(l10n.adminSuspendButton),
+          ),
+        AdminRowAction.reactivate => TextButton(
+            onPressed: busy ? null : () => onReactivate(row),
+            child: Text(l10n.adminReactivateButton),
+          ),
+      },
+    );
+  }
+}
+
+/// Asks for a reason, and will not return one that is blank.
+///
+/// Pops the trimmed reason on confirm and null on cancel, so the caller has one
+/// thing to test. The database requires a reason for a real suspension; this is
+/// what stops the ordinary path ever sending an empty one.
+class _SuspendDialog extends StatefulWidget {
+  const _SuspendDialog({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  State<_SuspendDialog> createState() => _SuspendDialogState();
+}
+
+class _SuspendDialogState extends State<_SuspendDialog> {
+  final _controller = TextEditingController();
+  bool _showError = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final reason = _controller.text.trim();
+    if (reason.isEmpty) {
+      setState(() => _showError = true);
+      return;
+    }
+    Navigator.of(context).pop(reason);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.body),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLines: 2,
+            decoration: InputDecoration(
+              labelText: l10n.adminSuspensionReasonLabel,
+              errorText: _showError ? l10n.adminSuspensionReasonRequired : null,
+            ),
+            onChanged: (_) {
+              if (_showError) setState(() => _showError = false);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.confirmNo),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(l10n.adminSuspendButton),
         ),
       ],
     );

@@ -34,9 +34,26 @@ class AdminRepository {
   Future<List<AdminMatchSummary>> listMatches(String? search) =>
       _adapter.listMatches(search);
 
-  Future<void> deleteUser(String id) => _adapter.deleteUser(id);
+  /// Suspends an account. The reason is trimmed here and refused when empty,
+  /// so `REASON_REQUIRED` is a server guarantee rather than something an
+  /// ordinary screen can provoke.
+  /// `async` so an empty reason arrives as a rejected Future like every other
+  /// failure in this layer, rather than as a synchronous throw the caller has
+  /// to guard differently.
+  Future<void> suspendUser(String id, String reason) async {
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty) throw const ValidationFailure();
+    await _adapter.suspendUser(id, trimmed);
+  }
 
-  Future<void> deleteCommunity(String id) => _adapter.deleteCommunity(id);
+  Future<void> reactivateUser(String id) => _adapter.reactivateUser(id);
 
-  Future<void> deleteMatch(String id) => _adapter.deleteMatch(id);
+  Future<void> suspendCommunity(String id, String reason) async {
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty) throw const ValidationFailure();
+    await _adapter.suspendCommunity(id, trimmed);
+  }
+
+  Future<void> reactivateCommunity(String id) =>
+      _adapter.reactivateCommunity(id);
 }

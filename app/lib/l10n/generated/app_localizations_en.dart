@@ -1037,6 +1037,86 @@ class AppLocalizationsEn extends AppLocalizations {
       'The match and its registrations are removed, and registered players are notified. This cannot be undone.';
 
   @override
+  String get adminStatusActive => 'Active';
+
+  @override
+  String get adminStatusSuspended => 'Suspended';
+
+  @override
+  String get adminStatusSystemAdmin => 'System Admin';
+
+  @override
+  String get adminSuspendButton => 'Suspend';
+
+  @override
+  String get adminReactivateButton => 'Reactivate';
+
+  @override
+  String adminSuspendUserConfirmTitle(String name) {
+    return 'Suspend $name?';
+  }
+
+  @override
+  String get adminSuspendUserConfirmBody =>
+      'They keep their account and their football history, and stop being able to use Go Play until they are reactivated.';
+
+  @override
+  String adminSuspendCommunityConfirmTitle(String name) {
+    return 'Suspend $name?';
+  }
+
+  @override
+  String get adminSuspendCommunityConfirmBody =>
+      'It disappears from discovery and admits nobody new. Its matches, results and history are kept.';
+
+  @override
+  String adminReactivateUserConfirmTitle(String name) {
+    return 'Reactivate $name?';
+  }
+
+  @override
+  String get adminReactivateUserConfirmBody =>
+      'They can use Go Play again straight away.';
+
+  @override
+  String adminReactivateCommunityConfirmTitle(String name) {
+    return 'Reactivate $name?';
+  }
+
+  @override
+  String get adminReactivateCommunityConfirmBody =>
+      'It becomes discoverable and usable again straight away.';
+
+  @override
+  String get adminSuspensionReasonLabel => 'Reason';
+
+  @override
+  String get adminSuspensionReasonRequired => 'Please give a reason.';
+
+  @override
+  String get adminSuspendedFeedback => 'Suspended.';
+
+  @override
+  String get adminReactivatedFeedback => 'Reactivated.';
+
+  @override
+  String get accountSuspendedTitle => 'Account suspended';
+
+  @override
+  String get accountSuspendedBody =>
+      'This account has been suspended, so Go Play is unavailable for now. Your profile, matches and football history are kept.';
+
+  @override
+  String get accountSuspendedSignOut => 'Sign out';
+
+  @override
+  String get accountStatusRetry => 'Try again';
+
+  @override
+  String get accountStatusUnavailable =>
+      'We could not check your account right now.';
+
+  @override
   String get teamsTitle => 'Teams';
 
   @override

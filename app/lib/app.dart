@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/l10n.dart';
+import 'core/states.dart';
 import 'core/locale_controller.dart';
 import 'core/theme.dart';
+import 'features/auth/account_suspended_screen.dart';
 import 'features/auth/auth_service.dart';
 import 'features/discover/discover_screen.dart';
 import 'features/home/home_shell.dart';
@@ -36,6 +38,10 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
   /// was, and Back has to return them there. That is a push onto this Navigator
   /// and nothing more, which is why no routing package is introduced.
   final _navigatorKey = GlobalKey<NavigatorState>();
+
+  /// Identity, for the one question this widget asks of it: whether a tapped
+  /// notification belongs to an account that may still act on it.
+  final _authService = AuthService();
 
   @override
   void initState() {
@@ -114,6 +120,23 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
       } catch (_) {
         // See above.
       }
+    }
+
+    // A suspended account does not get into the product through a notification
+    // tap. The gate below decides what a signed-in reader sees; without this,
+    // one tap would push Match Details straight over the top of it.
+    //
+    // Fails closed: only an account the database confirms is active proceeds.
+    // A refusal or an unanswerable question both stop here, and the notice is
+    // still marked read above, so nothing is lost by not navigating.
+    if (_authService.isSignedIn) {
+      bool active;
+      try {
+        active = await _authService.isCurrentUserActive();
+      } catch (_) {
+        active = false;
+      }
+      if (!active) return;
     }
 
     final target = await requested.resolved(_matchOpens);
@@ -226,34 +249,127 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
 /// a public landing page they would immediately be moved off would be a flicker,
 /// not a first impression.
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+  const AuthGate({super.key, AuthService? authService})
+      : _authService = authService;
+
+  final AuthService? _authService;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
-  final _authService = AuthService();
+/// What the gate knows about the signed-in account right now.
+enum _AccountStatus { checking, active, suspended, unavailable }
+
+class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
+  late final AuthService _authService = widget._authService ?? AuthService();
+
+  _AccountStatus _status = _AccountStatus.checking;
+
+  /// Which check is current. A check that finishes after a newer one started —
+  /// a resume landing on top of a sign-in, say — is discarded rather than
+  /// allowed to overwrite a fresher answer.
+  int _checkId = 0;
+
+  bool _signedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _signedIn = _authService.isSignedIn;
+    if (_signedIn) _checkAccount();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Re-asks on resume. A suspension applied while the app was in the
+  /// background is caught the next time the reader comes back, which is the
+  /// approved MVP cadence — no polling, no realtime subscription, no timer.
+  /// The database refuses their writes in the meantime regardless.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _signedIn) _checkAccount();
+  }
+
+  Future<void> _checkAccount() async {
+    final id = ++_checkId;
+    if (_status != _AccountStatus.checking) {
+      setState(() => _status = _AccountStatus.checking);
+    }
+    _AccountStatus next;
+    try {
+      next = await _authService.isCurrentUserActive()
+          ? _AccountStatus.active
+          : _AccountStatus.suspended;
+    } catch (_) {
+      // Fails closed. An unanswered question is not permission to enter.
+      next = _AccountStatus.unavailable;
+    }
+    if (!mounted || id != _checkId) return;
+    setState(() => _status = next);
+  }
+
+  /// The session changed under us: re-ask, or forget the answer entirely.
+  void _onSignedInChanged(bool signedIn) {
+    if (signedIn == _signedIn) return;
+    _signedIn = signedIn;
+    if (signedIn) {
+      _checkAccount();
+    } else {
+      // Signed out: no account to have a state. Bumping the id abandons any
+      // check still in flight so it cannot land on the signed-out screen.
+      _checkId++;
+      setState(() => _status = _AccountStatus.checking);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<String?>(
-      valueListenable: PendingInvite.instance.code,
-      builder: (context, code, _) {
-        if (code != null) {
-          // Keyed so a second invitation replaces the first rather than
-          // reusing the previous one's state.
-          return InviteLandingScreen(key: ValueKey(code), code: code);
+    return StreamBuilder<bool>(
+      stream: _authService.signedInChanges,
+      initialData: _authService.isSignedIn,
+      builder: (context, snapshot) {
+        final signedIn = snapshot.data ?? false;
+        // The stream can emit during build, so the reaction is deferred rather
+        // than calling setState inside a builder.
+        if (signedIn != _signedIn) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _onSignedInChanged(signedIn),
+          );
         }
-        return StreamBuilder<bool>(
-          stream: _authService.signedInChanges,
-          initialData: _authService.isSignedIn,
-          builder: (context, snapshot) {
-            return (snapshot.data ?? false)
-                ? const HomeShell()
-                : const DiscoverScreen();
-          },
-        );
+
+        if (!signedIn) {
+          // Signed out: the invitation still outranks Discover, exactly as
+          // before. Nothing about the visitor path changes.
+          return ValueListenableBuilder<String?>(
+            valueListenable: PendingInvite.instance.code,
+            builder: (context, code, _) => code != null
+                ? InviteLandingScreen(key: ValueKey(code), code: code)
+                : const DiscoverScreen(),
+          );
+        }
+
+        // Signed in. The account's state is decided before anything else,
+        // because a suspended reader must not reach the product through a
+        // pending invitation either.
+        return switch (_status) {
+          _AccountStatus.checking => const Scaffold(body: LoadingState()),
+          _AccountStatus.suspended =>
+            AccountSuspendedScreen(authService: _authService),
+          _AccountStatus.unavailable =>
+            AccountStatusUnavailableScreen(onRetry: _checkAccount),
+          _AccountStatus.active => ValueListenableBuilder<String?>(
+              valueListenable: PendingInvite.instance.code,
+              builder: (context, code, _) => code != null
+                  ? InviteLandingScreen(key: ValueKey(code), code: code)
+                  : const HomeShell(),
+            ),
+        };
       },
     );
   }

@@ -1014,6 +1014,85 @@ class AppLocalizationsAr extends AppLocalizations {
       'تُحذف المباراة وتسجيلاتها، ويُبلَّغ المسجّلون. لا يمكن التراجع.';
 
   @override
+  String get adminStatusActive => 'نشط';
+
+  @override
+  String get adminStatusSuspended => 'موقوف';
+
+  @override
+  String get adminStatusSystemAdmin => 'مدير النظام';
+
+  @override
+  String get adminSuspendButton => 'إيقاف';
+
+  @override
+  String get adminReactivateButton => 'إعادة تفعيل';
+
+  @override
+  String adminSuspendUserConfirmTitle(String name) {
+    return 'إيقاف $name؟';
+  }
+
+  @override
+  String get adminSuspendUserConfirmBody =>
+      'يحتفظ بحسابه وسجله الكروي، ولن يتمكن من استخدام Go Play حتى تتم إعادة تفعيله.';
+
+  @override
+  String adminSuspendCommunityConfirmTitle(String name) {
+    return 'إيقاف $name؟';
+  }
+
+  @override
+  String get adminSuspendCommunityConfirmBody =>
+      'يختفي من الاستكشاف ولا يقبل أعضاء جدد. تبقى مبارياته ونتائجه وسجله محفوظة.';
+
+  @override
+  String adminReactivateUserConfirmTitle(String name) {
+    return 'إعادة تفعيل $name؟';
+  }
+
+  @override
+  String get adminReactivateUserConfirmBody =>
+      'سيتمكن من استخدام Go Play فوراً.';
+
+  @override
+  String adminReactivateCommunityConfirmTitle(String name) {
+    return 'إعادة تفعيل $name؟';
+  }
+
+  @override
+  String get adminReactivateCommunityConfirmBody =>
+      'يعود قابلاً للاكتشاف والاستخدام فوراً.';
+
+  @override
+  String get adminSuspensionReasonLabel => 'السبب';
+
+  @override
+  String get adminSuspensionReasonRequired => 'الرجاء كتابة السبب.';
+
+  @override
+  String get adminSuspendedFeedback => 'تم الإيقاف.';
+
+  @override
+  String get adminReactivatedFeedback => 'تمت إعادة التفعيل.';
+
+  @override
+  String get accountSuspendedTitle => 'الحساب موقوف';
+
+  @override
+  String get accountSuspendedBody =>
+      'تم إيقاف هذا الحساب، لذا Go Play غير متاح حالياً. ملفك ومبارياتك وسجلك الكروي محفوظة.';
+
+  @override
+  String get accountSuspendedSignOut => 'تسجيل الخروج';
+
+  @override
+  String get accountStatusRetry => 'إعادة المحاولة';
+
+  @override
+  String get accountStatusUnavailable => 'تعذّر التحقق من حسابك الآن.';
+
+  @override
   String get teamsTitle => 'الفرق';
 
   @override
