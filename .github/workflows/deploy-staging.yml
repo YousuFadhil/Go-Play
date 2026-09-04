@@ -22,7 +22,7 @@ on:
       source_ref:
         description: Branch, tag or SHA to build and publish to staging
         required: true
-        default: feat/design-tokens-phase-1
+        default: develop
 
 # Separate from production's `cloudflare-pages` group: a staging run must never
 # cancel, or be cancelled by, a production deployment.
