@@ -22,9 +22,22 @@
 -- Both functions gain columns, and PostgreSQL refuses to change the return type
 -- of an existing function through `create or replace` -- "cannot change return
 -- type of existing function". So each is dropped and recreated, which is the
--- same device `0056` used on `player_profile` for the same reason. Dropping a
--- function also drops its privileges, so each `grant`/`revoke` pair is
--- re-established immediately afterwards rather than assumed.
+-- same device `0056` used on `player_profile` for the same reason.
+--
+-- **Dropping a function drops its whole ACL, including grants no migration
+-- ever wrote.** That is the trap here, and it is `0034`'s hazard pointing the
+-- other way. `0017` granted only `authenticated` on these two functions, so
+-- reading the migrations suggests `authenticated` is all there is to restore.
+-- It is not: Supabase's default-privileges rule on schema `public` also grants
+-- `service_role` on every function created there, and `0017`'s `revoke ... from
+-- anon, public` never touched it. The live ACL is therefore
+--
+--     postgres  |  authenticated  |  service_role
+--
+-- and restoring only `authenticated` would silently take `service_role`'s
+-- EXECUTE away. Both are re-granted below by name, and `anon` and `PUBLIC` stay
+-- revoked, so the privilege state after this migration is exactly the state
+-- before it.
 --
 -- ## WHAT IS APPENDED
 --
@@ -99,9 +112,13 @@ comment on function public.admin_list_users(text) is
   'active account from a suspended one; suspended_by is deliberately absent '
   'and belongs to the audit log (migration 0066).';
 
--- Re-established because `drop function` took the old ones with it.
+-- Re-established because `drop function` took the old ones with it. Both
+-- executing roles are named: `authenticated` is the console, `service_role` is
+-- the privilege the platform's default rule granted and `0017` never mentioned.
+-- `anon` and `PUBLIC` are revoked and are granted nothing.
 revoke execute on function public.admin_list_users(text) from anon, public;
 grant execute on function public.admin_list_users(text) to authenticated;
+grant execute on function public.admin_list_users(text) to service_role;
 
 
 
@@ -154,8 +171,10 @@ comment on function public.admin_list_communities(text) is
   'suspended_by is deliberately absent and belongs to the audit log '
   '(migration 0066).';
 
+-- The same two roles, for the same reason as above.
 revoke execute on function public.admin_list_communities(text) from anon, public;
 grant execute on function public.admin_list_communities(text) to authenticated;
+grant execute on function public.admin_list_communities(text) to service_role;
 
 
 
