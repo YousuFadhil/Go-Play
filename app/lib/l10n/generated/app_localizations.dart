@@ -3385,6 +3385,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Football'**
   String get communityFootballTitle;
+
+  /// No description provided for @adminOverviewTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get adminOverviewTab;
+
+  /// No description provided for @adminProductHealthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Product health'**
+  String get adminProductHealthTitle;
+
+  /// No description provided for @adminUserGrowthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'User growth'**
+  String get adminUserGrowthTitle;
+
+  /// No description provided for @adminEngagementTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Engagement'**
+  String get adminEngagementTitle;
+
+  /// No description provided for @adminFootballActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Football activity'**
+  String get adminFootballActivityTitle;
+
+  /// No description provided for @adminMetricWau.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly active users'**
+  String get adminMetricWau;
+
+  /// No description provided for @adminMetricActiveCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly active communities'**
+  String get adminMetricActiveCommunities;
+
+  /// No description provided for @adminMetricTotalUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'Total users'**
+  String get adminMetricTotalUsers;
+
+  /// No description provided for @adminMetricNewToday.
+  ///
+  /// In en, this message translates to:
+  /// **'New today'**
+  String get adminMetricNewToday;
+
+  /// No description provided for @adminMetricDau.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily active users'**
+  String get adminMetricDau;
+
+  /// No description provided for @adminMetricMau.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly active users'**
+  String get adminMetricMau;
+
+  /// No description provided for @adminMetricWeeklyRetention.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly retention'**
+  String get adminMetricWeeklyRetention;
+
+  /// No description provided for @adminMetricMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches'**
+  String get adminMetricMatches;
+
+  /// No description provided for @adminMetricRegistrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Registrations'**
+  String get adminMetricRegistrations;
+
+  /// No description provided for @adminMetricResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Results'**
+  String get adminMetricResults;
+
+  /// No description provided for @adminPeriod7d.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get adminPeriod7d;
+
+  /// No description provided for @adminPeriod30d.
+  ///
+  /// In en, this message translates to:
+  /// **'30 days'**
+  String get adminPeriod30d;
+
+  /// No description provided for @adminMetricUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available yet'**
+  String get adminMetricUnavailable;
+
+  /// What the weekly retention percentage is made of: how many of the previous week's people came back.
+  ///
+  /// In en, this message translates to:
+  /// **'{returning} of {previous} from last week'**
+  String adminRetentionBasis(int returning, int previous);
+
+  /// No description provided for @adminAnalyticsNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.'**
+  String get adminAnalyticsNotice;
 }
 
 class _AppLocalizationsDelegate

@@ -4,6 +4,7 @@ import '../../core/app_header.dart';
 import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import 'admin_overview_tab.dart';
 import 'admin_repository.dart';
 
 /// What a row lets an administrator do to the record behind it.
@@ -50,7 +51,8 @@ class _Row {
 /// Stands in for a name the record does not carry.
 const _missing = '—';
 
-/// The whole of internal administration: three lists, each with a search field.
+/// The whole of internal administration: an Overview, and three lists each with
+/// a search field.
 ///
 /// Users and Communities can be suspended and restored; Matches is inspection
 /// only. Permanent delete is deliberately absent -- suspension is reversible
@@ -68,12 +70,18 @@ class AdminScreen extends StatelessWidget {
     final repository = _repository ?? AdminRepository();
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppHeader(
           title: Text(l10n.adminTitle),
           bottom: TabBar(
+            // Four labels, two of them long in Arabic. Scrollable so the fourth
+            // is reachable on a narrow phone rather than crushed to two
+            // characters -- a local layout detail, not a redesign.
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
+              Tab(text: l10n.adminOverviewTab),
               Tab(text: l10n.adminUsersTab),
               Tab(text: l10n.adminCommunitiesTab),
               Tab(text: l10n.adminMatchesTab),
@@ -82,6 +90,9 @@ class AdminScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
+            // First, because it is what an administrator opens this screen to
+            // find out. The three lists are what they do about the answer.
+            AdminOverviewTab(repository: repository),
             _AdminList(
               load: (search) async => [
                 for (final user in await repository.listUsers(search))

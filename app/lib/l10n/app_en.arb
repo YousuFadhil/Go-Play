@@ -808,5 +808,36 @@
       }
     }
   },
-  "communityFootballTitle": "Football"
+  "communityFootballTitle": "Football",
+  "adminOverviewTab": "Overview",
+  "adminProductHealthTitle": "Product health",
+  "adminUserGrowthTitle": "User growth",
+  "adminEngagementTitle": "Engagement",
+  "adminFootballActivityTitle": "Football activity",
+  "adminMetricWau": "Weekly active users",
+  "adminMetricActiveCommunities": "Weekly active communities",
+  "adminMetricTotalUsers": "Total users",
+  "adminMetricNewToday": "New today",
+  "adminMetricDau": "Daily active users",
+  "adminMetricMau": "Monthly active users",
+  "adminMetricWeeklyRetention": "Weekly retention",
+  "adminMetricMatches": "Matches",
+  "adminMetricRegistrations": "Registrations",
+  "adminMetricResults": "Results",
+  "adminPeriod7d": "7 days",
+  "adminPeriod30d": "30 days",
+  "adminMetricUnavailable": "Not available yet",
+  "adminRetentionBasis": "{returning} of {previous} from last week",
+  "@adminRetentionBasis": {
+    "description": "What the weekly retention percentage is made of: how many of the previous week's people came back.",
+    "placeholders": {
+      "returning": {
+        "type": "int"
+      },
+      "previous": {
+        "type": "int"
+      }
+    }
+  },
+  "adminAnalyticsNotice": "Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete."
 }

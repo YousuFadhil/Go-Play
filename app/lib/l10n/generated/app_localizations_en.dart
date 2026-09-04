@@ -1954,4 +1954,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get communityFootballTitle => 'Football';
+
+  @override
+  String get adminOverviewTab => 'Overview';
+
+  @override
+  String get adminProductHealthTitle => 'Product health';
+
+  @override
+  String get adminUserGrowthTitle => 'User growth';
+
+  @override
+  String get adminEngagementTitle => 'Engagement';
+
+  @override
+  String get adminFootballActivityTitle => 'Football activity';
+
+  @override
+  String get adminMetricWau => 'Weekly active users';
+
+  @override
+  String get adminMetricActiveCommunities => 'Weekly active communities';
+
+  @override
+  String get adminMetricTotalUsers => 'Total users';
+
+  @override
+  String get adminMetricNewToday => 'New today';
+
+  @override
+  String get adminMetricDau => 'Daily active users';
+
+  @override
+  String get adminMetricMau => 'Monthly active users';
+
+  @override
+  String get adminMetricWeeklyRetention => 'Weekly retention';
+
+  @override
+  String get adminMetricMatches => 'Matches';
+
+  @override
+  String get adminMetricRegistrations => 'Registrations';
+
+  @override
+  String get adminMetricResults => 'Results';
+
+  @override
+  String get adminPeriod7d => '7 days';
+
+  @override
+  String get adminPeriod30d => '30 days';
+
+  @override
+  String get adminMetricUnavailable => 'Not available yet';
+
+  @override
+  String adminRetentionBasis(int returning, int previous) {
+    return '$returning of $previous from last week';
+  }
+
+  @override
+  String get adminAnalyticsNotice =>
+      'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.';
 }

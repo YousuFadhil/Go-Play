@@ -9,6 +9,10 @@ import 'admin_models.dart';
 abstract interface class AdminAdapter {
   Future<bool> isSystemAdmin();
 
+  /// Every figure on the Overview dashboard, from one call. The RPC beneath it
+  /// returns counts only -- there is no way to ask it what one person did.
+  Future<AdminAnalyticsOverview> analyticsOverview();
+
   Future<List<AdminUserSummary>> listUsers(String? search);
 
   Future<List<AdminCommunitySummary>> listCommunities(String? search);

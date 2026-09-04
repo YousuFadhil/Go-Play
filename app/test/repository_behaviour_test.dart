@@ -890,6 +890,10 @@ class FakeAdminAdapter implements AdminAdapter {
   }
 
   @override
+  Future<AdminAnalyticsOverview> analyticsOverview() =>
+      throw UnimplementedError();
+
+  @override
   Future<List<AdminUserSummary>> listUsers(String? search) =>
       throw UnimplementedError();
 

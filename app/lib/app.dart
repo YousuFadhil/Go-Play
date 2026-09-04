@@ -7,6 +7,7 @@ import 'core/l10n.dart';
 import 'core/states.dart';
 import 'core/locale_controller.dart';
 import 'core/theme.dart';
+import 'features/analytics/analytics_service.dart';
 import 'features/auth/account_suspended_screen.dart';
 import 'features/auth/auth_service.dart';
 import 'features/discover/discover_screen.dart';
@@ -312,6 +313,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
     if (!mounted || id != _checkId) return;
     setState(() => _status = next);
+
+    // The session is recorded here and nowhere else, because here is the only
+    // point in the application that knows both halves of what a session is:
+    // signed in **and** active. A suspended reader records nothing — they do
+    // not enter the product, and counting them as a daily active user would
+    // measure the wrong thing twice over.
+    //
+    // Called on every check, and it is `startSession` that makes that safe: a
+    // resume and a rebuild both arrive here and neither is a new session.
+    if (next == _AccountStatus.active) ProductAnalytics.instance.startSession();
   }
 
   /// The session changed under us: re-ask, or forget the answer entirely.
@@ -324,6 +335,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       // Signed out: no account to have a state. Bumping the id abandons any
       // check still in flight so it cannot land on the signed-out screen.
       _checkId++;
+      // And the session is over. Signing back in is a genuinely new session and
+      // must be able to record one; without this the app would record a single
+      // session for as long as it stayed open, however many people used it.
+      ProductAnalytics.instance.endSession();
       setState(() => _status = _AccountStatus.checking);
     }
   }

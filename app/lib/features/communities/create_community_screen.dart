@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
 import '../../core/l10n.dart';
+import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import 'community_models.dart';
 import 'community_repository.dart';
 
@@ -34,10 +36,18 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _communityRepository.createCommunity(
+      final communityId = await _communityRepository.createCommunity(
         name: _nameController.text,
         description: _descriptionController.text,
         joinPolicy: _joinPolicy,
+      );
+      // After the community exists, and before the screen closes. The record
+      // does not delay the close: `track` returns immediately and the RPC
+      // finishes on its own, so a slow analytics call cannot hold the organizer
+      // on a form whose work is already done.
+      ProductAnalytics.instance.track(
+        ProductEvent.communityCreated,
+        communityId: communityId,
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {

@@ -675,5 +675,35 @@
       }
     }
   },
-  "communityFootballTitle": "كرة القدم"
+  "communityFootballTitle": "كرة القدم",
+  "adminOverviewTab": "نظرة عامة",
+  "adminProductHealthTitle": "صحة المنتج",
+  "adminUserGrowthTitle": "نمو المستخدمين",
+  "adminEngagementTitle": "التفاعل",
+  "adminFootballActivityTitle": "نشاط كرة القدم",
+  "adminMetricWau": "المستخدمون النشطون أسبوعياً",
+  "adminMetricActiveCommunities": "المجتمعات النشطة أسبوعياً",
+  "adminMetricTotalUsers": "إجمالي المستخدمين",
+  "adminMetricNewToday": "الجدد اليوم",
+  "adminMetricDau": "المستخدمون النشطون يومياً",
+  "adminMetricMau": "المستخدمون النشطون شهرياً",
+  "adminMetricWeeklyRetention": "معدل العودة الأسبوعي",
+  "adminMetricMatches": "المباريات",
+  "adminMetricRegistrations": "التسجيلات",
+  "adminMetricResults": "النتائج",
+  "adminPeriod7d": "٧ أيام",
+  "adminPeriod30d": "٣٠ يوماً",
+  "adminMetricUnavailable": "غير متاح بعد",
+  "adminRetentionBasis": "{returning} من {previous} من الأسبوع الماضي",
+  "@adminRetentionBasis": {
+    "placeholders": {
+      "returning": {
+        "type": "int"
+      },
+      "previous": {
+        "type": "int"
+      }
+    }
+  },
+  "adminAnalyticsNotice": "تبدأ مؤشرات النشاط من هذا الإصدار. الجلسات والانسحابات السابقة لم تُسجَّل ولم تُختلق، لذلك تُحتسب من الصفر. أما الحسابات والمباريات والنتائج فبياناتها كاملة."
 }

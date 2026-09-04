@@ -25,6 +25,15 @@ class AdminRepository {
     }
   }
 
+  /// The Overview dashboard's figures.
+  ///
+  /// A failure is **not** swallowed the way [isSystemAdmin]'s is. That one is a
+  /// permission question, where an unanswered question has to mean no; this is
+  /// a read, and a read that failed must reach the screen so it can offer a
+  /// retry rather than draw a dashboard of zeroes.
+  Future<AdminAnalyticsOverview> analyticsOverview() =>
+      _adapter.analyticsOverview();
+
   Future<List<AdminUserSummary>> listUsers(String? search) =>
       _adapter.listUsers(search);
 

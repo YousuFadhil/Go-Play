@@ -1939,4 +1939,67 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get communityFootballTitle => 'كرة القدم';
+
+  @override
+  String get adminOverviewTab => 'نظرة عامة';
+
+  @override
+  String get adminProductHealthTitle => 'صحة المنتج';
+
+  @override
+  String get adminUserGrowthTitle => 'نمو المستخدمين';
+
+  @override
+  String get adminEngagementTitle => 'التفاعل';
+
+  @override
+  String get adminFootballActivityTitle => 'نشاط كرة القدم';
+
+  @override
+  String get adminMetricWau => 'المستخدمون النشطون أسبوعياً';
+
+  @override
+  String get adminMetricActiveCommunities => 'المجتمعات النشطة أسبوعياً';
+
+  @override
+  String get adminMetricTotalUsers => 'إجمالي المستخدمين';
+
+  @override
+  String get adminMetricNewToday => 'الجدد اليوم';
+
+  @override
+  String get adminMetricDau => 'المستخدمون النشطون يومياً';
+
+  @override
+  String get adminMetricMau => 'المستخدمون النشطون شهرياً';
+
+  @override
+  String get adminMetricWeeklyRetention => 'معدل العودة الأسبوعي';
+
+  @override
+  String get adminMetricMatches => 'المباريات';
+
+  @override
+  String get adminMetricRegistrations => 'التسجيلات';
+
+  @override
+  String get adminMetricResults => 'النتائج';
+
+  @override
+  String get adminPeriod7d => '٧ أيام';
+
+  @override
+  String get adminPeriod30d => '٣٠ يوماً';
+
+  @override
+  String get adminMetricUnavailable => 'غير متاح بعد';
+
+  @override
+  String adminRetentionBasis(int returning, int previous) {
+    return '$returning من $previous من الأسبوع الماضي';
+  }
+
+  @override
+  String get adminAnalyticsNotice =>
+      'تبدأ مؤشرات النشاط من هذا الإصدار. الجلسات والانسحابات السابقة لم تُسجَّل ولم تُختلق، لذلك تُحتسب من الصفر. أما الحسابات والمباريات والنتائج فبياناتها كاملة.';
 }

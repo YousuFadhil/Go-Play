@@ -27,6 +27,51 @@ String? _adminReason(Object? value) {
   return trimmed.isEmpty ? null : trimmed;
 }
 
+/// A count, as the Overview reads one.
+///
+/// Every figure in `admin_analytics_overview()` is a `bigint` and PostgREST
+/// sends those as numbers; a missing key reads as zero rather than failing the
+/// whole dashboard, because a metric that could not be read is better shown as
+/// nothing than as a screen the administrator cannot open at all.
+int _adminCount(Object? value) => (value as num?)?.toInt() ?? 0;
+
+/// The retention percentage, which is genuinely nullable.
+///
+/// **Null is preserved, never defaulted to zero.** The database returns null
+/// when there was no previous-week cohort, and turning that into 0 here would
+/// tell the administrator that nobody came back when the truth is that there
+/// was nobody to come back. Arrives as a `numeric`, which PostgREST may send as
+/// a JSON number or as a string depending on precision, so both are accepted.
+double? _adminPercent(Object? value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
+
+AdminAnalyticsOverview adminAnalyticsOverviewFromRow(
+  Map<String, dynamic> row,
+) =>
+    AdminAnalyticsOverview(
+      totalUsers: _adminCount(row['total_users']),
+      newUsersToday: _adminCount(row['new_users_today']),
+      newUsers7d: _adminCount(row['new_users_7d']),
+      newUsers30d: _adminCount(row['new_users_30d']),
+      dau: _adminCount(row['dau']),
+      wau: _adminCount(row['wau']),
+      mau: _adminCount(row['mau']),
+      weeklyActiveCommunities: _adminCount(row['weekly_active_communities']),
+      matches7d: _adminCount(row['matches_7d']),
+      matches30d: _adminCount(row['matches_30d']),
+      registrations7d: _adminCount(row['registrations_7d']),
+      registrations30d: _adminCount(row['registrations_30d']),
+      results7d: _adminCount(row['results_7d']),
+      results30d: _adminCount(row['results_30d']),
+      retentionPreviousWeekUsers:
+          _adminCount(row['retention_previous_week_users']),
+      retentionReturningUsers: _adminCount(row['retention_returning_users']),
+      weeklyRetentionPercent: _adminPercent(row['weekly_retention_percent']),
+    );
+
 AdminUserSummary adminUserFromRow(Map<String, dynamic> row) => AdminUserSummary(
       id: row['id'] as String,
       fullName: row['full_name'] as String? ?? '',

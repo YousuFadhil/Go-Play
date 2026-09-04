@@ -30,6 +30,24 @@ class SupabaseAdminAdapter implements AdminAdapter {
         return result == true;
       });
 
+  /// The Overview, in one round trip.
+  ///
+  /// `returns table` with one row, so PostgREST sends a one-element list. An
+  /// empty one is not something the function can produce -- it always returns
+  /// exactly one row -- but it is checked rather than indexed blindly, so a
+  /// surprise arrives as a mapped [InfrastructureFailure] and the screen's
+  /// retry, not as a range error.
+  @override
+  Future<AdminAnalyticsOverview> analyticsOverview() => guarded(
+        () async {
+          final result = await _client.rpc('admin_analytics_overview');
+          final rows = (result as List<dynamic>).cast<Map<String, dynamic>>();
+          if (rows.isEmpty) throw const InfrastructureFailure();
+          return adminAnalyticsOverviewFromRow(rows.first);
+        },
+        operation: 'rpc admin_analytics_overview',
+      );
+
   @override
   Future<List<AdminUserSummary>> listUsers(String? search) => guarded(() async {
         final rows = await _client.rpc(

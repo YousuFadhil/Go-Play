@@ -26,6 +26,34 @@ class _FakeAdminAdapter implements AdminAdapter {
   @override
   Future<bool> isSystemAdmin() async => true;
 
+  /// These tests are about the suspension lists, and the Overview tab is not
+  /// the tab they open. Recorded rather than thrown, so a call from a tab that
+  /// is not on screen would be visible in [calls] instead of silent.
+  @override
+  Future<AdminAnalyticsOverview> analyticsOverview() async {
+    calls.add('analyticsOverview');
+    return overview;
+  }
+
+  AdminAnalyticsOverview overview = const AdminAnalyticsOverview(
+    totalUsers: 0,
+    newUsersToday: 0,
+    newUsers7d: 0,
+    newUsers30d: 0,
+    dau: 0,
+    wau: 0,
+    mau: 0,
+    weeklyActiveCommunities: 0,
+    matches7d: 0,
+    matches30d: 0,
+    registrations7d: 0,
+    registrations30d: 0,
+    results7d: 0,
+    results30d: 0,
+    retentionPreviousWeekUsers: 0,
+    retentionReturningUsers: 0,
+  );
+
   @override
   Future<List<AdminUserSummary>> listUsers(String? search) async {
     calls.add('listUsers');
@@ -196,6 +224,10 @@ void main() {
       final adapter = _FakeAdminAdapter(users: [_user()]);
       await tester.pumpWidget(_app(AdminRepository(adapter)));
       await tester.pumpAndSettle();
+      // Overview is the first tab now, so the Users list has to be asked
+      // for rather than assumed.
+      await tester.tap(find.text('Users'));
+      await tester.pumpAndSettle();
 
       expect(find.text('Suspend'), findsOneWidget);
       expect(find.text('Reactivate'), findsNothing);
@@ -205,6 +237,10 @@ void main() {
     testWidgets('a suspended user offers Reactivate', (tester) async {
       final adapter = _FakeAdminAdapter(users: [_user(active: false)]);
       await tester.pumpWidget(_app(AdminRepository(adapter)));
+      await tester.pumpAndSettle();
+      // Overview is the first tab now, so the Users list has to be asked
+      // for rather than assumed.
+      await tester.tap(find.text('Users'));
       await tester.pumpAndSettle();
 
       expect(find.text('Reactivate'), findsOneWidget);
@@ -217,6 +253,10 @@ void main() {
           _FakeAdminAdapter(users: [_user(systemAdmin: true)]);
       await tester.pumpWidget(_app(AdminRepository(adapter)));
       await tester.pumpAndSettle();
+      // Overview is the first tab now, so the Users list has to be asked
+      // for rather than assumed.
+      await tester.tap(find.text('Users'));
+      await tester.pumpAndSettle();
 
       expect(find.text('Suspend'), findsNothing);
       expect(find.text('Reactivate'), findsNothing);
@@ -226,6 +266,10 @@ void main() {
     testWidgets('a blank reason never reaches the repository', (tester) async {
       final adapter = _FakeAdminAdapter(users: [_user()]);
       await tester.pumpWidget(_app(AdminRepository(adapter)));
+      await tester.pumpAndSettle();
+      // Overview is the first tab now, so the Users list has to be asked
+      // for rather than assumed.
+      await tester.tap(find.text('Users'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Suspend'));
@@ -246,6 +290,10 @@ void main() {
       final adapter = _FakeAdminAdapter(users: [_user()]);
       await tester.pumpWidget(_app(AdminRepository(adapter)));
       await tester.pumpAndSettle();
+      // Overview is the first tab now, so the Users list has to be asked
+      // for rather than assumed.
+      await tester.tap(find.text('Users'));
+      await tester.pumpAndSettle();
       adapter.calls.clear();
 
       await tester.tap(find.text('Suspend'));
@@ -263,6 +311,10 @@ void main() {
     testWidgets('reactivation confirms, calls and refreshes', (tester) async {
       final adapter = _FakeAdminAdapter(users: [_user(active: false)]);
       await tester.pumpWidget(_app(AdminRepository(adapter)));
+      await tester.pumpAndSettle();
+      // Overview is the first tab now, so the Users list has to be asked
+      // for rather than assumed.
+      await tester.tap(find.text('Users'));
       await tester.pumpAndSettle();
       adapter.calls.clear();
 

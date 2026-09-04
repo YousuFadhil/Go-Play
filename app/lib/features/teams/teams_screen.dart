@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import '../communities/community_models.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
@@ -99,6 +101,14 @@ class _TeamsScreenState extends State<TeamsScreen> {
     _future = _track(_load());
   }
 
+  /// Whether this screen has already recorded that its teams were viewed, and
+  /// that a saved result was put in front of the reader.
+  ///
+  /// One of each per screen instance. This screen reloads after every roster
+  /// edit and after every generation, and none of those is a fresh viewing.
+  bool _viewRecorded = false;
+  bool _resultViewRecorded = false;
+
   /// Keeps [_shown] in step with whichever load is current.
   ///
   /// A generation replaces the lineup and reloads, so a result from a load that
@@ -107,6 +117,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     load.then(
       (view) {
         if (!mounted || _future != load) return;
+        _recordViews(view);
         setState(() => _shown = view);
       },
       // Already reported by the builder, which shows the retry.
@@ -116,6 +127,36 @@ class _TeamsScreenState extends State<TeamsScreen> {
       },
     );
     return load;
+  }
+
+  /// Records what this load actually put in front of the reader.
+  ///
+  /// Called only from [_track]'s success path, so a load that failed records
+  /// nothing — and only for the load that is still current, so a superseded
+  /// one cannot record a view of a screen that moved on.
+  void _recordViews(_TeamsView view) {
+    if (!_viewRecorded) {
+      _viewRecorded = true;
+      ProductAnalytics.instance.track(
+        ProductEvent.teamsViewed,
+        matchId: widget.matchId,
+        communityId: view.match.communityId,
+      );
+    }
+
+    // **Only when a result actually exists.** A match still to come has none
+    // and this screen does not even ask for one; a match that is over but
+    // unrecorded loads a null. Either way there is nothing on screen to have
+    // viewed, and recording one here would make `result_viewed` a second, worse
+    // copy of `teams_viewed`.
+    if (!_resultViewRecorded && view.result != null) {
+      _resultViewRecorded = true;
+      ProductAnalytics.instance.track(
+        ProductEvent.resultViewed,
+        matchId: widget.matchId,
+        communityId: view.match.communityId,
+      );
+    }
   }
 
   Future<_TeamsView> _load() async {
@@ -324,6 +365,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
     await presentShareCard(
       context,
       template: (context) => MatchResultCard(data: data),
+      // What this card is of, so a share can be counted against the match it
+      // came from. Both are already on screen; nothing is fetched for them.
+      matchId: widget.matchId,
+      communityId: view.match.communityId,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );
