@@ -328,3 +328,283 @@ class AdminMatchSummary {
   final String location;
   final int registrationCount;
 }
+
+/// Which family of records an Overview figure is made of, and therefore which
+/// drill-down RPC answers for it.
+enum AdminDrilldownKind { users, communities, matches, registrations }
+
+/// Every Overview figure that has records behind it.
+///
+/// **A closed enum rather than a string passed from the screen.** The database
+/// refuses an unrecognised metric with `INVALID_ADMIN_ANALYTICS_METRIC`; this
+/// is what makes that refusal unreachable from ordinary code, and what stops a
+/// card and its destination drifting into naming the same figure differently.
+///
+/// [wireName] must match migration `0069` exactly. Registrations are the one
+/// family the database takes a window for rather than a metric name, so they
+/// carry [periodDays] instead.
+enum AdminDrilldownMetric {
+  totalUsers('total_users', AdminDrilldownKind.users),
+  newUsersToday('new_users_today', AdminDrilldownKind.users),
+  newUsers7d('new_users_7d', AdminDrilldownKind.users),
+  newUsers30d('new_users_30d', AdminDrilldownKind.users),
+  dau('dau', AdminDrilldownKind.users),
+  wau('wau', AdminDrilldownKind.users),
+  mau('mau', AdminDrilldownKind.users),
+
+  /// The whole previous-week cohort, each row saying whether they came back.
+  weeklyRetention('weekly_retention', AdminDrilldownKind.users),
+
+  weeklyActiveCommunities(
+    'weekly_active_communities',
+    AdminDrilldownKind.communities,
+  ),
+
+  matches7d('matches_7d', AdminDrilldownKind.matches),
+  matches30d('matches_30d', AdminDrilldownKind.matches),
+  results7d('results_7d', AdminDrilldownKind.matches),
+  results30d('results_30d', AdminDrilldownKind.matches),
+
+  registrations7d(
+    'registrations_7d',
+    AdminDrilldownKind.registrations,
+    periodDays: 7,
+  ),
+  registrations30d(
+    'registrations_30d',
+    AdminDrilldownKind.registrations,
+    periodDays: 30,
+  );
+
+  const AdminDrilldownMetric(this.wireName, this.kind, {this.periodDays});
+
+  /// The value sent as `p_metric`. Unused for the registration metrics, whose
+  /// RPC takes a window instead; kept so every value has a stable identity.
+  final String wireName;
+
+  final AdminDrilldownKind kind;
+
+  /// 7 or 30, for the registration metrics only. Null everywhere else.
+  final int? periodDays;
+
+  /// Whether rows carry a returned/did-not-return state. Retention only.
+  bool get showsReturn => this == AdminDrilldownMetric.weeklyRetention;
+
+  /// Whether a score is worth showing. Result metrics only -- a match list
+  /// legitimately contains matches nobody has written up.
+  bool get showsScore =>
+      this == AdminDrilldownMetric.results7d ||
+      this == AdminDrilldownMetric.results30d;
+}
+
+/// One person behind a user-shaped figure.
+///
+/// **Every display field is nullable, and that is the point.** A session event
+/// can name an account that has since been deleted; the Overview counted it, so
+/// it is listed, with nothing to show but the fact that it was there. The
+/// screen renders that as "no longer available" and offers no navigation.
+class AdminDrilldownUser {
+  const AdminDrilldownUser({
+    required this.userId,
+    this.fullName,
+    this.email,
+    this.createdAt,
+    this.isActive,
+    this.isSystemAdmin,
+    this.lastSeenAt,
+    this.returnedInCurrentWeek,
+  });
+
+  final String userId;
+  final String? fullName;
+  final String? email;
+  final DateTime? createdAt;
+  final bool? isActive;
+  final bool? isSystemAdmin;
+  final DateTime? lastSeenAt;
+
+  /// Whether this cohort member had a session in the current week. Null for
+  /// every metric except weekly retention, where null would be a different
+  /// claim from false.
+  final bool? returnedInCurrentWeek;
+
+  /// Whether the account still exists, which is what decides navigation.
+  bool get exists => fullName != null || email != null;
+}
+
+/// One community behind Weekly Active Communities.
+class AdminDrilldownCommunity {
+  const AdminDrilldownCommunity({
+    required this.communityId,
+    required this.name,
+    required this.memberCount,
+    required this.matchCount,
+    required this.isActive,
+    this.ownerName,
+    this.lastActivityAt,
+  });
+
+  final String communityId;
+  final String name;
+  final String? ownerName;
+  final int memberCount;
+  final int matchCount;
+  final bool isActive;
+  final DateTime? lastActivityAt;
+}
+
+/// One match behind a match or result figure.
+class AdminDrilldownMatch {
+  const AdminDrilldownMatch({
+    required this.matchId,
+    required this.communityId,
+    required this.location,
+    required this.startAt,
+    required this.status,
+    required this.matchCreatedAt,
+    this.title,
+    this.communityName,
+    this.resultCreatedAt,
+    this.scoreA,
+    this.scoreB,
+  });
+
+  final String matchId;
+  final String? title;
+  final String communityId;
+  final String? communityName;
+  final String location;
+  final DateTime startAt;
+  final String status;
+  final DateTime matchCreatedAt;
+
+  final DateTime? resultCreatedAt;
+  final int? scoreA;
+  final int? scoreB;
+
+  bool get hasScore => scoreA != null && scoreB != null;
+}
+
+/// One `match_registered` event.
+///
+/// One row per event, never per person: the Overview counts events, so a player
+/// who registered for three matches is three of these.
+class AdminDrilldownRegistration {
+  const AdminDrilldownRegistration({
+    required this.eventId,
+    required this.createdAt,
+    this.userId,
+    this.fullName,
+    this.email,
+    this.matchId,
+    this.matchTitle,
+    this.communityId,
+    this.communityName,
+  });
+
+  final String eventId;
+  final DateTime createdAt;
+
+  final String? userId;
+  final String? fullName;
+  final String? email;
+
+  final String? matchId;
+  final String? matchTitle;
+  final String? communityId;
+  final String? communityName;
+
+  /// The account still exists, so its detail screen can be opened.
+  bool get userExists => userId != null && (fullName != null || email != null);
+
+  /// The match still exists, so its inspection screen can be opened.
+  bool get matchExists => matchId != null && matchTitle != null;
+}
+
+/// A community as the Platform Admin inspects it.
+///
+/// Facts only. There is no membership here and no action this model could
+/// enable -- and no join code, which is the credential a CODE_REQUIRED
+/// community is entered with rather than a property of it.
+class AdminCommunityInspection {
+  const AdminCommunityInspection({
+    required this.communityId,
+    required this.name,
+    required this.joinPolicy,
+    required this.createdAt,
+    required this.memberCount,
+    required this.matchCount,
+    required this.isActive,
+    this.description,
+    this.logoUrl,
+    this.ownerId,
+    this.ownerName,
+    this.suspendedAt,
+    this.suspensionReason,
+  });
+
+  final String communityId;
+  final String name;
+  final String? description;
+  final String joinPolicy;
+  final String? logoUrl;
+  final DateTime createdAt;
+  final String? ownerId;
+  final String? ownerName;
+  final int memberCount;
+  final int matchCount;
+  final bool isActive;
+  final DateTime? suspendedAt;
+  final String? suspensionReason;
+}
+
+/// A match as the Platform Admin inspects it. Facts only.
+class AdminMatchInspection {
+  const AdminMatchInspection({
+    required this.matchId,
+    required this.location,
+    required this.startAt,
+    required this.status,
+    required this.communityId,
+    required this.createdAt,
+    required this.registrationCount,
+    this.title,
+    this.description,
+    this.endAt,
+    this.communityName,
+    this.createdBy,
+    this.creatorName,
+    this.startingPlayers,
+    this.maxRegistration,
+    this.scoreA,
+    this.scoreB,
+    this.resultCreatedAt,
+    this.mvpName,
+  });
+
+  final String matchId;
+  final String? title;
+  final String? description;
+  final String location;
+  final DateTime startAt;
+  final DateTime? endAt;
+  final String status;
+
+  final String communityId;
+  final String? communityName;
+
+  final DateTime createdAt;
+  final String? createdBy;
+  final String? creatorName;
+
+  final int registrationCount;
+  final int? startingPlayers;
+  final int? maxRegistration;
+
+  final int? scoreA;
+  final int? scoreB;
+  final DateTime? resultCreatedAt;
+  final String? mvpName;
+
+  bool get hasScore => scoreA != null && scoreB != null;
+}

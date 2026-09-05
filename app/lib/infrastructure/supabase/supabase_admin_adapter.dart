@@ -139,6 +139,126 @@ class SupabaseAdminAdapter implements AdminAdapter {
         operation: 'rpc admin_list_audit_log',
       );
 
+  /// The four drill-downs, through `0069`.
+  ///
+  /// `p_limit` is left to each function's own default and clamp. How many rows
+  /// a page is worth is a decision the database already makes; passing one from
+  /// here would be a second, free to disagree.
+  @override
+  Future<List<AdminDrilldownUser>> drilldownUsers(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'admin_analytics_users',
+            params: {'p_metric': metric.wireName, 'p_offset': offset},
+          ) as List<dynamic>;
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              adminDrilldownUserFromRow(row),
+          ];
+        },
+        operation: 'rpc admin_analytics_users',
+      );
+
+  @override
+  Future<List<AdminDrilldownCommunity>> drilldownCommunities(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'admin_analytics_communities',
+            params: {'p_metric': metric.wireName, 'p_offset': offset},
+          ) as List<dynamic>;
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              adminDrilldownCommunityFromRow(row),
+          ];
+        },
+        operation: 'rpc admin_analytics_communities',
+      );
+
+  @override
+  Future<List<AdminDrilldownMatch>> drilldownMatches(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'admin_analytics_matches',
+            params: {'p_metric': metric.wireName, 'p_offset': offset},
+          ) as List<dynamic>;
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              adminDrilldownMatchFromRow(row),
+          ];
+        },
+        operation: 'rpc admin_analytics_matches',
+      );
+
+  /// The one drill-down the database takes a window for rather than a metric
+  /// name, because both registration figures are the same query over a
+  /// different number of days.
+  @override
+  Future<List<AdminDrilldownRegistration>> drilldownRegistrations(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'admin_analytics_registrations',
+            params: {
+              'p_period_days': metric.periodDays,
+              'p_offset': offset,
+            },
+          ) as List<dynamic>;
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              adminDrilldownRegistrationFromRow(row),
+          ];
+        },
+        operation: 'rpc admin_analytics_registrations',
+      );
+
+  /// The two inspection reads. Each returns one row; the function raises
+  /// `COMMUNITY_NOT_FOUND` / `MATCH_NOT_FOUND` rather than returning nothing,
+  /// so an empty result is not a state it can reach -- checked anyway, so a
+  /// surprise becomes a mapped failure and the screen's retry.
+  @override
+  Future<AdminCommunityInspection> communityInspection(String communityId) =>
+      guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_get_community_inspection',
+            params: {'p_community_id': communityId},
+          );
+          final rows = (result as List<dynamic>).cast<Map<String, dynamic>>();
+          if (rows.isEmpty) throw const InfrastructureFailure();
+          return adminCommunityInspectionFromRow(rows.first);
+        },
+        operation: 'rpc admin_get_community_inspection',
+      );
+
+  @override
+  Future<AdminMatchInspection> matchInspection(String matchId) => guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_get_match_inspection',
+            params: {'p_match_id': matchId},
+          );
+          final rows = (result as List<dynamic>).cast<Map<String, dynamic>>();
+          if (rows.isEmpty) throw const InfrastructureFailure();
+          return adminMatchInspectionFromRow(rows.first);
+        },
+        operation: 'rpc admin_get_match_inspection',
+      );
+
   /// Suspension and reactivation, through the four `0064` / `0065` RPCs.
   ///
   /// Each checks `is_system_admin()` server-side and each is idempotent: asking

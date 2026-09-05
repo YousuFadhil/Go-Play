@@ -2095,4 +2095,64 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminEventShareUsed => 'مشاركة';
+
+  @override
+  String get adminDrilldownEmpty => 'لا توجد سجلات لهذا المؤشر.';
+
+  @override
+  String get adminDrilldownLoadMore => 'تحميل المزيد';
+
+  @override
+  String get adminReturned => 'عاد';
+
+  @override
+  String get adminDidNotReturn => 'لم يعد';
+
+  @override
+  String get adminCommunityInspectionTitle => 'فحص المجتمع';
+
+  @override
+  String get adminMatchInspectionTitle => 'فحص المباراة';
+
+  @override
+  String get adminOpenMatch => 'فتح المباراة';
+
+  @override
+  String get adminMetricCreated => 'تاريخ الإنشاء';
+
+  @override
+  String get adminMetricOwner => 'المالك';
+
+  @override
+  String get adminMetricStatus => 'الحالة';
+
+  @override
+  String get adminMetricJoinPolicy => 'سياسة الانضمام';
+
+  @override
+  String get adminMetricMembers => 'الأعضاء';
+
+  @override
+  String get adminMetricLocation => 'الموقع';
+
+  @override
+  String get adminMetricKickOff => 'موعد البداية';
+
+  @override
+  String get adminMetricCreatedBy => 'أنشأها';
+
+  @override
+  String get adminMetricRegistered => 'المسجّلون';
+
+  @override
+  String get adminMetricStartingPlayers => 'اللاعبون الأساسيون';
+
+  @override
+  String get adminMetricScore => 'النتيجة';
+
+  @override
+  String get adminMetricResultRecorded => 'تاريخ تسجيل النتيجة';
+
+  @override
+  String get adminMetricLastActivity => 'آخر نشاط';
 }
