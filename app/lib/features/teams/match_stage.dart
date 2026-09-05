@@ -56,6 +56,15 @@ abstract final class MatchStage {
   static const phoneBadge = Color(0xFF0B100D);
   static const phoneScorePod = Color(0xFF060B08);
 
+  /// What a goal is worth saying in: a deep sports orange, and its own colour.
+  ///
+  /// The three marks a player can carry now answer to three families and not
+  /// two — black for the rating, this for goals, [star] for the best player —
+  /// so a reader tells them apart before reading any of them. Deep enough to
+  /// carry white at better than 5:1, and far enough from [star] that a scorer
+  /// is never mistaken for the MVP. The share card keeps [goal].
+  static const phoneGoal = Color(0xFFB94A2F);
+
   /// Team B's mark. Team A's is [accent]; `A` and `B` still mean nothing beyond
   /// telling the two sides apart (`KB-D6`), so this is a neutral grey rather
   /// than a second team colour.

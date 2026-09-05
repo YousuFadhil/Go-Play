@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -828,9 +830,12 @@ void main() {
         pitch.width / pitch.height,
         closeTo(PitchView.phoneAspectRatio, 0.001),
       );
-      // The approved depth, and the approved range it has to stay inside. The
-      // share raster's 1.675 is outside it, which is the point.
-      expect(PitchView.phoneAspectRatio, inInclusiveRange(1.38, 1.45));
+      // The approved phone depth, and the share raster's own. Deeper than the
+      // share band of grass, and pinned, because it is the shape the whole
+      // phone pitch was approved at.
+      expect(PitchView.phoneAspectRatio, 1.38);
+      expect(PitchView.phoneAspectRatio,
+          isNot(closeTo(PitchView.shareBeforeAspectRatio, .2)));
 
       final avatar = tester.getSize(find.byKey(PitchView.avatarKey('m1')));
       expect(avatar.width, inInclusiveRange(54, 56));
@@ -1165,7 +1170,13 @@ void main() {
 
       final phone =
           tester.widget<Container>(find.byKey(PitchView.goalKey('m1')));
-      expect((phone.decoration! as BoxDecoration).color, MatchStage.phoneBadge);
+      // A goal wears its own colour, and it is neither the rating's black nor
+      // the MVP's gold.
+      expect((phone.decoration! as BoxDecoration).color, MatchStage.phoneGoal);
+      expect((phone.decoration! as BoxDecoration).color,
+          isNot(MatchStage.phoneBadge));
+      expect(
+          (phone.decoration! as BoxDecoration).color, isNot(MatchStage.star));
       expect(
         tester
             .widget<Icon>(find.descendant(
@@ -1174,7 +1185,7 @@ void main() {
             ))
             .color,
         MatchStage.ink,
-        reason: 'white on near-black, not the orange the share card uses',
+        reason: 'white on deep orange, not the orange-on-dark the share uses',
       );
       expect(
         find.descendant(
@@ -1230,6 +1241,396 @@ void main() {
         PitchView.phoneAspectRatio,
         isNot(closeTo(PitchView.shareBeforeAspectRatio, .05)),
       );
+    });
+  });
+
+  group('two whole pitches, with Team B standing the other way up', () {
+    List<PlayerCoreInputs> squad11() => [
+          player('gk', Position.gk),
+          for (var i = 0; i < 4; i++) player('d$i', Position.def),
+          for (var i = 0; i < 3; i++) player('m$i', Position.mid),
+          for (var i = 0; i < 3; i++) player('f$i', Position.fwd),
+        ];
+
+    List<TeamAssignment> lineup11(TeamId team) => [
+          TeamAssignment(
+              userId: 'gk',
+              team: team,
+              assignedPosition: Position.gk,
+              basis: AssignmentBasis.primary),
+          for (var i = 0; i < 4; i++)
+            TeamAssignment(
+                userId: 'd$i',
+                team: team,
+                assignedPosition: Position.def,
+                basis: AssignmentBasis.primary),
+          for (var i = 0; i < 3; i++)
+            TeamAssignment(
+                userId: 'm$i',
+                team: team,
+                assignedPosition: Position.mid,
+                basis: AssignmentBasis.primary),
+          for (var i = 0; i < 3; i++)
+            TeamAssignment(
+                userId: 'f$i',
+                team: team,
+                assignedPosition: Position.fwd,
+                basis: AssignmentBasis.primary),
+        ];
+
+    Future<void> pumpTeam(WidgetTester tester, TeamId team) async {
+      tester.view.physicalSize = const Size(1200, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final byId = {for (final p in squad11()) p.userId: p};
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('ar'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: PitchView.phonePitchWidth,
+              child: PitchView(
+                assignments: lineup11(team),
+                players: byId,
+                hasNaturalGoalkeeper: true,
+                nameOf: (id) => byId[id]?.fullName ?? '—',
+                goalsOf: (id) => id == 'f0' ? 2 : 0,
+                isMvpOf: (id) => id == 'f0',
+                team: team,
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    double depthOf(WidgetTester tester, String id) {
+      final pitch = tester.getRect(find.byKey(const ValueKey('match-pitch')));
+      return (tester.getCenter(find.byKey(PitchView.avatarKey(id))).dy -
+              pitch.top) /
+          pitch.height;
+    }
+
+    testWidgets('Team A runs from its own goal towards the halfway line',
+        (tester) async {
+      await pumpTeam(tester, TeamId.a);
+
+      // The keeper is nearest the top, which is Team A's goal end, and the
+      // attack is nearest the bottom, which is the edge it shares with Team B.
+      final keeper = depthOf(tester, 'gk');
+      final back = depthOf(tester, 'd0');
+      final middle = depthOf(tester, 'm0');
+      final front = depthOf(tester, 'f0');
+      expect(keeper, lessThan(back));
+      expect(back, lessThan(middle));
+      expect(middle, lessThan(front));
+
+      // And they use the half rather than huddling in a part of it.
+      expect(keeper, closeTo(PitchView.phoneRowNear, .02));
+      expect(front, closeTo(PitchView.phoneRowFar, .02));
+    });
+
+    testWidgets('Team B runs from the halfway line back towards its own goal',
+        (tester) async {
+      await pumpTeam(tester, TeamId.b);
+
+      // The mirror, stated as the thing a reader sees: Team B's attack is at
+      // the top of its half, against the edge Team A's attack is against, and
+      // its keeper is at the bottom with its own goal behind.
+      final keeper = depthOf(tester, 'gk');
+      final back = depthOf(tester, 'd0');
+      final middle = depthOf(tester, 'm0');
+      final front = depthOf(tester, 'f0');
+      expect(front, lessThan(middle));
+      expect(middle, lessThan(back));
+      expect(back, lessThan(keeper));
+
+      expect(keeper, closeTo(1 - PitchView.phoneRowNear, .02));
+      expect(front, closeTo(1 - PitchView.phoneRowFar, .02));
+    });
+
+    testWidgets('the two attacks face each other across the gap',
+        (tester) async {
+      await pumpTeam(tester, TeamId.a);
+      final aFront = depthOf(tester, 'f0');
+      final aKeeper = depthOf(tester, 'gk');
+
+      await pumpTeam(tester, TeamId.b);
+      final bFront = depthOf(tester, 'f0');
+      final bKeeper = depthOf(tester, 'gk');
+
+      // Team A sits above Team B on the page. Its attack is at the bottom of
+      // its own half and Team B's is at the top of its own, so the two are the
+      // closest things to the space between the sections; the two keepers are
+      // the furthest apart.
+      expect(aFront, greaterThan(.5));
+      expect(bFront, lessThan(.5));
+      expect(aKeeper, lessThan(.5));
+      expect(bKeeper, greaterThan(.5));
+      expect(aFront - aKeeper, closeTo(bKeeper - bFront, .01),
+          reason: 'the two halves are the same drawing, one stood over');
+    });
+
+    testWidgets('nothing a reader reads is mirrored', (tester) async {
+      await pumpTeam(tester, TeamId.b);
+
+      // A flipped widget would have flipped these. The mirror is in the field
+      // plane, so a face is a face, a name reads left to right off its own
+      // baseline, and the badges keep the corners they were put in.
+      //
+      // Asserted as "nothing inside the pitch scales negatively in y", which
+      // is what a vertical flip actually is; the framework puts transforms of
+      // its own in any subtree and none of them turn anything over.
+      for (final transform in tester.widgetList<Transform>(find.descendant(
+        of: find.byType(PitchView),
+        matching: find.byType(Transform),
+      ))) {
+        expect(transform.transform.storage[5], greaterThan(0),
+            reason: 'a vertical flip would have reached the players');
+      }
+      for (final id in const ['gk', 'd0', 'f0']) {
+        final avatar = tester.getRect(find.byKey(PitchView.avatarKey(id)));
+        final name = tester.getRect(find.byKey(PitchView.nameKey(id)));
+        expect(name.top, greaterThanOrEqualTo(avatar.bottom),
+            reason: '$id: the name stays under the face, never over it');
+      }
+      final marked = tester.getRect(find.byKey(PitchView.avatarKey('f0')));
+      final goal = tester.getRect(find.byKey(PitchView.goalKey('f0')));
+      final mvp = tester.getRect(find.byKey(PitchView.mvpKey('f0')));
+      final rating = tester.getRect(find.byKey(PitchView.ratingKey('f0')));
+      expect(goal.center.dx, greaterThan(marked.center.dx));
+      expect(mvp.center.dx, greaterThan(marked.center.dx));
+      expect(rating.center.dx, lessThan(marked.center.dx));
+      expect(goal.bottom, lessThanOrEqualTo(mvp.top),
+          reason: 'goal over star, the same way up as Team A draws them');
+      expect(goal.overlaps(mvp), isFalse);
+    });
+
+    testWidgets('the row a player stands in keeps its order across',
+        (tester) async {
+      // Mirroring depth must not disturb who stands where along a line.
+      final order = <TeamId, List<double>>{};
+      final centres = <TeamId, double>{};
+      for (final team in TeamId.values) {
+        await pumpTeam(tester, team);
+        order[team] = [
+          for (var i = 0; i < 4; i++)
+            tester.getCenter(find.byKey(PitchView.avatarKey('d$i'))).dx,
+        ];
+        centres[team] =
+            tester.getRect(find.byKey(const ValueKey('match-pitch'))).center.dx;
+      }
+
+      for (final team in TeamId.values) {
+        final xs = order[team]!;
+        expect(xs, orderedEquals([...xs]..sort()),
+            reason: '$team: d0..d3 run left to right');
+        expect((xs.first + xs.last) / 2, closeTo(centres[team]!, 1),
+            reason: '$team: the line is centred on its own half');
+      }
+
+      // The two lines are the same line, not the same numbers. Both sides are
+      // drawn on the same trapezoid, and Team B's back four stands nearer the
+      // reader on it — the wide end — so it is drawn wider than Team A's,
+      // which stands at the narrow end. That is the shared perspective doing
+      // its job, not a different formation: the gaps within each line stay in
+      // the proportion the solver set.
+      final a = order[TeamId.a]!;
+      final b = order[TeamId.b]!;
+      expect(b.last - b.first, greaterThan(a.last - a.first),
+          reason: 'Team B defends the near end, where the pitch is widest');
+      for (final xs in [a, b]) {
+        final gaps = [
+          for (var i = 1; i < xs.length; i++) xs[i] - xs[i - 1],
+        ];
+        expect(gaps.reduce(math.min) / gaps.reduce(math.max), greaterThan(.85),
+            reason: 'evenly spaced, never squeezed into a central column');
+      }
+    });
+
+    testWidgets('the two sides are the same object, marked the other way',
+        (tester) async {
+      const size = Size(360, 360 / 1.38);
+
+      // A. The outer shape is one shape. Not "a mirror of the other" — the
+      //    same corners, in the same places, for both sides. This is what a
+      //    canvas-space mirror used to break: Team B's trapezoid stood upside
+      //    down and the two stopped looking like the same kind of object.
+      final outline =
+          PitchView.projectFieldRect(size, const Rect.fromLTWH(0, 0, 1, 1));
+      double widthAt(double depth) =>
+          (PitchView.projectFieldPoint(size, Offset(1, depth)) -
+                  PitchView.projectFieldPoint(size, Offset(0, depth)))
+              .dx;
+      expect(widthAt(0), lessThan(widthAt(1)),
+          reason: 'the shared outline narrows away from the reader');
+      // The mirror cannot reach the outline: it takes a depth, and the outline
+      // is not drawn through it.
+      for (final corner in outline) {
+        expect(corner.dy, isNot(isNaN));
+      }
+      expect(PitchView.phoneDepth(.25, mirror: false), .25);
+      expect(PitchView.phoneDepth(.25, mirror: true), closeTo(.75, 1e-9));
+
+      // B/C. The goal is at the outer end of each side and nowhere else:
+      //      shallow depth for Team A, deep for Team B, never at the facing
+      //      edge, so no goal can ever sit behind either set of attackers.
+      const goal = Rect.fromLTWH(.446, -.028, .108, .028);
+      final goalA = PitchView.phoneRect(goal, mirror: false);
+      final goalB = PitchView.phoneRect(goal, mirror: true);
+      expect(goalA.bottom, lessThan(.05), reason: 'Team A defends the top');
+      expect(goalB.top, greaterThan(.95), reason: 'Team B defends the bottom');
+      // And so are the areas in front of them.
+      const penalty = Rect.fromLTWH(.32, .036, .36, .304);
+      expect(PitchView.phoneRect(penalty, mirror: false).bottom, lessThan(.5));
+      expect(PitchView.phoneRect(penalty, mirror: true).top, greaterThan(.5));
+
+      // The centre cue sits at each side's facing edge, curving inward. It is
+      // a local cue only: nothing asserts that the two arcs align.
+      for (final mirror in const [false, true]) {
+        final arc = PitchView.projectHalfCenterArc(size, mirror: mirror);
+        final depths = arc.map((point) => point.dy);
+        if (mirror) {
+          expect(depths.reduce(math.min), lessThan(size.height * .05),
+              reason: 'Team B: the cue is at the top, its facing edge');
+        } else {
+          expect(depths.reduce(math.max), greaterThan(size.height * .95),
+              reason: 'Team A: the cue is at the bottom, its facing edge');
+        }
+      }
+
+      // K. The share card keeps the whole pitch, with its closed centre ring.
+      final ring = PitchView.projectCenterCircle(size);
+      expect(ring.first.dx, closeTo(ring.last.dx, .01));
+      expect(ring.first.dy, closeTo(ring.last.dy, .01));
+      expect(ring.map((point) => point.dy).reduce(math.min),
+          greaterThan(size.height * .2));
+      expect(ring.map((point) => point.dy).reduce(math.max),
+          lessThan(size.height * .8));
+    });
+
+    testWidgets('both pitches are drawn at exactly the same size',
+        (tester) async {
+      // Contract: one phone half-pitch aspect, and both sides get it.
+      await pumpTeam(tester, TeamId.a);
+      final a = tester.getRect(find.byKey(const ValueKey('match-pitch')));
+      await pumpTeam(tester, TeamId.b);
+      final b = tester.getRect(find.byKey(const ValueKey('match-pitch')));
+      expect(a.width, b.width);
+      expect(a.height, b.height);
+      expect(a.width / a.height, closeTo(PitchView.phoneAspectRatio, .001));
+    });
+
+    testWidgets('an eleven-a-side stays safe on both sides', (tester) async {
+      const ids = [
+        'gk',
+        'd0',
+        'd1',
+        'd2',
+        'd3',
+        'm0',
+        'm1',
+        'm2',
+        'f0',
+        'f1',
+        'f2',
+      ];
+      for (final team in TeamId.values) {
+        await pumpTeam(tester, team);
+        final pitch = tester.getRect(find.byKey(const ValueKey('match-pitch')));
+        final boxes = <(String, Rect)>[];
+        for (final id in ids) {
+          for (final key in [
+            PitchView.avatarKey(id),
+            PitchView.nameKey(id),
+            PitchView.ratingKey(id),
+            PitchView.goalKey(id),
+            PitchView.mvpKey(id),
+          ]) {
+            final finder = find.byKey(key);
+            if (finder.evaluate().isEmpty) continue;
+            final rect = tester.getRect(finder);
+            boxes.add((id, rect));
+            // Inside the touchlines at that depth, on either side.
+            final dy = rect.center.dy - pitch.top;
+            for (final right in const [false, true]) {
+              final top = PitchView.projectFieldPoint(
+                pitch.size,
+                Offset(right ? 1 : 0, 0),
+              );
+              final foot = PitchView.projectFieldPoint(
+                pitch.size,
+                Offset(right ? 1 : 0, 1),
+              );
+              final t = ((dy - top.dy) / (foot.dy - top.dy)).clamp(0.0, 1.0);
+              final edge = pitch.left + top.dx + (foot.dx - top.dx) * t;
+              if (right) {
+                expect(rect.right, lessThanOrEqualTo(edge + .5),
+                    reason: '$team $id past the right touchline');
+              } else {
+                expect(rect.left, greaterThanOrEqualTo(edge - .5),
+                    reason: '$team $id past the left touchline');
+              }
+            }
+          }
+        }
+        for (var a = 0; a < boxes.length; a++) {
+          for (var b = a + 1; b < boxes.length; b++) {
+            if (boxes[a].$1 == boxes[b].$1) continue;
+            expect(boxes[a].$2.intersect(boxes[b].$2).isEmpty, isTrue,
+                reason: '$team ${boxes[a].$1} collides with ${boxes[b].$1}');
+          }
+        }
+        expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets('the share pitch is not mirrored', (tester) async {
+      // The regression boundary for this cycle, stated in the one place the
+      // two could have been confused.
+      for (final team in TeamId.values) {
+        final byId = {for (final p in squad11()) p.userId: p};
+        await tester.pumpWidget(MaterialApp(
+          locale: const Locale('ar'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: PitchView.shareBeforePitchWidth,
+                child: PitchView(
+                  assignments: lineup11(team),
+                  players: byId,
+                  hasNaturalGoalkeeper: true,
+                  nameOf: (id) => byId[id]?.fullName ?? '—',
+                  presentation: PitchPresentation.shareResult,
+                  team: team,
+                ),
+              ),
+            ),
+          ),
+        ));
+        await tester.pumpAndSettle();
+
+        final pitch = tester.getRect(find.byKey(const ValueKey('match-pitch')));
+        expect(pitch.width / pitch.height,
+            closeTo(PitchView.shareBeforeAspectRatio, .001),
+            reason: '$team keeps the share raster');
+        double depth(String id) =>
+            (tester.getCenter(find.byKey(PitchView.avatarKey(id))).dy -
+                pitch.top) /
+            pitch.height;
+        // Both share sides still run keeper-at-the-top, exactly as approved.
+        expect(depth('gk'), lessThan(depth('d0')), reason: '$team');
+        expect(depth('d0'), lessThan(depth('f0')), reason: '$team');
+        expect(depth('gk'), closeTo(.13, .01), reason: '$team');
+        expect(depth('f0'), closeTo(.82, .01), reason: '$team');
+      }
     });
   });
 }

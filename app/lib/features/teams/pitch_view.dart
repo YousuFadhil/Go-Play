@@ -106,6 +106,71 @@ class PitchView extends StatelessWidget {
         projectFieldPoint(size, fieldRect.bottomLeft),
       ];
 
+  /// The depth a point sits at, for a side that defends the other way.
+  ///
+  /// **This is the whole of the mirror, and it is deliberately not a mirror of
+  /// the canvas.** Turning the canvas over turned Team B's outer trapezoid
+  /// upside down with it, so the two sides no longer looked like the same kind
+  /// of object. Flipping *depth* instead leaves the pitch the shape it was —
+  /// same outline, same perspective, same light — and moves only what is drawn
+  /// on it: Team B's goal to the far end, its keeper with it, its attack to the
+  /// edge it shares with Team A.
+  static double phoneDepth(double depth, {required bool mirror}) =>
+      mirror ? 1 - depth : depth;
+
+  @visibleForTesting
+  static Rect phoneRect(Rect fieldRect, {required bool mirror}) => mirror
+      ? Rect.fromLTWH(
+          fieldRect.left,
+          1 - fieldRect.top - fieldRect.height,
+          fieldRect.width,
+          fieldRect.height,
+        )
+      : fieldRect;
+
+  /// Where a row of players may stand, as a fraction of the pitch's depth.
+  ///
+  /// The band, not the lines in it: the hindmost row sits at [phoneRowNear]
+  /// with its own goal behind it, the foremost at [phoneRowFar] against the
+  /// edge it shares with the other side, and whatever lines the formation
+  /// actually produced are spread evenly between the two. Even spreading is
+  /// what stops a seven-a-side from bunching into the shape an eleven-a-side
+  /// needs, and it is a projection decision — which line goes where is still
+  /// entirely [buildFormation]'s.
+  ///
+  /// The span is what an eleven-a-side needs: four rows across it leave exactly
+  /// the room a face and the name under it take, at the size both were
+  /// approved at. Widening it would spend depth the dense case cannot spare;
+  /// narrowing it would shrink the faces.
+  static const phoneRowNear = .17;
+  static const phoneRowFar = .83;
+
+  /// The half of the centre circle that falls inside a defending half.
+  ///
+  /// It is the approved centre circle and not a new one: the full pitch draws
+  /// it at the middle of the field with radii .14 by .15, and a half of that
+  /// pitch drawn at the same height is the same circle with its depth doubled
+  /// and its centre on the halfway edge. So the arc below is `.14` across and
+  /// `.30` deep, centred at depth 1, and the half a reader cannot see is the
+  /// half that belongs to the side opposite.
+  @visibleForTesting
+  static List<Offset> projectHalfCenterArc(
+    Size size, {
+    required bool mirror,
+    int segments = 48,
+  }) =>
+      [
+        for (var index = 0; index <= segments; index++)
+          projectFieldPoint(
+            size,
+            Offset(
+              .5 + .14 * math.cos(math.pi * index / segments),
+              phoneDepth(1 - .30 * math.sin(math.pi * index / segments),
+                  mirror: mirror),
+            ),
+          ),
+      ];
+
   @visibleForTesting
   static List<Offset> projectCenterCircle(
     Size size, {
@@ -144,12 +209,13 @@ class PitchView extends StatelessWidget {
     final visible = [for (final row in rows) ...row.players];
 
     final phone = presentation == PitchPresentation.phone;
+    // Team B defends the other way. Only on a phone: the share card draws two
+    // full pitches the same way up and keeps doing so.
+    final mirror = phone && team == TeamId.b;
 
     return AspectRatio(
-      // The phone field is deeper than the share raster's, and that is the
-      // whole of what makes it read as a field rather than as a strip of grass.
-      // Only this ratio differs; the projection, the anchors and the formation
-      // solver below are the same drawing at a different depth.
+      // The approved phone depth, and the approved share raster. Both draw a
+      // whole pitch; only Team B's is stood the other way up.
       aspectRatio: phone ? phoneAspectRatio : shareBeforeAspectRatio,
       child: SizedBox.expand(
         key: pitchKey ?? const ValueKey('match-pitch'),
@@ -167,7 +233,8 @@ class PitchView extends StatelessWidget {
                 : _formationSlots(size, rows);
             final dense = visible.length >= 9;
             final slots = phone
-                ? _phoneSized(placed, size, visible.length, dense)
+                ? _phoneSized(placed, size, visible.length, dense,
+                    mirror: mirror)
                 : placed;
             // Null on the share surfaces, where a badge is still a fraction of
             // the slot it hangs off — and Team B's slots are traced from a
@@ -177,7 +244,7 @@ class PitchView extends StatelessWidget {
                 phone ? _phoneBadgeScale(size.width, dense) : null;
 
             return CustomPaint(
-              painter: _PerspectivePitchPainter(phone: phone),
+              painter: _PerspectivePitchPainter(phone: phone, mirror: mirror),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -228,9 +295,14 @@ class PitchView extends StatelessWidget {
     List<_PlayerSlot> placed,
     Size size,
     int count,
-    bool dense,
-  ) {
-    final rows = _rowsByDepth(placed, size.height);
+    bool dense, {
+    required bool mirror,
+  }) {
+    // Spread down the pitch before anything is measured: the depths the
+    // solvers hand over were solved against the share raster's own spacing,
+    // and every size below is a function of the room between rows.
+    final spread = _spreadDownThePitch(placed, size, mirror: mirror);
+    final rows = _rowsByDepth(spread, size.height);
     final gapX = _narrowestGapAlongRows(rows, size.width);
     final gapY = _narrowestGapBetweenRows(rows, size.height);
     final badgeScale = _phoneBadgeScale(size.width, dense);
@@ -247,7 +319,11 @@ class PitchView extends StatelessWidget {
     final nameBlock = (dense ? 18.0 : 24.0) * badgeScale;
     final diameter = math.max(
       phoneAvatarFloor(size.width),
-      math.min(wanted, math.min(gapX * .86, gapY - nameBlock)),
+      // Half a point of daylight between a name and the face of the row in
+      // front of it. Without it the two are exactly flush by construction —
+      // `nameBlock` is precisely what a card takes below its centre — and
+      // whether they touch comes down to which way a rounding error fell.
+      math.min(wanted, math.min(gapX * .86, gapY - nameBlock - .5)),
     );
     // Wide enough for a name, never wide enough to reach the next player's.
     var markerWidth = math.min(diameter * 2, gapX * .98);
@@ -258,8 +334,13 @@ class PitchView extends StatelessWidget {
     // the side was *solved*: every row keeps its members, its order and its
     // depth relative to the other rows, so the shape a reader reads off the
     // pitch is the shape the formation decided.
-    final seated =
-        _seatedOnField(placed, size, diameter, nameBlock, markerWidth);
+    final seated = _clearOfTheGoalLine(
+      _seatedOnField(spread, size, diameter, nameBlock, markerWidth),
+      size,
+      diameter,
+      nameBlock,
+      mirror: mirror,
+    );
     final seatedRows = _rowsByDepth(seated, size.height);
     markerWidth = math.min(
       diameter * 2,
@@ -275,6 +356,77 @@ class PitchView extends StatelessWidget {
           markerWidth,
         ),
     ];
+  }
+
+  /// The solved formation, spread down the pitch it is drawn on.
+  ///
+  /// **Nothing here decides who stands in which line.** The rows arrive already
+  /// grouped and already ordered from the back, and all this says is how deep
+  /// down the pitch each of those rows is drawn: the hindmost at
+  /// [phoneRowNear] with its goal behind it, the foremost at [phoneRowFar]
+  /// facing the other side, the rest spread evenly between. Horizontal
+  /// position is passed through untouched.
+  ///
+  /// Spread evenly rather than held at fixed per-line depths because the number
+  /// of lines is not fixed — a seven-a-side has three and an eleven-a-side four
+  /// — and depths chosen for four leave a side of three standing in a heap at
+  /// one end of a pitch they are supposed to be spread across.
+  static List<_PlayerSlot> _spreadDownThePitch(
+    List<_PlayerSlot> placed,
+    Size size, {
+    required bool mirror,
+  }) {
+    if (placed.isEmpty) return placed;
+    final rows = _rowIndexesByDepth(placed, size.height);
+    final result = [...placed];
+    for (var row = 0; row < rows.length; row++) {
+      final along = rows.length == 1
+          ? (phoneRowNear + phoneRowFar) / 2
+          : phoneRowNear +
+              (phoneRowFar - phoneRowNear) * row / (rows.length - 1);
+      // Team B runs the other way down its own pitch: hindmost row deepest,
+      // attack against the edge it shares with Team A. Flipping the depth here
+      // rather than the finished slot is what leaves every measurement after
+      // this — touchline, seating, collision — reading true screen positions.
+      final depth = phoneDepth(along, mirror: mirror);
+      for (final index in rows[row]) {
+        final slot = placed[index];
+        result[index] = _PlayerSlot(
+          Offset(slot.center.dx, depth * size.height),
+          slot.avatarDiameter,
+          slot.scale,
+        );
+      }
+    }
+    return result;
+  }
+
+  /// The rows, as lists of indexes into [placed], hindmost first.
+  ///
+  /// Indexes rather than points because a slot has to be given back to the
+  /// player it was solved for, and two players on the same line share a depth
+  /// to sort by. The tie-break on index keeps the grouping deterministic.
+  static List<List<int>> _rowIndexesByDepth(
+    List<_PlayerSlot> placed,
+    double height,
+  ) {
+    final order = [for (var index = 0; index < placed.length; index++) index]
+      ..sort((a, b) {
+        final byDepth = placed[a].center.dy.compareTo(placed[b].center.dy);
+        return byDepth != 0 ? byDepth : a.compareTo(b);
+      });
+    final tolerance = height * .05;
+    final rows = <List<int>>[];
+    for (final index in order) {
+      final dy = placed[index].center.dy;
+      if (rows.isEmpty ||
+          (dy - placed[rows.last.first].center.dy).abs() > tolerance) {
+        rows.add([index]);
+      } else {
+        rows.last.add(index);
+      }
+    }
+    return rows;
   }
 
   /// The two phone-only placement corrections, applied in order.
@@ -302,43 +454,38 @@ class PitchView extends StatelessWidget {
   ) {
     if (placed.isEmpty) return placed;
 
-    // Rows, as lists of indexes into [placed]. Indexes rather than points
-    // because a slot has to be given back to the player it was solved for, and
-    // two players standing on the same line have the same depth to sort by.
-    final order = [for (var index = 0; index < placed.length; index++) index]
-      ..sort((a, b) {
-        final byDepth = placed[a].center.dy.compareTo(placed[b].center.dy);
-        return byDepth != 0 ? byDepth : a.compareTo(b);
-      });
-    final tolerance = size.height * .05;
-    final rows = <List<int>>[];
-    for (final index in order) {
-      final dy = placed[index].center.dy;
-      if (rows.isEmpty ||
-          (dy - placed[rows.last.first].center.dy).abs() > tolerance) {
-        rows.add([index]);
-      } else {
-        rows.last.add(index);
-      }
-    }
-
+    final rows = _rowIndexesByDepth(placed, size.height);
+    // Both sides are the same way up on screen now, so both need a face's
+    // worth of room at the top and a face plus its name at the bottom.
     final top = placed[rows.first.first].center.dy - diameter / 2;
     final bottom = placed[rows.last.first].center.dy + diameter / 2 + nameBlock;
-    // A face may break the goal line a little — a keeper drawn wholly below it
-    // reads as a defender — but only a little.
+    // A face may break the end line a little — a keeper drawn wholly below it
+    // reads as a defender — but only a little. A name may not.
     final allowed = diameter * .12;
-    final shift = math.max(0.0, math.min(-top - allowed, size.height - bottom));
+    // Correctable either way: whichever end runs out of room is the end the
+    // side is moved away from, so long as the other end has the room to give.
+    final overTop = -top - allowed;
+    final overBottom = bottom - size.height;
+    final shift = overTop > 0
+        ? math.min(overTop, size.height - bottom)
+        : overBottom > 0
+            ? -math.min(overBottom, top - allowed)
+            : 0.0;
 
     final half = markerWidth / 2;
     final result = [...placed];
     for (final row in rows) {
       final dy = placed[row.first].center.dy + shift;
+      // A card is a face with a name under it, and it has to fit the field at
+      // the narrowest depth it reaches — the top of the face, since the pitch
+      // narrows upwards on both sides now.
+      final narrowest = dy - diameter / 2;
       final xs = [for (final index in row) placed[index].center.dx]..sort();
       final middle = (xs.first + xs.last) / 2;
       var factor = 1.0;
       if (row.length > 1) {
-        final lo = _touchline(size, dy, right: false) + half;
-        final hi = _touchline(size, dy, right: true) - half;
+        final lo = _touchline(size, narrowest, right: false) + half;
+        final hi = _touchline(size, narrowest, right: true) - half;
         if (xs.first < lo && middle > xs.first) {
           factor = math.min(factor, (middle - lo) / (middle - xs.first));
         }
@@ -357,6 +504,70 @@ class PitchView extends StatelessWidget {
           slot.scale,
         );
       }
+    }
+    return result;
+  }
+
+  /// Lifts the row standing on its own goal line clear of it.
+  ///
+  /// **A name is read; a line drawn under it is not.** A card is a face with a
+  /// name below it, so the row nearest the bottom of the canvas is the one
+  /// whose label runs into whatever is drawn there. On the side that attacks
+  /// downwards that is the halfway edge, and a label resting on it costs
+  /// nothing. On the side that *defends* downwards it is the goal line, with
+  /// the goal itself immediately beyond — three strokes through the bottom of
+  /// a goalkeeper's name.
+  ///
+  /// So only that side, and only that row, is lifted, by the smallest amount
+  /// that puts the label wholly above the line, and never by more than the row
+  /// behind it can spare. The keeper stays inside their own penalty area and
+  /// in front of their six-yard box, which is where a keeper stands; nothing
+  /// else on either side moves.
+  static List<_PlayerSlot> _clearOfTheGoalLine(
+    List<_PlayerSlot> placed,
+    Size size,
+    double diameter,
+    double nameBlock, {
+    required bool mirror,
+  }) {
+    // Only the side whose goal is at the bottom has a label pointing at it.
+    if (!mirror || placed.isEmpty) return placed;
+    final rows = _rowIndexesByDepth(placed, size.height);
+    if (rows.length < 2) return placed;
+
+    final keepers = rows.last;
+    final dy = placed[keepers.first].center.dy;
+    // The goal line under this row, at its own horizontal position, taken from
+    // the same projection the painter strokes it with.
+    final left = projectFieldPoint(size, const Offset(0, 1));
+    final right = projectFieldPoint(size, const Offset(1, 1));
+    var line = double.infinity;
+    for (final index in keepers) {
+      final dx = placed[index].center.dx;
+      line = math.min(
+        line,
+        left.dy + (right.dy - left.dy) * (dx - left.dx) / (right.dx - left.dx),
+      );
+    }
+    // Clear of the stroke, not merely of its centre.
+    final limit = line - math.max(1.8, size.width * .0048) - 1.5;
+    final wanted = dy + diameter / 2 + nameBlock - limit;
+    if (wanted <= 0) return placed;
+
+    // Never further than the row in front leaves room for.
+    final ahead = placed[rows[rows.length - 2].first].center.dy;
+    final room = (dy - ahead) - diameter - nameBlock;
+    final lift = math.min(wanted, math.max(0.0, room));
+    if (lift <= 0) return placed;
+
+    final result = [...placed];
+    for (final index in keepers) {
+      final slot = placed[index];
+      result[index] = _PlayerSlot(
+        Offset(slot.center.dx, slot.center.dy - lift),
+        slot.avatarDiameter,
+        slot.scale,
+      );
     }
     return result;
   }
@@ -922,16 +1133,18 @@ class _GoalBadge extends StatelessWidget {
         height: 20 * scale,
         padding: EdgeInsets.symmetric(horizontal: (compact ? 5 : 4) * scale),
         decoration: BoxDecoration(
-          // Restrained on a phone: the same near-black the rating wears, with
-          // the ball in white. The orange said "alarm" beside a gold star that
-          // was already saying "look here".
+          // A goal gets its own colour on a phone. Sharing the rating's black
+          // meant the two marks on a player's face were told apart only by
+          // reading them, which is one job too many for a badge; a deep sports
+          // orange is read before it is read. Not gold — that is the best
+          // player, and a scorer is not automatically one.
           color: compact
-              ? MatchStage.phoneBadge
+              ? MatchStage.phoneGoal
               : MatchStage.rating.withValues(alpha: .58),
           borderRadius: BorderRadius.circular(10 * scale),
           border: Border.all(
             color: compact
-                ? Colors.white.withValues(alpha: .30)
+                ? Colors.white.withValues(alpha: .38)
                 : MatchStage.goal.withValues(alpha: .82),
             width: math.max(.6, .8 * scale),
           ),
@@ -980,7 +1193,7 @@ class _GoalBadge extends StatelessWidget {
 }
 
 class _PerspectivePitchPainter extends CustomPainter {
-  const _PerspectivePitchPainter({this.phone = false});
+  const _PerspectivePitchPainter({this.phone = false, this.mirror = false});
 
   /// Whether this is the phone field. The projection, the anchors and every
   /// marking below are the same either way; what differs is the grass, the
@@ -988,16 +1201,28 @@ class _PerspectivePitchPainter extends CustomPainter {
   /// stand on.
   final bool phone;
 
+  /// Whether this side defends the far end, which is Team B's on a phone.
+  ///
+  /// **It changes the markings and nothing else.** The outline, the
+  /// perspective, the grass, the stripes and the light are drawn identically
+  /// for both sides — two pitches that look like the same kind of object —
+  /// and all this decides is which end of that object carries the goal.
+  final bool mirror;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final path = _closedPath(PitchView.projectFieldRect(
-      size,
-      const Rect.fromLTWH(0, 0, 1, 1),
-    ));
+    // The outline every side shares. No orientation of any kind reaches it:
+    // Team A and Team B are the same shape, lit the same way, and a reader
+    // should be able to tell them apart only by what is drawn inside.
+    final path = _closedPath(
+      PitchView.projectFieldRect(size, const Rect.fromLTWH(0, 0, 1, 1)),
+    );
 
-    // What the field stands on. Drawn under the grass and slightly below it,
-    // so the near edge lifts off the dark ground instead of being cut out of
-    // it — which is most of what makes a flat drawing look like a plane.
+    // What the field stands on. Drawn under the grass and offset downwards,
+    // the way the one light above would cast it, so the edge lifts off the
+    // dark ground instead of being cut out of it — which is most of what makes
+    // a flat drawing look like a plane. Downwards on both sides: a shadow
+    // thrown upwards on one of them would put a second light in the room.
     if (phone) {
       canvas.drawPath(
         path.shift(Offset(0, size.height * .022)),
@@ -1016,6 +1241,10 @@ class _PerspectivePitchPainter extends CustomPainter {
       Offset.zero & size,
       Paint()
         ..shader = LinearGradient(
+          // One light, over the reader's shoulder, for both sides. The field
+          // *geometry* is what opposes; the light falling on it does not, and
+          // a pitch lit from below reads as a photograph turned upside down
+          // rather than as the far half of the same match.
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: phone
@@ -1056,11 +1285,19 @@ class _PerspectivePitchPainter extends CustomPainter {
       );
     }
     canvas.drawPath(path, line);
+
+    if (phone) {
+      _markHalf(canvas, size, line);
+    } else {
+      _markWhole(canvas, size, line);
+    }
+  }
+
+  /// The approved whole pitch's markings, unchanged: the share card's.
+  void _markWhole(Canvas canvas, Size size, Paint line) {
+    Path box(Rect rect) => _closedPath(PitchView.projectFieldRect(size, rect));
     canvas.drawPath(
-      _closedPath(PitchView.projectFieldRect(
-        size,
-        const Rect.fromLTWH(.018, .018, .964, .964),
-      )),
+      box(const Rect.fromLTWH(.018, .018, .964, .964)),
       line,
     );
     canvas.drawLine(
@@ -1078,11 +1315,59 @@ class _PerspectivePitchPainter extends CustomPainter {
       Rect.fromLTWH(.41, .018, .18, .062),
       Rect.fromLTWH(.41, .92, .18, .062),
     ]) {
-      canvas.drawPath(
-        _closedPath(PitchView.projectFieldRect(size, area)),
-        line,
-      );
+      canvas.drawPath(box(area), line);
     }
+  }
+
+  /// One defending half, in the whole pitch's own vocabulary.
+  ///
+  /// **Every value here is an approved one, read at twice the depth.** A half
+  /// drawn at the height a whole pitch was drawn at is that pitch with its
+  /// depth doubled, so the penalty area the share card puts at `.018` deep and
+  /// `.152` tall is here at `.036` and `.304`, the goal area likewise, and the
+  /// centre circle becomes the arc on the facing edge. Nothing is invented and
+  /// no proportion is re-derived from a rulebook: the drawing is the approved
+  /// drawing, with the half nobody on this side defends left off.
+  ///
+  /// What that leaves is a field a reader can only read one way — a goal at
+  /// the outer end, midfield at the facing one — which is the whole point of
+  /// showing halves at all.
+  void _markHalf(Canvas canvas, Size size, Paint line) {
+    // Depth, flipped for the side that defends the far end. Only the markings
+    // below read through this; the outline above never does.
+    Offset at(double x, double depth) => PitchView.projectFieldPoint(
+          size,
+          Offset(x, PitchView.phoneDepth(depth, mirror: mirror)),
+        );
+    Path box(Rect rect) => _closedPath(PitchView.projectFieldRect(
+          size,
+          PitchView.phoneRect(rect, mirror: mirror),
+        ));
+
+    // The inner line the pitch has always carried, on the three sides that are
+    // really boundaries. It stops short of the facing edge deliberately: that
+    // edge is the middle of a football field, not the side of one, and a
+    // second line along it would say the opposite.
+    canvas.drawPath(
+      _openPath([at(.018, 1), at(.018, .036), at(.982, .036), at(.982, 1)]),
+      line,
+    );
+
+    // The penalty area and the six-yard box, at the end this side defends.
+    canvas.drawPath(box(const Rect.fromLTWH(.32, .036, .36, .304)), line);
+    canvas.drawPath(box(const Rect.fromLTWH(.41, .036, .18, .124)), line);
+
+    // The goal, drawn behind its own line the way a goal is. Outside the
+    // field, so it reaches nothing a player is drawn with.
+    canvas.drawPath(box(const Rect.fromLTWH(.446, -.028, .108, .028)), line);
+
+    // And the half of the centre circle this side owns, curving in from the
+    // facing edge. The half that is missing is the argument: it says the edge
+    // it sits on is the middle of a pitch and not the end of one.
+    canvas.drawPath(
+      _openPath(PitchView.projectHalfCenterArc(size, mirror: mirror)),
+      line,
+    );
   }
 
   static Path _closedPath(List<Offset> points) => _openPath(points)..close();
@@ -1097,5 +1382,5 @@ class _PerspectivePitchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _PerspectivePitchPainter oldDelegate) =>
-      oldDelegate.phone != phone;
+      oldDelegate.phone != phone || oldDelegate.mirror != mirror;
 }

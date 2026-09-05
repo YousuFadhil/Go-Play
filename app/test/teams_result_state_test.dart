@@ -255,8 +255,9 @@ void main() {
           closeTo(MatchStage.phonePitchAspect, .001),
           reason: key,
         );
-        // The approved band, with a hair of tolerance for the division.
-        expect(pitch.width / pitch.height, inInclusiveRange(1.379, 1.451),
+        // The approved phone pitch depth, restored.
+        expect(pitch.width / pitch.height,
+            closeTo(MatchStage.phonePitchAspect, .001),
             reason: key);
       }
 
