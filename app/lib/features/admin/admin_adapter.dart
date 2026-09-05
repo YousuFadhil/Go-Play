@@ -19,6 +19,17 @@ abstract interface class AdminAdapter {
 
   Future<List<AdminMatchSummary>> listMatches(String? search);
 
+  /// One account in figures, for the detail screen.
+  Future<AdminUserActivitySummary> userActivitySummary(String userId);
+
+  /// That account's recent activity, newest first. The row count is the
+  /// database's decision, not a page the caller assembles.
+  Future<List<AdminUserActivityEvent>> userActivityTimeline(String userId);
+
+  /// The administrative audit trail, newest first. Read-only: there is no
+  /// write, edit or undo counterpart, here or in the database.
+  Future<List<AdminAuditEntry>> listAuditLog();
+
   /// Suspends an account. [reason] is required by the database and is passed
   /// through already trimmed -- what counts as a reason is a product rule and
   /// stays above this layer (OP-2).

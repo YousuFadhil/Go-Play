@@ -50,4 +50,19 @@ enum ProductEvent {
 
   /// The value written to `product_events.event_name`.
   final String wireName;
+
+  /// The event a stored [wireName] refers to, or null when this build does not
+  /// know it.
+  ///
+  /// **Null is a real answer, not a failure.** A row written by a newer release
+  /// carries a name this one has never heard of, and the honest thing for a
+  /// reader to do with it is show it as it was recorded rather than crash or
+  /// silently drop it. The Admin timeline is the only caller and does exactly
+  /// that.
+  static ProductEvent? fromWireName(String name) {
+    for (final event in values) {
+      if (event.wireName == name) return event;
+    }
+    return null;
+  }
 }

@@ -2002,4 +2002,97 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get adminAnalyticsNotice =>
       'تبدأ مؤشرات النشاط من هذا الإصدار. الجلسات والانسحابات السابقة لم تُسجَّل ولم تُختلق، لذلك تُحتسب من الصفر. أما الحسابات والمباريات والنتائج فبياناتها كاملة.';
+
+  @override
+  String get adminAuditTab => 'سجل الإدارة';
+
+  @override
+  String get adminAuditEmpty => 'لم يُسجَّل شيء بعد.';
+
+  @override
+  String get adminAuditUnavailable => 'لم يعد متاحاً';
+
+  @override
+  String get adminActionUserSuspended => 'إيقاف مستخدم';
+
+  @override
+  String get adminActionUserReactivated => 'إعادة تفعيل مستخدم';
+
+  @override
+  String get adminActionCommunitySuspended => 'إيقاف مجتمع';
+
+  @override
+  String get adminActionCommunityReactivated => 'إعادة تفعيل مجتمع';
+
+  @override
+  String get adminUserActivityTitle => 'نشاط المستخدم';
+
+  @override
+  String get adminActivityTitle => 'النشاط';
+
+  @override
+  String get adminRecentActivityTitle => 'النشاط الأخير';
+
+  @override
+  String get adminActivityEmpty => 'لم يُسجَّل أي نشاط لهذا الحساب بعد.';
+
+  @override
+  String get adminMetricJoined => 'تاريخ الانضمام';
+
+  @override
+  String get adminMetricLastSeen => 'آخر ظهور';
+
+  @override
+  String get adminMetricActiveDays => 'أيام النشاط';
+
+  @override
+  String get adminMetricSessions => 'الجلسات';
+
+  @override
+  String get adminMetricPlatforms => 'المنصات';
+
+  @override
+  String get adminMetricAppVersion => 'إصدار التطبيق';
+
+  @override
+  String get adminMetricMatchesPlayed => 'المباريات الملعوبة';
+
+  @override
+  String get adminMetricWithdrawals => 'الانسحابات';
+
+  @override
+  String get adminPlatformWeb => 'الويب';
+
+  @override
+  String get adminPlatformAndroid => 'أندرويد';
+
+  @override
+  String get adminEventSessionStarted => 'بدء جلسة';
+
+  @override
+  String get adminEventCommunityViewed => 'عرض مجتمع';
+
+  @override
+  String get adminEventCommunityCreated => 'إنشاء مجتمع';
+
+  @override
+  String get adminEventCommunityJoined => 'الانضمام إلى مجتمع';
+
+  @override
+  String get adminEventMatchViewed => 'عرض مباراة';
+
+  @override
+  String get adminEventMatchRegistered => 'التسجيل في مباراة';
+
+  @override
+  String get adminEventMatchWithdrawn => 'الانسحاب من مباراة';
+
+  @override
+  String get adminEventTeamsViewed => 'عرض الفرق';
+
+  @override
+  String get adminEventResultViewed => 'عرض نتيجة';
+
+  @override
+  String get adminEventShareUsed => 'مشاركة';
 }

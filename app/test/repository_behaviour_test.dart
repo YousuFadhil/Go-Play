@@ -894,6 +894,17 @@ class FakeAdminAdapter implements AdminAdapter {
       throw UnimplementedError();
 
   @override
+  Future<AdminUserActivitySummary> userActivitySummary(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminUserActivityEvent>> userActivityTimeline(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminAuditEntry>> listAuditLog() => throw UnimplementedError();
+
+  @override
   Future<List<AdminUserSummary>> listUsers(String? search) =>
       throw UnimplementedError();
 

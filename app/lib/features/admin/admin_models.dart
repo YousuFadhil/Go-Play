@@ -146,6 +146,172 @@ class AdminAnalyticsOverview {
   final double? weeklyRetentionPercent;
 }
 
+/// One account, as the Platform Admin detail screen sees it.
+///
+/// **Three fields are nullable and must stay that way.** [lastSeenAt],
+/// [latestAppVersion] and an empty [platforms] all mean "the product has never
+/// observed this", which is the ordinary state of an account that has not been
+/// back since analytics was deployed. Substituting a default -- the join date
+/// for a last seen, the current build for a version -- would turn "we do not
+/// know" into a statement of fact, and an administrator reading it would have
+/// no way to tell the difference.
+///
+/// The counts default to zero because a count of nothing genuinely is zero.
+class AdminUserActivitySummary {
+  const AdminUserActivitySummary({
+    required this.userId,
+    required this.fullName,
+    required this.email,
+    required this.createdAt,
+    required this.isActive,
+    required this.activeDays7d,
+    required this.activeDays30d,
+    required this.sessionsTotal,
+    required this.platforms,
+    required this.communityCount,
+    required this.trackedRegistrations,
+    required this.matchesPlayed,
+    required this.trackedWithdrawals,
+    this.suspendedAt,
+    this.suspensionReason,
+    this.lastSeenAt,
+    this.latestAppVersion,
+  });
+
+  final String userId;
+  final String fullName;
+  final String email;
+
+  /// When the account was created. Always present.
+  final DateTime createdAt;
+
+  /// The authoritative account state, the same `users.is_active` every database
+  /// rule reads.
+  final bool isActive;
+  final DateTime? suspendedAt;
+  final String? suspensionReason;
+
+  /// The last thing the product actually watched this person do.
+  ///
+  /// Null when nothing has been observed. Deliberately **not** a sign-in
+  /// timestamp: one of those moves when a token refreshes rather than when a
+  /// person does something.
+  final DateTime? lastSeenAt;
+
+  /// Distinct local calendar days carrying at least one session.
+  final int activeDays7d;
+  final int activeDays30d;
+
+  /// Sessions recorded since the analytics release. Never a guess at what came
+  /// before it.
+  final int sessionsTotal;
+
+  /// The platforms this account has actually been seen on -- `web`, `android`,
+  /// or both. Empty when none has been observed; never null, so the screen has
+  /// one shape to render.
+  final List<String> platforms;
+
+  /// The build the most recent event carrying a version was recorded on.
+  final String? latestAppVersion;
+
+  /// Communities this account belongs to **now**. Not a history: leaving a
+  /// community removes the row.
+  final int communityCount;
+
+  /// Registrations and withdrawals as tracked since the analytics release.
+  /// Withdrawals exist nowhere else at all -- withdrawing deletes the
+  /// registration row.
+  final int trackedRegistrations;
+  final int trackedWithdrawals;
+
+  /// Matches actually played, from `player_statistics`. Historical and
+  /// complete, and it stays visible for a suspended account.
+  final int matchesPlayed;
+}
+
+/// One thing an account did, as the activity timeline sees it.
+///
+/// [eventName] is the raw stored value rather than a parsed enum, because a row
+/// written by a newer release may name an event this build has never heard of.
+/// Keeping the string is what lets the screen show such a row as it was
+/// recorded instead of dropping it.
+///
+/// The context fields are nullable twice over: an event may never have carried
+/// a community or a match, and one it did carry may since have been deleted --
+/// `product_events` holds no foreign keys. A null [communityName] beside a
+/// non-null [communityId] is exactly that second case.
+class AdminUserActivityEvent {
+  const AdminUserActivityEvent({
+    required this.eventName,
+    required this.createdAt,
+    this.communityId,
+    this.communityName,
+    this.matchId,
+    this.matchTitle,
+    this.platform,
+    this.appVersion,
+  });
+
+  final String eventName;
+  final DateTime createdAt;
+
+  final String? communityId;
+  final String? communityName;
+  final String? matchId;
+  final String? matchTitle;
+
+  final String? platform;
+  final String? appVersion;
+}
+
+/// One administrative act, as the audit log sees it.
+///
+/// [action] is a raw string for the same reason [AdminUserActivityEvent.eventName]
+/// is. The log is append-only and future-safe: a reader that recognised only
+/// today's four actions would hide tomorrow's, which are the entries most worth
+/// seeing.
+///
+/// The snapshots are what keep an entry legible after its subject is gone, and
+/// both are nullable because the snapshot may not have been obtainable when the
+/// act was recorded. `metadata` is deliberately absent from this model -- the
+/// RPC does not return it.
+class AdminAuditEntry {
+  const AdminAuditEntry({
+    required this.id,
+    required this.action,
+    required this.targetType,
+    required this.createdAt,
+    this.actorUserId,
+    this.actorEmailSnapshot,
+    this.targetId,
+    this.targetLabelSnapshot,
+    this.reason,
+  });
+
+  final String id;
+
+  /// `USER_SUSPENDED`, `USER_REACTIVATED`, `COMMUNITY_SUSPENDED`,
+  /// `COMMUNITY_REACTIVATED` -- or anything a later cycle records.
+  final String action;
+
+  /// `USER` or `COMMUNITY`.
+  final String targetType;
+
+  final DateTime createdAt;
+
+  /// Who acted. The id has no foreign key, so it may name an account that no
+  /// longer exists; the email snapshot is what stays readable when it does.
+  final String? actorUserId;
+  final String? actorEmailSnapshot;
+
+  final String? targetId;
+  final String? targetLabelSnapshot;
+
+  /// Why, as the acting administrator wrote it. Present for a suspension,
+  /// absent for a reactivation.
+  final String? reason;
+}
+
 /// A match, as the administration list sees it.
 class AdminMatchSummary {
   const AdminMatchSummary({

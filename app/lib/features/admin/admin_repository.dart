@@ -43,6 +43,21 @@ class AdminRepository {
   Future<List<AdminMatchSummary>> listMatches(String? search) =>
       _adapter.listMatches(search);
 
+  /// The three read paths added by `0068`.
+  ///
+  /// None of them swallows a failure. Like [analyticsOverview] and unlike
+  /// [isSystemAdmin], these are reads rather than permission questions: a
+  /// screen that received an empty list where the truth was "the request
+  /// failed" would show an administrator a clean, wrong answer instead of a
+  /// retry.
+  Future<AdminUserActivitySummary> userActivitySummary(String userId) =>
+      _adapter.userActivitySummary(userId);
+
+  Future<List<AdminUserActivityEvent>> userActivityTimeline(String userId) =>
+      _adapter.userActivityTimeline(userId);
+
+  Future<List<AdminAuditEntry>> listAuditLog() => _adapter.listAuditLog();
+
   /// Suspends an account. The reason is trimmed here and refused when empty,
   /// so `REASON_REQUIRED` is a server guarantee rather than something an
   /// ordinary screen can provoke.

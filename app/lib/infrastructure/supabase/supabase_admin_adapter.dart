@@ -86,6 +86,59 @@ class SupabaseAdminAdapter implements AdminAdapter {
         ];
       });
 
+  /// One account in figures, through `0068`.
+  ///
+  /// `returns table` with one row, so a one-element list arrives. The function
+  /// raises `USER_NOT_FOUND` rather than returning nothing, so an empty result
+  /// is not a state it can reach -- checked anyway, so a surprise becomes a
+  /// mapped failure and the screen's retry rather than a range error.
+  @override
+  Future<AdminUserActivitySummary> userActivitySummary(String userId) =>
+      guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_user_activity_summary',
+            params: {'p_user_id': userId},
+          );
+          final rows = (result as List<dynamic>).cast<Map<String, dynamic>>();
+          if (rows.isEmpty) throw const InfrastructureFailure();
+          return adminUserActivityFromRow(rows.first);
+        },
+        operation: 'rpc admin_user_activity_summary',
+      );
+
+  /// The account's recent activity. `p_limit` is left to the function's own
+  /// default and clamp -- how many rows a timeline is worth is a decision the
+  /// database already makes, and passing one from here would be a second.
+  @override
+  Future<List<AdminUserActivityEvent>> userActivityTimeline(String userId) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'admin_user_activity_timeline',
+            params: {'p_user_id': userId},
+          ) as List<dynamic>;
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              adminActivityEventFromRow(row),
+          ];
+        },
+        operation: 'rpc admin_user_activity_timeline',
+      );
+
+  @override
+  Future<List<AdminAuditEntry>> listAuditLog() => guarded(
+        () async {
+          final rows =
+              await _client.rpc('admin_list_audit_log') as List<dynamic>;
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              adminAuditEntryFromRow(row),
+          ];
+        },
+        operation: 'rpc admin_list_audit_log',
+      );
+
   /// Suspension and reactivation, through the four `0064` / `0065` RPCs.
   ///
   /// Each checks `is_system_admin()` server-side and each is idempotent: asking

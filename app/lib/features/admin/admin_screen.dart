@@ -4,8 +4,10 @@ import '../../core/app_header.dart';
 import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import 'admin_audit_tab.dart';
 import 'admin_overview_tab.dart';
 import 'admin_repository.dart';
+import 'admin_user_detail_screen.dart';
 
 /// What a row lets an administrator do to the record behind it.
 enum AdminRowAction {
@@ -70,14 +72,14 @@ class AdminScreen extends StatelessWidget {
     final repository = _repository ?? AdminRepository();
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppHeader(
           title: Text(l10n.adminTitle),
           bottom: TabBar(
-            // Four labels, two of them long in Arabic. Scrollable so the fourth
-            // is reachable on a narrow phone rather than crushed to two
-            // characters -- a local layout detail, not a redesign.
+            // Five labels now, several of them long in Arabic. Scrollable so
+            // the last is reachable on a narrow phone rather than crushed to
+            // two characters -- a local layout detail, not a redesign.
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: [
@@ -85,6 +87,7 @@ class AdminScreen extends StatelessWidget {
               Tab(text: l10n.adminUsersTab),
               Tab(text: l10n.adminCommunitiesTab),
               Tab(text: l10n.adminMatchesTab),
+              Tab(text: l10n.adminAuditTab),
             ],
           ),
         ),
@@ -111,6 +114,18 @@ class AdminScreen extends StatelessWidget {
                             : AdminRowAction.reactivate,
                   ),
               ],
+              // Only the Users list opens a detail screen: it is the only one
+              // the database has an activity summary for. A row's action button
+              // handles its own tap, so pressing Suspend does not also open the
+              // detail underneath it.
+              open: (row) => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => AdminUserDetailScreen(
+                    userId: row.id,
+                    repository: repository,
+                  ),
+                ),
+              ),
               suspend: repository.suspendUser,
               reactivate: repository.reactivateUser,
               suspendTitle: (name) => l10n.adminSuspendUserConfirmTitle(name),
@@ -157,6 +172,9 @@ class AdminScreen extends StatelessWidget {
                   ),
               ],
             ),
+            // The administrative record. Read only -- no delete, no edit, no
+            // undo, and no write path in reach of it.
+            AdminAuditTab(repository: repository),
           ],
         ),
       ),
@@ -167,6 +185,7 @@ class AdminScreen extends StatelessWidget {
 class _AdminList extends StatefulWidget {
   const _AdminList({
     required this.load,
+    this.open,
     this.suspend,
     this.reactivate,
     this.suspendTitle,
@@ -176,6 +195,11 @@ class _AdminList extends StatefulWidget {
   });
 
   final Future<List<_Row>> Function(String? search) load;
+
+  /// What tapping a row does, where a row has somewhere to go. Null on the
+  /// lists that have no detail screen, and a row with no destination is not
+  /// tappable at all rather than tappable and inert.
+  final void Function(_Row row)? open;
   final Future<void> Function(String id, String reason)? suspend;
   final Future<void> Function(String id)? reactivate;
   final String Function(String name)? suspendTitle;
@@ -323,6 +347,7 @@ class _AdminListState extends State<_AdminList> {
                 itemBuilder: (context, index) => _AdminTile(
                   row: rows[index],
                   busy: _busy,
+                  onOpen: widget.open,
                   onSuspend: _suspend,
                   onReactivate: _reactivate,
                 ),
@@ -340,12 +365,17 @@ class _AdminTile extends StatelessWidget {
   const _AdminTile({
     required this.row,
     required this.busy,
+    required this.onOpen,
     required this.onSuspend,
     required this.onReactivate,
   });
 
   final _Row row;
   final bool busy;
+
+  /// Where this row goes, or null when it goes nowhere.
+  final void Function(_Row row)? onOpen;
+
   final Future<void> Function(_Row row) onSuspend;
   final Future<void> Function(_Row row) onReactivate;
 
@@ -353,7 +383,13 @@ class _AdminTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
+    final open = onOpen;
+
     return ListTile(
+      // The row opens the record; the trailing button acts on it. A
+      // [TextButton] consumes its own tap, so pressing Suspend does not also
+      // push the detail screen underneath the dialog it opens.
+      onTap: open == null ? null : () => open(row),
       title: Text(row.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

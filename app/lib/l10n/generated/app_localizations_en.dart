@@ -2017,4 +2017,98 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get adminAnalyticsNotice =>
       'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.';
+
+  @override
+  String get adminAuditTab => 'Audit Log';
+
+  @override
+  String get adminAuditEmpty => 'Nothing has been recorded yet.';
+
+  @override
+  String get adminAuditUnavailable => 'No longer available';
+
+  @override
+  String get adminActionUserSuspended => 'User suspended';
+
+  @override
+  String get adminActionUserReactivated => 'User reactivated';
+
+  @override
+  String get adminActionCommunitySuspended => 'Community suspended';
+
+  @override
+  String get adminActionCommunityReactivated => 'Community reactivated';
+
+  @override
+  String get adminUserActivityTitle => 'User activity';
+
+  @override
+  String get adminActivityTitle => 'Activity';
+
+  @override
+  String get adminRecentActivityTitle => 'Recent activity';
+
+  @override
+  String get adminActivityEmpty =>
+      'Nothing has been recorded for this account yet.';
+
+  @override
+  String get adminMetricJoined => 'Joined';
+
+  @override
+  String get adminMetricLastSeen => 'Last seen';
+
+  @override
+  String get adminMetricActiveDays => 'Active days';
+
+  @override
+  String get adminMetricSessions => 'Sessions';
+
+  @override
+  String get adminMetricPlatforms => 'Platforms';
+
+  @override
+  String get adminMetricAppVersion => 'App version';
+
+  @override
+  String get adminMetricMatchesPlayed => 'Matches played';
+
+  @override
+  String get adminMetricWithdrawals => 'Withdrawals';
+
+  @override
+  String get adminPlatformWeb => 'Web';
+
+  @override
+  String get adminPlatformAndroid => 'Android';
+
+  @override
+  String get adminEventSessionStarted => 'Session started';
+
+  @override
+  String get adminEventCommunityViewed => 'Community viewed';
+
+  @override
+  String get adminEventCommunityCreated => 'Community created';
+
+  @override
+  String get adminEventCommunityJoined => 'Community joined';
+
+  @override
+  String get adminEventMatchViewed => 'Match viewed';
+
+  @override
+  String get adminEventMatchRegistered => 'Match registered';
+
+  @override
+  String get adminEventMatchWithdrawn => 'Match withdrawn';
+
+  @override
+  String get adminEventTeamsViewed => 'Teams viewed';
+
+  @override
+  String get adminEventResultViewed => 'Result viewed';
+
+  @override
+  String get adminEventShareUsed => 'Share used';
 }

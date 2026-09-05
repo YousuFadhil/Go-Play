@@ -47,6 +47,17 @@ class _FakeAdminAdapter implements AdminAdapter {
   Future<bool> isSystemAdmin() async => true;
 
   @override
+  Future<List<AdminAuditEntry>> listAuditLog() async => const [];
+
+  @override
+  Future<AdminUserActivitySummary> userActivitySummary(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminUserActivityEvent>> userActivityTimeline(String userId) =>
+      throw UnimplementedError();
+
+  @override
   Future<List<AdminUserSummary>> listUsers(String? search) async => const [
         AdminUserSummary(
           id: 'u1',
@@ -112,14 +123,14 @@ void main() {
   }
 
   group('the Overview is what the console opens on', () {
-    testWidgets('it is the first of four tabs, in the approved order',
+    testWidgets('it is the first of five tabs, in the approved order',
         (tester) async {
       await pumpAdmin(tester, _FakeAdminAdapter());
 
       final tabs = tester.widgetList<Tab>(find.byType(Tab)).toList();
       expect(
         [for (final tab in tabs) tab.text],
-        ['Overview', 'Users', 'Communities', 'Matches'],
+        ['Overview', 'Users', 'Communities', 'Matches', 'Audit Log'],
       );
     });
 

@@ -72,6 +72,85 @@ AdminAnalyticsOverview adminAnalyticsOverviewFromRow(
       weeklyRetentionPercent: _adminPercent(row['weekly_retention_percent']),
     );
 
+/// A required timestamp, which the two `created_at` columns always carry.
+///
+/// Distinct from [_adminTimestamp] on purpose: that one describes a suspension
+/// that may never have happened, and this one a row that could not exist
+/// without a time on it. Falls back to the epoch rather than throwing, because
+/// losing a whole detail screen over one unparseable date would be the worse
+/// failure -- and the value is displayed, never computed with.
+DateTime _adminRequiredTimestamp(Object? value) =>
+    _adminTimestamp(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+/// The observed platforms, as a list the screen can always iterate.
+///
+/// The RPC coalesces to an empty array, so null should not arrive; it is still
+/// handled, because "no platform observed" and "the column was absent" are the
+/// same thing to a reader and neither is worth an exception. Non-string members
+/// are dropped rather than stringified.
+List<String> _adminPlatforms(Object? value) {
+  if (value is! List) return const [];
+  return [
+    for (final entry in value)
+      if (entry is String && entry.isNotEmpty) entry,
+  ];
+}
+
+AdminUserActivitySummary adminUserActivityFromRow(Map<String, dynamic> row) =>
+    AdminUserActivitySummary(
+      userId: row['user_id'] as String,
+      fullName: row['full_name'] as String? ?? '',
+      email: row['email'] as String? ?? '',
+      createdAt: _adminRequiredTimestamp(row['created_at']),
+      isActive: row['is_active'] as bool? ?? true,
+      suspendedAt: _adminTimestamp(row['suspended_at']),
+      suspensionReason: _adminReason(row['suspension_reason']),
+      // Null is carried through untouched. A missing Last Seen means the
+      // product has never observed this account, and substituting the join
+      // date would state something the database did not say.
+      lastSeenAt: _adminTimestamp(row['last_seen_at']),
+      activeDays7d: _adminCount(row['active_days_7d']),
+      activeDays30d: _adminCount(row['active_days_30d']),
+      sessionsTotal: _adminCount(row['sessions_total']),
+      platforms: _adminPlatforms(row['platforms']),
+      // Also carried through. An unknown build is not the current build.
+      latestAppVersion: _adminReason(row['latest_app_version']),
+      communityCount: _adminCount(row['community_count']),
+      trackedRegistrations: _adminCount(row['tracked_registrations']),
+      matchesPlayed: _adminCount(row['matches_played']),
+      trackedWithdrawals: _adminCount(row['tracked_withdrawals']),
+    );
+
+AdminUserActivityEvent adminActivityEventFromRow(Map<String, dynamic> row) =>
+    AdminUserActivityEvent(
+      // Kept as the database wrote it. Parsing here would mean deciding what to
+      // do with a name this build does not know, and that decision belongs to
+      // the screen, which can show it rather than lose it.
+      eventName: row['event_name'] as String? ?? '',
+      createdAt: _adminRequiredTimestamp(row['created_at']),
+      communityId: row['community_id'] as String?,
+      communityName: _adminReason(row['community_name']),
+      matchId: row['match_id'] as String?,
+      matchTitle: _adminReason(row['match_title']),
+      platform: _adminReason(row['platform']),
+      appVersion: _adminReason(row['app_version']),
+    );
+
+AdminAuditEntry adminAuditEntryFromRow(Map<String, dynamic> row) =>
+    AdminAuditEntry(
+      id: row['id'] as String,
+      // Raw, for the same reason as above: the log is append-only and a reader
+      // that only understood today's actions would hide tomorrow's.
+      action: row['action'] as String? ?? '',
+      targetType: row['target_type'] as String? ?? '',
+      createdAt: _adminRequiredTimestamp(row['created_at']),
+      actorUserId: row['actor_user_id'] as String?,
+      actorEmailSnapshot: _adminReason(row['actor_email_snapshot']),
+      targetId: row['target_id'] as String?,
+      targetLabelSnapshot: _adminReason(row['target_label_snapshot']),
+      reason: _adminReason(row['reason']),
+    );
+
 AdminUserSummary adminUserFromRow(Map<String, dynamic> row) => AdminUserSummary(
       id: row['id'] as String,
       fullName: row['full_name'] as String? ?? '',

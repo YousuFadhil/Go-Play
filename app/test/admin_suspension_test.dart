@@ -54,6 +54,23 @@ class _FakeAdminAdapter implements AdminAdapter {
     retentionReturningUsers: 0,
   );
 
+  /// The Audit tab neighbours Matches in the TabBarView and may be built
+  /// alongside it. Answered rather than thrown, and recorded, so a call from
+  /// a tab that is not on screen is visible in [calls] instead of silent.
+  @override
+  Future<List<AdminAuditEntry>> listAuditLog() async {
+    calls.add('listAuditLog');
+    return const [];
+  }
+
+  @override
+  Future<AdminUserActivitySummary> userActivitySummary(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminUserActivityEvent>> userActivityTimeline(String userId) =>
+      throw UnimplementedError();
+
   @override
   Future<List<AdminUserSummary>> listUsers(String? search) async {
     calls.add('listUsers');
