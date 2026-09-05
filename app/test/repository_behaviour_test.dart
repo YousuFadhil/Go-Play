@@ -890,6 +890,59 @@ class FakeAdminAdapter implements AdminAdapter {
   }
 
   @override
+  Future<AdminAnalyticsOverview> analyticsOverview() =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminUserActivitySummary> userActivitySummary(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminUserActivityEvent>> userActivityTimeline(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminAuditEntry>> listAuditLog() => throw UnimplementedError();
+
+  // The drill-downs (0069) are not what this suite is about; a call from an
+  // unexpected place should fail loudly rather than answer.
+  @override
+  Future<List<AdminDrilldownUser>> drilldownUsers(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminDrilldownCommunity>> drilldownCommunities(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminDrilldownMatch>> drilldownMatches(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminDrilldownRegistration>> drilldownRegistrations(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminCommunityInspection> communityInspection(String communityId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminMatchInspection> matchInspection(String matchId) =>
+      throw UnimplementedError();
+
+  @override
   Future<List<AdminUserSummary>> listUsers(String? search) =>
       throw UnimplementedError();
 
@@ -902,13 +955,18 @@ class FakeAdminAdapter implements AdminAdapter {
       throw UnimplementedError();
 
   @override
-  Future<void> deleteUser(String id) => throw UnimplementedError();
+  Future<void> suspendUser(String id, String reason) =>
+      throw UnimplementedError();
 
   @override
-  Future<void> deleteCommunity(String id) => throw UnimplementedError();
+  Future<void> reactivateUser(String id) => throw UnimplementedError();
 
   @override
-  Future<void> deleteMatch(String id) => throw UnimplementedError();
+  Future<void> suspendCommunity(String id, String reason) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> reactivateCommunity(String id) => throw UnimplementedError();
 }
 
 class FakeProfileAdapter implements ProfileAdapter {
@@ -1054,6 +1112,9 @@ class FakeAuthAdapter implements AuthAdapter {
 
   @override
   Stream<bool> get signedInChanges => const Stream.empty();
+
+  @override
+  Future<bool> isCurrentUserActive() async => true;
 
   @override
   Future<void> signOut() => throw UnimplementedError();

@@ -201,7 +201,6 @@ class MatchStageBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final screenScale = matchStageScreenScale(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -209,7 +208,7 @@ class MatchStageBoard extends StatelessWidget {
         // The one header, in both states. Before a result it is the community,
         // the match and the date; after one it grows the score strip, and
         // nothing else about the surface changes.
-        SizedBox(height: 8 * screenScale),
+        const SizedBox(height: 4),
         MatchStageHeader(
           community: communityName,
           title: matchTitle,
@@ -217,28 +216,28 @@ class MatchStageBoard extends StatelessWidget {
           teamAScore: teamAScore,
           teamBScore: teamBScore,
         ),
-        SizedBox(height: (hasResult ? 17 : 50) * screenScale),
+        // The gaps are phone points rather than fractions of the 941-wide
+        // masters. On the masters they were reserving room inside a picture;
+        // here they are separating two things a thumb scrolls past, and the
+        // pitch below wants every point they were spending.
+        SizedBox(height: hasResult ? 16 : 20),
         _section(
           context,
           title: l10n.teamAName,
           team: TeamId.a,
-          bottomGap: hasResult ? 14 : 28,
-          screenScale: screenScale,
+          bottomGap: 18,
         ),
         _section(
           context,
           title: l10n.teamBName,
           team: TeamId.b,
-          bottomGap: 20,
-          screenScale: screenScale,
+          bottomGap: 10,
         ),
       ],
     );
   }
 
-  /// One side: heading, winner mark and pitch inside a single dark block, so a
-  /// team reads as one thing rather than as a title floating over a detached
-  /// pitch.
+  /// One side: a marked heading, and the pitch under it.
   ///
   /// `A` and `B` distinguish the two sides and mean nothing else (`KB-D6`), so
   /// neither is presented as the stronger or the first-choice team.
@@ -247,7 +246,6 @@ class MatchStageBoard extends StatelessWidget {
     required String title,
     required TeamId team,
     required double bottomGap,
-    required double screenScale,
   }) {
     final assignments = [
       for (final assignment in lineup)
@@ -256,10 +254,10 @@ class MatchStageBoard extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        21 * screenScale,
+        MatchStage.phoneMargin,
         0,
-        22 * screenScale,
-        bottomGap * screenScale,
+        MatchStage.phoneMargin,
+        bottomGap,
       ),
       child: MatchStageSection(
         title: title,

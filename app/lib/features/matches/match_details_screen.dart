@@ -8,6 +8,8 @@ import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../../core/tokens.dart';
+import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import '../communities/community_models.dart';
 import '../communities/community_repository.dart';
 import '../communities/join_community_flow.dart';
@@ -127,6 +129,19 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   late Future<_MatchView> _dataFuture;
   bool _isActionLoading = false;
 
+  /// Whether this screen has already recorded that its match was viewed.
+  /// One view per instance: this screen reloads on every push that moves the
+  /// roster, and none of those is somebody opening the match again.
+  bool _viewRecorded = false;
+
+  /// The community this match belongs to, once the match has loaded.
+  ///
+  /// Kept so that a registration or a withdrawal can say which community it
+  /// happened in. Read from the match that is already on screen — **no second
+  /// request is made to fill it**, and null simply means the match had not
+  /// loaded, which is a state in which neither action is reachable anyway.
+  String? _communityId;
+
   @override
   void initState() {
     super.initState();
@@ -162,6 +177,20 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       _matchService.fetchRegistrations(widget.matchId),
       _memberRepository.fetchMyRole(match.communityId),
     ]);
+
+    _communityId = match.communityId;
+    // The match is really here and really readable. A reader who was refused
+    // for not being a member returned above and records nothing — being shown
+    // the reason you cannot see a match is not viewing it.
+    if (!_viewRecorded) {
+      _viewRecorded = true;
+      ProductAnalytics.instance.track(
+        ProductEvent.matchViewed,
+        matchId: widget.matchId,
+        communityId: match.communityId,
+      );
+    }
+
     return _MatchLoaded(
       match,
       results[0] as List<MatchRegistration>,
@@ -251,6 +280,14 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     setState(() => _isActionLoading = true);
     try {
       final status = await _matchService.registerForMatch(widget.matchId);
+      // The registration is real: the database accepted it and the reader is
+      // either confirmed or on the reserve list. Both are registrations. A
+      // refusal below records nothing.
+      ProductAnalytics.instance.track(
+        ProductEvent.matchRegistered,
+        matchId: widget.matchId,
+        communityId: _communityId,
+      );
       _showMessage(status == RegistrationStatus.confirmed
           ? l10n.joinedConfirmed
           : l10n.joinedReserve);
@@ -291,6 +328,16 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     setState(() => _isActionLoading = true);
     try {
       await _matchService.withdrawFromMatch(widget.matchId);
+      // **This is the only record that this ever happened.** Withdrawing
+      // deletes the `match_registrations` row, so a moment after this line the
+      // business tables hold no evidence of the registration or of its ending.
+      // If this event is not written, the withdrawal is invisible to the
+      // product forever.
+      ProductAnalytics.instance.track(
+        ProductEvent.matchWithdrawn,
+        matchId: widget.matchId,
+        communityId: _communityId,
+      );
     } on Failure catch (failure) {
       _showMessage(
           _registrationErrorMessage(l10n, failure, l10n.withdrawMatchFailed));

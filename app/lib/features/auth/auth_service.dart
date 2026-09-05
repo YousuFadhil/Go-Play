@@ -196,5 +196,14 @@ class AuthService {
     await _adapter.changePassword(password);
   }
 
+  /// Whether the signed-in account is still active.
+  ///
+  /// Suspension is enforced by the database whatever this returns; this is what
+  /// lets the app stop showing a suspended player a product they cannot use.
+  /// The failure is deliberately *not* swallowed here: the auth gate fails
+  /// closed on it, and turning an unanswered question into `true` at this layer
+  /// would be the one mistake that opens the door.
+  Future<bool> isCurrentUserActive() => _adapter.isCurrentUserActive();
+
   Future<void> logout() => _adapter.signOut();
 }

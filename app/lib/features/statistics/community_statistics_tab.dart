@@ -178,6 +178,9 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
     await presentShareCard(
       context,
       template: (context) => CommunityStatisticsCard(data: data),
+      // The community this card is of. Already held by the tab; nothing is
+      // read for it.
+      communityId: widget.communityId,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );

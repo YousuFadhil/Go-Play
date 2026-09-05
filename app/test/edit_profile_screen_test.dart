@@ -699,5 +699,8 @@ class FakeAuthAdapter implements AuthAdapter {
       throw UnimplementedError();
 
   @override
+  Future<bool> isCurrentUserActive() async => true;
+
+  @override
   Future<void> signOut() => throw UnimplementedError();
 }

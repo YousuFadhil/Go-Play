@@ -4,6 +4,8 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../../core/time_format.dart';
+import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import '../profile/player_identity.dart';
 import '../results/match_result_card.dart';
 import '../sharing/share_card_flow.dart';
@@ -84,11 +86,16 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
     );
   }
 
+  /// Whether this screen has already recorded that a saved result was shown.
+  /// One per screen instance; a refresh is not a second viewing.
+  bool _resultViewRecorded = false;
+
   /// Keeps [_shown] in step with whichever load is current.
   Future<_MatchView> _track(Future<_MatchView> load) {
     load.then(
       (view) {
         if (!mounted || _future != load) return;
+        _recordResultView(view);
         setState(() => _shown = view);
       },
       // Already reported by the builder, which shows the retry.
@@ -98,6 +105,26 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
       },
     );
     return load;
+  }
+
+  /// Records that a written-up match was actually put in front of the reader.
+  ///
+  /// **`hasResult` is the whole condition.** This screen shows a completed
+  /// match whether or not anybody has written it up; one that has not is a
+  /// lineup and a "result pending" note, which is a match viewed and not a
+  /// result viewed.
+  ///
+  /// A reader who is not signed in records nothing, and that is guaranteed
+  /// below this line rather than here: `record_product_event` refuses a call
+  /// with no session, and the repository swallows the refusal.
+  void _recordResultView(_MatchView view) {
+    if (_resultViewRecorded || !view.detail.match.hasResult) return;
+    _resultViewRecorded = true;
+    ProductAnalytics.instance.track(
+      ProductEvent.resultViewed,
+      matchId: widget.matchId,
+      communityId: view.detail.match.communityId,
+    );
   }
 
   void _refresh() {
@@ -155,6 +182,9 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
     await presentShareCard(
       context,
       template: (context) => MatchResultCard(data: data),
+      // Already loaded and already on screen; nothing is read for these.
+      matchId: widget.matchId,
+      communityId: match.communityId,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );

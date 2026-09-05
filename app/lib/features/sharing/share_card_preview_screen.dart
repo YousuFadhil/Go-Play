@@ -5,6 +5,8 @@ import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../infrastructure/platform/image_downloader.dart';
 import '../../infrastructure/platform/native_share_service.dart';
+import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import 'share_card_canvas.dart';
 import 'share_card_renderer.dart';
 import 'share_service.dart';
@@ -23,11 +25,23 @@ class ShareCardPreviewScreen extends StatefulWidget {
   const ShareCardPreviewScreen({
     super.key,
     required this.image,
+    this.matchId,
+    this.communityId,
     this.shareService,
     this.downloader,
   });
 
   final ShareCardImage image;
+
+  /// What the card is of, passed down by [presentShareCard] from whichever
+  /// screen composed it, and used for one thing: saying which match or
+  /// community a share belonged to.
+  ///
+  /// Both are null for a card that is of neither — a player's own statistics,
+  /// for instance — and null is a perfectly ordinary answer. Nothing is read to
+  /// populate them and the screen does not otherwise know they exist.
+  final String? matchId;
+  final String? communityId;
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final ShareService? shareService;
@@ -77,10 +91,29 @@ class _ShareCardPreviewScreenState extends State<ShareCardPreviewScreen> {
     final origin = _shareOrigin();
     setState(() => _sharing = true);
     try {
-      await _share.shareImage(widget.image, origin: origin);
+      final outcome = await _share.shareImage(widget.image, origin: origin);
       // Every outcome is silent. Sharing succeeded, or the reader closed the
       // sheet themselves — neither is news, and a confirmation of something
       // the reader just watched happen is noise.
+      //
+      // It is not, however, all the same thing to count. A reader who opened
+      // the sheet and changed their mind did not share, and recording them
+      // would turn `share_used` into a count of button presses. So
+      // [ShareOutcome.dismissed] records nothing, and so does the failure below
+      // — a sheet that could not be shown was never a share.
+      //
+      // [ShareOutcome.unknown] does count. Android reports it for most shares:
+      // it knows an app was chosen, not what that app went on to do. Treating
+      // "the picture was handed over" as a share is the closest true statement
+      // the platform allows, and the alternative would be to record almost no
+      // Android shares at all.
+      if (outcome != ShareOutcome.dismissed) {
+        ProductAnalytics.instance.track(
+          ProductEvent.shareUsed,
+          matchId: widget.matchId,
+          communityId: widget.communityId,
+        );
+      }
     } on Failure catch (failure) {
       // The sheet could not be shown at all. On a desktop browser that is not a
       // fault but a fact about the platform — it implements no file sharing —

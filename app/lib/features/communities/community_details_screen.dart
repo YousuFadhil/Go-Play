@@ -10,6 +10,8 @@ import '../../core/l10n.dart';
 import '../../core/responsive_grid.dart';
 import '../../core/states.dart';
 import '../../core/tokens.dart';
+import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import '../matches/compact_match_card.dart';
 import '../matches/create_match_screen.dart';
 import 'member_card.dart';
@@ -93,6 +95,13 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
   late Future<_Data> _dataFuture;
   bool _busy = false;
 
+  /// Whether this screen has already recorded that its community was viewed.
+  ///
+  /// One view per screen instance. The screen reloads for a good many reasons
+  /// of its own — a logo changed, a member removed, a policy edited — and none
+  /// of them is somebody looking at the community a second time.
+  bool _viewRecorded = false;
+
   @override
   void initState() {
     super.initState();
@@ -107,6 +116,17 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       _memberRepository.fetchMyRole(widget.communityId),
     ]);
     final role = results[3] as CommunityRole?;
+
+    // The community is genuinely here. Recorded after the await rather than in
+    // `initState`, so a load that failed — a community that is gone, or one
+    // this reader may not see — records nothing at all.
+    if (!_viewRecorded) {
+      _viewRecorded = true;
+      ProductAnalytics.instance.track(
+        ProductEvent.communityViewed,
+        communityId: widget.communityId,
+      );
+    }
 
     // Asked second, and only when the answer would be given. A Player's request
     // would be refused server-side, so making it would be a round trip whose

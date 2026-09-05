@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/failures.dart';
 import '../../features/auth/auth_adapter.dart';
 import '../../features/auth/auth_models.dart';
 import 'mappers/auth_mapper.dart';
@@ -112,6 +113,22 @@ class SupabaseAuthAdapter implements AuthAdapter {
   Future<void> changePassword(String password) => guarded(() async {
         await _auth.updateUser(UserAttributes(password: password));
       });
+
+  /// `is_current_user_active()` (migration `0062`), which answers only about
+  /// the caller: it takes no argument, so it cannot be asked about anybody
+  /// else. Without a session there is nobody to ask about, so this reports that
+  /// rather than spending a request to be told the same thing.
+  @override
+  Future<bool> isCurrentUserActive() => guarded(
+        () async {
+          if (_auth.currentUser == null) {
+            throw const AuthenticationFailure();
+          }
+          final result = await _client.rpc('is_current_user_active');
+          return result == true;
+        },
+        operation: 'rpc is_current_user_active',
+      );
 
   @override
   Future<void> signOut() => guarded(() => _auth.signOut());

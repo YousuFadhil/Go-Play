@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import 'community_models.dart';
 import 'community_repository.dart';
 
@@ -46,6 +48,14 @@ Future<bool> runJoinCommunity(
 
     switch (outcome) {
       case JoinedCommunity():
+        // A real join, and only a real join. `AlreadyMember` below is not one:
+        // the reader was already in this community, and counting it would make
+        // the figure a count of taps on a button rather than of people who
+        // joined something.
+        ProductAnalytics.instance.track(
+          ProductEvent.communityJoined,
+          communityId: communityId,
+        );
         messenger.showSnackBar(SnackBar(content: Text(l10n.joinedCommunity)));
         return true;
       case NeedsJoinCode():
@@ -123,6 +133,13 @@ class _JoinCommunityDialogState extends State<JoinCommunityDialog> {
       if (!mounted) return;
       switch (outcome) {
         case JoinedCommunity(:final communityId):
+          // The other half of the same event. Joining by code and joining an
+          // open community are one thing to the product and are recorded as
+          // one; they are two paths only because the door is different.
+          ProductAnalytics.instance.track(
+            ProductEvent.communityJoined,
+            communityId: communityId,
+          );
           Navigator.of(context).pop(communityId);
         case AlreadyMember():
           _setError(l10n.alreadyMemberOfCommunity);
