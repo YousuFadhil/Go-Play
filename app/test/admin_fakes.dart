@@ -34,6 +34,26 @@ const emptyOverview = AdminAnalyticsOverview(
   retentionReturningUsers: 0,
 );
 
+/// An account the product has watched, for tests that only need the User
+/// Detail screen to render something when they arrive on it.
+final seenActivitySummary = AdminUserActivitySummary(
+  userId: 'u1',
+  fullName: 'Ali Al Amri',
+  email: 'u1@example.com',
+  createdAt: DateTime.utc(2026, 1, 15),
+  isActive: true,
+  lastSeenAt: DateTime.utc(2026, 9, 3),
+  activeDays7d: 4,
+  activeDays30d: 17,
+  sessionsTotal: 63,
+  platforms: const ['android'],
+  latestAppVersion: '0.4.1-public-beta+2',
+  communityCount: 3,
+  trackedRegistrations: 22,
+  matchesPlayed: 41,
+  trackedWithdrawals: 5,
+);
+
 AdminUserSummary adminUser({
   String id = 'u1',
   String name = 'Ali',
@@ -59,6 +79,11 @@ class FakeAdminAdapter implements AdminAdapter {
     this.activitySummary,
     this.activityFailure,
     this.auditFailure,
+    this.pages = const {},
+    this.drilldownFailure,
+    this.communityInspectionResult,
+    this.matchInspectionResult,
+    this.inspectionFailure,
   });
 
   List<AdminUserSummary> users;
@@ -75,9 +100,36 @@ class FakeAdminAdapter implements AdminAdapter {
   Failure? activityFailure;
   Failure? auditFailure;
 
+  /// Drill-down pages, keyed by the metric that asks for them.
+  ///
+  /// A `List<List<…>>` rather than a flat list, because paging is the thing
+  /// most worth testing here: entry `n` is what the `n`th call returns, so a
+  /// test can hand out a full page followed by a short one and watch the
+  /// screen stop asking.
+  Map<AdminDrilldownMetric, List<List<Object>>> pages = const {};
+
+  /// What every drill-down read should throw instead of answering. Cleared to
+  /// let a retry succeed.
+  Failure? drilldownFailure;
+
+  AdminCommunityInspection? communityInspectionResult;
+  AdminMatchInspection? matchInspectionResult;
+  Failure? inspectionFailure;
+
   final List<String> calls = [];
 
   int auditCalls = 0;
+
+  /// One page for [metric], or an empty list once the fixture runs out.
+  List<T> _page<T>(AdminDrilldownMetric metric, int offset) {
+    calls.add('drilldown:${metric.name}:$offset');
+    if (drilldownFailure != null) throw drilldownFailure!;
+    final configured = pages[metric] ?? const [];
+    // Which page this offset is asking for, at the screen's own page size.
+    final index = offset ~/ 50;
+    if (index >= configured.length) return const [];
+    return configured[index].cast<T>();
+  }
 
   @override
   Future<bool> isSystemAdmin() async => true;
@@ -128,6 +180,50 @@ class FakeAdminAdapter implements AdminAdapter {
     auditCalls++;
     if (auditFailure != null) throw auditFailure!;
     return audit;
+  }
+
+  @override
+  Future<List<AdminDrilldownUser>> drilldownUsers(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) async =>
+      _page<AdminDrilldownUser>(metric, offset);
+
+  @override
+  Future<List<AdminDrilldownCommunity>> drilldownCommunities(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) async =>
+      _page<AdminDrilldownCommunity>(metric, offset);
+
+  @override
+  Future<List<AdminDrilldownMatch>> drilldownMatches(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) async =>
+      _page<AdminDrilldownMatch>(metric, offset);
+
+  @override
+  Future<List<AdminDrilldownRegistration>> drilldownRegistrations(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) async =>
+      _page<AdminDrilldownRegistration>(metric, offset);
+
+  @override
+  Future<AdminCommunityInspection> communityInspection(
+    String communityId,
+  ) async {
+    calls.add('communityInspection:$communityId');
+    if (inspectionFailure != null) throw inspectionFailure!;
+    return communityInspectionResult!;
+  }
+
+  @override
+  Future<AdminMatchInspection> matchInspection(String matchId) async {
+    calls.add('matchInspection:$matchId');
+    if (inspectionFailure != null) throw inspectionFailure!;
+    return matchInspectionResult!;
   }
 
   @override

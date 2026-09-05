@@ -2111,4 +2111,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminEventShareUsed => 'Share used';
+
+  @override
+  String get adminDrilldownEmpty => 'No records for this metric.';
+
+  @override
+  String get adminDrilldownLoadMore => 'Load more';
+
+  @override
+  String get adminReturned => 'Returned';
+
+  @override
+  String get adminDidNotReturn => 'Did not return';
+
+  @override
+  String get adminCommunityInspectionTitle => 'Community inspection';
+
+  @override
+  String get adminMatchInspectionTitle => 'Match inspection';
+
+  @override
+  String get adminOpenMatch => 'Open match';
+
+  @override
+  String get adminMetricCreated => 'Created';
+
+  @override
+  String get adminMetricOwner => 'Owner';
+
+  @override
+  String get adminMetricStatus => 'Status';
+
+  @override
+  String get adminMetricJoinPolicy => 'Join policy';
+
+  @override
+  String get adminMetricMembers => 'Members';
+
+  @override
+  String get adminMetricLocation => 'Location';
+
+  @override
+  String get adminMetricKickOff => 'Kick-off';
+
+  @override
+  String get adminMetricCreatedBy => 'Created by';
+
+  @override
+  String get adminMetricRegistered => 'Registered';
+
+  @override
+  String get adminMetricStartingPlayers => 'Starting players';
+
+  @override
+  String get adminMetricScore => 'Score';
+
+  @override
+  String get adminMetricResultRecorded => 'Result recorded';
+
+  @override
+  String get adminMetricLastActivity => 'Last activity';
 }

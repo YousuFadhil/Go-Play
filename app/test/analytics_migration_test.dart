@@ -14,9 +14,13 @@ import 'package:go_play/features/analytics/analytics_models.dart';
 /// production — a privilege silently dropped, a backfill quietly added, a
 /// timezone constant duplicated, an event name that stopped matching the enum.
 void main() {
+  // Newlines are normalised on the way in. Git checks this file out with CRLF
+  // endings on Windows, and several assertions below span two lines -- without
+  // this they pass on one machine and fail on another for a reason that has
+  // nothing whatever to do with the migration.
   final sql = File(
     '../supabase/migrations/0067_platform_admin_product_analytics.sql',
-  ).readAsStringSync();
+  ).readAsStringSync().replaceAll('\r\n', '\n');
 
   /// The file with comment lines removed, so an assertion about what the
   /// migration *does* is never satisfied by prose describing what it does not.
