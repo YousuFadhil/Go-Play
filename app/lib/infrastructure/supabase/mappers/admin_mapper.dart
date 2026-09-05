@@ -181,3 +181,120 @@ AdminMatchSummary adminMatchFromRow(Map<String, dynamic> row) =>
       location: row['location'] as String? ?? '',
       registrationCount: (row['registration_count'] as num?)?.toInt() ?? 0,
     );
+
+// ---------------------------------------------------------------------------
+// Drill-down rows (migration 0069)
+//
+// The rule running through all of these: **a null stays a null.** A drill-down
+// exists to list exactly what its Overview figure counted, and
+// `product_events` has no foreign keys -- so a counted event can name a user,
+// match or community that has since been deleted. The database returns those
+// rows with null labels on purpose. Substituting a placeholder name here would
+// make a deleted record indistinguishable from a live one, and substituting a
+// row-dropping fallback would make the list disagree with the number above it.
+// ---------------------------------------------------------------------------
+
+/// A nullable count -- a score, a squad size. Distinct from [_adminCount],
+/// which is for figures where absence genuinely means zero.
+int? _adminOptionalCount(Object? value) => (value as num?)?.toInt();
+
+AdminDrilldownUser adminDrilldownUserFromRow(Map<String, dynamic> row) =>
+    AdminDrilldownUser(
+      userId: row['user_id'] as String,
+      fullName: _adminReason(row['full_name']),
+      email: _adminReason(row['email']),
+      createdAt: _adminTimestamp(row['created_at']),
+      isActive: row['is_active'] as bool?,
+      isSystemAdmin: row['is_system_admin'] as bool?,
+      lastSeenAt: _adminTimestamp(row['last_seen_at']),
+      // Null and false are different claims here: null means the metric does
+      // not ask about returning, false means this cohort member did not.
+      returnedInCurrentWeek: row['returned_in_current_week'] as bool?,
+    );
+
+AdminDrilldownCommunity adminDrilldownCommunityFromRow(
+  Map<String, dynamic> row,
+) =>
+    AdminDrilldownCommunity(
+      communityId: row['community_id'] as String,
+      name: row['name'] as String? ?? '',
+      ownerName: _adminReason(row['owner_name']),
+      memberCount: _adminCount(row['member_count']),
+      matchCount: _adminCount(row['match_count']),
+      isActive: row['is_active'] as bool? ?? true,
+      lastActivityAt: _adminTimestamp(row['last_activity_at']),
+    );
+
+AdminDrilldownMatch adminDrilldownMatchFromRow(Map<String, dynamic> row) =>
+    AdminDrilldownMatch(
+      matchId: row['match_id'] as String,
+      title: _adminReason(row['title']),
+      communityId: row['community_id'] as String? ?? '',
+      communityName: _adminReason(row['community_name']),
+      location: row['location'] as String? ?? '',
+      startAt: _adminRequiredTimestamp(row['start_at']),
+      status: row['status'] as String? ?? '',
+      matchCreatedAt: _adminRequiredTimestamp(row['match_created_at']),
+      // Null for a match nobody has written up, which is an ordinary state in
+      // a matches list and never one in a results list.
+      resultCreatedAt: _adminTimestamp(row['result_created_at']),
+      scoreA: _adminOptionalCount(row['score_a']),
+      scoreB: _adminOptionalCount(row['score_b']),
+    );
+
+AdminDrilldownRegistration adminDrilldownRegistrationFromRow(
+  Map<String, dynamic> row,
+) =>
+    AdminDrilldownRegistration(
+      eventId: row['event_id'] as String,
+      createdAt: _adminRequiredTimestamp(row['created_at']),
+      userId: row['user_id'] as String?,
+      fullName: _adminReason(row['full_name']),
+      email: _adminReason(row['email']),
+      matchId: row['match_id'] as String?,
+      matchTitle: _adminReason(row['match_title']),
+      communityId: row['community_id'] as String?,
+      communityName: _adminReason(row['community_name']),
+    );
+
+AdminCommunityInspection adminCommunityInspectionFromRow(
+  Map<String, dynamic> row,
+) =>
+    AdminCommunityInspection(
+      communityId: row['community_id'] as String,
+      name: row['name'] as String? ?? '',
+      description: _adminReason(row['description']),
+      joinPolicy: row['join_policy'] as String? ?? '',
+      logoUrl: _adminReason(row['logo_url']),
+      createdAt: _adminRequiredTimestamp(row['created_at']),
+      ownerId: row['owner_id'] as String?,
+      ownerName: _adminReason(row['owner_name']),
+      memberCount: _adminCount(row['member_count']),
+      matchCount: _adminCount(row['match_count']),
+      isActive: row['is_active'] as bool? ?? true,
+      suspendedAt: _adminTimestamp(row['suspended_at']),
+      suspensionReason: _adminReason(row['suspension_reason']),
+    );
+
+AdminMatchInspection adminMatchInspectionFromRow(Map<String, dynamic> row) =>
+    AdminMatchInspection(
+      matchId: row['match_id'] as String,
+      title: _adminReason(row['title']),
+      description: _adminReason(row['description']),
+      location: row['location'] as String? ?? '',
+      startAt: _adminRequiredTimestamp(row['start_at']),
+      endAt: _adminTimestamp(row['end_at']),
+      status: row['status'] as String? ?? '',
+      communityId: row['community_id'] as String? ?? '',
+      communityName: _adminReason(row['community_name']),
+      createdAt: _adminRequiredTimestamp(row['created_at']),
+      createdBy: row['created_by'] as String?,
+      creatorName: _adminReason(row['creator_name']),
+      registrationCount: _adminCount(row['registration_count']),
+      startingPlayers: _adminOptionalCount(row['starting_players']),
+      maxRegistration: _adminOptionalCount(row['max_registration']),
+      scoreA: _adminOptionalCount(row['score_a']),
+      scoreB: _adminOptionalCount(row['score_b']),
+      resultCreatedAt: _adminTimestamp(row['result_created_at']),
+      mvpName: _adminReason(row['mvp_name']),
+    );

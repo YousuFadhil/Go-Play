@@ -15,7 +15,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const path =
       '../supabase/migrations/0068_platform_admin_user_activity_audit_read.sql';
-  final sql = File(path).readAsStringSync();
+  // Newlines are normalised on the way in. Git checks this file out with CRLF
+  // endings on Windows, and several assertions below span two lines -- without
+  // this they pass on one machine and fail on another for a reason that has
+  // nothing whatever to do with the migration.
+  final sql = File(path).readAsStringSync().replaceAll('\r\n', '\n');
 
   /// The file with comment lines removed, so an assertion about what the
   /// migration *does* is never satisfied by prose describing what it does not.
@@ -53,13 +57,14 @@ void main() {
       expect(File(path).existsSync(), isTrue);
     });
 
-    test('there is no 0069', () {
-      final stragglers = Directory('../supabase/migrations')
-          .listSync()
-          .map((entry) => entry.uri.pathSegments.last)
-          .where((name) => name.startsWith('0069'));
-      expect(stragglers, isEmpty);
-    });
+    // There was a "there is no 0069" test here, and removing it is the point.
+    //
+    // It asserted that the cycle which added 0068 did not also add 0069, which
+    // was true when it was written and stopped being true the moment the next
+    // approved cycle added one. "This cycle added exactly one migration" is a
+    // property of a diff, not of the repository, and baking it into a
+    // permanent test only guarantees that a later, entirely correct change has
+    // to delete it. It is checked at review, where it belongs.
 
     test('0062 to 0067 are not edited by it', () {
       // Nothing in this file names another migration's objects in a statement.

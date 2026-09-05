@@ -4,6 +4,7 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../../core/tokens.dart';
+import 'admin_analytics_drilldown_screen.dart';
 import 'admin_models.dart';
 import 'admin_repository.dart';
 
@@ -37,6 +38,28 @@ class AdminOverviewTab extends StatefulWidget {
 class _AdminOverviewTabState extends State<AdminOverviewTab> {
   late Future<AdminAnalyticsOverview> _future = widget.repository
       .analyticsOverview();
+
+  /// Opens the records behind one figure.
+  ///
+  /// The card's own label and value are handed on rather than re-derived, so
+  /// the destination is titled exactly as the thing that was pressed and the
+  /// reader can see whether the list adds up to it.
+  void _openDrilldown(
+    AdminDrilldownMetric metric,
+    String title,
+    String value,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdminAnalyticsDrilldownScreen(
+          metric: metric,
+          title: title,
+          value: value,
+          repository: widget.repository,
+        ),
+      ),
+    );
+  }
 
   /// Re-reads. One new call, replacing the old future rather than adding to it.
   void _reload() {
@@ -92,6 +115,11 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
                       child: _HeadlineTile(
                         label: l10n.adminMetricWau,
                         value: '${overview.wau}',
+                        onTap: () => _openDrilldown(
+                          AdminDrilldownMetric.wau,
+                          l10n.adminMetricWau,
+                          '${overview.wau}',
+                        ),
                       ),
                     ),
                     const SizedBox(width: Layout.cardGap),
@@ -99,6 +127,11 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
                       child: _HeadlineTile(
                         label: l10n.adminMetricActiveCommunities,
                         value: '${overview.weeklyActiveCommunities}',
+                        onTap: () => _openDrilldown(
+                          AdminDrilldownMetric.weeklyActiveCommunities,
+                          l10n.adminMetricActiveCommunities,
+                          '${overview.weeklyActiveCommunities}',
+                        ),
                       ),
                     ),
                   ],
@@ -110,18 +143,38 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
                 _MetricTile(
                   label: l10n.adminMetricTotalUsers,
                   value: '${overview.totalUsers}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.totalUsers,
+                    l10n.adminMetricTotalUsers,
+                    '${overview.totalUsers}',
+                  ),
                 ),
                 _MetricTile(
                   label: l10n.adminMetricNewToday,
                   value: '${overview.newUsersToday}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.newUsersToday,
+                    l10n.adminMetricNewToday,
+                    '${overview.newUsersToday}',
+                  ),
                 ),
                 _MetricTile(
                   label: l10n.adminPeriod7d,
                   value: '${overview.newUsers7d}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.newUsers7d,
+                    '${l10n.adminUserGrowthTitle} · ${l10n.adminPeriod7d}',
+                    '${overview.newUsers7d}',
+                  ),
                 ),
                 _MetricTile(
                   label: l10n.adminPeriod30d,
                   value: '${overview.newUsers30d}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.newUsers30d,
+                    '${l10n.adminUserGrowthTitle} · ${l10n.adminPeriod30d}',
+                    '${overview.newUsers30d}',
+                  ),
                 ),
               ]),
 
@@ -130,16 +183,41 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
                 _MetricTile(
                   label: l10n.adminMetricDau,
                   value: '${overview.dau}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.dau,
+                    l10n.adminMetricDau,
+                    '${overview.dau}',
+                  ),
                 ),
                 _MetricTile(
                   label: l10n.adminMetricWau,
                   value: '${overview.wau}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.wau,
+                    l10n.adminMetricWau,
+                    '${overview.wau}',
+                  ),
                 ),
                 _MetricTile(
                   label: l10n.adminMetricMau,
                   value: '${overview.mau}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.mau,
+                    l10n.adminMetricMau,
+                    '${overview.mau}',
+                  ),
                 ),
-                _RetentionTile(overview: overview),
+                _RetentionTile(
+                  overview: overview,
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.weeklyRetention,
+                    l10n.adminMetricWeeklyRetention,
+                    l10n.adminRetentionBasis(
+                      overview.retentionReturningUsers,
+                      overview.retentionPreviousWeekUsers,
+                    ),
+                  ),
+                ),
               ]),
 
               _SectionHeading(l10n.adminFootballActivityTitle),
@@ -147,28 +225,58 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
                 _MetricTile(
                   label: '${l10n.adminMetricMatches} · ${l10n.adminPeriod7d}',
                   value: '${overview.matches7d}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.matches7d,
+                    '${l10n.adminMetricMatches} · ${l10n.adminPeriod7d}',
+                    '${overview.matches7d}',
+                  ),
                 ),
                 _MetricTile(
                   label: '${l10n.adminMetricMatches} · ${l10n.adminPeriod30d}',
                   value: '${overview.matches30d}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.matches30d,
+                    '${l10n.adminMetricMatches} · ${l10n.adminPeriod30d}',
+                    '${overview.matches30d}',
+                  ),
                 ),
                 _MetricTile(
                   label:
                       '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod7d}',
                   value: '${overview.registrations7d}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.registrations7d,
+                    '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod7d}',
+                    '${overview.registrations7d}',
+                  ),
                 ),
                 _MetricTile(
                   label:
                       '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod30d}',
                   value: '${overview.registrations30d}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.registrations30d,
+                    '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod30d}',
+                    '${overview.registrations30d}',
+                  ),
                 ),
                 _MetricTile(
                   label: '${l10n.adminMetricResults} · ${l10n.adminPeriod7d}',
                   value: '${overview.results7d}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.results7d,
+                    '${l10n.adminMetricResults} · ${l10n.adminPeriod7d}',
+                    '${overview.results7d}',
+                  ),
                 ),
                 _MetricTile(
                   label: '${l10n.adminMetricResults} · ${l10n.adminPeriod30d}',
                   value: '${overview.results30d}',
+                  onTap: () => _openDrilldown(
+                    AdminDrilldownMetric.results30d,
+                    '${l10n.adminMetricResults} · ${l10n.adminPeriod30d}',
+                    '${overview.results30d}',
+                  ),
                 ),
               ]),
 
@@ -233,16 +341,21 @@ class _MetricGrid extends StatelessWidget {
 
 /// The shared shape of every figure on this page.
 class _Tile extends StatelessWidget {
-  const _Tile({required this.child, this.emphasised = false});
+  const _Tile({required this.child, this.emphasised = false, this.onTap});
 
   final Widget child;
   final bool emphasised;
+
+  /// Where this card leads, or null for one that leads nowhere. The whole
+  /// card is the target rather than a corner of it: a figure and its label
+  /// are one thing to read and should be one thing to press.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Container(
+    final tile = Container(
       padding: const EdgeInsets.all(Layout.cardInner),
       decoration: BoxDecoration(
         color: emphasised
@@ -255,15 +368,36 @@ class _Tile extends StatelessWidget {
       ),
       child: child,
     );
+
+    if (onTap == null) return tile;
+
+    // Material + InkWell rather than GestureDetector, so the card carries
+    // the ripple, the focus ring and the tap semantics the rest of the
+    // product's pressable surfaces have. The radius is repeated so the ink
+    // is clipped to the card's own corners.
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(Radii.card),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.card),
+        child: tile,
+      ),
+    );
   }
 }
 
 /// One of the two Product Health figures.
 class _HeadlineTile extends StatelessWidget {
-  const _HeadlineTile({required this.label, required this.value});
+  const _HeadlineTile({
+    required this.label,
+    required this.value,
+    this.onTap,
+  });
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -272,6 +406,7 @@ class _HeadlineTile extends StatelessWidget {
 
     return _Tile(
       emphasised: true,
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -301,7 +436,12 @@ class _MetricTile extends StatelessWidget {
     required this.value,
     this.footnote,
     this.semanticValue,
+    this.onTap,
   });
+
+  /// Where this figure's records are. Every metric the database can list
+  /// passes one; a card without one is simply not drillable.
+  final VoidCallback? onTap;
 
   final String label;
   final String value;
@@ -318,6 +458,7 @@ class _MetricTile extends StatelessWidget {
     final theme = Theme.of(context);
 
     return _Tile(
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -360,9 +501,14 @@ class _MetricTile extends StatelessWidget {
 /// product. The dash is given a spoken form of its own, because a screen reader
 /// announcing "dash" tells the administrator nothing.
 class _RetentionTile extends StatelessWidget {
-  const _RetentionTile({required this.overview});
+  const _RetentionTile({required this.overview, this.onTap});
 
   final AdminAnalyticsOverview overview;
+
+  /// Retention stays drillable even when the percentage is unavailable:
+  /// "no previous cohort" is an answer, and its drill-down correctly shows
+  /// an empty list rather than nothing at all.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -370,6 +516,7 @@ class _RetentionTile extends StatelessWidget {
     final percent = overview.weeklyRetentionPercent;
 
     return _MetricTile(
+      onTap: onTap,
       label: l10n.adminMetricWeeklyRetention,
       value: percent == null ? _unavailable : '${_trim(percent)}%',
       semanticValue: percent == null ? l10n.adminMetricUnavailable : null,

@@ -63,7 +63,7 @@ import 'app_localizations_en.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('ar'),
-    Locale('en')
+    Locale('en'),
   ];
 
   /// No description provided for @appName.
@@ -3691,6 +3691,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Share used'**
   String get adminEventShareUsed;
+
+  /// No description provided for @adminDrilldownEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No records for this metric.'**
+  String get adminDrilldownEmpty;
+
+  /// No description provided for @adminDrilldownLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get adminDrilldownLoadMore;
+
+  /// No description provided for @adminReturned.
+  ///
+  /// In en, this message translates to:
+  /// **'Returned'**
+  String get adminReturned;
+
+  /// No description provided for @adminDidNotReturn.
+  ///
+  /// In en, this message translates to:
+  /// **'Did not return'**
+  String get adminDidNotReturn;
+
+  /// No description provided for @adminCommunityInspectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Community inspection'**
+  String get adminCommunityInspectionTitle;
+
+  /// No description provided for @adminMatchInspectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match inspection'**
+  String get adminMatchInspectionTitle;
+
+  /// No description provided for @adminOpenMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Open match'**
+  String get adminOpenMatch;
+
+  /// No description provided for @adminMetricCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get adminMetricCreated;
+
+  /// No description provided for @adminMetricOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner'**
+  String get adminMetricOwner;
+
+  /// No description provided for @adminMetricStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get adminMetricStatus;
+
+  /// No description provided for @adminMetricJoinPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Join policy'**
+  String get adminMetricJoinPolicy;
+
+  /// No description provided for @adminMetricMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get adminMetricMembers;
+
+  /// No description provided for @adminMetricLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get adminMetricLocation;
+
+  /// No description provided for @adminMetricKickOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Kick-off'**
+  String get adminMetricKickOff;
+
+  /// No description provided for @adminMetricCreatedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by'**
+  String get adminMetricCreatedBy;
+
+  /// No description provided for @adminMetricRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered'**
+  String get adminMetricRegistered;
+
+  /// No description provided for @adminMetricStartingPlayers.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting players'**
+  String get adminMetricStartingPlayers;
+
+  /// No description provided for @adminMetricScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Score'**
+  String get adminMetricScore;
+
+  /// No description provided for @adminMetricResultRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Result recorded'**
+  String get adminMetricResultRecorded;
+
+  /// No description provided for @adminMetricLastActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Last activity'**
+  String get adminMetricLastActivity;
 }
 
 class _AppLocalizationsDelegate
@@ -3720,8 +3840,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

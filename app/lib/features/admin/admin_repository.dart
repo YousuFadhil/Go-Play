@@ -58,6 +58,44 @@ class AdminRepository {
 
   Future<List<AdminAuditEntry>> listAuditLog() => _adapter.listAuditLog();
 
+  /// The drill-down and inspection reads added by `0069`.
+  ///
+  /// None of them swallows a failure, for the reason the three above do not:
+  /// these are reads, and a screen handed an empty list where the truth was
+  /// "the request failed" would show an administrator a clean, wrong answer
+  /// instead of a retry. Only [isSystemAdmin] answers a failure with a
+  /// decision, because a permission question that cannot be answered has to
+  /// mean no.
+  Future<List<AdminDrilldownUser>> drilldownUsers(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      _adapter.drilldownUsers(metric, offset: offset);
+
+  Future<List<AdminDrilldownCommunity>> drilldownCommunities(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      _adapter.drilldownCommunities(metric, offset: offset);
+
+  Future<List<AdminDrilldownMatch>> drilldownMatches(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      _adapter.drilldownMatches(metric, offset: offset);
+
+  Future<List<AdminDrilldownRegistration>> drilldownRegistrations(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      _adapter.drilldownRegistrations(metric, offset: offset);
+
+  Future<AdminCommunityInspection> communityInspection(String communityId) =>
+      _adapter.communityInspection(communityId);
+
+  Future<AdminMatchInspection> matchInspection(String matchId) =>
+      _adapter.matchInspection(matchId);
+
   /// Suspends an account. The reason is trimmed here and refused when empty,
   /// so `REASON_REQUIRED` is a server guarantee rather than something an
   /// ordinary screen can provoke.

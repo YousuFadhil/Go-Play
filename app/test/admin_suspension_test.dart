@@ -63,6 +63,44 @@ class _FakeAdminAdapter implements AdminAdapter {
     return const [];
   }
 
+  // The drill-downs (0069) are not what this suite is about; a call from an
+  // unexpected place should fail loudly rather than answer.
+  @override
+  Future<List<AdminDrilldownUser>> drilldownUsers(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminDrilldownCommunity>> drilldownCommunities(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminDrilldownMatch>> drilldownMatches(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<AdminDrilldownRegistration>> drilldownRegistrations(
+    AdminDrilldownMetric metric, {
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminCommunityInspection> communityInspection(String communityId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminMatchInspection> matchInspection(String matchId) =>
+      throw UnimplementedError();
+
   @override
   Future<AdminUserActivitySummary> userActivitySummary(String userId) =>
       throw UnimplementedError();
