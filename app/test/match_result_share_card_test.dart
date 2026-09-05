@@ -190,7 +190,7 @@ void main() {
       );
       expectRect(
         find.byKey(const ValueKey('team-a-pitch')),
-        const Rect.fromLTWH(46.68, 369.74, 842.09, 502.90),
+        const Rect.fromLTWH(46.68, 339, 842.09, 541),
       );
       expectRect(
         find.byKey(const ValueKey('team-b-section')),
@@ -198,7 +198,7 @@ void main() {
       );
       expectRect(
         find.byKey(const ValueKey('team-b-pitch')),
-        const Rect.fromLTWH(48.82, 999.30, 838.88, 502.90),
+        const Rect.fromLTWH(46.68, 960, 842.09, 541),
       );
       expectRect(
         find.byKey(const ValueKey('share-footer')),
@@ -225,46 +225,94 @@ void main() {
         return rects;
       }
 
-      const expectedA = <(double, double, double)>[
-        (466.12, 392.21, 83.46),
-        (222.16, 558.06, 79.18),
-        (455.42, 559.13, 81.32),
-        (697.24, 559.13, 74.90),
-        (213.60, 737.82, 77.04),
-        (457.56, 736.75, 74.90),
-        (700.45, 737.82, 74.90),
-      ];
-      const expectedB = <(double, double, double)>[
-        (466.12, 1022.84, 83.46),
-        (202.90, 1189.76, 77.04),
-        (453.28, 1189.76, 81.32),
-        (700.45, 1189.76, 83.46),
-        (201.83, 1363.10, 79.18),
-        (455.42, 1363.10, 79.18),
-        (700.45, 1362.03, 79.18),
-      ];
+      // How large a face is drawn is no longer a traced number. The card used
+      // to scale seven diameters off the old raster, which put a face at
+      // roughly a third of the fraction of the pitch the same squad gets on a
+      // phone. It solves the face now, from the room the rows leave, and this
+      // is the floor that stops it going back: comfortably more than the
+      // traced 83.46 the card used to draw, and within a couple of points of
+      // the phone's own fraction of its pitch.
+      const tracedFace = 83.46;
+      const phoneFractionOfPitch = 55.0 / MatchStage.phoneReferenceWidth;
 
-      void expectAnchors(
-          List<Rect> actual, List<(double, double, double)> expected) {
-        expect(actual, hasLength(expected.length));
-        final expectedSorted = [...expected]..sort((a, b) {
-            final byY = a.$2.compareTo(b.$2);
-            return byY != 0 ? byY : a.$1.compareTo(b.$1);
-          });
-        for (var index = 0; index < expectedSorted.length; index++) {
-          expect(actual[index].center.dx,
-              closeTo(expectedSorted[index].$1 * sx, .2));
-          expect(actual[index].center.dy,
-              closeTo(expectedSorted[index].$2 * sy, .2));
-          expect(
-              actual[index].width, closeTo(expectedSorted[index].$3 * sx, .2));
-          expect(
-              actual[index].height, closeTo(expectedSorted[index].$3 * sx, .2));
+      void expectHalf(String pitchKey, {required bool mirror}) {
+        final pitch = tester.getRect(find.byKey(ValueKey(pitchKey)));
+        final avatars = avatarsOn(pitchKey);
+        expect(avatars, hasLength(7), reason: pitchKey);
+
+        final scale = pitch.width / PitchView.shareBeforePitchWidth;
+        for (final rect in avatars) {
+          expect(rect.width, closeTo(avatars.first.width, .01),
+              reason: '$pitchKey draws one face per side');
+          expect(rect.height, closeTo(rect.width, .01));
+        }
+        final face = avatars.first.width;
+        expect(face, greaterThan(tracedFace * scale * 1.3),
+            reason: '$pitchKey face is no longer the traced icon');
+        expect(face / pitch.width, closeTo(phoneFractionOfPitch, .03),
+            reason: '$pitchKey face holds the phone fraction of its pitch');
+
+        // Three rows for a seven-a-side, in order, spread across the band. The
+        // exact depths move a little: a side whose last label would reach an
+        // end line is seated clear of it, whole.
+        final depths = <double>[];
+        for (final rect in avatars) {
+          final depth = (rect.center.dy - pitch.top) / pitch.height;
+          if (depths.every((seen) => (seen - depth).abs() > .05)) {
+            depths.add(depth);
+          }
+        }
+        depths.sort();
+        expect(depths, hasLength(3), reason: '$pitchKey rows');
+        expect(depths.last - depths.first,
+            closeTo(PitchView.rowFar - PitchView.rowNear, .01),
+            reason: '$pitchKey keeps the whole band between its ends');
+        expect(depths[1] - depths[0], closeTo(depths[2] - depths[1], .01),
+            reason: '$pitchKey spreads its rows evenly');
+
+        // The keeper is the one at the end this side defends, and on Team B
+        // that end is the bottom of its own card.
+        final keeper = tester.getRect(find.descendant(
+          of: find.byKey(ValueKey(pitchKey)),
+          matching: find.byKey(PitchView.avatarKey(mirror ? 'b-gk' : 'a-gk')),
+        ));
+        final keeperDepth = (keeper.center.dy - pitch.top) / pitch.height;
+        // In the outer third of the end this side defends, rather than at an
+        // exact depth. A side whose last label would otherwise reach an end
+        // line is seated clear of it whole, and with a face this size that
+        // shift is worth several points of depth — which is a correction, not
+        // a drift: the band's *spread* is asserted above and is exact.
+        expect(keeperDepth, mirror ? greaterThan(2 / 3) : lessThan(1 / 3),
+            reason: '$pitchKey keeper stands at the end it defends');
+
+        // And nobody has been pushed off the grass by the move.
+        for (final rect in avatars) {
+          for (final right in const [false, true]) {
+            final top = PitchView.projectFieldPoint(
+                pitch.size, Offset(right ? 1 : 0, 0));
+            final foot = PitchView.projectFieldPoint(
+                pitch.size, Offset(right ? 1 : 0, 1));
+            final t =
+                ((rect.center.dy - pitch.top - top.dy) / (foot.dy - top.dy))
+                    .clamp(0.0, 1.0);
+            final edge = pitch.left + top.dx + (foot.dx - top.dx) * t;
+            if (right) {
+              expect(rect.right, lessThanOrEqualTo(edge + .5),
+                  reason: pitchKey);
+            } else {
+              expect(rect.left, greaterThanOrEqualTo(edge - .5),
+                  reason: pitchKey);
+            }
+          }
         }
       }
 
-      expectAnchors(avatarsOn('team-a-pitch'), expectedA);
-      expectAnchors(avatarsOn('team-b-pitch'), expectedB);
+      expectHalf('team-a-pitch', mirror: false);
+      expectHalf('team-b-pitch', mirror: true);
+      // And the same face on both halves, which is what makes them read as the
+      // two ends of one field rather than as two drawings.
+      expect(avatarsOn('team-a-pitch').first.width,
+          closeTo(avatarsOn('team-b-pitch').first.width, .01));
 
       final strip = find.byKey(const ValueKey('result-strip'));
       expect(
@@ -361,7 +409,7 @@ void main() {
       );
       expectRect(
         find.byKey(const ValueKey('team-a-pitch')),
-        const Rect.fromLTWH(46.68, 307.74, 842.09, 502.90),
+        const Rect.fromLTWH(46.68, 277, 842.09, 541),
       );
       expectRect(
         find.byKey(const ValueKey('team-b-section')),
@@ -369,7 +417,7 @@ void main() {
       );
       expectRect(
         find.byKey(const ValueKey('team-b-pitch')),
-        const Rect.fromLTWH(48.82, 951.30, 838.88, 502.90),
+        const Rect.fromLTWH(46.68, 912, 842.09, 541),
       );
       expectRect(
         find.byKey(const ValueKey('share-footer')),
@@ -791,27 +839,39 @@ void main() {
       final teamBPitch =
           tester.getSize(find.byKey(const ValueKey('team-b-pitch')));
       expect(
-          teamAPitch.width, closeTo(842.09 * MatchStage.canonicalXScale, .02));
+          teamAPitch.width,
+          closeTo(
+              MatchStage.sharePitchWidth * MatchStage.canonicalXScale, .02));
       expect(
-          teamAPitch.height, closeTo(502.90 * MatchStage.canonicalYScale, .02));
+          teamAPitch.height,
+          closeTo(
+              MatchStage.sharePitchHeight * MatchStage.canonicalYScale, .02));
       expect(
-          teamBPitch.width, closeTo(838.88 * MatchStage.canonicalXScale, .02));
+          teamBPitch.width,
+          closeTo(
+              MatchStage.sharePitchWidth * MatchStage.canonicalXScale, .02));
       expect(
-          teamBPitch.height, closeTo(502.90 * MatchStage.canonicalYScale, .02));
+          teamBPitch.height,
+          closeTo(
+              MatchStage.sharePitchHeight * MatchStage.canonicalYScale, .02));
 
       final avatars = find.byWidgetPredicate((widget) {
         final key = widget.key;
         return key is ValueKey<String> &&
             key.value.startsWith('player-avatar-');
       });
-      for (final avatar in avatars.evaluate()) {
-        expect(
+      // One face for every player on the card, solved from the room the rows
+      // leave rather than scaled off a traced icon, and large enough to be the
+      // formation's subject: comfortably past the 83.46 the raster used to
+      // draw, at the pitch's own scale.
+      final faces = [
+        for (final avatar in avatars.evaluate())
           tester.getSize(find.byWidget(avatar.widget)).width,
-          anyOf(
-            closeTo(50 * MatchStage.canonicalXScale, .02),
-            closeTo(50 * 838.88 / 842.09 * MatchStage.canonicalXScale, .02),
-          ),
-        );
+      ];
+      const scale = MatchStage.canonicalXScale;
+      for (final face in faces) {
+        expect(face, closeTo(faces.first, .02));
+        expect(face, greaterThan(83.46 * scale * 1.3));
       }
     });
 
@@ -832,27 +892,39 @@ void main() {
       final teamBPitch =
           tester.getSize(find.byKey(const ValueKey('team-b-pitch')));
       expect(
-          teamAPitch.width, closeTo(842.09 * MatchStage.canonicalXScale, .02));
+          teamAPitch.width,
+          closeTo(
+              MatchStage.sharePitchWidth * MatchStage.canonicalXScale, .02));
       expect(
-          teamAPitch.height, closeTo(502.90 * MatchStage.canonicalYScale, .02));
+          teamAPitch.height,
+          closeTo(
+              MatchStage.sharePitchHeight * MatchStage.canonicalYScale, .02));
       expect(
-          teamBPitch.width, closeTo(838.88 * MatchStage.canonicalXScale, .02));
+          teamBPitch.width,
+          closeTo(
+              MatchStage.sharePitchWidth * MatchStage.canonicalXScale, .02));
       expect(
-          teamBPitch.height, closeTo(502.90 * MatchStage.canonicalYScale, .02));
+          teamBPitch.height,
+          closeTo(
+              MatchStage.sharePitchHeight * MatchStage.canonicalYScale, .02));
 
       final avatars = find.byWidgetPredicate((widget) {
         final key = widget.key;
         return key is ValueKey<String> &&
             key.value.startsWith('player-avatar-');
       });
-      for (final avatar in avatars.evaluate()) {
-        expect(
+      // One face for every player on the card, solved from the room the rows
+      // leave rather than scaled off a traced icon, and large enough to be the
+      // formation's subject: comfortably past the 83.46 the raster used to
+      // draw, at the pitch's own scale.
+      final faces = [
+        for (final avatar in avatars.evaluate())
           tester.getSize(find.byWidget(avatar.widget)).width,
-          anyOf(
-            closeTo(50 * MatchStage.canonicalXScale, .02),
-            closeTo(50 * 838.88 / 842.09 * MatchStage.canonicalXScale, .02),
-          ),
-        );
+      ];
+      const scale = MatchStage.canonicalXScale;
+      for (final face in faces) {
+        expect(face, closeTo(faces.first, .02));
+        expect(face, greaterThan(83.46 * scale * 1.3));
       }
     });
 

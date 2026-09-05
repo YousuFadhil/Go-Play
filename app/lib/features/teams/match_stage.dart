@@ -26,6 +26,38 @@ abstract final class MatchStage {
   static const star = Color(0xFFF5C451);
   static const goal = Color(0xFFFF6B57);
 
+  /// What a goal is worth saying in: a deep sports orange, and its own colour.
+  ///
+  /// The three marks a player can carry answer to three families and not two —
+  /// black for the rating, this for goals, [star] for the best player — so a
+  /// reader tells them apart before reading any of them. Deep enough to carry
+  /// white at better than 5:1, and far enough from [star] that a scorer is
+  /// never mistaken for the MVP.
+  ///
+  /// Shared by both surfaces, and so declared above the line rather than below
+  /// it. The card used to say a goal in the same near-black the rating wears,
+  /// trimmed in [goal] — two dark pills on one face, and a hierarchy a reader
+  /// had to read in order to see. It says it in this now, with the same white
+  /// on it the phone uses.
+  static const goalMark = Color(0xFFB94A2F);
+
+  /// Where the pitch sits inside a share team section, in raster units.
+  ///
+  /// The section is [MatchStageSection.sourceWidth] by
+  /// [MatchStageSection.sourceHeight] and the heading runs from `14` to `49`,
+  /// so the grass starts eight under it and stops nine off the bottom. The
+  /// traced raster started it at `87.74` and stopped at `590.64`, which left
+  /// forty-seven points of dark card doing nothing and took them out of the
+  /// one dimension the drawing cannot spare: a player may be drawn no larger
+  /// than the depth between two rows allows, and that depth is a fraction of
+  /// this height.
+  ///
+  /// The width is the traced width and stays it. Only the depth changed.
+  static const sharePitchLeft = 25.68;
+  static const sharePitchTop = 57.0;
+  static const sharePitchWidth = 842.09;
+  static const sharePitchHeight = 541.0;
+
   // --------------------------------------------------------------------------
   // Phone-only values.
   //
@@ -55,15 +87,6 @@ abstract final class MatchStage {
   /// The one dark the phone badges are drawn on, and the score pod under it.
   static const phoneBadge = Color(0xFF0B100D);
   static const phoneScorePod = Color(0xFF060B08);
-
-  /// What a goal is worth saying in: a deep sports orange, and its own colour.
-  ///
-  /// The three marks a player can carry now answer to three families and not
-  /// two — black for the rating, this for goals, [star] for the best player —
-  /// so a reader tells them apart before reading any of them. Deep enough to
-  /// carry white at better than 5:1, and far enough from [star] that a scorer
-  /// is never mistaken for the MVP. The share card keeps [goal].
-  static const phoneGoal = Color(0xFFB94A2F);
 
   /// Team B's mark. Team A's is [accent]; `A` and `B` still mean nothing beyond
   /// telling the two sides apart (`KB-D6`), so this is a neutral grey rather
@@ -756,10 +779,29 @@ class MatchStageSection extends StatelessWidget {
               ? sx
               : MatchStage.canonicalYScale;
           final isTeamA = team == TeamId.a;
-          final pitchLeft = (isTeamA ? 25.68 : 27.82) * sx;
-          final pitchTop = (isTeamA ? 87.74 : 96.30) * sy;
-          final pitchWidth = (isTeamA ? 842.09 : 838.88) * sx;
-          final pitchHeight = 502.90 * sy;
+          // One rectangle for both sides, and as much of the section as the
+          // heading leaves.
+          //
+          // The two were traced separately from the approved raster and came
+          // back a few points apart — Team B's a little narrower, and sitting
+          // a little lower in its card. That was invisible while each side had
+          // a whole pitch to itself and is not invisible now: the two halves
+          // are meant to read as the two ends of one field, and a field whose
+          // ends are different widths and different heights off the card does
+          // not. Team A's trace wins because it is the one every other share
+          // measurement is already quoted against.
+          //
+          // The depth is not the trace's. The raster left thirty-one points of
+          // nothing between the heading and the top of the grass and sixteen
+          // under the bottom of it, which cost the pitch eight per cent of its
+          // depth and cost every player standing on it rather more than that —
+          // the depth between two rows is what caps how large a face may be
+          // drawn. The heading ends at [MatchStage.sharePitchTop] less its own
+          // gap; the grass starts there.
+          final pitchLeft = MatchStage.sharePitchLeft * sx;
+          final pitchTop = MatchStage.sharePitchTop * sy;
+          final pitchWidth = MatchStage.sharePitchWidth * sx;
+          final pitchHeight = MatchStage.sharePitchHeight * sy;
 
           return SizedBox(
             key: ValueKey(isTeamA ? 'team-a-section' : 'team-b-section'),
