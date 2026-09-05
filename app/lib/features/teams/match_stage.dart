@@ -41,6 +41,23 @@ abstract final class MatchStage {
   /// on it the phone uses.
   static const goalMark = Color(0xFFB94A2F);
 
+  /// Where the pitch sits inside a share team section, in raster units.
+  ///
+  /// The section is [MatchStageSection.sourceWidth] by
+  /// [MatchStageSection.sourceHeight] and the heading runs from `14` to `49`,
+  /// so the grass starts eight under it and stops nine off the bottom. The
+  /// traced raster started it at `87.74` and stopped at `590.64`, which left
+  /// forty-seven points of dark card doing nothing and took them out of the
+  /// one dimension the drawing cannot spare: a player may be drawn no larger
+  /// than the depth between two rows allows, and that depth is a fraction of
+  /// this height.
+  ///
+  /// The width is the traced width and stays it. Only the depth changed.
+  static const sharePitchLeft = 25.68;
+  static const sharePitchTop = 57.0;
+  static const sharePitchWidth = 842.09;
+  static const sharePitchHeight = 541.0;
+
   // --------------------------------------------------------------------------
   // Phone-only values.
   //
@@ -762,7 +779,8 @@ class MatchStageSection extends StatelessWidget {
               ? sx
               : MatchStage.canonicalYScale;
           final isTeamA = team == TeamId.a;
-          // One rectangle for both sides.
+          // One rectangle for both sides, and as much of the section as the
+          // heading leaves.
           //
           // The two were traced separately from the approved raster and came
           // back a few points apart — Team B's a little narrower, and sitting
@@ -772,10 +790,18 @@ class MatchStageSection extends StatelessWidget {
           // ends are different widths and different heights off the card does
           // not. Team A's trace wins because it is the one every other share
           // measurement is already quoted against.
-          final pitchLeft = 25.68 * sx;
-          final pitchTop = 87.74 * sy;
-          final pitchWidth = 842.09 * sx;
-          final pitchHeight = 502.90 * sy;
+          //
+          // The depth is not the trace's. The raster left thirty-one points of
+          // nothing between the heading and the top of the grass and sixteen
+          // under the bottom of it, which cost the pitch eight per cent of its
+          // depth and cost every player standing on it rather more than that —
+          // the depth between two rows is what caps how large a face may be
+          // drawn. The heading ends at [MatchStage.sharePitchTop] less its own
+          // gap; the grass starts there.
+          final pitchLeft = MatchStage.sharePitchLeft * sx;
+          final pitchTop = MatchStage.sharePitchTop * sy;
+          final pitchWidth = MatchStage.sharePitchWidth * sx;
+          final pitchHeight = MatchStage.sharePitchHeight * sy;
 
           return SizedBox(
             key: ValueKey(isTeamA ? 'team-a-section' : 'team-b-section'),

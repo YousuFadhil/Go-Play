@@ -602,7 +602,10 @@ void main() {
       expect(samples, hasLength(segments + 1));
       expect(samples[4].dx, closeTo(projected.dx, .001));
       expect(samples[4].dy, closeTo(projected.dy, .001));
-      expect(samples.first, samples.last);
+      // Closed, to the last bit a cosine of zero and a cosine of two pi agree
+      // on at this size.
+      expect(samples.first.dx, closeTo(samples.last.dx, 1e-9));
+      expect(samples.first.dy, closeTo(samples.last.dy, 1e-9));
     });
   });
 
@@ -631,11 +634,13 @@ void main() {
           for (var index = 4; index <= 6; index++) at('p$index', Position.mid),
         ];
 
-    testWidgets('the share card uses every exact approved source diameter',
+    testWidgets('the card draws one face, at the size the pitch reads',
         (tester) async {
-      // The traced diameters are the share raster's, and stay the share
-      // raster's. The phone reads them as placement and decides its own size
-      // (below), which is the one thing this contract lets it decide.
+      // The card used to scale seven traced diameters off an old raster, which
+      // on a pitch of its width came out around a third of the size the same
+      // squad is drawn at on a phone — the whole of why it read as an older
+      // picture. It solves the face now, the way the phone does, and every
+      // player on a side gets the one answer.
       await pumpPitch(
         tester,
         assignments: sevenAssignments(),
@@ -645,16 +650,22 @@ void main() {
         width: PitchView.shareBeforePitchWidth,
       );
 
-      final actual = [
+      final faces = [
         for (var index = 0; index < 7; index++)
           tester.getSize(find.byKey(PitchView.avatarKey('p$index'))).width,
-      ]..sort();
-      final expected = <double>[83.46, 79.18, 81.32, 74.90, 77.04, 74.90, 74.90]
-        ..sort();
-
-      for (var index = 0; index < expected.length; index++) {
-        expect(actual[index], closeTo(expected[index], .01));
+      ];
+      for (final face in faces) {
+        expect(face, closeTo(faces.first, .01), reason: 'one face per side');
       }
+      // Comfortably past the traced 83.46 it used to be, and past the floor
+      // the old raster set. A face this size is a formation marker; the old
+      // one was an icon standing on a field.
+      expect(faces.first, greaterThan(100));
+      expect(
+        faces.first,
+        greaterThan(
+            PitchView.phoneAvatarFloor(PitchView.shareBeforePitchWidth)),
+      );
     });
 
     testWidgets('the phone draws one face, at the size a phone reads',
@@ -830,12 +841,15 @@ void main() {
         pitch.width / pitch.height,
         closeTo(PitchView.phoneAspectRatio, 0.001),
       );
-      // The approved phone depth, and the share raster's own. Deeper than the
-      // share band of grass, and pinned, because it is the shape the whole
-      // phone pitch was approved at.
+      // The approved phone depth, pinned, because it is the shape the whole
+      // phone pitch was approved at. The card's box is fixed by the poster it
+      // sits in and cannot be given this depth without redesigning the poster,
+      // so it stays shallower — and every size drawn on it is solved from the
+      // room it actually has rather than assumed from the phone's.
       expect(PitchView.phoneAspectRatio, 1.38);
-      expect(PitchView.phoneAspectRatio,
-          isNot(closeTo(PitchView.shareBeforeAspectRatio, .2)));
+      expect(PitchView.shareBeforeAspectRatio, greaterThan(1.5));
+      expect(PitchView.shareBeforeAspectRatio,
+          greaterThan(PitchView.phoneAspectRatio));
 
       final avatar = tester.getSize(find.byKey(PitchView.avatarKey('m1')));
       expect(avatar.width, inInclusiveRange(54, 56));
@@ -880,9 +894,12 @@ void main() {
       expect(radius.topLeft.x * 2, closeTo(height, .01));
     });
 
-    testWidgets('a share pitch keeps the share pill, at the share size',
+    testWidgets('a share pitch wears the same pill, at its own scale',
         (tester) async {
-      // The same widget, the other answer. Nothing above may reach this.
+      // The same widget and the same answer, read at whatever width the
+      // surface is. The card used to get a second rating pill — dark green,
+      // no shadow, quoted in raster points — which at the card's width was a
+      // quarter of the pill the phone was approved with.
       await pumpPitch(
         tester,
         assignments: [at('m1', Position.mid)],
@@ -896,19 +913,19 @@ void main() {
         find.byKey(PitchView.ratingKey('m1')),
       );
       final decoration = pill.decoration! as BoxDecoration;
-      expect(decoration.color, MatchStage.rating.withValues(alpha: .90));
-      expect(decoration.boxShadow, isNull);
+      expect(decoration.color, MatchStage.phoneBadge);
+      expect(decoration.boxShadow, isNotNull);
+      // 22 points at the pitch's own scale, which is the pitch width over the
+      // width the approved sizes were quoted at.
+      const scale =
+          PitchView.shareBeforePitchWidth / MatchStage.phoneReferenceWidth;
       expect(
         tester.getSize(find.byKey(PitchView.ratingKey('m1'))).height,
-        closeTo(22, .01),
+        closeTo(22 * scale, .01),
       );
       expect(
         tester.widget<Text>(find.text('6.0')).style!.fontSize,
-        closeTo(14, .01),
-      );
-      expect(
-        tester.getSize(find.byKey(PitchView.avatarKey('m1'))).width,
-        closeTo(50, .01),
+        closeTo(12 * scale, .01),
       );
     });
 
@@ -1240,19 +1257,21 @@ void main() {
       expect(MatchStage.goal, const Color(0xFFFF6B57));
       expect(MatchStage.star, const Color(0xFFF5C451));
       expect(PitchView.shareBeforePitchWidth, 842.09);
-      expect(PitchView.shareBeforePitchHeight, 502.90);
-      expect(PitchView.shareBeforeAvatarDiameter, 83.46);
-      expect(PitchView.shareResultAvatarDiameter, 83.46);
       expect(MatchStage.canonicalWidth, 1080.0);
       expect(MatchStage.canonicalHeight, 1920.0);
 
-      expect(MatchStage.phonePitchLight, isNot(MatchStage.pitchLight));
-      expect(MatchStage.phonePitchDark, isNot(MatchStage.pitchDark));
-      expect(MatchStage.phoneBadge, isNot(MatchStage.rating));
-      expect(
-        PitchView.phoneAspectRatio,
-        isNot(closeTo(PitchView.shareBeforeAspectRatio, .05)),
-      );
+      // The phone's own values, unchanged, and still the ones both surfaces
+      // are drawn from. A phone number edited to suit the card fails here
+      // before it reaches anybody's screen.
+      expect(MatchStage.phonePitchLight, const Color(0xFF34C759));
+      expect(MatchStage.phonePitchDark, const Color(0xFF28A74E));
+      expect(MatchStage.phoneBadge, const Color(0xFF0B100D));
+      expect(MatchStage.goalMark, const Color(0xFFB94A2F));
+      expect(MatchStage.phoneReferenceWidth, 360.0);
+      expect(MatchStage.phonePitchAspect, 1.38);
+      expect(PitchView.rowNear, .17);
+      expect(PitchView.rowFar, .83);
+      expect(PitchView.phoneAspectRatio, MatchStage.phonePitchAspect);
     });
   });
 
@@ -1654,10 +1673,24 @@ void main() {
       // Team A defends the top of its section and Team B the bottom of its
       // own, so the two attacks meet at the edge the sections share and the
       // two keepers end up as far apart as the card can put them.
-      expect(depths[TeamId.a]!['gk'], closeTo(PitchView.rowNear, .02));
-      expect(depths[TeamId.a]!['f0'], closeTo(PitchView.rowFar, .02));
-      expect(depths[TeamId.b]!['gk'], closeTo(PitchView.rowFar, .02));
-      expect(depths[TeamId.b]!['f0'], closeTo(PitchView.rowNear, .02));
+      //
+      // Within a twentieth of the band rather than on it: a side whose last
+      // label would otherwise reach an end line is seated clear of it, whole,
+      // and that shift is part of the contract. What the band fixes is the
+      // *spread* — the rows still occupy nearly all of it, in order — not the
+      // exact depth of any one row after seating.
+      expect(depths[TeamId.a]!['gk'], closeTo(PitchView.rowNear, .05));
+      expect(depths[TeamId.a]!['f0'], closeTo(PitchView.rowFar, .05));
+      expect(depths[TeamId.b]!['gk'], closeTo(PitchView.rowFar, .05));
+      expect(depths[TeamId.b]!['f0'], closeTo(PitchView.rowNear, .05));
+      for (final team in TeamId.values) {
+        final spread = (depths[team]!['gk']! - depths[team]!['f0']!).abs();
+        expect(
+          spread,
+          closeTo(PitchView.rowFar - PitchView.rowNear, .01),
+          reason: '$team keeps the whole band between its ends',
+        );
+      }
       for (final pair in const [('gk', 'd0'), ('d0', 'm0'), ('m0', 'f0')]) {
         expect(
             depths[TeamId.a]![pair.$1], lessThan(depths[TeamId.a]![pair.$2]!),
@@ -1762,6 +1795,212 @@ void main() {
         }
         expect(tester.takeException(), isNull);
       }
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // One Match Stage, two surfaces.
+  //
+  // The card used to carry its own older visual language: a face traced off a
+  // raster, a name and a rating pill quoted in raster points, a duller grass
+  // and a greyer line. On a pitch nearly three times the phone's width that
+  // read as an old picture with a new pitch under it. These are the checks
+  // that keep the two surfaces one design — the same numbers, read at whatever
+  // scale the surface is — and keep the phone exactly where it was approved.
+  // ---------------------------------------------------------------------
+  group('the same Match Stage, at two scales', () {
+    List<PlayerCoreInputs> squad11() => [
+          player('gk', Position.gk),
+          for (var i = 0; i < 4; i++) player('d$i', Position.def),
+          for (var i = 0; i < 3; i++) player('m$i', Position.mid),
+          for (var i = 0; i < 3; i++) player('f$i', Position.fwd),
+        ];
+
+    List<PlayerCoreInputs> squad7() => [
+          player('gk', Position.gk),
+          for (var i = 0; i < 3; i++) player('d$i', Position.def),
+          for (var i = 0; i < 3; i++) player('m$i', Position.mid),
+        ];
+
+    List<PlayerCoreInputs> squadOf(int count) =>
+        count == 7 ? squad7() : squad11();
+
+    List<TeamAssignment> lineupOf(int count) => [
+          for (final p in squadOf(count)) at(p.userId, p.primaryPosition),
+        ];
+
+    Future<void> pump(
+      WidgetTester tester,
+      int count,
+      PitchPresentation presentation, {
+      bool marks = true,
+    }) =>
+        pumpPitch(
+          tester,
+          assignments: lineupOf(count),
+          squad: squadOf(count),
+          locale: const Locale('ar'),
+          goalsOf: marks ? (id) => id == 'd0' ? 2 : 0 : null,
+          isMvpOf: marks ? (id) => id == 'd0' : null,
+          presentation: presentation,
+          width: presentation == PitchPresentation.phone
+              ? PitchView.phonePitchWidth
+              : PitchView.shareBeforePitchWidth,
+        );
+
+    double faceFraction(WidgetTester tester, String id) {
+      final pitch = tester.getRect(find.byKey(const ValueKey('match-pitch')));
+      return tester.getRect(find.byKey(PitchView.avatarKey(id))).width /
+          pitch.width;
+    }
+
+    for (final count in const [7, 11]) {
+      testWidgets('$count a side: the card draws the phone at its own scale',
+          (tester) async {
+        // Every mark is the same fraction of its pitch on both surfaces. That
+        // is the whole of the parity: one set of approved numbers, read at the
+        // width the surface happens to be.
+        await pump(tester, count, PitchPresentation.phone);
+        final phoneFace = faceFraction(tester, 'gk');
+        final phoneName = tester
+            .widget<Text>(find.byKey(PitchView.nameKey('gk')))
+            .style!
+            .fontSize!;
+        final phoneRating =
+            tester.getSize(find.byKey(PitchView.ratingKey('gk'))).height;
+        final phonePitch =
+            tester.getRect(find.byKey(const ValueKey('match-pitch'))).width;
+
+        await pump(tester, count, PitchPresentation.shareResult);
+        final sharePitch =
+            tester.getRect(find.byKey(const ValueKey('match-pitch'))).width;
+        final ratio = sharePitch / phonePitch;
+
+        expect(
+          faceFraction(tester, 'gk'),
+          closeTo(phoneFace, .03),
+          reason: 'the face holds its share of the pitch',
+        );
+        expect(
+          tester
+              .widget<Text>(find.byKey(PitchView.nameKey('gk')))
+              .style!
+              .fontSize,
+          closeTo(phoneName * ratio, .01),
+          reason: 'the name is the phone name, at the card scale',
+        );
+        expect(
+          tester.getSize(find.byKey(PitchView.ratingKey('gk'))).height,
+          closeTo(phoneRating * ratio, .01),
+          reason: 'the rating pill likewise',
+        );
+      });
+
+      testWidgets('$count a side: nothing on the card touches anything else',
+          (tester) async {
+        await pump(tester, count, PitchPresentation.shareResult);
+        final pitch = tester.getRect(find.byKey(const ValueKey('match-pitch')));
+        final boxes = <(String, Rect)>[];
+        for (final item in lineupOf(count)) {
+          final id = item.participantId;
+          for (final key in [
+            PitchView.avatarKey(id),
+            PitchView.nameKey(id),
+            PitchView.ratingKey(id),
+            PitchView.goalKey(id),
+            PitchView.mvpKey(id),
+          ]) {
+            final finder = find.byKey(key);
+            if (finder.evaluate().isEmpty) continue;
+            final rect = tester.getRect(finder);
+            boxes.add((id, rect));
+            expect(rect.bottom, lessThanOrEqualTo(pitch.bottom + .5),
+                reason: '$id off the bottom of the card');
+            for (final right in const [false, true]) {
+              final top = PitchView.projectFieldPoint(
+                  pitch.size, Offset(right ? 1 : 0, 0));
+              final foot = PitchView.projectFieldPoint(
+                  pitch.size, Offset(right ? 1 : 0, 1));
+              final t =
+                  ((rect.center.dy - pitch.top - top.dy) / (foot.dy - top.dy))
+                      .clamp(0.0, 1.0);
+              final edge = pitch.left + top.dx + (foot.dx - top.dx) * t;
+              if (right) {
+                expect(rect.right, lessThanOrEqualTo(edge + .5),
+                    reason: '$id past the right touchline');
+              } else {
+                expect(rect.left, greaterThanOrEqualTo(edge - .5),
+                    reason: '$id past the left touchline');
+              }
+            }
+          }
+        }
+        for (var a = 0; a < boxes.length; a++) {
+          for (var b = a + 1; b < boxes.length; b++) {
+            if (boxes[a].$1 == boxes[b].$1) continue;
+            expect(boxes[a].$2.intersect(boxes[b].$2).isEmpty, isTrue,
+                reason: '${boxes[a].$1} collides with ${boxes[b].$1}');
+          }
+        }
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('a long name ellipsizes rather than shrinking', (tester) async {
+      // The card would rather cut a name than set it small: an accepted
+      // ellipsis is legible and a name scaled down to fit is not.
+      await pump(tester, 11, PitchPresentation.shareResult);
+      final name = tester.widget<Text>(find.byKey(PitchView.nameKey('gk')));
+      expect(name.maxLines, 1);
+      expect(name.overflow, TextOverflow.ellipsis);
+      expect(name.style!.fontSize, greaterThan(20),
+          reason: 'legible at 1080 wide even when crowded');
+    });
+
+    testWidgets('the card marks rating black, goal orange, MVP gold',
+        (tester) async {
+      await pump(tester, 7, PitchPresentation.shareResult);
+
+      Color fill(Key key) =>
+          (tester.widget<Container>(find.byKey(key)).decoration!
+                  as BoxDecoration)
+              .color!;
+
+      expect(fill(PitchView.ratingKey('d0')), MatchStage.phoneBadge);
+      expect(fill(PitchView.goalKey('d0')), MatchStage.goalMark);
+      expect(fill(PitchView.mvpKey('d0')), MatchStage.star);
+
+      // Two marks, stacked, both attached to the face — never merged.
+      final goal = tester.getRect(find.byKey(PitchView.goalKey('d0')));
+      final mvp = tester.getRect(find.byKey(PitchView.mvpKey('d0')));
+      final avatar = tester.getRect(find.byKey(PitchView.avatarKey('d0')));
+      expect(goal.intersect(mvp).isEmpty, isTrue);
+      expect(mvp.top, greaterThanOrEqualTo(goal.bottom - .5));
+      expect(goal.left, lessThan(avatar.right));
+      expect(mvp.left, lessThan(avatar.right));
+    });
+
+    testWidgets('before a result the card carries no marks at all',
+        (tester) async {
+      await pump(tester, 7, PitchPresentation.shareBeforeResult, marks: false);
+
+      expect(find.byKey(PitchView.goalKey('d0')), findsNothing);
+      expect(find.byKey(PitchView.mvpKey('d0')), findsNothing);
+      // The player language is otherwise exactly the result card's.
+      expect(
+        (tester
+                .widget<Container>(find.byKey(PitchView.ratingKey('d0')))
+                .decoration! as BoxDecoration)
+            .color,
+        MatchStage.phoneBadge,
+      );
+      final before =
+          tester.getSize(find.byKey(PitchView.avatarKey('gk'))).width;
+
+      await pump(tester, 7, PitchPresentation.shareResult);
+      expect(tester.getSize(find.byKey(PitchView.avatarKey('gk'))).width,
+          closeTo(before, .01),
+          reason: 'the two share states draw the same player');
     });
   });
 }
