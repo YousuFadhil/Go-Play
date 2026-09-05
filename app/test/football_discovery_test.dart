@@ -786,11 +786,23 @@ void main() {
       expect(find.byKey(PitchView.mvpKey('u2')), findsOneWidget);
       expect(find.byKey(PitchView.mvpKey('u1')), findsNothing);
 
-      // And the result decoration: the score strip, and the trophy on the side
-      // that won it.
+      // And the result decoration: the score strip, with the side that won it
+      // named in accent green. The phone stage carries no trophy — the mark
+      // is the colour, exactly as the Teams screen marks it, because both
+      // screens draw the one `MatchStageBoard`.
       expect(find.byKey(const ValueKey('result-strip')), findsOneWidget);
-      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget,
+      expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
+      final winner = tester.widget<Text>(find.descendant(
+        of: find.byKey(const ValueKey('result-strip')),
+        matching: find.text('Team A'),
+      ));
+      final loser = tester.widget<Text>(find.descendant(
+        of: find.byKey(const ValueKey('result-strip')),
+        matching: find.text('Team B'),
+      ));
+      expect(winner.style?.color, MatchStage.accent,
           reason: 'one side won, so exactly one side is marked');
+      expect(loser.style?.color, MatchStage.ink);
     });
 
     testWidgets('a drawn match marks neither side', (tester) async {

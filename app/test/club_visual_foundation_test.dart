@@ -67,30 +67,37 @@ void main() {
   });
 
   group('the team headings', () {
-    /// One section at the width the phone presentation is built for.
+    /// One section, at the width and in the presentation asked for.
     ///
-    /// [MatchStageSection] is what both the Teams screen and the shared result
-    /// card draw, so pumping it directly is what covers the two of them at
-    /// once — a heading proved through only one of its two callers would be a
-    /// heading half proved.
+    /// The share presentation is pumped at the raster's own section width; the
+    /// phone at the width a 390pt screen leaves it. Both are pumped here rather
+    /// than only one, because the phone heading and the share heading are now
+    /// two answers out of one widget and a change to either can reach the other.
     Future<void> pumpSection(
       WidgetTester tester, {
       required String title,
       TeamId team = TeamId.a,
+      MatchStagePresentation presentation = MatchStagePresentation.shareResult,
     }) async {
+      final phone = presentation == MatchStagePresentation.phone;
       await tester.pumpWidget(MaterialApp(
         theme: buildAppTheme(),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: Scaffold(
           backgroundColor: MatchStage.ground,
-          body: SizedBox(
-            width: MatchStageSection.sourceWidth,
-            child: MatchStageSection(
-              title: title,
-              won: false,
-              team: team,
-              child: const SizedBox.shrink(),
+          body: SingleChildScrollView(
+            child: SizedBox(
+              width: phone
+                  ? MatchStage.phoneReferenceWidth
+                  : MatchStageSection.sourceWidth,
+              child: MatchStageSection(
+                title: title,
+                won: false,
+                team: team,
+                presentation: presentation,
+                child: const SizedBox.shrink(),
+              ),
             ),
           ),
         ),
@@ -98,11 +105,22 @@ void main() {
     }
 
     testWidgets('the words remain', (tester) async {
-      await pumpSection(tester, title: 'Team A');
-      expect(find.text('Team A'), findsOneWidget);
+      for (final presentation in MatchStagePresentation.values) {
+        await pumpSection(
+          tester,
+          title: 'Team A',
+          presentation: presentation,
+        );
+        expect(find.text('Team A'), findsOneWidget, reason: '$presentation');
 
-      await pumpSection(tester, title: 'Team B', team: TeamId.b);
-      expect(find.text('Team B'), findsOneWidget);
+        await pumpSection(
+          tester,
+          title: 'Team B',
+          team: TeamId.b,
+          presentation: presentation,
+        );
+        expect(find.text('Team B'), findsOneWidget, reason: '$presentation');
+      }
     });
 
     testWidgets('the decorative bar beside them is gone', (tester) async {
@@ -131,8 +149,8 @@ void main() {
 
     testWidgets('and so is the gap that held it off the words', (tester) async {
       // Removing the block and leaving its 15px spacer would have moved the
-      // heading without anybody seeing why. The heading row now holds exactly
-      // one child.
+      // heading without anybody seeing why. The share heading row holds exactly
+      // one child, and holds it bare.
       await pumpSection(tester, title: 'Team A');
 
       final row = tester.widget<Row>(
@@ -145,15 +163,72 @@ void main() {
       expect(row.children.single, isA<Text>());
     });
 
+    testWidgets('the phone heading names its side, and the share one does not',
+        (tester) async {
+      // What replaces the withdrawn bar on the phone is not a bar: the phone
+      // section has no dark card around it any more, so the heading carries a
+      // small mark saying which side this is — emerald for A, neutral grey for
+      // B. It is a phone answer to a phone removal, and the share card, whose
+      // card is still there, is still given the words alone.
+      await pumpSection(
+        tester,
+        title: 'Team A',
+        presentation: MatchStagePresentation.phone,
+      );
+      expect(find.byKey(const ValueKey('team-a-indicator')), findsOneWidget);
+      final teamA = tester.widget<Container>(
+        find.byKey(const ValueKey('team-a-indicator')),
+      );
+      final teamADecoration = teamA.decoration! as BoxDecoration;
+      expect(teamADecoration.color, MatchStage.accent);
+      expect(teamADecoration.boxShadow, isNotNull,
+          reason: 'Team A carries the glow');
+
+      await pumpSection(
+        tester,
+        title: 'Team B',
+        team: TeamId.b,
+        presentation: MatchStagePresentation.phone,
+      );
+      expect(find.byKey(const ValueKey('team-b-indicator')), findsOneWidget);
+      final teamB = tester.widget<Container>(
+        find.byKey(const ValueKey('team-b-indicator')),
+      );
+      final teamBDecoration = teamB.decoration! as BoxDecoration;
+      expect(teamBDecoration.color, MatchStage.phoneTeamB);
+      expect(teamBDecoration.boxShadow, isNull,
+          reason: 'neither side is presented as the stronger one');
+
+      for (final team in TeamId.values) {
+        await pumpSection(tester, title: 'Team ${team.name}', team: team);
+        expect(
+            find.byKey(ValueKey('team-${team.name}-indicator')), findsNothing,
+            reason: 'the share card is not given a mark it never had');
+      }
+    });
+
     testWidgets('the section itself is otherwise intact', (tester) async {
       // The removal was of a decoration, not a redesign. Both sides still
       // render, still key themselves the way the share card finds them by, and
-      // still sit on the dark section ground.
-      await pumpSection(tester, title: 'Team A');
-      expect(find.byKey(const ValueKey('team-a-section')), findsOneWidget);
+      // still do so in either presentation.
+      for (final presentation in MatchStagePresentation.values) {
+        await pumpSection(
+          tester,
+          title: 'Team A',
+          presentation: presentation,
+        );
+        expect(find.byKey(const ValueKey('team-a-section')), findsOneWidget,
+            reason: '$presentation');
 
-      await pumpSection(tester, title: 'Team B', team: TeamId.b);
-      expect(find.byKey(const ValueKey('team-b-section')), findsOneWidget);
+        await pumpSection(
+          tester,
+          title: 'Team B',
+          team: TeamId.b,
+          presentation: presentation,
+        );
+        expect(find.byKey(const ValueKey('team-b-section')), findsOneWidget,
+            reason: '$presentation');
+      }
     });
   });
 }

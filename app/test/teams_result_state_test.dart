@@ -223,33 +223,81 @@ void main() {
       expect(actual.height, closeTo(expected.height, .15));
     }
 
-    testWidgets('result state matches REF05 exactly', (tester) async {
+    /// What the phone stage is now measured against, in place of the source
+    /// raster it used to be measured against.
+    ///
+    /// The screen and the share card were one drawing at two sizes, and the
+    /// approved refresh separates them: the phone gets a margin a thumb can
+    /// see, a deeper pitch, and no dark card between the ground and the grass.
+    /// So the rectangles below are the phone's own, in phone points, and the
+    /// raster ones live on in `match_result_share_card_test.dart` where they
+    /// still describe what is actually drawn.
+    void expectPhoneStage(WidgetTester tester, {required bool hasResult}) {
+      const margin = MatchStage.phoneMargin;
+      const width = 390.0;
+      const pitchWidth = width - 2 * margin;
+
+      for (final key in const ['team-a-section', 'team-b-section']) {
+        final section = tester.getRect(find.byKey(ValueKey(key)));
+        expect(section.left, closeTo(margin, .15), reason: key);
+        expect(section.width, closeTo(pitchWidth, .15), reason: key);
+      }
+
+      // Both sides get the whole width now. They used to differ by three
+      // points, which was two slightly different traces of one drawing and
+      // never a fact about either team.
+      for (final key in const ['team-a-pitch', 'team-b-pitch']) {
+        final pitch = tester.getRect(find.byKey(ValueKey(key)));
+        expect(pitch.left, closeTo(margin, .15), reason: key);
+        expect(pitch.width, closeTo(pitchWidth, .15), reason: key);
+        expect(
+          pitch.width / pitch.height,
+          closeTo(MatchStage.phonePitchAspect, .001),
+          reason: key,
+        );
+        // The approved band, with a hair of tolerance for the division.
+        expect(pitch.width / pitch.height, inInclusiveRange(1.379, 1.451),
+            reason: key);
+      }
+
+      // The pitch is the surface, not a panel on it: each side gives its own
+      // pitch more than four fifths of its height.
+      for (final side in const [
+        ('team-a-section', 'team-a-pitch'),
+        ('team-b-section', 'team-b-pitch'),
+      ]) {
+        final section = tester.getRect(find.byKey(ValueKey(side.$1)));
+        final pitch = tester.getRect(find.byKey(ValueKey(side.$2)));
+        expect(pitch.height / section.height, greaterThan(.82),
+            reason: side.$1);
+      }
+
+      final strip = find.byKey(const ValueKey('result-strip'));
+      if (hasResult) {
+        final rect = tester.getRect(strip);
+        expect(rect.left, closeTo(margin, .15));
+        expect(rect.width, closeTo(pitchWidth, .15));
+        expect(rect.height, inInclusiveRange(60, 64));
+      } else {
+        expect(strip, findsNothing);
+      }
+    }
+
+    testWidgets('the result state is the approved phone stage', (tester) async {
       final boundaryKey = GlobalKey();
       await pumpTeams(
         tester,
         match: visualMatch,
         recorded: result(a: 7, b: 4),
         locale: const Locale('ar'),
-        physicalSize: const Size(941, 1672),
         assignments: visualLineup,
         players: visualPlayers,
         boundaryKey: boundaryKey,
       );
 
       expectSourceRect(tester, find.byKey(const ValueKey('teams-app-bar')),
-          const Rect.fromLTWH(0, 0, 941, 82));
-      expectSourceRect(tester, find.byKey(const ValueKey('match-header')),
-          const Rect.fromLTWH(0, 90, 941, 170));
-      expectSourceRect(tester, find.byKey(const ValueKey('result-strip')),
-          const Rect.fromLTWH(51, 268, 839, 87));
-      expectSourceRect(tester, find.byKey(const ValueKey('team-a-section')),
-          const Rect.fromLTWH(21, 372, 898, 607));
-      expectSourceRect(tester, find.byKey(const ValueKey('team-a-pitch')),
-          const Rect.fromLTWH(46.68, 459.74, 842.09, 502.90));
-      expectSourceRect(tester, find.byKey(const ValueKey('team-b-section')),
-          const Rect.fromLTWH(21, 993, 898, 607));
-      expectSourceRect(tester, find.byKey(const ValueKey('team-b-pitch')),
-          const Rect.fromLTWH(48.82, 1089.30, 838.88, 502.90));
+          const Rect.fromLTWH(0, 0, 390, 82 * 390 / MatchStage.referenceWidth));
+      expectPhoneStage(tester, hasResult: true);
       expect(find.byKey(const ValueKey('share-footer')), findsNothing);
       expect(find.byIcon(Icons.ios_share), findsOneWidget);
       expect(find.byIcon(Icons.shield_outlined), findsNothing);
@@ -257,31 +305,20 @@ void main() {
       await captureScreen(tester, boundaryKey, 'teams_result_saved.png');
     });
 
-    testWidgets('before-result state matches REF06 exactly', (tester) async {
+    testWidgets('and so is the before-result state', (tester) async {
       final boundaryKey = GlobalKey();
       await pumpTeams(
         tester,
         match: visualMatch,
         locale: const Locale('ar'),
-        physicalSize: const Size(941, 1672),
         assignments: visualLineup,
         players: visualPlayers,
         boundaryKey: boundaryKey,
       );
 
       expectSourceRect(tester, find.byKey(const ValueKey('teams-app-bar')),
-          const Rect.fromLTWH(0, 0, 941, 82));
-      expectSourceRect(tester, find.byKey(const ValueKey('match-header')),
-          const Rect.fromLTWH(0, 90, 941, 170));
-      expect(find.byKey(const ValueKey('result-strip')), findsNothing);
-      expectSourceRect(tester, find.byKey(const ValueKey('team-a-section')),
-          const Rect.fromLTWH(21, 310, 898, 607));
-      expectSourceRect(tester, find.byKey(const ValueKey('team-a-pitch')),
-          const Rect.fromLTWH(46.68, 397.74, 842.09, 502.90));
-      expectSourceRect(tester, find.byKey(const ValueKey('team-b-section')),
-          const Rect.fromLTWH(21, 945, 898, 607));
-      expectSourceRect(tester, find.byKey(const ValueKey('team-b-pitch')),
-          const Rect.fromLTWH(48.82, 1041.30, 838.88, 502.90));
+          const Rect.fromLTWH(0, 0, 390, 82 * 390 / MatchStage.referenceWidth));
+      expectPhoneStage(tester, hasResult: false);
       expect(find.byKey(const ValueKey('share-footer')), findsNothing);
       expect(_goalBadges(), findsNothing);
       expect(find.byIcon(Icons.star_rounded), findsNothing);
@@ -303,37 +340,46 @@ void main() {
           tester.getSize(find.byKey(const ValueKey('team-a-pitch')));
       final teamBPitch =
           tester.getSize(find.byKey(const ValueKey('team-b-pitch')));
+      // One depth, both sides, and it is the phone's own rather than the share
+      // raster's.
       expect(teamAPitch.width / teamAPitch.height,
-          closeTo(PitchView.shareBeforeAspectRatio, .001));
-      expect(
-          teamBPitch.width / teamBPitch.height, closeTo(838.88 / 502.90, .001));
+          closeTo(MatchStage.phonePitchAspect, .001));
+      expect(teamBPitch.width / teamBPitch.height,
+          closeTo(MatchStage.phonePitchAspect, .001));
+      expect(teamAPitch.width, teamBPitch.width);
       for (final name in names.values) {
         expect(find.text(name), findsOneWidget);
       }
     });
 
-    testWidgets('phone cards and pitches use the approved 390px geometry',
+    testWidgets('the phone stage spends the screen on the pitch',
         (tester) async {
       await pumpTeams(tester, match: upcomingMatch());
 
       const scale = 390 / MatchStage.referenceWidth;
+      const content = 390 - 2 * MatchStage.phoneMargin;
+      // The bar is still drawn from the raster; it is not part of this
+      // refresh and is asserted so that it is seen not to have moved.
       expect(
           tester.getSize(find.byType(AppBar)).height, closeTo(82 * scale, .01));
-      expect(tester.getSize(find.byType(MatchStageHeader)).height,
-          closeTo(170 * scale, .01));
+
       for (final section in find.byType(MatchStageSection).evaluate()) {
-        final size = tester.getSize(find.byWidget(section.widget));
-        expect(size.width, closeTo(898 * scale, .01));
-        expect(size.height, closeTo(607 * scale, .01));
+        expect(tester.getSize(find.byWidget(section.widget)).width,
+            closeTo(content, .01));
       }
       final teamAPitch =
           tester.getSize(find.byKey(const ValueKey('team-a-pitch')));
       final teamBPitch =
           tester.getSize(find.byKey(const ValueKey('team-b-pitch')));
-      expect(teamAPitch.width, closeTo(842.09 * scale, .01));
-      expect(teamAPitch.height, closeTo(502.90 * scale, .01));
-      expect(teamBPitch.width, closeTo(838.88 * scale, .01));
-      expect(teamBPitch.height, closeTo(502.90 * scale, .01));
+      for (final pitch in [teamAPitch, teamBPitch]) {
+        expect(pitch.width, closeTo(content, .01));
+        expect(
+            pitch.height, closeTo(content / MatchStage.phonePitchAspect, .01));
+      }
+      // Wider and deeper than the raster geometry it replaces, which is the
+      // whole of what this change was for.
+      expect(teamAPitch.width, greaterThan(842.09 * scale));
+      expect(teamAPitch.height, greaterThan(502.90 * scale));
     });
 
     testWidgets('no summary, no winner, no marks', (tester) async {
@@ -396,19 +442,68 @@ void main() {
     testWidgets('a compact summary appears above the teams', (tester) async {
       await pumpTeams(tester, match: playedMatch(), recorded: result());
 
-      expect(tester.getSize(find.byType(MatchStageHeader)).height,
-          closeTo(265 * 390 / MatchStage.referenceWidth, .01));
+      // Team A, the score, Team B, in one capsule of the approved height —
+      // and the capsule is the only thing the result adds to the header.
+      final strip = tester.getSize(find.byKey(const ValueKey('result-strip')));
+      expect(strip.height, inInclusiveRange(60, 64));
       expect(find.textContaining('Al Amerat FC'), findsWidgets);
       expect(find.text('3'), findsWidgets);
       expect(find.text('1'), findsWidgets);
     });
 
-    testWidgets('the winning side is marked once in the result strip',
+    testWidgets('the winning side is marked in green, and not with a trophy',
         (tester) async {
       await pumpTeams(tester, match: playedMatch(), recorded: result());
 
-      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget);
+      // The trophy was a third thing to read in a strip whose whole job is to
+      // be read at a glance. On the phone the winner is said in accent green
+      // and the loser in plain ink; the share card keeps its trophy, and keeps
+      // it in `match_result_share_card_test.dart`.
+      expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
       expect(find.text('Winner'), findsNothing);
+      expect(_stripLabelColour(tester, 'Team A'), MatchStage.accent);
+      expect(_stripLabelColour(tester, 'Team B'), MatchStage.ink);
+    });
+
+    testWidgets('a right-to-left reading never swaps the two scores',
+        (tester) async {
+      // The one thing about this strip that is not a matter of taste. Each
+      // numeral has to stay against its own team's name whichever end of the
+      // row a reader starts from, so the pairing is asserted by position:
+      // Team A and its 3 on one side of the pod, Team B and its 1 on the other.
+      for (final locale in const [Locale('en'), Locale('ar')]) {
+        await pumpTeams(
+          tester,
+          match: playedMatch(),
+          recorded: result(a: 3, b: 1),
+          locale: locale,
+        );
+
+        final strip = find.byKey(const ValueKey('result-strip'));
+        final labelA = tester.getCenter(
+          find.descendant(of: strip, matching: find.text(l10nTeamA(locale))),
+        );
+        final labelB = tester.getCenter(
+          find.descendant(of: strip, matching: find.text(l10nTeamB(locale))),
+        );
+        final three = tester.getCenter(
+          find.descendant(of: strip, matching: find.text('3')),
+        );
+        final one = tester.getCenter(
+          find.descendant(of: strip, matching: find.text('1')),
+        );
+
+        // Team A's score sits on Team A's side of the strip, and Team B's on
+        // Team B's — in either direction.
+        expect((three.dx - labelA.dx).abs(),
+            lessThan((three.dx - labelB.dx).abs()),
+            reason: '$locale: 3 belongs to Team A');
+        expect((one.dx - labelB.dx).abs(), lessThan((one.dx - labelA.dx).abs()),
+            reason: '$locale: 1 belongs to Team B');
+        // And the winner is still the side that scored three.
+        expect(_stripLabelColour(tester, l10nTeamA(locale)), MatchStage.accent,
+            reason: '$locale');
+      }
     });
 
     testWidgets('and so is the other one when it wins', (tester) async {
@@ -418,7 +513,8 @@ void main() {
         recorded: result(a: 0, b: 2, goals: const []),
       );
 
-      expect(find.byKey(const ValueKey('winner-trophy')), findsOneWidget);
+      expect(_stripLabelColour(tester, 'Team B'), MatchStage.accent);
+      expect(_stripLabelColour(tester, 'Team A'), MatchStage.ink);
       expect(find.text('Winner'), findsNothing);
     });
 
@@ -431,6 +527,9 @@ void main() {
 
       expect(find.text('Winner'), findsNothing);
       expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
+      // Neither side is marked, rather than both being marked faintly.
+      expect(_stripLabelColour(tester, 'Team A'), MatchStage.ink);
+      expect(_stripLabelColour(tester, 'Team B'), MatchStage.ink);
     });
 
     testWidgets('a scorer carries a ball and their count', (tester) async {
@@ -554,6 +653,25 @@ Finder _goalBadges() => find.descendant(
       of: find.byType(PitchView),
       matching: find.byIcon(Icons.sports_soccer),
     );
+
+/// The colour one side's name is written in inside the result strip.
+///
+/// Which side won is said in that colour and nowhere else on the phone, so this
+/// is how the winner is read back — scoped to the strip, because the same two
+/// words also head each team's own section.
+Color? _stripLabelColour(WidgetTester tester, String label) => tester
+    .widget<Text>(find.descendant(
+      of: find.byKey(const ValueKey('result-strip')),
+      matching: find.text(label),
+    ))
+    .style
+    ?.color;
+
+String l10nTeamA(Locale locale) =>
+    locale.languageCode == 'ar' ? 'الفريق أ' : 'Team A';
+
+String l10nTeamB(Locale locale) =>
+    locale.languageCode == 'ar' ? 'الفريق ب' : 'Team B';
 
 class _Matches implements MatchAdapter {
   _Matches(this.match);
