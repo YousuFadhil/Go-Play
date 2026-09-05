@@ -1037,6 +1037,86 @@ class AppLocalizationsEn extends AppLocalizations {
       'The match and its registrations are removed, and registered players are notified. This cannot be undone.';
 
   @override
+  String get adminStatusActive => 'Active';
+
+  @override
+  String get adminStatusSuspended => 'Suspended';
+
+  @override
+  String get adminStatusSystemAdmin => 'System Admin';
+
+  @override
+  String get adminSuspendButton => 'Suspend';
+
+  @override
+  String get adminReactivateButton => 'Reactivate';
+
+  @override
+  String adminSuspendUserConfirmTitle(String name) {
+    return 'Suspend $name?';
+  }
+
+  @override
+  String get adminSuspendUserConfirmBody =>
+      'They keep their account and their football history, and stop being able to use Go Play until they are reactivated.';
+
+  @override
+  String adminSuspendCommunityConfirmTitle(String name) {
+    return 'Suspend $name?';
+  }
+
+  @override
+  String get adminSuspendCommunityConfirmBody =>
+      'It disappears from discovery and admits nobody new. Its matches, results and history are kept.';
+
+  @override
+  String adminReactivateUserConfirmTitle(String name) {
+    return 'Reactivate $name?';
+  }
+
+  @override
+  String get adminReactivateUserConfirmBody =>
+      'They can use Go Play again straight away.';
+
+  @override
+  String adminReactivateCommunityConfirmTitle(String name) {
+    return 'Reactivate $name?';
+  }
+
+  @override
+  String get adminReactivateCommunityConfirmBody =>
+      'It becomes discoverable and usable again straight away.';
+
+  @override
+  String get adminSuspensionReasonLabel => 'Reason';
+
+  @override
+  String get adminSuspensionReasonRequired => 'Please give a reason.';
+
+  @override
+  String get adminSuspendedFeedback => 'Suspended.';
+
+  @override
+  String get adminReactivatedFeedback => 'Reactivated.';
+
+  @override
+  String get accountSuspendedTitle => 'Account suspended';
+
+  @override
+  String get accountSuspendedBody =>
+      'This account has been suspended, so Go Play is unavailable for now. Your profile, matches and football history are kept.';
+
+  @override
+  String get accountSuspendedSignOut => 'Sign out';
+
+  @override
+  String get accountStatusRetry => 'Try again';
+
+  @override
+  String get accountStatusUnavailable =>
+      'We could not check your account right now.';
+
+  @override
   String get teamsTitle => 'Teams';
 
   @override
@@ -1874,4 +1954,161 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get communityFootballTitle => 'Football';
+
+  @override
+  String get adminOverviewTab => 'Overview';
+
+  @override
+  String get adminProductHealthTitle => 'Product health';
+
+  @override
+  String get adminUserGrowthTitle => 'User growth';
+
+  @override
+  String get adminEngagementTitle => 'Engagement';
+
+  @override
+  String get adminFootballActivityTitle => 'Football activity';
+
+  @override
+  String get adminMetricWau => 'Weekly active users';
+
+  @override
+  String get adminMetricActiveCommunities => 'Weekly active communities';
+
+  @override
+  String get adminMetricTotalUsers => 'Total users';
+
+  @override
+  String get adminMetricNewToday => 'New today';
+
+  @override
+  String get adminMetricDau => 'Daily active users';
+
+  @override
+  String get adminMetricMau => 'Monthly active users';
+
+  @override
+  String get adminMetricWeeklyRetention => 'Weekly retention';
+
+  @override
+  String get adminMetricMatches => 'Matches';
+
+  @override
+  String get adminMetricRegistrations => 'Registrations';
+
+  @override
+  String get adminMetricResults => 'Results';
+
+  @override
+  String get adminPeriod7d => '7 days';
+
+  @override
+  String get adminPeriod30d => '30 days';
+
+  @override
+  String get adminMetricUnavailable => 'Not available yet';
+
+  @override
+  String adminRetentionBasis(int returning, int previous) {
+    return '$returning of $previous from last week';
+  }
+
+  @override
+  String get adminAnalyticsNotice =>
+      'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.';
+
+  @override
+  String get adminAuditTab => 'Audit Log';
+
+  @override
+  String get adminAuditEmpty => 'Nothing has been recorded yet.';
+
+  @override
+  String get adminAuditUnavailable => 'No longer available';
+
+  @override
+  String get adminActionUserSuspended => 'User suspended';
+
+  @override
+  String get adminActionUserReactivated => 'User reactivated';
+
+  @override
+  String get adminActionCommunitySuspended => 'Community suspended';
+
+  @override
+  String get adminActionCommunityReactivated => 'Community reactivated';
+
+  @override
+  String get adminUserActivityTitle => 'User activity';
+
+  @override
+  String get adminActivityTitle => 'Activity';
+
+  @override
+  String get adminRecentActivityTitle => 'Recent activity';
+
+  @override
+  String get adminActivityEmpty =>
+      'Nothing has been recorded for this account yet.';
+
+  @override
+  String get adminMetricJoined => 'Joined';
+
+  @override
+  String get adminMetricLastSeen => 'Last seen';
+
+  @override
+  String get adminMetricActiveDays => 'Active days';
+
+  @override
+  String get adminMetricSessions => 'Sessions';
+
+  @override
+  String get adminMetricPlatforms => 'Platforms';
+
+  @override
+  String get adminMetricAppVersion => 'App version';
+
+  @override
+  String get adminMetricMatchesPlayed => 'Matches played';
+
+  @override
+  String get adminMetricWithdrawals => 'Withdrawals';
+
+  @override
+  String get adminPlatformWeb => 'Web';
+
+  @override
+  String get adminPlatformAndroid => 'Android';
+
+  @override
+  String get adminEventSessionStarted => 'Session started';
+
+  @override
+  String get adminEventCommunityViewed => 'Community viewed';
+
+  @override
+  String get adminEventCommunityCreated => 'Community created';
+
+  @override
+  String get adminEventCommunityJoined => 'Community joined';
+
+  @override
+  String get adminEventMatchViewed => 'Match viewed';
+
+  @override
+  String get adminEventMatchRegistered => 'Match registered';
+
+  @override
+  String get adminEventMatchWithdrawn => 'Match withdrawn';
+
+  @override
+  String get adminEventTeamsViewed => 'Teams viewed';
+
+  @override
+  String get adminEventResultViewed => 'Result viewed';
+
+  @override
+  String get adminEventShareUsed => 'Share used';
 }

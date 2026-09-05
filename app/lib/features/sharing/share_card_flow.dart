@@ -31,6 +31,8 @@ Future<void> presentShareCard(
   BuildContext context, {
   required ShareCardTemplate template,
   double pixelRatio = 1.0,
+  String? matchId,
+  String? communityId,
   ShareCardRenderer? renderer,
   ShareService? shareService,
   ShareCardDownloader? downloader,
@@ -81,6 +83,8 @@ Future<void> presentShareCard(
     MaterialPageRoute<void>(
       builder: (_) => ShareCardPreviewScreen(
         image: image!,
+        matchId: matchId,
+        communityId: communityId,
         shareService: shareService,
         downloader: downloader,
       ),

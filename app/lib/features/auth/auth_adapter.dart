@@ -69,5 +69,14 @@ abstract interface class AuthAdapter {
   /// caller already holds a session, which is what proves the account is theirs.
   Future<void> changePassword(String password);
 
+  /// Whether the signed-in account is still active, straight from the
+  /// database's own `is_current_user_active()`.
+  ///
+  /// It reports what the database says and nothing more. What to do when the
+  /// answer cannot be obtained is a permission decision, and an adapter does
+  /// not make those (OP-2) -- an implementation raises a `Failure` and the
+  /// caller decides.
+  Future<bool> isCurrentUserActive();
+
   Future<void> signOut();
 }

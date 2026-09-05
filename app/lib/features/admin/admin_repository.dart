@@ -25,6 +25,15 @@ class AdminRepository {
     }
   }
 
+  /// The Overview dashboard's figures.
+  ///
+  /// A failure is **not** swallowed the way [isSystemAdmin]'s is. That one is a
+  /// permission question, where an unanswered question has to mean no; this is
+  /// a read, and a read that failed must reach the screen so it can offer a
+  /// retry rather than draw a dashboard of zeroes.
+  Future<AdminAnalyticsOverview> analyticsOverview() =>
+      _adapter.analyticsOverview();
+
   Future<List<AdminUserSummary>> listUsers(String? search) =>
       _adapter.listUsers(search);
 
@@ -34,9 +43,41 @@ class AdminRepository {
   Future<List<AdminMatchSummary>> listMatches(String? search) =>
       _adapter.listMatches(search);
 
-  Future<void> deleteUser(String id) => _adapter.deleteUser(id);
+  /// The three read paths added by `0068`.
+  ///
+  /// None of them swallows a failure. Like [analyticsOverview] and unlike
+  /// [isSystemAdmin], these are reads rather than permission questions: a
+  /// screen that received an empty list where the truth was "the request
+  /// failed" would show an administrator a clean, wrong answer instead of a
+  /// retry.
+  Future<AdminUserActivitySummary> userActivitySummary(String userId) =>
+      _adapter.userActivitySummary(userId);
 
-  Future<void> deleteCommunity(String id) => _adapter.deleteCommunity(id);
+  Future<List<AdminUserActivityEvent>> userActivityTimeline(String userId) =>
+      _adapter.userActivityTimeline(userId);
 
-  Future<void> deleteMatch(String id) => _adapter.deleteMatch(id);
+  Future<List<AdminAuditEntry>> listAuditLog() => _adapter.listAuditLog();
+
+  /// Suspends an account. The reason is trimmed here and refused when empty,
+  /// so `REASON_REQUIRED` is a server guarantee rather than something an
+  /// ordinary screen can provoke.
+  /// `async` so an empty reason arrives as a rejected Future like every other
+  /// failure in this layer, rather than as a synchronous throw the caller has
+  /// to guard differently.
+  Future<void> suspendUser(String id, String reason) async {
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty) throw const ValidationFailure();
+    await _adapter.suspendUser(id, trimmed);
+  }
+
+  Future<void> reactivateUser(String id) => _adapter.reactivateUser(id);
+
+  Future<void> suspendCommunity(String id, String reason) async {
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty) throw const ValidationFailure();
+    await _adapter.suspendCommunity(id, trimmed);
+  }
+
+  Future<void> reactivateCommunity(String id) =>
+      _adapter.reactivateCommunity(id);
 }

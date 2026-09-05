@@ -1014,6 +1014,85 @@ class AppLocalizationsAr extends AppLocalizations {
       'تُحذف المباراة وتسجيلاتها، ويُبلَّغ المسجّلون. لا يمكن التراجع.';
 
   @override
+  String get adminStatusActive => 'نشط';
+
+  @override
+  String get adminStatusSuspended => 'موقوف';
+
+  @override
+  String get adminStatusSystemAdmin => 'مدير النظام';
+
+  @override
+  String get adminSuspendButton => 'إيقاف';
+
+  @override
+  String get adminReactivateButton => 'إعادة تفعيل';
+
+  @override
+  String adminSuspendUserConfirmTitle(String name) {
+    return 'إيقاف $name؟';
+  }
+
+  @override
+  String get adminSuspendUserConfirmBody =>
+      'يحتفظ بحسابه وسجله الكروي، ولن يتمكن من استخدام Go Play حتى تتم إعادة تفعيله.';
+
+  @override
+  String adminSuspendCommunityConfirmTitle(String name) {
+    return 'إيقاف $name؟';
+  }
+
+  @override
+  String get adminSuspendCommunityConfirmBody =>
+      'يختفي من الاستكشاف ولا يقبل أعضاء جدد. تبقى مبارياته ونتائجه وسجله محفوظة.';
+
+  @override
+  String adminReactivateUserConfirmTitle(String name) {
+    return 'إعادة تفعيل $name؟';
+  }
+
+  @override
+  String get adminReactivateUserConfirmBody =>
+      'سيتمكن من استخدام Go Play فوراً.';
+
+  @override
+  String adminReactivateCommunityConfirmTitle(String name) {
+    return 'إعادة تفعيل $name؟';
+  }
+
+  @override
+  String get adminReactivateCommunityConfirmBody =>
+      'يعود قابلاً للاكتشاف والاستخدام فوراً.';
+
+  @override
+  String get adminSuspensionReasonLabel => 'السبب';
+
+  @override
+  String get adminSuspensionReasonRequired => 'الرجاء كتابة السبب.';
+
+  @override
+  String get adminSuspendedFeedback => 'تم الإيقاف.';
+
+  @override
+  String get adminReactivatedFeedback => 'تمت إعادة التفعيل.';
+
+  @override
+  String get accountSuspendedTitle => 'الحساب موقوف';
+
+  @override
+  String get accountSuspendedBody =>
+      'تم إيقاف هذا الحساب، لذا Go Play غير متاح حالياً. ملفك ومبارياتك وسجلك الكروي محفوظة.';
+
+  @override
+  String get accountSuspendedSignOut => 'تسجيل الخروج';
+
+  @override
+  String get accountStatusRetry => 'إعادة المحاولة';
+
+  @override
+  String get accountStatusUnavailable => 'تعذّر التحقق من حسابك الآن.';
+
+  @override
   String get teamsTitle => 'الفرق';
 
   @override
@@ -1860,4 +1939,160 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get communityFootballTitle => 'كرة القدم';
+
+  @override
+  String get adminOverviewTab => 'نظرة عامة';
+
+  @override
+  String get adminProductHealthTitle => 'صحة المنتج';
+
+  @override
+  String get adminUserGrowthTitle => 'نمو المستخدمين';
+
+  @override
+  String get adminEngagementTitle => 'التفاعل';
+
+  @override
+  String get adminFootballActivityTitle => 'نشاط كرة القدم';
+
+  @override
+  String get adminMetricWau => 'المستخدمون النشطون أسبوعياً';
+
+  @override
+  String get adminMetricActiveCommunities => 'المجتمعات النشطة أسبوعياً';
+
+  @override
+  String get adminMetricTotalUsers => 'إجمالي المستخدمين';
+
+  @override
+  String get adminMetricNewToday => 'الجدد اليوم';
+
+  @override
+  String get adminMetricDau => 'المستخدمون النشطون يومياً';
+
+  @override
+  String get adminMetricMau => 'المستخدمون النشطون شهرياً';
+
+  @override
+  String get adminMetricWeeklyRetention => 'معدل العودة الأسبوعي';
+
+  @override
+  String get adminMetricMatches => 'المباريات';
+
+  @override
+  String get adminMetricRegistrations => 'التسجيلات';
+
+  @override
+  String get adminMetricResults => 'النتائج';
+
+  @override
+  String get adminPeriod7d => '٧ أيام';
+
+  @override
+  String get adminPeriod30d => '٣٠ يوماً';
+
+  @override
+  String get adminMetricUnavailable => 'غير متاح بعد';
+
+  @override
+  String adminRetentionBasis(int returning, int previous) {
+    return '$returning من $previous من الأسبوع الماضي';
+  }
+
+  @override
+  String get adminAnalyticsNotice =>
+      'تبدأ مؤشرات النشاط من هذا الإصدار. الجلسات والانسحابات السابقة لم تُسجَّل ولم تُختلق، لذلك تُحتسب من الصفر. أما الحسابات والمباريات والنتائج فبياناتها كاملة.';
+
+  @override
+  String get adminAuditTab => 'سجل الإدارة';
+
+  @override
+  String get adminAuditEmpty => 'لم يُسجَّل شيء بعد.';
+
+  @override
+  String get adminAuditUnavailable => 'لم يعد متاحاً';
+
+  @override
+  String get adminActionUserSuspended => 'إيقاف مستخدم';
+
+  @override
+  String get adminActionUserReactivated => 'إعادة تفعيل مستخدم';
+
+  @override
+  String get adminActionCommunitySuspended => 'إيقاف مجتمع';
+
+  @override
+  String get adminActionCommunityReactivated => 'إعادة تفعيل مجتمع';
+
+  @override
+  String get adminUserActivityTitle => 'نشاط المستخدم';
+
+  @override
+  String get adminActivityTitle => 'النشاط';
+
+  @override
+  String get adminRecentActivityTitle => 'النشاط الأخير';
+
+  @override
+  String get adminActivityEmpty => 'لم يُسجَّل أي نشاط لهذا الحساب بعد.';
+
+  @override
+  String get adminMetricJoined => 'تاريخ الانضمام';
+
+  @override
+  String get adminMetricLastSeen => 'آخر ظهور';
+
+  @override
+  String get adminMetricActiveDays => 'أيام النشاط';
+
+  @override
+  String get adminMetricSessions => 'الجلسات';
+
+  @override
+  String get adminMetricPlatforms => 'المنصات';
+
+  @override
+  String get adminMetricAppVersion => 'إصدار التطبيق';
+
+  @override
+  String get adminMetricMatchesPlayed => 'المباريات الملعوبة';
+
+  @override
+  String get adminMetricWithdrawals => 'الانسحابات';
+
+  @override
+  String get adminPlatformWeb => 'الويب';
+
+  @override
+  String get adminPlatformAndroid => 'أندرويد';
+
+  @override
+  String get adminEventSessionStarted => 'بدء جلسة';
+
+  @override
+  String get adminEventCommunityViewed => 'عرض مجتمع';
+
+  @override
+  String get adminEventCommunityCreated => 'إنشاء مجتمع';
+
+  @override
+  String get adminEventCommunityJoined => 'الانضمام إلى مجتمع';
+
+  @override
+  String get adminEventMatchViewed => 'عرض مباراة';
+
+  @override
+  String get adminEventMatchRegistered => 'التسجيل في مباراة';
+
+  @override
+  String get adminEventMatchWithdrawn => 'الانسحاب من مباراة';
+
+  @override
+  String get adminEventTeamsViewed => 'عرض الفرق';
+
+  @override
+  String get adminEventResultViewed => 'عرض نتيجة';
+
+  @override
+  String get adminEventShareUsed => 'مشاركة';
 }

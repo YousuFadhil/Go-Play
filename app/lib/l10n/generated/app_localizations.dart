@@ -63,7 +63,7 @@ import 'app_localizations_en.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('ar'),
-    Locale('en'),
+    Locale('en')
   ];
 
   /// No description provided for @appName.
@@ -1076,12 +1076,6 @@ abstract class AppLocalizations {
   /// **'{name} was added to the reserve list.'**
   String playerAddedReserve(String name);
 
-  /// No description provided for @addPlayerFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'That player could not be added. Try again.'**
-  String get addPlayerFailed;
-
   /// No description provided for @addSelectedPlayersButton.
   ///
   /// In en, this message translates to:
@@ -1105,6 +1099,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{That player could not be added.} other{None of the {count} players could be added.}}'**
   String playersAddedNone(int count);
+
+  /// No description provided for @addPlayerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That player could not be added. Try again.'**
+  String get addPlayerFailed;
 
   /// No description provided for @errPlayerAlreadyRegistered.
   ///
@@ -1891,6 +1891,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The match and its registrations are removed, and registered players are notified. This cannot be undone.'**
   String get adminDeleteMatchConfirmBody;
+
+  /// Admin list badge for an account or community that is not suspended
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get adminStatusActive;
+
+  /// Admin list badge for a suspended account or community
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get adminStatusSuspended;
+
+  /// Admin list badge for a protected System Admin account
+  ///
+  /// In en, this message translates to:
+  /// **'System Admin'**
+  String get adminStatusSystemAdmin;
+
+  /// No description provided for @adminSuspendButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend'**
+  String get adminSuspendButton;
+
+  /// No description provided for @adminReactivateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivate'**
+  String get adminReactivateButton;
+
+  /// No description provided for @adminSuspendUserConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend {name}?'**
+  String adminSuspendUserConfirmTitle(String name);
+
+  /// No description provided for @adminSuspendUserConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They keep their account and their football history, and stop being able to use Go Play until they are reactivated.'**
+  String get adminSuspendUserConfirmBody;
+
+  /// No description provided for @adminSuspendCommunityConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend {name}?'**
+  String adminSuspendCommunityConfirmTitle(String name);
+
+  /// No description provided for @adminSuspendCommunityConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It disappears from discovery and admits nobody new. Its matches, results and history are kept.'**
+  String get adminSuspendCommunityConfirmBody;
+
+  /// No description provided for @adminReactivateUserConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivate {name}?'**
+  String adminReactivateUserConfirmTitle(String name);
+
+  /// No description provided for @adminReactivateUserConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They can use Go Play again straight away.'**
+  String get adminReactivateUserConfirmBody;
+
+  /// No description provided for @adminReactivateCommunityConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivate {name}?'**
+  String adminReactivateCommunityConfirmTitle(String name);
+
+  /// No description provided for @adminReactivateCommunityConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It becomes discoverable and usable again straight away.'**
+  String get adminReactivateCommunityConfirmBody;
+
+  /// No description provided for @adminSuspensionReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get adminSuspensionReasonLabel;
+
+  /// No description provided for @adminSuspensionReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please give a reason.'**
+  String get adminSuspensionReasonRequired;
+
+  /// No description provided for @adminSuspendedFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended.'**
+  String get adminSuspendedFeedback;
+
+  /// No description provided for @adminReactivatedFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivated.'**
+  String get adminReactivatedFeedback;
+
+  /// No description provided for @accountSuspendedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account suspended'**
+  String get accountSuspendedTitle;
+
+  /// No description provided for @accountSuspendedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This account has been suspended, so Go Play is unavailable for now. Your profile, matches and football history are kept.'**
+  String get accountSuspendedBody;
+
+  /// No description provided for @accountSuspendedSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get accountSuspendedSignOut;
+
+  /// No description provided for @accountStatusRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get accountStatusRetry;
+
+  /// No description provided for @accountStatusUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not check your account right now.'**
+  String get accountStatusUnavailable;
 
   /// No description provided for @teamsTitle.
   ///
@@ -3253,6 +3385,312 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Football'**
   String get communityFootballTitle;
+
+  /// No description provided for @adminOverviewTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get adminOverviewTab;
+
+  /// No description provided for @adminProductHealthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Product health'**
+  String get adminProductHealthTitle;
+
+  /// No description provided for @adminUserGrowthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'User growth'**
+  String get adminUserGrowthTitle;
+
+  /// No description provided for @adminEngagementTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Engagement'**
+  String get adminEngagementTitle;
+
+  /// No description provided for @adminFootballActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Football activity'**
+  String get adminFootballActivityTitle;
+
+  /// No description provided for @adminMetricWau.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly active users'**
+  String get adminMetricWau;
+
+  /// No description provided for @adminMetricActiveCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly active communities'**
+  String get adminMetricActiveCommunities;
+
+  /// No description provided for @adminMetricTotalUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'Total users'**
+  String get adminMetricTotalUsers;
+
+  /// No description provided for @adminMetricNewToday.
+  ///
+  /// In en, this message translates to:
+  /// **'New today'**
+  String get adminMetricNewToday;
+
+  /// No description provided for @adminMetricDau.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily active users'**
+  String get adminMetricDau;
+
+  /// No description provided for @adminMetricMau.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly active users'**
+  String get adminMetricMau;
+
+  /// No description provided for @adminMetricWeeklyRetention.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly retention'**
+  String get adminMetricWeeklyRetention;
+
+  /// No description provided for @adminMetricMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches'**
+  String get adminMetricMatches;
+
+  /// No description provided for @adminMetricRegistrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Registrations'**
+  String get adminMetricRegistrations;
+
+  /// No description provided for @adminMetricResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Results'**
+  String get adminMetricResults;
+
+  /// No description provided for @adminPeriod7d.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get adminPeriod7d;
+
+  /// No description provided for @adminPeriod30d.
+  ///
+  /// In en, this message translates to:
+  /// **'30 days'**
+  String get adminPeriod30d;
+
+  /// No description provided for @adminMetricUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available yet'**
+  String get adminMetricUnavailable;
+
+  /// What the weekly retention percentage is made of: how many of the previous week's people came back.
+  ///
+  /// In en, this message translates to:
+  /// **'{returning} of {previous} from last week'**
+  String adminRetentionBasis(int returning, int previous);
+
+  /// No description provided for @adminAnalyticsNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.'**
+  String get adminAnalyticsNotice;
+
+  /// No description provided for @adminAuditTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit Log'**
+  String get adminAuditTab;
+
+  /// No description provided for @adminAuditEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has been recorded yet.'**
+  String get adminAuditEmpty;
+
+  /// No description provided for @adminAuditUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No longer available'**
+  String get adminAuditUnavailable;
+
+  /// No description provided for @adminActionUserSuspended.
+  ///
+  /// In en, this message translates to:
+  /// **'User suspended'**
+  String get adminActionUserSuspended;
+
+  /// No description provided for @adminActionUserReactivated.
+  ///
+  /// In en, this message translates to:
+  /// **'User reactivated'**
+  String get adminActionUserReactivated;
+
+  /// No description provided for @adminActionCommunitySuspended.
+  ///
+  /// In en, this message translates to:
+  /// **'Community suspended'**
+  String get adminActionCommunitySuspended;
+
+  /// No description provided for @adminActionCommunityReactivated.
+  ///
+  /// In en, this message translates to:
+  /// **'Community reactivated'**
+  String get adminActionCommunityReactivated;
+
+  /// No description provided for @adminUserActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'User activity'**
+  String get adminUserActivityTitle;
+
+  /// No description provided for @adminActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get adminActivityTitle;
+
+  /// No description provided for @adminRecentActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent activity'**
+  String get adminRecentActivityTitle;
+
+  /// No description provided for @adminActivityEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has been recorded for this account yet.'**
+  String get adminActivityEmpty;
+
+  /// No description provided for @adminMetricJoined.
+  ///
+  /// In en, this message translates to:
+  /// **'Joined'**
+  String get adminMetricJoined;
+
+  /// No description provided for @adminMetricLastSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen'**
+  String get adminMetricLastSeen;
+
+  /// No description provided for @adminMetricActiveDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Active days'**
+  String get adminMetricActiveDays;
+
+  /// No description provided for @adminMetricSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get adminMetricSessions;
+
+  /// No description provided for @adminMetricPlatforms.
+  ///
+  /// In en, this message translates to:
+  /// **'Platforms'**
+  String get adminMetricPlatforms;
+
+  /// No description provided for @adminMetricAppVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'App version'**
+  String get adminMetricAppVersion;
+
+  /// No description provided for @adminMetricMatchesPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches played'**
+  String get adminMetricMatchesPlayed;
+
+  /// No description provided for @adminMetricWithdrawals.
+  ///
+  /// In en, this message translates to:
+  /// **'Withdrawals'**
+  String get adminMetricWithdrawals;
+
+  /// No description provided for @adminPlatformWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Web'**
+  String get adminPlatformWeb;
+
+  /// No description provided for @adminPlatformAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Android'**
+  String get adminPlatformAndroid;
+
+  /// No description provided for @adminEventSessionStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Session started'**
+  String get adminEventSessionStarted;
+
+  /// No description provided for @adminEventCommunityViewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Community viewed'**
+  String get adminEventCommunityViewed;
+
+  /// No description provided for @adminEventCommunityCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Community created'**
+  String get adminEventCommunityCreated;
+
+  /// No description provided for @adminEventCommunityJoined.
+  ///
+  /// In en, this message translates to:
+  /// **'Community joined'**
+  String get adminEventCommunityJoined;
+
+  /// No description provided for @adminEventMatchViewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Match viewed'**
+  String get adminEventMatchViewed;
+
+  /// No description provided for @adminEventMatchRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Match registered'**
+  String get adminEventMatchRegistered;
+
+  /// No description provided for @adminEventMatchWithdrawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Match withdrawn'**
+  String get adminEventMatchWithdrawn;
+
+  /// No description provided for @adminEventTeamsViewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Teams viewed'**
+  String get adminEventTeamsViewed;
+
+  /// No description provided for @adminEventResultViewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Result viewed'**
+  String get adminEventResultViewed;
+
+  /// No description provided for @adminEventShareUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Share used'**
+  String get adminEventShareUsed;
 }
 
 class _AppLocalizationsDelegate
@@ -3282,9 +3720,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

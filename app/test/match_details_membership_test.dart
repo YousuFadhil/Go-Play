@@ -853,6 +853,9 @@ class _StubAuthAdapter implements AuthAdapter {
   Future<void> changePassword(String password) => throw UnimplementedError();
 
   @override
+  Future<bool> isCurrentUserActive() async => true;
+
+  @override
   Future<void> signOut() => throw UnimplementedError();
 }
 
