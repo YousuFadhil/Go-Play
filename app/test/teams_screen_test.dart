@@ -2103,6 +2103,55 @@ void main() {
       // And the screen has caught up: the control is gone after the reload.
       expect(find.text('Generate teams'), findsNothing);
     });
+
+    testWidgets('a match that finishes while the dialog is open writes nothing',
+        (tester) async {
+      // The same race one step further along: the confirmation question can be
+      // on screen across `end_at` too, so the capability is asked again after
+      // it is answered. Migration 0071 is what protects the record either way;
+      // this is what stops the app running a whole search to be told no.
+      final now = DateTime.now();
+      final teams = FakeTeamAdapter(
+        lineup: storedLineup(),
+        roster: fourInputs(),
+      );
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches: FakeMatchAdapter(
+          match: Match(
+            id: 'm1',
+            communityId: 'c1',
+            createdBy: 'u1',
+            location: 'Al Amerat Pitch',
+            startAt: now.add(const Duration(milliseconds: 800)),
+            endAt: now.add(const Duration(seconds: 2)),
+            startingPlayers: 10,
+            maxRegistration: 16,
+            status: MatchStatus.open,
+          ),
+          registrations: fourSeats(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The question is asked while the match is still to be played.
+      await tester.tap(find.text('Regenerate teams'));
+      await tester.pumpAndSettle();
+      expect(find.text('Regenerate teams'), findsNWidgets(2));
+
+      // It finishes with the dialog still open, and is then confirmed.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 2400)),
+      );
+      await tester.tap(find.text('Regenerate teams').last);
+      await tester.pumpAndSettle();
+
+      expect(teams.saveCount, 0,
+          reason: 'no lineup may be written once the match is over');
+      expect(teams.savedLineup, isNull);
+      expect(find.text('Regenerate teams'), findsNothing);
+    });
   });
 }
 

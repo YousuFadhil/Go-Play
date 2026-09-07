@@ -268,6 +268,20 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // only the first answer may start a generation.
     if (replacing && !await _confirmReplace(l10n)) return;
     if (_busy || !mounted) return;
+
+    // Asked again, because the question above can be on screen across `end_at`.
+    // The check before the dialog covers a screen left open; this one covers a
+    // dialog left open, which is the same race one step further along.
+    //
+    // Migration `0071` is what actually protects the record -- it refuses a
+    // generation onto a completed match whatever the client believes -- so this
+    // is not the guarantee. It is what stops the app running a whole BTGE
+    // search and a save in order to be told no.
+    if (!view.canGenerate) {
+      _reload();
+      return;
+    }
+
     setState(() => _busy = true);
 
     try {
