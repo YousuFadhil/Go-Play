@@ -5,9 +5,13 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../../core/time_format.dart';
+import '../sharing/share_card_flow.dart';
+import '../sharing/share_card_renderer.dart';
+import '../sharing/share_service.dart';
 import '../teams/pitch_view.dart';
 import '../teams/team_models.dart';
 import 'statistics_repository.dart';
+import 'team_of_period_card.dart';
 import 'team_of_period_models.dart';
 
 /// The Team of the Week and the Team of the Month, on one pitch.
@@ -23,14 +27,23 @@ class TeamOfPeriodScreen extends StatefulWidget {
     super.key,
     required this.communityId,
     this.communityName,
+    this.communityLogoUrl,
     this.repository,
+    this.renderer,
+    this.shareService,
   });
 
   final String communityId;
   final String? communityName;
 
+  /// Presentation only, and already loaded: `Community.logoUrl` travels down
+  /// from the details screen rather than being read again for the card.
+  final String? communityLogoUrl;
+
   /// Injected by tests. Production builds the default.
   final StatisticsRepository? repository;
+  final ShareCardRenderer? renderer;
+  final ShareService? shareService;
 
   @override
   State<TeamOfPeriodScreen> createState() => _TeamOfPeriodScreenState();
@@ -58,6 +71,57 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
     return _TeamOfPeriodView(award: award, identities: identities);
   }
 
+  /// The snapshot a picture may be taken of.
+  ///
+  /// Set only when a load finishes, and cleared the instant the reader asks
+  /// for a different period. That is the whole of the share discipline: the
+  /// card is a picture of what is on screen, so while a month is loading there
+  /// is nothing to picture and the button is off. A stale week must never
+  /// leave the phone under a month's heading.
+  _TeamOfPeriodView? _shareable;
+
+  bool get _canShare {
+    final view = _shareable;
+    return view != null &&
+        view.award.state == TeamOfPeriodState.selected &&
+        view.award.selected.isNotEmpty &&
+        widget.communityName != null;
+  }
+
+  Future<void> _share() async {
+    final view = _shareable;
+    final community = widget.communityName;
+    if (view == null || community == null) return;
+
+    // Composed from the snapshot already in hand: no award is fetched again,
+    // no selector runs again, no identity is looked up again, and the period
+    // is the one the database resolved.
+    final data = TeamOfPeriodCardData.of(
+      view.award,
+      communityName: community,
+      communityLogoUrl: widget.communityLogoUrl,
+      identities: view.identities,
+      nameOf: (userId) =>
+          view.identities[userId]?.fullName ??
+          context.l10n.teamOfPeriodPlayerFallback,
+    );
+
+    // Two frames is all the engine gives a template to settle, which is ample
+    // for layout and nowhere near enough for a network image. Best effort: a
+    // face or a crest that will not load falls back rather than failing the
+    // card.
+    await precacheShareCardFaces(context, data.imageUrls);
+    if (!mounted) return;
+
+    await presentShareCard(
+      context,
+      template: (_) => TeamOfPeriodCard(data: data),
+      communityId: widget.communityId,
+      renderer: widget.renderer,
+      shareService: widget.shareService,
+    );
+  }
+
   void _select(TeamOfPeriodKind kind) {
     if (kind == _kind) return;
     // The future is replaced in the same frame as the selection, so the old
@@ -65,6 +129,7 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
     // shown under a week's dates is the one mistake this screen must not make.
     setState(() {
       _kind = kind;
+      _shareable = null;
       _future = _load(kind);
     });
   }
@@ -73,6 +138,7 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
     // A block body, not an arrow: an arrow would return the assignment's value
     // -- a Future -- to setState, which asserts against exactly that.
     setState(() {
+      _shareable = null;
       _future = _load(_kind);
     });
   }
@@ -84,6 +150,18 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.communityName ?? l10n.teamOfPeriodTitle),
+        actions: [
+          IconButton(
+            key: const ValueKey('team-of-period-share'),
+            // Present but disabled rather than absent, so the action does not
+            // appear and vanish as the reader switches period. There is
+            // nothing to picture while a period is loading, when the read
+            // failed, when nobody played and when nobody qualified.
+            onPressed: _canShare ? _share : null,
+            icon: const Icon(Icons.ios_share),
+            tooltip: l10n.shareCardShareAction,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -120,7 +198,16 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
                 if (snapshot.hasError) {
                   return ErrorState(onRetry: _retry);
                 }
-                return _TeamOfPeriodBody(view: snapshot.data!);
+                // The snapshot is adopted as the shareable one only once it is
+                // the thing on screen. Assigning during build is why it is
+                // scheduled: the button belongs to the frame after this one.
+                final view = snapshot.data!;
+                if (!identical(_shareable, view)) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _shareable = view);
+                  });
+                }
+                return _TeamOfPeriodBody(view: view);
               },
             ),
           ),

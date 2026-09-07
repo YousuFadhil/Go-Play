@@ -36,6 +36,7 @@ class CommunityStatisticsTab extends StatefulWidget {
   const CommunityStatisticsTab({
     super.key,
     required this.communityId,
+    this.communityLogoUrl,
     this.communityName,
     this.repository,
     this.renderer,
@@ -43,6 +44,10 @@ class CommunityStatisticsTab extends StatefulWidget {
   });
 
   final String communityId;
+
+  /// Passed through to the Team of Period card so the crest needs no read of
+  /// its own. Presentation only.
+  final String? communityLogoUrl;
 
   /// What this community is called, for the card that carries these figures.
   ///
@@ -256,6 +261,7 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
                   period: _period,
                   communityId: widget.communityId,
                   communityName: widget.communityName,
+                  communityLogoUrl: widget.communityLogoUrl,
                   repository: widget.repository,
                 ),
               );
@@ -274,6 +280,7 @@ class _StatisticsBody extends StatelessWidget {
     required this.period,
     required this.communityId,
     this.communityName,
+    this.communityLogoUrl,
     this.repository,
   });
 
@@ -281,6 +288,7 @@ class _StatisticsBody extends StatelessWidget {
   final StatisticsPeriod period;
   final String communityId;
   final String? communityName;
+  final String? communityLogoUrl;
 
   /// Handed to the Team of Period screen so a test can inject one. Production
   /// passes nothing and the screen builds its own.
@@ -359,6 +367,7 @@ class _StatisticsBody extends StatelessWidget {
         _TeamOfPeriodEntry(
           communityId: communityId,
           communityName: communityName,
+          communityLogoUrl: communityLogoUrl,
           repository: repository,
         ),
         SectionHeading(title: l10n.statLeadersTitle),
@@ -410,11 +419,13 @@ class _TeamOfPeriodEntry extends StatelessWidget {
   const _TeamOfPeriodEntry({
     required this.communityId,
     this.communityName,
+    this.communityLogoUrl,
     this.repository,
   });
 
   final String communityId;
   final String? communityName;
+  final String? communityLogoUrl;
   final StatisticsRepository? repository;
 
   @override
@@ -449,6 +460,7 @@ class _TeamOfPeriodEntry extends StatelessWidget {
                           builder: (_) => TeamOfPeriodScreen(
                             communityId: communityId,
                             communityName: communityName,
+                            communityLogoUrl: communityLogoUrl,
                             repository: repository,
                           ),
                         ),
