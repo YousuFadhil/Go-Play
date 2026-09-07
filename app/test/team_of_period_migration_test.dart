@@ -641,31 +641,19 @@ void main() {
       expect(cte('totals'), contains('count(*)::int as matches_played'));
     });
 
-    test('weekly asks for one played match, and never two', () {
+    test('the threshold it introduced has since been superseded', () {
+      // 0070's own text is unchanged and still reads as it always did. What it
+      // no longer describes is the live contract: migration 0072 replaced
+      // `period_xi_required_matches` with one rule for both kinds of period,
+      // and `team_of_period_threshold_test.dart` is where that is asserted.
+      // Restating the old split here would pin a rule the database no longer
+      // applies.
+      expect(requiredFn, contains("when p_period_type = 'weekly' then 1"));
       expect(
-        requiredFn,
-        contains("when p_period_type = 'weekly' then 1"),
-      );
-      // A community that played once that week still has a Team of the Week.
-      expect(requiredFn, isNot(contains("'weekly' then 2")));
-    });
-
-    test('monthly asks for half the community month, rounded up', () {
-      expect(requiredFn, contains('(p_qualifying_matches + 1) / 2'));
-    });
-
-    test('an empty period asks for nothing, in either kind of period', () {
-      // Tested before the weekly branch, so it applies to both: no qualifying
-      // match means no award population, and a window reporting "1 required"
-      // beside "0 matches" would be stating a rule that applies to nobody.
-      expect(
-        requiredFn,
-        contains('when coalesce(p_qualifying_matches, 0) <= 0 then 0'),
-      );
-      expect(
-        requiredFn.indexOf('coalesce(p_qualifying_matches, 0) <= 0'),
-        lessThan(requiredFn.indexOf("when p_period_type = 'weekly'")),
-        reason: 'the empty case must be decided before the weekly branch',
+        File('../supabase/migrations/'
+                '0072_team_of_period_participation_threshold.sql')
+            .existsSync(),
+        isTrue,
       );
     });
 
@@ -694,49 +682,10 @@ void main() {
       expect(executable, isNot(contains('floor(')));
     });
 
-    test('the threshold table the brief fixed, 0 to 7, both periods', () {
-      // The whole SQL expression restated, branches and all. `~/` is integer
-      // division, so this is the arithmetic the database performs and not a
-      // floating-point stand-in that could round where the database truncates.
-      int required(String periodType, int qualifying) {
-        if (qualifying <= 0) return 0;
-        if (periodType == 'weekly') return 1;
-        return (qualifying + 1) ~/ 2;
-      }
-
-      const weekly = [0, 1, 1, 1, 1, 1, 1, 1];
-      const monthly = [0, 1, 1, 2, 2, 3, 3, 4];
-      for (var n = 0; n <= 7; n++) {
-        expect(required('weekly', n), weekly[n], reason: 'weekly at $n');
-        expect(required('monthly', n), monthly[n], reason: 'monthly at $n');
-      }
-    });
-
-    test('the truncating answers are named, so they cannot pass quietly', () {
-      // What `ceil(integer / integer)` would have produced at the two counts
-      // where the two formulas disagree. Stated as its own failure so a
-      // regression reads as "3 asked for 1" rather than as a table row.
-      int required(int qualifying) => (qualifying + 1) ~/ 2;
-      expect(required(3), isNot(1), reason: 'three matches must ask for two');
-      expect(required(5), isNot(2), reason: 'five matches must ask for three');
-      expect(required(7), isNot(3), reason: 'seven matches must ask for four');
-      // And the truncating form is genuinely different, so the check above is
-      // not asserting something that was never in danger.
-      expect(3 ~/ 2, 1);
-      expect(5 ~/ 2, 2);
-    });
-
     test('a period with no football asks for nothing and returns nobody', () {
-      int required(String periodType, int qualifying) {
-        if (qualifying <= 0) return 0;
-        if (periodType == 'weekly') return 1;
-        return (qualifying + 1) ~/ 2;
-      }
-
-      // Both kinds, and the weekly one is the case that was wrong: an empty
-      // week previously asked for a match nobody could have played.
-      expect(required('weekly', 0), 0);
-      expect(required('monthly', 0), 0);
+      // The one part of the rule 0072 did not change: no football, no bar.
+      int required(int qualifying) => qualifying <= 0 ? 0 : (2 * qualifying + 4) ~/ 5;
+      expect(required(0), 0);
       // No row can exist at that count anyway: every row comes from `totals`,
       // which needs an appearance in a qualifying match.
       expect(evidence, contains('from totals t'));

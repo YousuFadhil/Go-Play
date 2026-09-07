@@ -106,8 +106,28 @@ String formatAwardWeek(
   final from = muscatDayOf(start);
   final to = muscatDayOf(endExclusive).subtract(const Duration(days: 1));
   final format = DateFormat.MMMd(locale);
-  return '\u2066${format.format(from)} - ${format.format(to)}\u2069';
+  // Each date is isolated on its own, rather than the pair being forced
+  // left-to-right as a whole.
+  //
+  // The old form wrapped the entire range in an LTR isolate, which laid the
+  // Arabic fragments out left-to-right and pulled them apart: "31 \u0623\u063a\u0633\u0637\u0633" came
+  // back reordered, because the number and the month name were being placed by
+  // a direction that is not the text's. A First Strong Isolate around each date
+  // lets each resolve its own direction internally \u2014 day then month, as Arabic
+  // writes it \u2014 while the separator and the order of the two follow the
+  // paragraph they sit in. An Arabic reader gets the start first in their
+  // reading order; an English one gets it on the left.
+  //
+  // An en dash rather than a hyphen: this is a range, and that is the mark a
+  // range is written with.
+  return '${_isolate(format.format(from))} \u2013 ${_isolate(format.format(to))}';
 }
+
+/// U+2068 FIRST STRONG ISOLATE \u2026 U+2069 POP DIRECTIONAL ISOLATE.
+///
+/// "First strong" rather than an explicit direction, so a date carries whatever
+/// direction its own locale gives it instead of one this function guessed.
+String _isolate(String text) => '\u2068$text\u2069';
 
 /// The month an award covers -- "August 2026".
 String formatAwardMonth(BuildContext context, DateTime start) =>

@@ -2239,4 +2239,21 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get teamOfPeriodCurrentRatingNote =>
       'The rating shown is the player\'s rating today, not their rating during this period.';
+
+  @override
+  String teamOfPeriodMatchCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count matches',
+      one: '1 match',
+      zero: 'No matches',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String teamOfPeriodMatchesOf(int played, int total) {
+    return '$played of $total';
+  }
 }

@@ -256,6 +256,14 @@ class _TeamOfPeriodBody extends StatelessWidget {
       children: [
         SectionHeading(
           title: periodLabel(context, award.window),
+          // How much football the period actually held, from the window
+          // already loaded. It answers the question every figure below
+          // provokes -- "out of how many?" -- and it is a subtitle rather than
+          // a card because it is context for the award, not a statistic of its
+          // own.
+          subtitle: l10n.teamOfPeriodMatchCount(
+            award.window.qualifyingMatchCount,
+          ),
           padding: const EdgeInsets.fromLTRB(
             kPageMargin,
             Gap.sm,
@@ -351,6 +359,7 @@ class _AwardPitch extends StatelessWidget {
                 context,
                 selection: entry,
                 name: nameOf(entry.userId),
+                qualifyingMatchCount: award.window.qualifyingMatchCount,
               );
             },
           ),
@@ -373,6 +382,7 @@ Future<void> showPlayerPeriodDetail(
   BuildContext context, {
   required TeamOfPeriodSelection selection,
   required String name,
+  required int qualifyingMatchCount,
 }) =>
     showModalBottomSheet<void>(
       context: context,
@@ -381,14 +391,23 @@ Future<void> showPlayerPeriodDetail(
       builder: (sheetContext) => _PlayerPeriodDetail(
         selection: selection,
         name: name,
+        qualifyingMatchCount: qualifyingMatchCount,
       ),
     );
 
 class _PlayerPeriodDetail extends StatelessWidget {
-  const _PlayerPeriodDetail({required this.selection, required this.name});
+  const _PlayerPeriodDetail({
+    required this.selection,
+    required this.name,
+    required this.qualifyingMatchCount,
+  });
 
   final TeamOfPeriodSelection selection;
   final String name;
+
+  /// The period's own total, so the count below reads as participation rather
+  /// than as a bare number nobody can scale.
+  final int qualifyingMatchCount;
 
   static String positionLabel(AppLocalizations l10n, Position position) =>
       switch (position) {
@@ -434,7 +453,16 @@ class _PlayerPeriodDetail extends StatelessWidget {
               // figure here that is not about the period.
               (l10n.teamOfPeriodCurrentRating,
                   _decimal(candidate.currentOverallRating)),
-              (l10n.teamOfPeriodMatchesPlayed, '${candidate.matchesPlayed}'),
+              // "1 of 5" rather than "1". The same figure, with the only
+              // context that makes it mean anything -- and the participation
+              // rate below still states it as a proportion.
+              (
+                l10n.teamOfPeriodMatchesPlayed,
+                l10n.teamOfPeriodMatchesOf(
+                  candidate.matchesPlayed,
+                  qualifyingMatchCount,
+                )
+              ),
               (
                 l10n.teamOfPeriodParticipation,
                 _percent(context, candidate.participationRate)
