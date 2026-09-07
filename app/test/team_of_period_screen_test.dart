@@ -70,6 +70,7 @@ void main() {
     double rating = 6.5,
     TeamOfPeriodKind kind = TeamOfPeriodKind.weekly,
     int matches = 3,
+    int? played,
     DateTime? from,
     DateTime? to,
   }) =>
@@ -83,7 +84,7 @@ void main() {
           to: to,
         ),
         eligible: true,
-        matchesPlayed: 3,
+        matchesPlayed: played ?? matches,
         participationRate: 1,
         wins: 2,
         draws: 1,
@@ -102,6 +103,7 @@ void main() {
   /// A five-a-side award: one keeper, two defenders, a midfielder, a forward.
   List<TeamOfPeriodCandidate> squad({
     TeamOfPeriodKind kind = TeamOfPeriodKind.weekly,
+    int matches = 3,
     DateTime? from,
     DateTime? to,
   }) {
@@ -113,6 +115,7 @@ void main() {
             goals: goals,
             mvp: mvp,
             kind: kind,
+            matches: matches,
             from: from,
             to: to);
     return [
@@ -543,6 +546,121 @@ void main() {
       expect(find.textContaining('PFS'), findsNothing);
       // The internal value itself never reaches the sheet.
       expect(find.text('0.24'), findsNothing);
+    });
+  });
+
+  group('the period says how much football it held', () {
+    testWidgets('the header carries the qualifying match count',
+        (tester) async {
+      await pumpScreen(
+        tester,
+        adapter: _FakeAdapter(
+          window: windowOf(matches: 5),
+          candidates: squad(matches: 5),
+          identities: namesFor(['gk1', 'd1', 'd2', 'm1', 'f1']),
+        ),
+      );
+
+      // Secondary to the dates, and the answer to the question every figure
+      // below provokes.
+      expect(find.text('5 matches'), findsOneWidget);
+      expect(find.textContaining('Aug 31'), findsOneWidget);
+    });
+
+    testWidgets('one match is one match, not "1 matches"', (tester) async {
+      await pumpScreen(
+        tester,
+        adapter: _FakeAdapter(
+          window: windowOf(matches: 1),
+          candidates: squad(matches: 1),
+          identities: namesFor(['gk1', 'd1', 'd2', 'm1', 'f1']),
+        ),
+      );
+
+      expect(find.text('1 match'), findsOneWidget);
+    });
+
+    testWidgets('the sheet reads 1 of 5 rather than 1', (tester) async {
+      final adapter = _FakeAdapter(
+        window: windowOf(matches: 5),
+        candidates: [
+          candidateOf('m1', primary: Position.mid, played: 1, matches: 5),
+        ],
+        identities: namesFor(['m1']),
+      );
+      await pumpScreen(tester, adapter: adapter);
+      final reads = adapter.identityCalls.length;
+
+      await tester.tap(find.text('Player m1'));
+      await tester.pumpAndSettle();
+
+      // Numerator from the player, denominator from the loaded window.
+      expect(find.text('1 of 5'), findsOneWidget);
+      expect(find.text('1'), findsNothing);
+      // The proportion is still stated separately.
+      expect(find.text('Participation'), findsOneWidget);
+      // Opening it asked the database nothing.
+      expect(adapter.identityCalls, hasLength(reads));
+      expect(adapter.windowCalls, hasLength(1));
+      expect(adapter.candidateCalls, hasLength(1));
+    });
+
+    testWidgets('Arabic reads 1 من 5', (tester) async {
+      await pumpScreen(
+        tester,
+        locale: const Locale('ar'),
+        adapter: _FakeAdapter(
+          window: windowOf(matches: 5),
+          candidates: [
+            candidateOf('m1', primary: Position.mid, played: 1, matches: 5),
+          ],
+          identities: namesFor(['m1']),
+        ),
+      );
+
+      await tester.tap(find.text('Player m1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 من 5'), findsOneWidget);
+    });
+
+    testWidgets('switching period takes the denominator with it',
+        (tester) async {
+      final from = DateTime.utc(2026, 7, 31, 20);
+      final to = DateTime.utc(2026, 8, 31, 20);
+      final adapter = _FakeAdapter(
+        window: windowOf(matches: 5),
+        candidates: [
+          candidateOf('m1', primary: Position.mid, played: 1, matches: 5),
+        ],
+        identities: namesFor(['m1']),
+      );
+      await pumpScreen(tester, adapter: adapter);
+      expect(find.text('5 matches'), findsOneWidget);
+
+      adapter.window = windowOf(
+        kind: TeamOfPeriodKind.monthly,
+        matches: 12,
+        from: from,
+        to: to,
+      );
+      adapter.candidates = [
+        candidateOf('m1',
+            primary: Position.mid,
+            played: 1,
+            matches: 12,
+            kind: TeamOfPeriodKind.monthly,
+            from: from,
+            to: to),
+      ];
+
+      await tester.tap(find.text('Month'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('12 matches'), findsOneWidget);
+      await tester.tap(find.text('Player m1'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 of 12'), findsOneWidget);
     });
   });
 

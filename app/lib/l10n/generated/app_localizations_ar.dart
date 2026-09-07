@@ -2223,4 +2223,24 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get teamOfPeriodCurrentRatingNote =>
       'التقييم المعروض هو تقييم اللاعب اليوم، وليس تقييمه خلال هذه الفترة.';
+
+  @override
+  String teamOfPeriodMatchCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مباراة',
+      many: '$count مباراة',
+      few: '$count مباريات',
+      two: 'مباراتان',
+      one: 'مباراة واحدة',
+      zero: 'لا مباريات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String teamOfPeriodMatchesOf(int played, int total) {
+    return '$played من $total';
+  }
 }

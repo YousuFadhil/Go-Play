@@ -716,6 +716,42 @@ void main() {
       );
     });
 
+    testWidgets('the pitch is the dominant thing on the card', (tester) async {
+      await compose(tester);
+
+      final card = tester.getRect(find.byType(TeamOfPeriodCard));
+      final pitch = tester.getRect(
+        find.byKey(const ValueKey('team-of-period-card-pitch')),
+      );
+
+      // Full-bleed and better than a third of the card's height: the earlier
+      // composition inset it to Share Result's per-side width and centred it in
+      // the room left over, which read as a picture of a pitch rather than of
+      // a team.
+      expect(pitch.width, card.width);
+      expect(pitch.height / card.height, greaterThan(0.3));
+      // Still clear of the signature below it.
+      final footer = tester.getRect(find.byKey(const ValueKey('share-footer')));
+      expect(pitch.bottom, lessThanOrEqualTo(footer.top));
+      // And clear of the heading above it.
+      final period = tester.getRect(
+        find.byKey(const ValueKey('team-of-period-card-period')),
+      );
+      expect(period.bottom, lessThanOrEqualTo(pitch.top));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the match count stays off the card', (tester) async {
+      // Football-first: how many matches the period held is context for the
+      // screen, where somebody can act on it, and clutter on a picture.
+      await compose(tester);
+
+      expect(find.textContaining('matches'), findsNothing);
+      // The '1 of 5' form specifically -- 'Team of the Week' legitimately
+      // contains ' of ', so the pattern is the digits around it.
+      expect(find.textContaining(RegExp(r'\d+ of \d+')), findsNothing);
+    });
+
     testWidgets('it carries the Go Play signature', (tester) async {
       await compose(tester);
 

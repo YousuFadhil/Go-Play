@@ -216,7 +216,7 @@ class TeamOfPeriodCard extends StatelessWidget {
             ),
             Positioned(
               left: 60 * sx,
-              top: 120 * sy,
+              top: 78 * sy,
               width: MatchStage.referenceWidth * sx - 120 * sx,
               child: _Heading(
                 data: data,
@@ -229,12 +229,21 @@ class TeamOfPeriodCard extends StatelessWidget {
             // One pitch, and the subject of the card. Bounded by the width, so
             // it is as large as a 9:16 card allows, and centred in the room
             // between the heading and the signature.
+            // The subject of the card, and now sized as one.
+            //
+            // It was laid out at the width Share Result gives each of its two
+            // pitches and then centred in the room left over, which left broad
+            // bands of empty ground above and below it -- a picture of a pitch
+            // rather than a picture of a team. The card is full-bleed here and
+            // the heading sits closer to the top, so the pitch takes the width
+            // it can and the height follows from its own proportion. Nothing
+            // about the pitch's internals changed: this is the box it is given.
             Positioned(
               key: const ValueKey('team-of-period-card-pitch'),
-              left: 21 * sx,
-              top: 740 * sy,
-              width: 898 * sx,
-              height: 577 * sy,
+              left: 0,
+              top: 590 * sy,
+              width: MatchStage.referenceWidth * sx,
+              height: 604 * sy,
               child: PitchView(
                 assignments: assignments,
                 // The award's own rows. No formation, no borrowing, no

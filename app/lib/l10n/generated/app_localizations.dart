@@ -3937,6 +3937,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The rating shown is the player\'s rating today, not their rating during this period.'**
   String get teamOfPeriodCurrentRatingNote;
+
+  /// No description provided for @teamOfPeriodMatchCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No matches} =1{1 match} other{{count} matches}}'**
+  String teamOfPeriodMatchCount(int count);
+
+  /// No description provided for @teamOfPeriodMatchesOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{played} of {total}'**
+  String teamOfPeriodMatchesOf(int played, int total);
 }
 
 class _AppLocalizationsDelegate
