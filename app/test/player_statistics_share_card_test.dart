@@ -21,6 +21,7 @@ import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/features/statistics/player_statistics_card.dart';
+import 'package:go_play/features/statistics/team_of_period_models.dart';
 import 'package:go_play/features/statistics/player_statistics_screen.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
@@ -979,6 +980,22 @@ class _PeriodAdapter implements StatisticsAdapter {
     StatisticsPeriod period,
   ) async =>
       const {};
+
+  // Team of Period is a separate read path with its own period vocabulary
+  // (migration 0070). Nothing in this suite reaches it.
+  @override
+  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
 }
 
 /// The session profile source.

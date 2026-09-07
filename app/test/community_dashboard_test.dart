@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
+import 'package:go_play/features/statistics/team_of_period_models.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
 import 'package:go_play/features/statistics/statistics_period.dart';
 import 'package:go_play/features/statistics/statistics_repository.dart';
@@ -376,4 +377,20 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
   ) =>
       throw UnimplementedError(
           'the Community Dashboard reads no player totals');
+
+  // Team of Period is a separate read path with its own period vocabulary
+  // (migration 0070). Nothing in this suite reaches it.
+  @override
+  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
 }

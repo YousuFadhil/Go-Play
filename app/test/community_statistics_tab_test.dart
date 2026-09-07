@@ -6,6 +6,7 @@ import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/states.dart';
 import 'package:go_play/features/statistics/community_leaderboards_tab.dart';
+import 'package:go_play/features/statistics/team_of_period_models.dart';
 import 'package:go_play/features/statistics/community_statistics_tab.dart';
 import 'package:go_play/features/statistics/stat_card.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
@@ -420,4 +421,20 @@ class _Adapter implements StatisticsAdapter {
     StatisticsPeriod period,
   ) =>
       throw UnimplementedError('the Statistics tab reads no player totals');
+
+  // Team of Period is a separate read path with its own period vocabulary
+  // (migration 0070). Nothing in this suite reaches it.
+  @override
+  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
 }

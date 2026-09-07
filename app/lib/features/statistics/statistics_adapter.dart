@@ -1,5 +1,6 @@
 import 'statistics_models.dart';
 import 'statistics_period.dart';
+import 'team_of_period_models.dart';
 
 /// The statistics domain's port into the data provider.
 ///
@@ -102,5 +103,39 @@ abstract interface class StatisticsAdapter {
   Future<List<CommunityPlayerStatistics>> fetchPlayerPeriodStatistics(
     String userId,
     StatisticsPeriod period,
+  );
+
+  /// The period a Team of Period award describes, and the community's football
+  /// inside it — one value, always, for a caller who may read it.
+  ///
+  /// **[TeamOfPeriodKind] rather than [StatisticsPeriod], and the distinction
+  /// is the whole contract.** Every other read on this port asks about the
+  /// period a screen is currently showing; this one asks about the last period
+  /// that *finished*. The database resolves which that is and refuses to be
+  /// handed a timestamp, so there is no window parameter here and no All Time
+  /// value to pass.
+  ///
+  /// It answers even for a period nobody played. A week with no qualifying
+  /// match still has a name and a range, and the screen has to be able to say
+  /// so — which is why this is a separate read from the candidates below rather
+  /// than a row among them.
+  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
+    String communityId,
+    TeamOfPeriodKind kind,
+  );
+
+  /// Every real player who played in that completed period, with the evidence
+  /// the award is decided from.
+  ///
+  /// Zero rows is a complete answer, not an absence: a period may hold matches
+  /// that no player played enough of, and the window above still describes it.
+  ///
+  /// Professional Guests are never here — they have no account for a record to
+  /// belong to — and neither is any profile position. Where a player played is
+  /// read from the lineup rows of the period itself, so that editing a profile
+  /// afterwards cannot reshape an award that has closed.
+  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
+    String communityId,
+    TeamOfPeriodKind kind,
   );
 }

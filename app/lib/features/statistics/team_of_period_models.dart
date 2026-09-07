@@ -72,6 +72,56 @@ class PositionShapeObservation {
       };
 }
 
+/// Which period a row is about, as both read paths state it.
+///
+/// Migration `0070` repeats this on the window **and** on every candidate row,
+/// so a candidate is self-describing. Repeated data is only useful if somebody
+/// checks it, and the repository does: two reads are two round trips, and a
+/// period can roll over between them. Comparing the identities is how a team
+/// assembled from Tuesday's window and Wednesday's candidates is caught rather
+/// than displayed.
+class TeamOfPeriodIdentity {
+  const TeamOfPeriodIdentity({
+    required this.kind,
+    required this.periodKey,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.qualifyingMatchCount,
+    required this.requiredMatches,
+  });
+
+  final TeamOfPeriodKind kind;
+  final String periodKey;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final int qualifyingMatchCount;
+  final int requiredMatches;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TeamOfPeriodIdentity &&
+      other.kind == kind &&
+      other.periodKey == periodKey &&
+      other.periodStart.isAtSameMomentAs(periodStart) &&
+      other.periodEnd.isAtSameMomentAs(periodEnd) &&
+      other.qualifyingMatchCount == qualifyingMatchCount &&
+      other.requiredMatches == requiredMatches;
+
+  @override
+  int get hashCode => Object.hash(
+        kind,
+        periodKey,
+        periodStart.toUtc(),
+        periodEnd.toUtc(),
+        qualifyingMatchCount,
+        requiredMatches,
+      );
+
+  @override
+  String toString() => '$periodKey (${kind.name}, '
+      '$qualifyingMatchCount matches, $requiredMatches required)';
+}
+
 /// The period an award describes, and the community's football inside it.
 ///
 /// The `community_period_xi_window` row of migration `0070`, as a domain value.
@@ -116,6 +166,16 @@ class TeamOfPeriodWindow {
 
   /// The same sides, with their positional make-up.
   final List<PositionShapeObservation> positionShapeObservations;
+
+  /// What every candidate row should agree this period is.
+  TeamOfPeriodIdentity get identity => TeamOfPeriodIdentity(
+        kind: kind,
+        periodKey: periodKey,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        qualifyingMatchCount: qualifyingMatchCount,
+        requiredMatches: requiredMatches,
+      );
 }
 
 /// One real player's evidence for the period.
@@ -137,6 +197,7 @@ class TeamOfPeriodWindow {
 class TeamOfPeriodCandidate {
   const TeamOfPeriodCandidate({
     required this.userId,
+    required this.periodIdentity,
     required this.eligible,
     required this.matchesPlayed,
     required this.participationRate,
@@ -156,6 +217,10 @@ class TeamOfPeriodCandidate {
   });
 
   final String userId;
+
+  /// The period this row says it describes. `0070` repeats it on every
+  /// candidate, and the repository holds it to the window's.
+  final TeamOfPeriodIdentity periodIdentity;
 
   /// Whether they played enough of the period to be selectable. The threshold
   /// is the database's and is not relaxed here for any reason.

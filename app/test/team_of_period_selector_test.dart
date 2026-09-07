@@ -33,6 +33,18 @@ void main() {
         unassigned: unassigned,
       );
 
+  /// The identity every fixture agrees on. The selector does not read it --
+  /// checking a window against its candidates is the repository's job -- so it
+  /// is one constant rather than something each test varies.
+  final identity = TeamOfPeriodIdentity(
+    kind: TeamOfPeriodKind.weekly,
+    periodKey: '2026-W31',
+    periodStart: DateTime.utc(2026, 7, 27),
+    periodEnd: DateTime.utc(2026, 8, 3),
+    qualifyingMatchCount: 4,
+    requiredMatches: 1,
+  );
+
   TeamOfPeriodWindow windowOf({
     int matches = 4,
     List<int> sizes = const [5, 5, 5],
@@ -67,6 +79,7 @@ void main() {
   }) =>
       TeamOfPeriodCandidate(
         userId: id,
+        periodIdentity: identity,
         eligible: eligible,
         matchesPlayed: 4,
         participationRate: participation,
@@ -591,6 +604,48 @@ void main() {
       expect(team.state, TeamOfPeriodState.insufficientEligiblePlayers);
       expect(team.selected, isEmpty);
       expect(team.targetSize, 5, reason: 'the period still had a size');
+    });
+
+    test('nobody eligible still reports the shape the period had', () {
+      // The size and the shape are properties of the football that was played.
+      // Who turned out often enough cannot change how big the sides were or
+      // how they were filled, so an empty award still says what it was an
+      // award for -- and a shape of zeros would have claimed the period had
+      // none.
+      final team = run(
+        windowOf(),
+        [player('a', eligible: false), player('b', eligible: false)],
+      );
+
+      expect(team.initialSlotCounts, {
+        Position.gk: 1,
+        Position.def: 2,
+        Position.mid: 1,
+        Position.fwd: 1,
+      });
+      expect(
+        team.initialSlotCounts.values.reduce((a, b) => a + b),
+        team.targetSize,
+      );
+      // Nothing was awarded, and the final shape says exactly that.
+      expect(team.finalSlotCounts.values, everyElement(0));
+      expect(team.selected, isEmpty);
+    });
+
+    test('the threshold is not relaxed to fill that shape', () {
+      // An ineligible player is not promoted to fill a slot the period asked
+      // for, however good they were.
+      final team = run(
+        windowOf(),
+        [
+          player('best', form: 0.99, eligible: false),
+          player('next', form: 0.98, eligible: false),
+        ],
+      );
+
+      expect(team.state, TeamOfPeriodState.insufficientEligiblePlayers);
+      expect(team.selected, isEmpty);
+      expect(team.initialSlotCounts[Position.def], 2);
     });
 
     test('one qualifying match can still produce a team', () {

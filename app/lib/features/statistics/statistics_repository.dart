@@ -2,6 +2,8 @@ import '../../infrastructure/supabase/supabase_statistics_adapter.dart';
 import 'statistics_adapter.dart';
 import 'statistics_models.dart';
 import 'statistics_period.dart';
+import 'team_of_period_models.dart';
+import 'team_of_period_selector.dart';
 
 /// Data access for a community's statistics, and the reasoning that turns rows
 /// into the figures a dashboard shows.
@@ -429,5 +431,74 @@ class StatisticsRepository {
 
     final byName = aName.compareTo(bName);
     return byName != 0 ? byName : aId.compareTo(bId);
+  }
+
+  /// The Team of the Week or Team of the Month for [communityId].
+  ///
+  /// Two reads and one pure calculation. The database owns which period this
+  /// is, which matches qualify and what each player did in them; the selector
+  /// owns how that becomes eleven names; and what is left here is the join
+  /// between them — including the one question neither of them can ask.
+  ///
+  /// **Issued together, and then checked against each other.** Neither read
+  /// depends on the other, so they run concurrently. That also means they can
+  /// land either side of a period rollover: a window resolved at 23:59:59 on
+  /// Sunday and candidates resolved a moment later describe different weeks,
+  /// and the team assembled from them would be a plausible answer to no
+  /// question at all. `0070` repeats the period identity on every candidate row
+  /// precisely so this is detectable, and this is where it is detected.
+  ///
+  /// A mismatch throws rather than returning a degraded result. It is not a
+  /// state the product has a story for — there is no partial award — and the
+  /// caller's remedy is to read again, which is what any refresh already does.
+  /// Nothing is retried or cached here: a corrected period is rare, and the
+  /// next ordinary read recalculates it from evidence that has already moved.
+  ///
+  /// Zero candidate rows is **not** an inconsistency. A period may hold matches
+  /// that nobody played enough of, and there is then nothing to check the
+  /// window against; the selector decides what that means, and says so as
+  /// `insufficientEligiblePlayers` rather than as an error.
+  Future<TeamOfPeriod> fetchTeamOfPeriod(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) async {
+    final reads = await Future.wait([
+      _adapter.fetchTeamOfPeriodWindow(communityId, kind),
+      _adapter.fetchTeamOfPeriodCandidates(communityId, kind),
+    ]);
+    final window = reads[0] as TeamOfPeriodWindow;
+    final candidates = reads[1] as List<TeamOfPeriodCandidate>;
+
+    _assertOneSnapshot(window, candidates);
+
+    return TeamOfPeriodSelector.select(window: window, candidates: candidates);
+  }
+
+  /// Refuses a window and a candidate list that describe different periods.
+  ///
+  /// Every candidate carries the period type, key, bounds, qualifying match
+  /// count and required matches that its own read resolved. All of it must
+  /// match the window's, because all of it came from the same two functions
+  /// asking the same database the same question — so a difference is either a
+  /// rollover between the two calls or a contract that has drifted, and both
+  /// produce an award nobody should be shown.
+  ///
+  /// The count matters as much as the key: two reads inside one week still
+  /// disagree if a historical match was entered between them, and the
+  /// participation rates on those candidate rows were then taken over a
+  /// different denominator than the one the window reports.
+  void _assertOneSnapshot(
+    TeamOfPeriodWindow window,
+    List<TeamOfPeriodCandidate> candidates,
+  ) {
+    for (final candidate in candidates) {
+      if (candidate.periodIdentity != window.identity) {
+        throw StateError(
+          'the Team of Period reads describe different periods: the window '
+          'says ${window.identity} and candidate ${candidate.userId} says '
+          '${candidate.periodIdentity}',
+        );
+      }
+    }
   }
 }

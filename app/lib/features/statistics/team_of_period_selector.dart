@@ -70,6 +70,16 @@ abstract final class TeamOfPeriodSelector {
       );
     }
 
+    // The size and the shape are properties of the football that was played,
+    // so they are derived before anybody is considered for selection. Who
+    // turned out often enough to be eligible cannot change how big the sides
+    // were or how they were filled -- which is why these are computed here
+    // rather than inside the branch below, and why a period with nobody
+    // eligible still reports the shape it actually had.
+    final targetSize = targetSquadSize(window.teamSizeObservations);
+    final shares = periodShares(window.positionShapeObservations);
+    final initialSlots = allocateSlots(shares: shares, targetSize: targetSize);
+
     final eligible = [
       for (final candidate in candidates)
         if (candidate.eligible) candidate,
@@ -77,20 +87,21 @@ abstract final class TeamOfPeriodSelector {
 
     // Matches were played and nobody played enough of them. The threshold is
     // the database's and is not lowered to manufacture a team.
+    //
+    // The initial shape is still reported and the final one is empty, because
+    // that is the truth of it: the period asked for this team and no player
+    // qualified to fill any of it. Reporting a shape of zeros would have said
+    // the period had no shape, which is a different and false statement.
     if (eligible.isEmpty) {
       return TeamOfPeriod(
         window: window,
         state: TeamOfPeriodState.insufficientEligiblePlayers,
-        targetSize: targetSquadSize(window.teamSizeObservations),
-        initialSlotCounts: _emptySlots(),
+        targetSize: targetSize,
+        initialSlotCounts: Map.unmodifiable(initialSlots),
         finalSlotCounts: _emptySlots(),
         selected: const [],
       );
     }
-
-    final targetSize = targetSquadSize(window.teamSizeObservations);
-    final shares = periodShares(window.positionShapeObservations);
-    final initialSlots = allocateSlots(shares: shares, targetSize: targetSize);
 
     // Ranked once, and every phase below reads this one order. Sorting per role
     // would be the same comparison run repeatedly; doing it once is also what
