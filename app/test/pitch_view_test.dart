@@ -51,6 +51,7 @@ void main() {
     bool Function(String participantId)? isMvpOf,
     PitchPresentation presentation = PitchPresentation.phone,
     double? width,
+    PitchLayoutMode layout = PitchLayoutMode.matchFormation,
   }) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
@@ -68,6 +69,7 @@ void main() {
             width: width ?? PitchView.phonePitchWidth,
             child: PitchView(
               assignments: assignments,
+              layout: layout,
               players: byId,
               hasNaturalGoalkeeper: hasNaturalGoalkeeper ??
                   squad.any((p) => p.isNaturalGoalkeeper),
@@ -2001,6 +2003,134 @@ void main() {
       expect(tester.getSize(find.byKey(PitchView.avatarKey('gk'))).width,
           closeTo(before, .01),
           reason: 'the two share states draw the same player');
+    });
+  });
+
+  // The Team of Period layout. The award's position is the award, so the pitch
+  // draws exactly what it was given -- no borrowing, no minimum line, no
+  // formation decision. The match path above is untouched and every test in it
+  // still describes it.
+  group('the exact assigned-position layout', () {
+    Future<void> pumpExact(
+      WidgetTester tester,
+      List<TeamAssignment> assignments,
+      List<PlayerCoreInputs> squad,
+    ) =>
+        pumpPitch(
+          tester,
+          assignments: assignments,
+          squad: squad,
+          layout: PitchLayoutMode.exactAssignedPositions,
+        );
+
+    testWidgets('every player stays on the row they were awarded',
+        (tester) async {
+      final assignments = [
+        at('gk', Position.gk),
+        at('d1', Position.def),
+        at('d2', Position.def),
+        at('m1', Position.mid),
+        at('f1', Position.fwd),
+      ];
+      await pumpExact(tester, assignments, [
+        player('gk', Position.gk, name: 'Keeper'),
+        player('d1', Position.def, name: 'Back One'),
+        player('d2', Position.def, name: 'Back Two'),
+        player('m1', Position.mid, name: 'Middle'),
+        player('f1', Position.fwd, name: 'Front'),
+      ]);
+
+      // Down the pitch in the order the axis names, and nobody moved.
+      expect(yOf(tester, 'Keeper'), lessThan(yOf(tester, 'Back One')));
+      expect(yOf(tester, 'Back One'), lessThan(yOf(tester, 'Middle')));
+      expect(yOf(tester, 'Middle'), lessThan(yOf(tester, 'Front')));
+      expect(yOf(tester, 'Back One'), yOf(tester, 'Back Two'));
+    });
+
+    testWidgets('no goalkeeper evidence draws no goalkeeper row',
+        (tester) async {
+      // `buildFormation` would have looked for somebody to keep goal. The award
+      // says nobody did, and the pitch says the same.
+      final assignments = [
+        at('d1', Position.def),
+        at('d2', Position.def),
+        at('m1', Position.mid),
+        at('m2', Position.mid),
+        at('m3', Position.mid),
+        at('f1', Position.fwd),
+        at('f2', Position.fwd),
+      ];
+      await pumpExact(tester, assignments, [
+        player('d1', Position.def, name: 'Back One'),
+        player('d2', Position.def, name: 'Back Two'),
+        player('m1', Position.mid, name: 'Mid One'),
+        player('m2', Position.mid, name: 'Mid Two'),
+        player('m3', Position.mid, name: 'Mid Three'),
+        player('f1', Position.fwd, name: 'Front One'),
+        player('f2', Position.fwd, name: 'Front Two'),
+      ]);
+
+      expect(find.text('Back One'), findsOneWidget);
+      expect(find.text('Front Two'), findsOneWidget);
+      // The hindmost row is the defence, because there is nothing behind it.
+      expect(yOf(tester, 'Back One'), lessThan(yOf(tester, 'Mid One')));
+      expect(yOf(tester, 'Mid One'), lessThan(yOf(tester, 'Front One')));
+    });
+
+    testWidgets('one goalkeeper is drawn as one goalkeeper', (tester) async {
+      final assignments = [
+        at('gk', Position.gk),
+        at('d1', Position.def),
+        at('m1', Position.mid),
+      ];
+      await pumpExact(tester, assignments, [
+        player('gk', Position.gk, name: 'Keeper'),
+        player('d1', Position.def, name: 'Back'),
+        player('m1', Position.mid, name: 'Middle'),
+      ]);
+
+      expect(find.text('Keeper'), findsOneWidget);
+      expect(yOf(tester, 'Keeper'), lessThan(yOf(tester, 'Back')));
+    });
+
+    testWidgets('a lopsided shape is drawn lopsided', (tester) async {
+      // One at the back, four across the middle, one ahead. A formation would
+      // have split the midfield or borrowed one of them into defence.
+      final assignments = [
+        at('gk', Position.gk),
+        at('d1', Position.def),
+        at('m1', Position.mid),
+        at('m2', Position.mid),
+        at('m3', Position.mid),
+        at('m4', Position.mid),
+        at('f1', Position.fwd),
+      ];
+      await pumpExact(tester, assignments, [
+        player('gk', Position.gk, name: 'Keeper'),
+        player('d1', Position.def, name: 'Back'),
+        for (var i = 1; i <= 4; i++)
+          player('m$i', Position.mid, name: 'Mid $i'),
+        player('f1', Position.fwd, name: 'Front'),
+      ]);
+
+      final midRow = [for (var i = 1; i <= 4; i++) yOf(tester, 'Mid $i')];
+      expect(midRow.toSet(), hasLength(1),
+          reason: 'all four midfielders share one row');
+      expect(yOf(tester, 'Back'), lessThan(midRow.first));
+      expect(midRow.first, lessThan(yOf(tester, 'Front')));
+    });
+
+    testWidgets('a player with no profile still draws, without a rating',
+        (tester) async {
+      // The award has no `PlayerCoreInputs` to give and does not invent one.
+      await pumpPitch(
+        tester,
+        assignments: [at('d1', Position.def)],
+        squad: const [],
+        layout: PitchLayoutMode.exactAssignedPositions,
+      );
+
+      expect(tester.takeException(), isNull);
     });
   });
 }

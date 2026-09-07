@@ -8,6 +8,7 @@ import 'package:go_play/features/sharing/share_card_canvas.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/features/statistics/community_statistics_card.dart';
+import 'package:go_play/features/statistics/team_of_period_models.dart';
 import 'package:go_play/features/statistics/community_statistics_tab.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
@@ -585,6 +586,28 @@ class _Adapter implements StatisticsAdapter {
     StatisticsPeriod period,
   ) =>
       throw UnimplementedError('the Statistics tab reads no player totals');
+
+  // Team of Period is a separate read path with its own period vocabulary
+  // (migration 0070). Nothing in this suite reaches it.
+  @override
+  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
+          throw UnimplementedError('no Team of Period identities here');
+
 }
 
 /// Keeps whatever template the tab handed the engine.

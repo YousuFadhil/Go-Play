@@ -215,7 +215,7 @@ class MatchResultCard extends StatelessWidget {
               top: 1538 * sy,
               width: constraints.maxWidth,
               height: 134 * sy,
-              child: const _Signature(),
+              child: const ShareCardSignature(),
             ),
           ],
         ),
@@ -256,8 +256,13 @@ class MatchResultCard extends StatelessWidget {
 }
 
 /// Exact 941×134 source footer, scaled only by its containing region.
-class _Signature extends StatelessWidget {
-  const _Signature();
+///
+/// Public so a second card can carry the same signature rather than a copy of
+/// it. Nothing about what it draws changed when it stopped being private: the
+/// keys, the geometry and the painters are the ones Share Result was approved
+/// with, and its tests assert on them.
+class ShareCardSignature extends StatelessWidget {
+  const ShareCardSignature({super.key});
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(

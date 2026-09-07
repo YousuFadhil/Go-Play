@@ -10,14 +10,37 @@ import 'team_models.dart';
 enum PitchPresentation { phone, shareBeforeResult, shareResult }
 
 /// The approved pitch is one perspective drawing with deterministic anchors.
+/// How a pitch decides which row a player stands in.
+enum PitchLayoutMode {
+  /// The match presentation, unchanged: [buildFormation] groups the side and
+  /// may move a player into a neighbouring line so a real squad reads as a
+  /// shape. Every match screen and every share card uses this.
+  matchFormation,
+
+  /// Rows taken **strictly** from each assignment's `assignedPosition`, in the
+  /// order GK, DEF, MID, FWD, with empty rows omitted.
+  ///
+  /// For the Team of Period, where the position is the award itself. Nobody
+  /// there was placed by an engine balancing a match -- they were given the
+  /// position because it is where they actually played most of the period --
+  /// so borrowing a midfielder into defence to make a familiar shape would
+  /// redraw the award into something the evidence never said. There is no
+  /// minimum defence, no minimum attack, and a period with no goalkeeper
+  /// evidence simply has no goalkeeper row.
+  exactAssignedPositions,
+}
+
 /// Stored assignments remain untouched; [buildFormation] still owns grouping.
 class PitchView extends StatelessWidget {
   const PitchView({
     super.key,
     required this.assignments,
-    required this.players,
-    required this.hasNaturalGoalkeeper,
     required this.nameOf,
+    this.players = const {},
+    this.hasNaturalGoalkeeper = true,
+    this.layout = PitchLayoutMode.matchFormation,
+    this.avatarUrlOf,
+    this.ratingOf,
     this.onTapPlayer,
     this.goalsOf,
     this.isMvpOf,
@@ -54,8 +77,29 @@ class PitchView extends StatelessWidget {
       shareResultPitchWidth / shareResultPitchHeight;
 
   final List<TeamAssignment> assignments;
+
+  /// The profiles behind the participants, where the caller has them. The match
+  /// path passes them as it always has; the Team of Period has no current
+  /// profile to pass and does not invent one -- it supplies [avatarUrlOf] and
+  /// [ratingOf] instead.
   final Map<String, PlayerCoreInputs> players;
+
+  /// Consulted only in [PitchLayoutMode.matchFormation]. The exact layout draws
+  /// the goalkeeper row from the assignments themselves, so a squad's natural
+  /// goalkeepers are not a question it asks.
   final bool hasNaturalGoalkeeper;
+  final PitchLayoutMode layout;
+
+  /// Presentation-only overrides, taking precedence over [players].
+  ///
+  /// They exist so that a caller who has a face and a rating but no
+  /// `PlayerCoreInputs` can draw a player without fabricating a date of birth
+  /// and a current primary position to satisfy a constructor. A manufactured
+  /// profile would be a lie in the one place this feature must not tell one:
+  /// the award's position is historical evidence, not today's profile.
+  final String? Function(String participantId)? avatarUrlOf;
+  final double? Function(String participantId)? ratingOf;
+
   final String Function(String userId) nameOf;
   final void Function(TeamAssignment assignment)? onTapPlayer;
   final int Function(String participantId)? goalsOf;
@@ -198,23 +242,31 @@ class PitchView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formation = buildFormation(
-      assignments,
-      order: (a, b) =>
-          nameOf(a.participantId).compareTo(nameOf(b.participantId)),
-    );
-    final approvedDenseRows = _approvedDenseRows();
-    final rows = approvedDenseRows ??
-        <_FormationRow>[
-          if (hasNaturalGoalkeeper && formation.goalkeepers.isNotEmpty)
-            _FormationRow(_Line.goalkeeper, formation.goalkeepers),
-          if (formation.defence.isNotEmpty)
-            _FormationRow(_Line.defence, formation.defence),
-          for (final row in formation.midfieldRows)
-            _FormationRow(_Line.midfield, row),
-          if (formation.attack.isNotEmpty)
-            _FormationRow(_Line.attack, formation.attack),
-        ];
+    final exact = layout == PitchLayoutMode.exactAssignedPositions;
+    // Not built at all in the exact layout. `buildFormation` is where a player
+    // may be moved between lines, and the point of the exact layout is that
+    // nobody is.
+    final formation = exact
+        ? null
+        : buildFormation(
+            assignments,
+            order: (a, b) =>
+                nameOf(a.participantId).compareTo(nameOf(b.participantId)),
+          );
+    final approvedDenseRows = exact ? null : _approvedDenseRows();
+    final rows = exact
+        ? _exactRows()
+        : approvedDenseRows ??
+            <_FormationRow>[
+              if (hasNaturalGoalkeeper && formation!.goalkeepers.isNotEmpty)
+                _FormationRow(_Line.goalkeeper, formation.goalkeepers),
+              if (formation!.defence.isNotEmpty)
+                _FormationRow(_Line.defence, formation.defence),
+              for (final row in formation.midfieldRows)
+                _FormationRow(_Line.midfield, row),
+              if (formation.attack.isNotEmpty)
+                _FormationRow(_Line.attack, formation.attack),
+            ];
     final visible = [for (final row in rows) ...row.players];
 
     final phone = presentation == PitchPresentation.phone;
@@ -233,7 +285,13 @@ class PitchView extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final size = Size(constraints.maxWidth, constraints.maxHeight);
-            final isApprovedSeven = visible.length == 7 &&
+            // The traced seven-a-side anchors describe one particular match
+            // shape, so they are not used for a team whose shape came from the
+            // evidence: a seven-player award of two defenders and three
+            // midfielders would be poured into a mould cut for a different
+            // side.
+            final isApprovedSeven = !exact &&
+                visible.length == 7 &&
                 hasNaturalGoalkeeper &&
                 assignments
                         .where((item) => item.assignedPosition == Position.gk)
@@ -274,7 +332,7 @@ class PitchView extends StatelessWidget {
                     _playerAt(
                       visible[index],
                       slots[index],
-                      approvedDenseRows == null
+                      approvedDenseRows == null && formation != null
                           ? formation.movedFrom[visible[index].participantId]
                           : null,
                       dense: dense,
@@ -751,6 +809,29 @@ class PitchView extends StatelessWidget {
 
   /// The three dense contracts are role-shaped, not inferred. Other lineups
   /// retain the existing presentation solver and its Product Owner rules.
+  /// The four lines, taken from the assignments and nothing else.
+  ///
+  /// Empty lines are omitted rather than drawn empty, so a period with no
+  /// goalkeeper evidence produces a pitch with no goalkeeper row instead of a
+  /// gap where the product would like one to be. Within a line the order is the
+  /// caller's: the Team of Period screen hands them over already ranked.
+  List<_FormationRow> _exactRows() {
+    List<TeamAssignment> at(Position position) => [
+          for (final item in assignments)
+            if (item.assignedPosition == position) item,
+        ];
+    final lines = <(_Line, List<TeamAssignment>)>[
+      (_Line.goalkeeper, at(Position.gk)),
+      (_Line.defence, at(Position.def)),
+      (_Line.midfield, at(Position.mid)),
+      (_Line.attack, at(Position.fwd)),
+    ];
+    return [
+      for (final (line, players) in lines)
+        if (players.isNotEmpty) _FormationRow(line, players),
+    ];
+  }
+
   List<_FormationRow>? _approvedDenseRows() {
     if (assignments.length != 11 || !hasNaturalGoalkeeper) return null;
     List<TeamAssignment> at(Position position) => [
@@ -795,7 +876,10 @@ class PitchView extends StatelessWidget {
       width: markerWidth,
       child: PlayerCard(
         assignment: assignment,
-        player: players[assignment.participantId],
+        avatarUrl: avatarUrlOf?.call(assignment.participantId) ??
+            players[assignment.participantId]?.avatarUrl,
+        rating: ratingOf?.call(assignment.participantId) ??
+            players[assignment.participantId]?.overallRating,
         name: nameOf(assignment.participantId),
         movedFrom: movedFrom,
         goals: goalsOf?.call(assignment.participantId) ?? 0,
@@ -924,7 +1008,8 @@ class PlayerCard extends StatelessWidget {
   const PlayerCard({
     super.key,
     required this.assignment,
-    required this.player,
+    required this.avatarUrl,
+    required this.rating,
     required this.name,
     this.movedFrom,
     this.onTap,
@@ -938,7 +1023,11 @@ class PlayerCard extends StatelessWidget {
   });
 
   final TeamAssignment assignment;
-  final PlayerCoreInputs? player;
+  /// Resolved by [PitchView] from its callbacks or its profile map. A null
+  /// rating draws no rating badge, which is what a participant the caller knows
+  /// nothing numeric about looks like.
+  final String? avatarUrl;
+  final double? rating;
   final String name;
   final Position? movedFrom;
   final VoidCallback? onTap;
@@ -966,7 +1055,8 @@ class PlayerCard extends StatelessWidget {
     // player it belonged to, which is a mark that has stopped annotating its
     // subject and started replacing it.
     final badge = dense ? bs * .92 : bs;
-    final avatarUrl = player?.avatarUrl;
+    // Read into a local so the null check below promotes it; a field cannot.
+    final avatarUrl = this.avatarUrl;
     final guest = assignment.isProfessionalGuest;
     final nameTop = avatarDiameter + (dense ? 4 : 7) * bs;
     final nameHeight = (dense ? 14.0 : 17.0) * bs;
@@ -1029,13 +1119,13 @@ class PlayerCard extends StatelessWidget {
               ),
             ),
           ),
-          if (player != null)
+          if (rating != null)
             Positioned(
               left: inset - 7 * badge,
               top: avatarDiameter - (dense ? 20 : 18) * badge,
               child: _RatingBadge(
                 participantId: assignment.participantId,
-                rating: player!.overallRating,
+                rating: rating!,
                 scale: badge,
               ),
             ),

@@ -950,6 +950,7 @@ class FakeTeamAdapter implements TeamAdapter {
     String matchId,
     List<TeamAssignment> assignments, {
     bool fromGeneration = false,
+    bool completedCorrection = false,
   }) =>
       throw UnimplementedError();
 

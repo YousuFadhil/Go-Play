@@ -749,6 +749,10 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                                 // hero; the tab needs it for the card it can
                                 // share and reads nothing of its own to get it.
                                 communityName: community.name,
+                                // Same reasoning, one field further: the crest
+                                // on the Team of Period card is the picture
+                                // this screen already has.
+                                communityLogoUrl: community.logoUrl,
                                 repository: widget.statisticsRepository,
                               ),
                             ],

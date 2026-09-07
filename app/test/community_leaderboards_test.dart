@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/statistics/community_leaderboards_tab.dart';
+import 'package:go_play/features/statistics/team_of_period_models.dart';
 import 'package:go_play/features/statistics/community_statistics_tab.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
 import 'package:go_play/features/statistics/statistics_models.dart';
@@ -609,7 +610,16 @@ void main() {
 
       expect(find.byType(TextField), findsNothing);
       expect(find.byType(TextFormField), findsNothing);
-      expect(find.byType(FilledButton), findsNothing);
+      // Nothing that *writes*. The one button here is the Team of Period entry
+      // added alongside the boards, which navigates and changes nothing --
+      // excluded by key rather than by loosening the rule, so a submit control
+      // appearing on this screen would still fail.
+      expect(
+        find.byWidgetPredicate((widget) =>
+            widget is FilledButton &&
+            widget.key != const ValueKey('team-of-period-cta')),
+        findsNothing,
+      );
     });
 
     testWidgets('Arabic renders the boards in Arabic', (tester) async {
@@ -963,6 +973,28 @@ class FakeLeaderboardAdapter implements StatisticsAdapter {
 
   int recencyReads = 0;
   StatisticsPeriod? lastRecencyPeriod;
+
+  // Team of Period is a separate read path with its own period vocabulary
+  // (migration 0070). Nothing in this suite reaches it.
+  @override
+  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
+          throw UnimplementedError('no Team of Period identities here');
+
 }
 
 /// Records a pushed route without letting it build: `ProfileScreen` makes the

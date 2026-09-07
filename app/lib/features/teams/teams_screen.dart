@@ -243,6 +243,23 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// what keeps the stored lineup the only source of truth.
   Future<void> _generate(_TeamsView view, {required bool replacing}) async {
     if (_busy) return;
+
+    // The screen may have been built before `end_at` and left open until after
+    // it passed, so the button being on screen is not evidence that generating
+    // is still allowed. `canGenerate` reads the clock, so asking it again here
+    // is asking about now.
+    //
+    // Nothing is generated and nothing is written; the screen is reloaded so
+    // what is shown catches up with the match that has since finished. No new
+    // dialog: the controls simply will not be there after the reload, which is
+    // the same answer the screen would have given had it been built a moment
+    // later. The database stays the final authority for a race that lands
+    // after this check.
+    if (!view.canGenerate) {
+      _reload();
+      return;
+    }
+
     final l10n = context.l10n;
 
     // Asking comes before the screen is put to work, so nothing reports itself
@@ -251,6 +268,20 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // only the first answer may start a generation.
     if (replacing && !await _confirmReplace(l10n)) return;
     if (_busy || !mounted) return;
+
+    // Asked again, because the question above can be on screen across `end_at`.
+    // The check before the dialog covers a screen left open; this one covers a
+    // dialog left open, which is the same race one step further along.
+    //
+    // Migration `0071` is what actually protects the record -- it refuses a
+    // generation onto a completed match whatever the client believes -- so this
+    // is not the guarantee. It is what stops the app running a whole BTGE
+    // search and a save in order to be told no.
+    if (!view.canGenerate) {
+      _reload();
+      return;
+    }
+
     setState(() => _busy = true);
 
     try {
@@ -477,7 +508,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // still an organizer on a match that is over, and
         // `set_completed_match_player` still refuses it on any other.
         if (view.canEditPlayed) ..._addPlayerAction(l10n, view),
-        if (view.canGenerate) ..._addGuestAction(l10n),
+        // Adding a Professional Guest is not a generation: it is a roster
+        // correction, and a completed match is exactly where one is made
+        // (0059). Gated on management, as it was before the split.
+        if (view.canManageLineup) ..._addGuestAction(l10n),
         if (view.canGenerate) ..._generateAction(l10n, view),
       ];
 
@@ -521,7 +555,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
           onTapPlayer: _busy
               ? null
               : (assignment) {
-                  if (view.canGenerate) {
+                  // Management, not generation. This sheet is the completed
+                  // match's correction control -- move, swap, reposition --
+                  // so gating it on `canGenerate` would have removed the very
+                  // thing 0071 keeps available.
+                  if (view.canManageLineup) {
                     _editPlayer(l10n, view, assignment);
                     return;
                   }
@@ -533,7 +571,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
           const Divider(height: 32),
           ..._addPlayerAction(l10n, view),
         ],
-        if (view.canGenerate) ...[
+        if (view.canManageLineup) ...[
           const Divider(height: 32),
           ..._addGuestAction(l10n),
         ],
@@ -849,12 +887,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
           l10n,
           // The participant id, not the user id: a guest is moved by the same
           // operation as anybody else, and `userId!` would have thrown on one.
-          () => _teams.movePlayer(widget.matchId, assignment.participantId),
+          () => _teams.movePlayer(
+            widget.matchId,
+            assignment.participantId,
+            completedCorrection: view.match.isCompleted,
+          ),
         );
       case _PlayerAction.swap:
         await _swap(l10n, view, assignment);
       case _PlayerAction.position:
-        await _changePosition(l10n, assignment);
+        await _changePosition(l10n, view, assignment);
       case _PlayerAction.remove:
         await _removeParticipant(l10n, view, assignment);
     }
@@ -1074,6 +1116,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         widget.matchId,
         assignment.participantId,
         partner.participantId,
+        completedCorrection: view.match.isCompleted,
       ),
     );
   }
@@ -1107,6 +1150,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// Asks which position to give the player, then records it.
   Future<void> _changePosition(
     AppLocalizations l10n,
+    _TeamsView view,
     TeamAssignment assignment,
   ) async {
     final chosen = await _askPosition(
@@ -1124,6 +1168,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         widget.matchId,
         assignment.participantId,
         chosen,
+        completedCorrection: view.match.isCompleted,
       ),
     );
   }
@@ -1232,13 +1277,33 @@ class _TeamsView {
 
   final int confirmedPlayers;
 
-  /// Whether to offer the generation controls.
+  /// Whether this reader may manage the lineup at all.
   ///
   /// `PD-07`: management is a community role, never a creator privilege, and
   /// migration `0018` gates writing a lineup on the same `admin` role through
   /// `is_match_community_admin`. The database remains what enforces it; this
   /// only decides what is shown.
-  bool get canGenerate => role?.atLeast(CommunityRole.admin) ?? false;
+  ///
+  /// This is the broad capability, and it is deliberately separate from
+  /// [canGenerate] below. It used to be the same getter, which is how a
+  /// completed match still offered Regenerate -- and why narrowing that one
+  /// getter would have taken the completed-match correction controls with it,
+  /// since several of them are gated on "is this an organizer?" and nothing
+  /// more.
+  bool get canManageLineup => role?.atLeast(CommunityRole.admin) ?? false;
+
+  /// Whether BTGE Generate / Regenerate may be offered.
+  ///
+  /// An organizer, **and** a match that has not been played. A generation is
+  /// the engine proposing teams; once the match is over the lineup is the
+  /// record of who was actually on the pitch, and proposing a different one
+  /// would overwrite history with a guess. Migration `0071` refuses it at the
+  /// database, and this is what stops the product offering a refusal.
+  ///
+  /// `match.isCompleted` reads the clock, so this is answered afresh every time
+  /// it is asked -- which is what makes it usable as the tap-time check in
+  /// `_generate` and not merely as a build-time one.
+  bool get canGenerate => canManageLineup && !match.isCompleted;
 
   /// Whether to offer the corrections that only a played match can take.
   ///
@@ -1247,7 +1312,7 @@ class _TeamsView {
   /// match is over there is no history to correct — the roster is the players'
   /// own to join and leave — and `set_completed_match_player` refuses it, so
   /// offering the control would be offering a refusal.
-  bool get canEditPlayed => canGenerate && match.isCompleted;
+  bool get canEditPlayed => canManageLineup && match.isCompleted;
 
   /// Whether anybody in the squad keeps goal — §10.1's natural goalkeeper,
   /// `GK` as primary or secondary.

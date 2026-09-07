@@ -756,5 +756,34 @@
   "adminMetricStartingPlayers": "اللاعبون الأساسيون",
   "adminMetricScore": "النتيجة",
   "adminMetricResultRecorded": "تاريخ تسجيل النتيجة",
-  "adminMetricLastActivity": "آخر نشاط"
+  "adminMetricLastActivity": "آخر نشاط",
+
+  "teamOfPeriodTitle": "تشكيلة الفترة",
+  "teamOfPeriodCtaSubtitle": "أفضل اللاعبين في آخر أسبوع أو شهر مكتمل",
+  "teamOfPeriodCtaAction": "عرض التشكيلة",
+  "teamOfPeriodWeekTab": "الأسبوع",
+  "teamOfPeriodMonthTab": "الشهر",
+  "teamOfPeriodWeekHeading": "تشكيلة الأسبوع",
+  "teamOfPeriodMonthHeading": "تشكيلة الشهر",
+  "teamOfPeriodNoMatches": "لا توجد مباريات مكتملة مؤهلة في هذه الفترة.",
+  "teamOfPeriodNoEligible": "أُقيمت مباريات، لكن لم يشارك أي لاعب في {matches} مباراة المطلوبة للتأهل.",
+  "@teamOfPeriodNoEligible": {
+    "placeholders": {
+      "matches": {
+        "type": "int"
+      }
+    }
+  },
+  "teamOfPeriodPlayerFallback": "لاعب",
+  "teamOfPeriodAwardedPosition": "المركز الممنوح",
+  "teamOfPeriodCurrentRating": "التقييم الحالي",
+  "teamOfPeriodMatchesPlayed": "المباريات",
+  "teamOfPeriodParticipation": "نسبة المشاركة",
+  "teamOfPeriodGoals": "الأهداف",
+  "teamOfPeriodGoalsPerMatch": "الأهداف لكل مباراة",
+  "teamOfPeriodRecord": "فوز / تعادل / خسارة",
+  "teamOfPeriodWinRate": "نسبة الفوز",
+  "teamOfPeriodPointsPerGame": "النقاط لكل مباراة",
+  "teamOfPeriodMvpCount": "جوائز أفضل لاعب",
+  "teamOfPeriodCurrentRatingNote": "التقييم المعروض هو تقييم اللاعب اليوم، وليس تقييمه خلال هذه الفترة."
 }

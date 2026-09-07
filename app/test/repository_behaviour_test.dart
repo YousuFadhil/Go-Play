@@ -1237,6 +1237,7 @@ class FakeTeamAdapter implements TeamAdapter {
   /// Whether the last save said it followed a generation. It is the one
   /// thing that clears a guest's chosen side (migration `0058`).
   bool? lastFromGeneration;
+  bool? lastCompletedCorrection;
 
   @override
   Future<List<PlayerCoreInputs>> fetchConfirmedPlayerInputs(
@@ -1262,10 +1263,12 @@ class FakeTeamAdapter implements TeamAdapter {
     String matchId,
     List<TeamAssignment> lineup, {
     bool fromGeneration = false,
+    bool completedCorrection = false,
   }) async {
     lastMatchId = matchId;
     savedLineup = lineup;
     lastFromGeneration = fromGeneration;
+    lastCompletedCorrection = completedCorrection;
   }
 
   @override

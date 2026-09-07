@@ -63,3 +63,53 @@ String formatDayAndTimeRange(
 ) =>
     '${formatMatchDay(context, start)} \u2022 '
     '${formatTimeRange(context, start, end)}';
+
+/// The Muscat wall clock behind an instant an award period was resolved at.
+///
+/// Team of Period boundaries are resolved by the database in Asia/Muscat --
+/// `statistics_period_zone()`, which migration `0028` marks FROZEN -- and
+/// arrive here as instants. A week that begins at Muscat midnight on Monday is
+/// the instant 20:00 UTC on Sunday, so formatting the instant's own calendar
+/// fields would name the day before and the award would read as starting a day
+/// early.
+///
+/// **This decides no period.** Which week the award is about was settled by the
+/// database and is never recomputed here; this only turns the instants it
+/// returned into the calendar days a reader in Oman would call them.
+///
+/// Oman has observed UTC+04:00 without daylight saving for the whole life of
+/// any data this reads, which is why the offset is stated rather than carried
+/// in a time-zone package -- the same reasoning, and the same constant,
+/// `StatisticsPeriodWindow` states on the infrastructure side. If that ever
+/// stops being true, all three move together and the database is the authority.
+const _muscatOffset = Duration(hours: 4);
+
+DateTime muscatDayOf(DateTime instant) =>
+    instant.toUtc().add(_muscatOffset);
+
+/// The week an award covers, as the days a reader would name.
+///
+/// [endExclusive] is the instant the period ends, which is the start of the
+/// next one: the last day the award actually covers is the day before it. A
+/// range drawn to the exclusive bound would claim a Monday the football never
+/// happened on.
+///
+/// Isolated left-to-right for the reason [formatTimeRange] is: the range runs
+/// start-then-end in every language, and without the isolate an Arabic layout
+/// reverses the two so the week appears to end before it began.
+String formatAwardWeek(
+  BuildContext context,
+  DateTime start,
+  DateTime endExclusive,
+) {
+  final locale = Localizations.localeOf(context).toString();
+  final from = muscatDayOf(start);
+  final to = muscatDayOf(endExclusive).subtract(const Duration(days: 1));
+  final format = DateFormat.MMMd(locale);
+  return '\u2066${format.format(from)} - ${format.format(to)}\u2069';
+}
+
+/// The month an award covers -- "August 2026".
+String formatAwardMonth(BuildContext context, DateTime start) =>
+    DateFormat.yMMMM(Localizations.localeOf(context).toString())
+        .format(muscatDayOf(start));
