@@ -22,10 +22,11 @@ import 'package:go_play/features/teams/pitch_view.dart';
 
 /// The Team of Period share card, and the discipline around taking it.
 ///
-/// Two things are worth more than the rest and are checked from several
-/// directions: the picture is composed from the snapshot already on screen and
-/// never from a fresh read, and the current rating never reaches a permanent
-/// image.
+/// The property worth most, and checked from several directions: the picture
+/// is composed from the snapshot already on screen and never from a fresh
+/// read. The rating on it is the player's current global one, taken from that
+/// same snapshot — approved by the Product Owner, and drawn the way every
+/// other Go Play player card draws it.
 void main() {
   final start = DateTime.utc(2026, 8, 30, 20); // Muscat midnight, 31 August
   final end = DateTime.utc(2026, 9, 6, 20); // exclusive: through 6 September
@@ -447,7 +448,38 @@ void main() {
       expect(card.data.players, hasLength(5));
       expect(card.data.players.first.userId, 'gk1');
       expect(card.data.players.first.name, 'Player');
+      // No face to draw, and the pitch's own fallback disc handles that.
       expect(card.data.players.first.avatarUrl, isNull);
+      // The award is theirs whether or not their profile can be read, so the
+      // rating travels with it exactly as it does for everybody else.
+      expect(card.data.players.first.currentOverallRating, 7.4);
+    });
+
+    testWidgets('an unreadable identity is still drawn on the card',
+        (tester) async {
+      final renderer = _CapturingRenderer();
+      await pumpScreen(
+        tester,
+        renderer: renderer,
+        adapter: _FakeAdapter(
+          window: windowOf(),
+          candidates: squad(),
+          identities:
+              namesFor(['gk1', 'd1', 'd2', 'm1', 'f1'], hidden: ['gk1']),
+        ),
+      );
+      await tapShare(tester);
+      await pumpCard(tester, renderer);
+
+      // The neutral fallback, and nothing guessing at why it is neutral.
+      expect(find.text('Player'), findsOneWidget);
+      expect(find.textContaining('former'), findsNothing);
+      expect(find.textContaining('deleted'), findsNothing);
+      expect(find.byType(PitchView), findsOneWidget);
+      final pitch = tester.widget<PitchView>(find.byType(PitchView));
+      expect(pitch.assignments, hasLength(5));
+      expect(pitch.avatarUrlOf!('gk1'), isNull);
+      expect(pitch.ratingOf!('gk1'), 7.4);
     });
   });
 
@@ -598,13 +630,14 @@ void main() {
       // m1 scored three in the period.
       expect(find.text('3'), findsWidgets);
 
-      // **No rating on a permanent picture.** The award is historical and the
-      // rating is live; a badge here would read as the award's evidence long
-      // after the number moved.
-      expect(find.text('7.4'), findsNothing);
+      // The current global rating, drawn the way every Go Play player card
+      // draws it. It is the number the player holds today rather than a
+      // reconstruction of the period, and the Product Owner approved it on
+      // that basis.
+      expect(find.text('7.4'), findsWidgets);
       final pitch = tester.widget<PitchView>(find.byType(PitchView));
       expect(pitch.ratingOf, isNotNull);
-      expect(pitch.ratingOf!('m1'), isNull);
+      expect(pitch.ratingOf!('m1'), 7.4);
 
       // And none of the selection evidence either.
       for (final absent in [
@@ -617,6 +650,70 @@ void main() {
       ]) {
         expect(find.textContaining(absent), findsNothing, reason: absent);
       }
+    });
+
+    testWidgets('each rating belongs to the player wearing it', (tester) async {
+      // Distinct ratings, so a card that drew one player's number under
+      // another's face would fail rather than look plausible.
+      await compose(
+        tester,
+        candidates: [
+          candidateOf('gk1', primary: Position.gk, form: 0.30, rating: 9.1),
+          candidateOf('d1', primary: Position.def, form: 0.28, rating: 8.2),
+          candidateOf('d2', primary: Position.def, form: 0.26, rating: 7.3),
+          candidateOf('m1', primary: Position.mid, form: 0.24, rating: 6.4),
+          candidateOf('f1', primary: Position.fwd, form: 0.22, rating: 5.5),
+        ],
+      );
+
+      final pitch = tester.widget<PitchView>(find.byType(PitchView));
+      for (final (id, rating) in [
+        ('gk1', 9.1),
+        ('d1', 8.2),
+        ('d2', 7.3),
+        ('m1', 6.4),
+        ('f1', 5.5),
+      ]) {
+        expect(pitch.ratingOf!(id), rating, reason: id);
+        expect(find.text('$rating'), findsOneWidget, reason: id);
+      }
+    });
+
+    testWidgets('the rating comes from the snapshot, not a fresh read',
+        (tester) async {
+      final renderer = _CapturingRenderer();
+      final adapter = _FakeAdapter(
+        window: windowOf(),
+        candidates: squad(),
+        identities: namesFor(['gk1', 'd1', 'd2', 'm1', 'f1']),
+      );
+      await pumpScreen(tester, renderer: renderer, adapter: adapter);
+
+      final reads = (
+        adapter.windowCalls.length,
+        adapter.candidateCalls.length,
+        adapter.identityCalls.length,
+      );
+      await tapShare(tester);
+      await pumpCard(tester, renderer);
+
+      final card = tester.widget<TeamOfPeriodCard>(
+        find.byType(TeamOfPeriodCard),
+      );
+      // Every rating on the card is the candidate evidence already loaded.
+      expect(
+        [for (final p in card.data.players) p.currentOverallRating],
+        everyElement(7.4),
+      );
+      expect(
+        (
+          adapter.windowCalls.length,
+          adapter.candidateCalls.length,
+          adapter.identityCalls.length,
+        ),
+        reads,
+        reason: 'drawing a rating asks the database nothing',
+      );
     });
 
     testWidgets('it carries the Go Play signature', (tester) async {

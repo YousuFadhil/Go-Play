@@ -21,6 +21,7 @@ class TeamOfPeriodSharePlayer {
     required this.userId,
     required this.name,
     required this.assignedPosition,
+    required this.currentOverallRating,
     this.avatarUrl,
     this.goals = 0,
     this.hasMvp = false,
@@ -33,6 +34,12 @@ class TeamOfPeriodSharePlayer {
   final String name;
 
   final Position assignedPosition;
+
+  /// The player's rating **today**, as every other Go Play player card shows
+  /// it. Not a reconstruction of what they held during the period: no such
+  /// figure exists, and inventing one would be a number nobody earned.
+  final double currentOverallRating;
+
   final String? avatarUrl;
 
   /// Goals **in the award period**, not a career total.
@@ -42,15 +49,18 @@ class TeamOfPeriodSharePlayer {
 
 /// Everything the Team of Period card draws, resolved before it is drawn.
 ///
-/// **No current rating, and there is nowhere to put one.** The award is
-/// historical; the Global Rating is live. A PNG outlives the moment it was made
-/// — it is forwarded, saved, reposted months later — and a rating badge on it
-/// would read as part of the award's evidence long after the number had moved.
-/// The screen may show it, with the note that says it is today's; a permanent
-/// picture may not. Nothing is substituted for it: no form score, no rating at
-/// period end, no reconstruction, because no such user-facing figure exists.
+/// **The rating is the player's current global one**, drawn the way every Go
+/// Play player card draws it — approved by the Product Owner so that a shared
+/// team reads as the same football the app draws everywhere else. It is not a
+/// reconstruction of what they held during the period, and nothing is
+/// substituted for it: not the Period Form Score, not a rating at period end,
+/// because no such user-facing figure exists.
 ///
-/// **No selection evidence either.** Participation, win rate, points per game
+/// Worth knowing when reading a card months later: a PNG outlives the moment
+/// it was made, so the number on it is the rating that player held when the
+/// picture was taken rather than a fact about the award period.
+///
+/// **No selection evidence, though.** Participation, win rate, points per game
 /// and the Period Form Score belong to the interactive screen, where a reader
 /// can ask what they mean.
 @immutable
@@ -89,6 +99,7 @@ class TeamOfPeriodCardData {
               name: nameOf(entry.userId),
               assignedPosition: entry.assignedPosition,
               avatarUrl: identities[entry.userId]?.avatarUrl,
+              currentOverallRating: entry.candidate.currentOverallRating,
               goals: entry.candidate.goals,
               hasMvp: entry.candidate.mvpCount > 0,
             ),
@@ -231,10 +242,10 @@ class TeamOfPeriodCard extends StatelessWidget {
                 layout: PitchLayoutMode.exactAssignedPositions,
                 nameOf: (userId) => byId[userId]?.name ?? '',
                 avatarUrlOf: (userId) => byId[userId]?.avatarUrl,
-                // **No rating on a permanent picture.** See the class comment
-                // on the data: null here is what suppresses the badge, and it
-                // is the whole of the rule.
-                ratingOf: (_) => null,
+                // The same rating badge the Teams and Match screens draw,
+                // from the snapshot already loaded. Current and global, as the
+                // class comment on the data explains.
+                ratingOf: (userId) => byId[userId]?.currentOverallRating,
                 goalsOf: (userId) => byId[userId]?.goals ?? 0,
                 isMvpOf: (userId) => byId[userId]?.hasMvp ?? false,
                 presentation: PitchPresentation.shareResult,
