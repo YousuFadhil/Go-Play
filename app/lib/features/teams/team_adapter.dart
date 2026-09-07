@@ -56,10 +56,34 @@ abstract interface class TeamAdapter {
   /// and the two callers are already distinct above this layer — generation
   /// reaches here through `TeamRepository.saveLineup`, every manual operation
   /// through its private replace.
+  ///
+  /// [completedCorrection] is the second, and it answers a different question:
+  /// not *how* this lineup was arrived at, but *what it is for*. A match that
+  /// has been played has a factual record of who was on the pitch, and an
+  /// owner or admin may still correct it — someone who actually played was
+  /// missing, someone who did not is listed, a side or a position is wrong.
+  /// That is the only kind of write a completed match accepts, and migration
+  /// `0071` refuses every other.
+  ///
+  /// The two flags are independent but not freely combinable, and the database
+  /// enforces the shape:
+  ///
+  ///   * `fromGeneration` on a completed match → `MATCH_COMPLETED`, even with
+  ///     [completedCorrection] set. A generation is the engine proposing teams;
+  ///     it is never a statement about what happened.
+  ///   * no [completedCorrection] on a completed match → `MATCH_COMPLETED`.
+  ///   * [completedCorrection] on a match that is *not* completed →
+  ///     `MATCH_NOT_COMPLETED`. There is no history to correct yet, and letting
+  ///     it pass would turn the flag into something callers set by habit.
+  ///
+  /// **It is intent, never inference.** No implementation may decide this by
+  /// looking at the assignments — a correction and a regeneration can produce
+  /// identical payloads, and what separates them is what the caller meant.
   Future<void> saveLineup(
     String matchId,
     List<TeamAssignment> lineup, {
     bool fromGeneration = false,
+    bool completedCorrection = false,
   });
 
   /// Records that [userId] played [matchId] on [team] at [position].

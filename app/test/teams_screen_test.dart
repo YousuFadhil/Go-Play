@@ -1950,6 +1950,160 @@ void main() {
       observer.discard();
     });
   });
+
+  // Migration 0071. Generation is the engine proposing teams; once the match
+  // has been played the lineup is the record of who was actually on the pitch,
+  // and a regeneration would overwrite history with a guess. The database
+  // refuses it, and these hold the product to not offering it in the first
+  // place -- while keeping every completed-match correction control where it
+  // was, which is the half that a narrower `canGenerate` would have broken.
+  group('generation is not offered once the match has been played', () {
+    testWidgets('a played match with no lineup offers no Generate',
+        (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(roster: fourInputs()),
+        matches: FakeMatchAdapter(
+          match: playedMatch,
+          registrations: fourSeats(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Generate teams'), findsNothing);
+      expect(find.text('Regenerate teams'), findsNothing);
+    });
+
+    testWidgets('a played match with a lineup offers no Regenerate',
+        (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: FakeMatchAdapter(
+          match: playedMatch,
+          registrations: fourSeats(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Regenerate teams'), findsNothing);
+      expect(find.text('Generate teams'), findsNothing);
+    });
+
+    testWidgets('the completed-match corrections are still offered',
+        (tester) async {
+      // The point of separating the capabilities. An organizer on a played
+      // match keeps every control that corrects the record -- adding somebody
+      // who played, and the per-player sheet that moves, swaps and
+      // repositions -- and loses only the generation.
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: FakeMatchAdapter(
+          match: playedMatch,
+          registrations: fourSeats(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add a player who played'), findsOneWidget);
+
+      await tester.tap(find.text('Sara Al Balushi'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit Sara Al Balushi'), findsOneWidget);
+    });
+
+    testWidgets('an upcoming match still offers Generate', (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(roster: fourInputs()),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Generate teams'), findsOneWidget);
+    });
+
+    testWidgets('an upcoming generated lineup still offers Regenerate',
+        (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Regenerate teams'), findsOneWidget);
+    });
+
+    testWidgets('an ordinary player gains nothing from the split',
+        (tester) async {
+      // The capabilities were separated, not widened: a player sees no
+      // generation and no correction on a played match, exactly as before.
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: FakeMatchAdapter(
+          match: playedMatch,
+          registrations: fourSeats(),
+        ),
+        role: CommunityRole.player,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Generate teams'), findsNothing);
+      expect(find.text('Regenerate teams'), findsNothing);
+      expect(find.text('Add a player who played'), findsNothing);
+    });
+
+    testWidgets('a match that finishes while the screen is open writes nothing',
+        (tester) async {
+      // The race the hidden button cannot cover: built before `end_at`, tapped
+      // after it. `canGenerate` reads the clock, so the check inside `_generate`
+      // is asking about now rather than about the frame that drew the button.
+      //
+      // The wait is real rather than pumped. `Match.isCompleted` compares
+      // against `DateTime.now()`, which `tester.pump` does not advance -- only
+      // the binding's fake clock moves -- so a pumped duration would leave the
+      // match exactly as unfinished as it started and the test would prove
+      // nothing.
+      final now = DateTime.now();
+      final teams = FakeTeamAdapter(roster: fourInputs());
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches: FakeMatchAdapter(
+          match: Match(
+            id: 'm1',
+            communityId: 'c1',
+            createdBy: 'u1',
+            location: 'Al Amerat Pitch',
+            startAt: now.add(const Duration(milliseconds: 800)),
+            endAt: now.add(const Duration(seconds: 2)),
+            startingPlayers: 10,
+            maxRegistration: 16,
+            status: MatchStatus.open,
+          ),
+          registrations: fourSeats(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Generate teams'), findsOneWidget);
+
+      // The match ends with the button still on screen.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 2400)),
+      );
+      await tester.tap(find.text('Generate teams'));
+      await tester.pumpAndSettle();
+
+      expect(teams.saveCount, 0,
+          reason: 'no lineup may be written once the match is over');
+      expect(teams.savedLineup, isNull);
+      // And the screen has caught up: the control is gone after the reload.
+      expect(find.text('Generate teams'), findsNothing);
+    });
+  });
 }
 
 /// Records a pushed route without letting it build: `ProfileScreen` makes the
@@ -2009,6 +2163,7 @@ class FakeTeamAdapter implements TeamAdapter {
   /// Whether the last save said it followed a generation. It is the one
   /// thing that clears a guest's chosen side (migration `0058`).
   bool? lastFromGeneration;
+  bool? lastCompletedCorrection;
 
   @override
   Future<List<PlayerCoreInputs>> fetchConfirmedPlayerInputs(
@@ -2038,8 +2193,10 @@ class FakeTeamAdapter implements TeamAdapter {
     String matchId,
     List<TeamAssignment> lineup, {
     bool fromGeneration = false,
+    bool completedCorrection = false,
   }) async {
     lastFromGeneration = fromGeneration;
+    lastCompletedCorrection = completedCorrection;
     if (saveGate != null) await saveGate;
     if (failAfterClearing) _lineup = [];
     if (saveFailure != null) throw saveFailure!;

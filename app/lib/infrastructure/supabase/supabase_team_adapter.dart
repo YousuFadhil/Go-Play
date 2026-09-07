@@ -116,14 +116,20 @@ class SupabaseTeamAdapter implements TeamAdapter {
     String matchId,
     List<TeamAssignment> lineup, {
     bool fromGeneration = false,
+    bool completedCorrection = false,
   }) =>
       guarded(() async {
+        // Both intents are carried, neither is decided here. What this class
+        // knows is how they are spelled on the wire; whether a write is a
+        // generation or a correction was settled above it, and migration
+        // `0071` is what holds the answer to the match's actual state.
         await _client.rpc('replace_match_lineup', params: {
           'p_match_id': matchId,
           'p_assignments': [
             for (final assignment in lineup) teamAssignmentToRow(assignment),
           ],
           'p_from_generation': fromGeneration,
+          'p_completed_correction': completedCorrection,
         });
       });
 

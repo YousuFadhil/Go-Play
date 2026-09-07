@@ -190,8 +190,21 @@ class TeamRepository {
   /// what the engine just produced — so it is where the guests give up any side
   /// an organizer chose around the previous teams. The manual operations below
   /// go through `_replace`, which does not.
+  ///
+  /// **Never a completed-match correction, and there is no parameter to make it
+  /// one.** A generation is the engine proposing teams; a correction is a
+  /// statement about who actually played. Migration `0071` refuses a generation
+  /// onto a completed match outright — with or without the correction flag —
+  /// and this method is what guarantees the flag is never even sent. The Teams
+  /// screen additionally does not offer generation once a match is over, so the
+  /// refusal is a backstop rather than the product's normal answer.
   Future<void> saveLineup(String matchId, List<TeamAssignment> lineup) =>
-      _adapter.saveLineup(matchId, lineup, fromGeneration: true);
+      _adapter.saveLineup(
+        matchId,
+        lineup,
+        fromGeneration: true,
+        completedCorrection: false,
+      );
 
   // --- Correcting who played (completed matches) -----------------------------
   //
@@ -262,13 +275,17 @@ class TeamRepository {
   ///
   /// Throws [ValidationFailure] when the participant is not in the stored
   /// lineup.
-  Future<void> movePlayer(String matchId, String participantId) async {
+  Future<void> movePlayer(
+    String matchId,
+    String participantId, {
+    required bool completedCorrection,
+  }) async {
     final lineup = await _adapter.fetchLineup(matchId);
     final player = _find(lineup, participantId);
 
     await _replace(matchId, lineup, {
       participantId: player.movedToOtherTeam(manualOverride: true),
-    });
+    }, completedCorrection: completedCorrection);
   }
 
   /// Exchanges the teams of [firstParticipantId] and [secondParticipantId].
@@ -286,8 +303,9 @@ class TeamRepository {
   Future<void> swapPlayers(
     String matchId,
     String firstParticipantId,
-    String secondParticipantId,
-  ) async {
+    String secondParticipantId, {
+    required bool completedCorrection,
+  }) async {
     if (firstParticipantId == secondParticipantId) {
       throw const ValidationFailure();
     }
@@ -300,7 +318,7 @@ class TeamRepository {
     await _replace(matchId, lineup, {
       firstParticipantId: first.movedToOtherTeam(manualOverride: true),
       secondParticipantId: second.movedToOtherTeam(manualOverride: true),
-    });
+    }, completedCorrection: completedCorrection);
   }
 
   /// Gives [userId] the assigned position [position] in this match's lineup.
@@ -320,8 +338,9 @@ class TeamRepository {
   Future<void> changeAssignedPosition(
     String matchId,
     String userId,
-    Position position,
-  ) async {
+    Position position, {
+    required bool completedCorrection,
+  }) async {
     final lineup = await _adapter.fetchLineup(matchId);
     final player = _find(lineup, userId);
 
@@ -330,7 +349,7 @@ class TeamRepository {
         position,
         await _basisFor(matchId, userId, position, player.basis),
       ),
-    });
+    }, completedCorrection: completedCorrection);
   }
 
   /// The stored assignment of [participantId], or a refusal.
@@ -359,8 +378,9 @@ class TeamRepository {
   Future<void> _replace(
     String matchId,
     List<TeamAssignment> lineup,
-    Map<String, TeamAssignment> changes,
-  ) {
+    Map<String, TeamAssignment> changes, {
+    required bool completedCorrection,
+  }) {
     final updated = [
       for (final assignment in lineup)
         changes[assignment.participantId] ?? assignment,
@@ -374,7 +394,17 @@ class TeamRepository {
       throw const ValidationFailure();
     }
 
-    return _adapter.saveLineup(matchId, updated);
+    // Never a generation: this path rearranges a lineup that already exists.
+    // Whether it is a correction to a played match is the caller's to state,
+    // and it is a required argument at every operation above precisely so that
+    // nobody can forget to answer it. It is never inferred from what changed --
+    // a move looks the same before and after the final whistle.
+    return _adapter.saveLineup(
+      matchId,
+      updated,
+      fromGeneration: false,
+      completedCorrection: completedCorrection,
+    );
   }
 
   /// Which rule §5.1 says produced [position] for [userId].
