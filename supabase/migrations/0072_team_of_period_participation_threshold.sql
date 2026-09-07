@@ -72,7 +72,7 @@ $$;
 
 comment on function public.period_xi_required_matches(text, int) is
   'How many qualifying matches a Team of Period candidate must have played: 0 '
-  'when the period held no qualifying match at all, and otherwise ceil(40%% of '
+  'when the period held no qualifying match at all, and otherwise ceil(40% of '
   'n) -- written as integer (2n + 4) / 5 so that neither a truncating division '
   'nor a binary float can move the bar. ONE rule for weekly and monthly alike: '
   'five matches ask for two however long the community took to play them, so '
