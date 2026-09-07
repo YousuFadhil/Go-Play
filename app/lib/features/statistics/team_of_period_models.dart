@@ -117,8 +117,12 @@ class TeamOfPeriodIdentity {
         requiredMatches,
       );
 
+  /// The bounds are part of it, because they are part of equality: two reads
+  /// that disagree only about the range would otherwise print as the same
+  /// thing, and the mismatch this exists to explain would read as nonsense.
   @override
   String toString() => '$periodKey (${kind.name}, '
+      '$periodStart to $periodEnd, '
       '$qualifyingMatchCount matches, $requiredMatches required)';
 }
 
@@ -322,4 +326,28 @@ class TeamOfPeriod {
 
   TeamOfPeriodKind get kind => window.kind;
   String get periodKey => window.periodKey;
+}
+
+/// Who a selected player is, for the pitch to draw.
+///
+/// **Presentation only, and it arrives after the award is decided.** Migration
+/// `0070` returns no name and no picture on purpose: the selection is made from
+/// what people did, not from who they are, and a read model that carried a face
+/// would invite a later cycle to rank on one. So the team is chosen first and
+/// these are fetched second, for exactly the players who were chosen.
+///
+/// [fullName] may be absent. A player who earned an award and whose profile is
+/// no longer readable still earned it, and the screen shows them with a neutral
+/// fallback rather than dropping them -- identity cannot influence selection,
+/// and it cannot influence display either.
+class TeamOfPeriodPlayerIdentity {
+  const TeamOfPeriodPlayerIdentity({
+    required this.userId,
+    required this.fullName,
+    this.avatarUrl,
+  });
+
+  final String userId;
+  final String fullName;
+  final String? avatarUrl;
 }

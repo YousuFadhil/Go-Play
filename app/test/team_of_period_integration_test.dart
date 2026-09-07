@@ -561,6 +561,8 @@ class _FakeStatisticsAdapter implements StatisticsAdapter {
 
   final List<(String, TeamOfPeriodKind)> windowCalls = [];
   final List<(String, TeamOfPeriodKind)> candidateCalls = [];
+  final List<List<String>> identityCalls = [];
+  Map<String, TeamOfPeriodPlayerIdentity> identities = const {};
 
   @override
   Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
@@ -579,6 +581,13 @@ class _FakeStatisticsAdapter implements StatisticsAdapter {
     candidateCalls.add((communityId, kind));
     if (candidateFailure != null) throw candidateFailure!;
     return candidates;
+  }
+
+  @override
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) async {
+    identityCalls.add(userIds.toList());
+    return identities;
   }
 
   @override

@@ -501,4 +501,17 @@ class StatisticsRepository {
       }
     }
   }
+
+  /// Who the awarded players are.
+  ///
+  /// Called **after** [fetchTeamOfPeriod] and only for the ids it returned, so
+  /// no name is read for a player nobody selected and no name can reach the
+  /// selection. There is no re-run: the team is already decided, and what
+  /// arrives here only changes how it is drawn.
+  ///
+  /// A missing entry is a profile this reader may not see, which is a display
+  /// problem and never a selection one. The caller keeps the player.
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
+          _adapter.fetchTeamOfPeriodPlayerIdentities(userIds);
 }

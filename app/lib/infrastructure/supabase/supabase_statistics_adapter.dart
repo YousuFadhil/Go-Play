@@ -284,4 +284,42 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
         },
         operation: 'community_period_xi_evidence',
       );
+
+  /// Names and faces for an award that has already been selected.
+  ///
+  /// One read of `users` for the whole team, under the caller's own policies --
+  /// `authenticated_select_active_users` decides which rows come back, exactly
+  /// as it does everywhere else a name is shown. Nothing here widens that: a
+  /// profile this reader could not see on any other screen is not visible here
+  /// either, and the award keeps the player regardless.
+  ///
+  /// The avatar goes through [SupabaseAvatars] like every other list of faces,
+  /// unversioned for the same reason -- busting the cache on each read would
+  /// refetch the whole team every time the screen is opened.
+  @override
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) => guarded(
+            () async {
+              final ids = userIds.toSet().toList();
+              if (ids.isEmpty) return const <String, TeamOfPeriodPlayerIdentity>{};
+
+              final rows = await _client
+                  .from('users')
+                  .select('id, full_name, avatar_path')
+                  .inFilter('id', ids);
+
+              return {
+                for (final row in rows)
+                  row['id'] as String: TeamOfPeriodPlayerIdentity(
+                    userId: row['id'] as String,
+                    fullName: row['full_name'] as String,
+                    avatarUrl: SupabaseAvatars.publicUrl(
+                      _client,
+                      row['avatar_path'] as String?,
+                    ),
+                  ),
+              };
+            },
+            operation: 'team_of_period_player_identities',
+          );
 }

@@ -63,7 +63,7 @@ import 'app_localizations_en.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('ar'),
-    Locale('en'),
+    Locale('en')
   ];
 
   /// No description provided for @appName.
@@ -3811,6 +3811,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Last activity'**
   String get adminMetricLastActivity;
+
+  /// No description provided for @teamOfPeriodTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the Period'**
+  String get teamOfPeriodTitle;
+
+  /// No description provided for @teamOfPeriodCtaSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The best players of the last completed week or month'**
+  String get teamOfPeriodCtaSubtitle;
+
+  /// No description provided for @teamOfPeriodCtaAction.
+  ///
+  /// In en, this message translates to:
+  /// **'View the team'**
+  String get teamOfPeriodCtaAction;
+
+  /// No description provided for @teamOfPeriodWeekTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Week'**
+  String get teamOfPeriodWeekTab;
+
+  /// No description provided for @teamOfPeriodMonthTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get teamOfPeriodMonthTab;
+
+  /// No description provided for @teamOfPeriodWeekHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the Week'**
+  String get teamOfPeriodWeekHeading;
+
+  /// No description provided for @teamOfPeriodMonthHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the Month'**
+  String get teamOfPeriodMonthHeading;
+
+  /// No description provided for @teamOfPeriodNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No qualifying matches were completed in this period.'**
+  String get teamOfPeriodNoMatches;
+
+  /// No description provided for @teamOfPeriodNoEligible.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches were played, but nobody played the {matches} needed to qualify.'**
+  String teamOfPeriodNoEligible(int matches);
+
+  /// No description provided for @teamOfPeriodPlayerFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Player'**
+  String get teamOfPeriodPlayerFallback;
+
+  /// No description provided for @teamOfPeriodAwardedPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Awarded position'**
+  String get teamOfPeriodAwardedPosition;
+
+  /// No description provided for @teamOfPeriodCurrentRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Current rating'**
+  String get teamOfPeriodCurrentRating;
+
+  /// No description provided for @teamOfPeriodMatchesPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches played'**
+  String get teamOfPeriodMatchesPlayed;
+
+  /// No description provided for @teamOfPeriodParticipation.
+  ///
+  /// In en, this message translates to:
+  /// **'Participation'**
+  String get teamOfPeriodParticipation;
+
+  /// No description provided for @teamOfPeriodGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get teamOfPeriodGoals;
+
+  /// No description provided for @teamOfPeriodGoalsPerMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals per match'**
+  String get teamOfPeriodGoalsPerMatch;
+
+  /// No description provided for @teamOfPeriodRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Won / Drawn / Lost'**
+  String get teamOfPeriodRecord;
+
+  /// No description provided for @teamOfPeriodWinRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Win rate'**
+  String get teamOfPeriodWinRate;
+
+  /// No description provided for @teamOfPeriodPointsPerGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Points per game'**
+  String get teamOfPeriodPointsPerGame;
+
+  /// No description provided for @teamOfPeriodMvpCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Best player awards'**
+  String get teamOfPeriodMvpCount;
+
+  /// No description provided for @teamOfPeriodCurrentRatingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The rating shown is the player\'s rating today, not their rating during this period.'**
+  String get teamOfPeriodCurrentRatingNote;
 }
 
 class _AppLocalizationsDelegate
@@ -3840,9 +3966,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

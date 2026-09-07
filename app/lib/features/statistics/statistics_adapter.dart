@@ -138,4 +138,21 @@ abstract interface class StatisticsAdapter {
     String communityId,
     TeamOfPeriodKind kind,
   );
+
+  /// Who [userIds] are, for a team that has already been chosen.
+  ///
+  /// A plain read of `users` under the caller's own policies -- no RPC, no
+  /// `SECURITY DEFINER`, nothing added to the schema. `0070` deliberately
+  /// exposes no name or picture, and this is the smallest thing that fills that
+  /// gap without giving the award a way to see one.
+  ///
+  /// **Absence is expected and is not an error.** The `users` policy returns
+  /// active profiles only, so a player whose account is deactivated is missing
+  /// from the result while their award is not. The map simply has no entry for
+  /// them; the caller keeps the player and shows a neutral name.
+  ///
+  /// Name and picture only. Not a position, not a date of birth, not a career:
+  /// the award is already decided and nothing here may reopen it.
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds);
 }

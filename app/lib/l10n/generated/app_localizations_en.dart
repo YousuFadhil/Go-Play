@@ -2171,4 +2171,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminMetricLastActivity => 'Last activity';
+
+  @override
+  String get teamOfPeriodTitle => 'Team of the Period';
+
+  @override
+  String get teamOfPeriodCtaSubtitle =>
+      'The best players of the last completed week or month';
+
+  @override
+  String get teamOfPeriodCtaAction => 'View the team';
+
+  @override
+  String get teamOfPeriodWeekTab => 'Week';
+
+  @override
+  String get teamOfPeriodMonthTab => 'Month';
+
+  @override
+  String get teamOfPeriodWeekHeading => 'Team of the Week';
+
+  @override
+  String get teamOfPeriodMonthHeading => 'Team of the Month';
+
+  @override
+  String get teamOfPeriodNoMatches =>
+      'No qualifying matches were completed in this period.';
+
+  @override
+  String teamOfPeriodNoEligible(int matches) {
+    return 'Matches were played, but nobody played the $matches needed to qualify.';
+  }
+
+  @override
+  String get teamOfPeriodPlayerFallback => 'Player';
+
+  @override
+  String get teamOfPeriodAwardedPosition => 'Awarded position';
+
+  @override
+  String get teamOfPeriodCurrentRating => 'Current rating';
+
+  @override
+  String get teamOfPeriodMatchesPlayed => 'Matches played';
+
+  @override
+  String get teamOfPeriodParticipation => 'Participation';
+
+  @override
+  String get teamOfPeriodGoals => 'Goals';
+
+  @override
+  String get teamOfPeriodGoalsPerMatch => 'Goals per match';
+
+  @override
+  String get teamOfPeriodRecord => 'Won / Drawn / Lost';
+
+  @override
+  String get teamOfPeriodWinRate => 'Win rate';
+
+  @override
+  String get teamOfPeriodPointsPerGame => 'Points per game';
+
+  @override
+  String get teamOfPeriodMvpCount => 'Best player awards';
+
+  @override
+  String get teamOfPeriodCurrentRatingNote =>
+      'The rating shown is the player\'s rating today, not their rating during this period.';
 }

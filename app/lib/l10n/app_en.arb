@@ -890,5 +890,34 @@
   "adminMetricStartingPlayers": "Starting players",
   "adminMetricScore": "Score",
   "adminMetricResultRecorded": "Result recorded",
-  "adminMetricLastActivity": "Last activity"
+  "adminMetricLastActivity": "Last activity",
+
+  "teamOfPeriodTitle": "Team of the Period",
+  "teamOfPeriodCtaSubtitle": "The best players of the last completed week or month",
+  "teamOfPeriodCtaAction": "View the team",
+  "teamOfPeriodWeekTab": "Week",
+  "teamOfPeriodMonthTab": "Month",
+  "teamOfPeriodWeekHeading": "Team of the Week",
+  "teamOfPeriodMonthHeading": "Team of the Month",
+  "teamOfPeriodNoMatches": "No qualifying matches were completed in this period.",
+  "teamOfPeriodNoEligible": "Matches were played, but nobody played the {matches} needed to qualify.",
+  "@teamOfPeriodNoEligible": {
+    "placeholders": {
+      "matches": {
+        "type": "int"
+      }
+    }
+  },
+  "teamOfPeriodPlayerFallback": "Player",
+  "teamOfPeriodAwardedPosition": "Awarded position",
+  "teamOfPeriodCurrentRating": "Current rating",
+  "teamOfPeriodMatchesPlayed": "Matches played",
+  "teamOfPeriodParticipation": "Participation",
+  "teamOfPeriodGoals": "Goals",
+  "teamOfPeriodGoalsPerMatch": "Goals per match",
+  "teamOfPeriodRecord": "Won / Drawn / Lost",
+  "teamOfPeriodWinRate": "Win rate",
+  "teamOfPeriodPointsPerGame": "Points per game",
+  "teamOfPeriodMvpCount": "Best player awards",
+  "teamOfPeriodCurrentRatingNote": "The rating shown is the player's rating today, not their rating during this period."
 }

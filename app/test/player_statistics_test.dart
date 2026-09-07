@@ -570,6 +570,12 @@ class FakePlayerPeriodAdapter implements StatisticsAdapter {
     TeamOfPeriodKind kind,
   ) =>
       throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
+          throw UnimplementedError('no Team of Period identities here');
+
 }
 
 /// The result port, answering a career from memory and counting what it was
