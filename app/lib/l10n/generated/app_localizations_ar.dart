@@ -2248,7 +2248,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get leaderboardLowestRated => 'الأقل تقييماً';
 
   @override
-  String get leaderboardLeastActive => 'الأقل نشاطاً';
+  String get leaderboardLeastActive => 'الأقل مشاركة';
 
   @override
   String get leaderboardFewestWins => 'الأقل فوزاً';
@@ -2258,7 +2258,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String leaderboardGoalsPerMatch(String value) {
-    return '$value لكل مباراة';
+    return '$value هدف/مباراة';
   }
 
   @override

@@ -793,10 +793,10 @@
   "@teamOfPeriodMatchesOf": { "placeholders": { "played": { "type": "int" }, "total": { "type": "int" } } },
 
   "leaderboardLowestRated": "الأقل تقييماً",
-  "leaderboardLeastActive": "الأقل نشاطاً",
+  "leaderboardLeastActive": "الأقل مشاركة",
   "leaderboardFewestWins": "الأقل فوزاً",
   "reverseStatisticsTitle": "الإحصائيات العكسية",
-  "leaderboardGoalsPerMatch": "{value} لكل مباراة",
+  "leaderboardGoalsPerMatch": "{value} هدف/مباراة",
   "@leaderboardGoalsPerMatch": { "placeholders": { "value": { "type": "String" } } },
   "leaderboardPointsPerGame": "{value} نقطة/مباراة",
   "@leaderboardPointsPerGame": { "placeholders": { "value": { "type": "String" } } }
