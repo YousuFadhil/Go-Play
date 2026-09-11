@@ -346,6 +346,40 @@ void main() {
       }
     });
 
+    test('recreation neither broadens nor narrows who can read a view', () {
+      for (final v in views) {
+        // anon loses everything explicitly, the view is never granted to
+        // public, and authenticated keeps exactly one SELECT grant.
+        expect(RegExp('revoke all on public\\.$v from anon\\b').hasMatch(code),
+            isTrue,
+            reason: '$v revokes anon');
+        expect(
+            RegExp('grant [a-z, ]+ on public\\.$v to [^;]*\\b(anon|public)\\b')
+                .hasMatch(code),
+            isFalse,
+            reason: '$v grants nothing to anon or public');
+        expect(
+            RegExp('grant select on public\\.$v to authenticated;')
+                .allMatches(code)
+                .length,
+            1,
+            reason: '$v authenticated select');
+      }
+      // The football views were never invoker views: no options clause at all,
+      // so neither `on` nor an explicit `off` was introduced.
+      for (final v in views.where((v) => !invoker.contains(v))) {
+        expect(view(v), startsWith('create view public.$v as\n'), reason: v);
+        expect(view(v), isNot(contains('security_invoker')), reason: v);
+      }
+      expect(invoker, {
+        'v_community_members',
+        'v_user_profile',
+        'v_player_statistics',
+        'v_match_registrations',
+        'v_match_teams',
+      });
+    });
+
     test('no read model narrows the rating any more', () {
       for (final v in [
         'v_player_statistics',

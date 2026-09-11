@@ -709,7 +709,8 @@ void main() {
       // Without this a deleted match would leave the ratings it produced
       // standing, credited to something that no longer exists.
       await record(owner, teamA: 2, teamB: 0, mvp: owner, goals: {owner: 2});
-      expect(await gainOf(owner), closeTo(0.40, 0.001));
+      // participation 0.005 + win 0.10 + two goals 0.04 + mvp 0.05.
+      expect(await gainOf(owner), closeTo(0.195, 0.001));
 
       await owner.client.rpc('delete_match', params: {'p_match_id': matchId});
 
