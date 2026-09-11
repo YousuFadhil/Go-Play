@@ -164,6 +164,7 @@ class StatisticsRepository {
     return CommunityStatistics(
       dashboard: _dashboardOf(players, completedMatches, recency),
       boards: _boardsOf(members, players, recency),
+      reverseBoards: _reverseBoardsOf(members, players, recency),
     );
   }
 
@@ -212,8 +213,29 @@ class StatisticsRepository {
 
     final boards = <Leaderboard>[];
     for (final kind in LeaderboardKind.values) {
-      final board =
-          _buildBoard(kind, members, recency, (m) => measure(m, kind));
+      final board = _buildBoard(
+        kind,
+        members,
+        recency,
+        (m) => measure(m, kind),
+        // Efficiency context on two boards. The ranking above is untouched:
+        // Top Scorer is still total goals and Most Wins still total wins.
+        secondary: switch (kind) {
+          LeaderboardKind.topScorer => (m) {
+              final row = counters[m.userId];
+              return goalsPerMatch(row?.goals ?? 0, row?.matchesPlayed ?? 0);
+            },
+          LeaderboardKind.mostWins => (m) {
+              final row = counters[m.userId];
+              return pointsPerGame(
+                row?.wins ?? 0,
+                row?.draws ?? 0,
+                row?.matchesPlayed ?? 0,
+              );
+            },
+          _ => null,
+        },
+      );
       if (board != null) boards.add(board);
     }
     return boards;
@@ -284,8 +306,9 @@ class StatisticsRepository {
     LeaderboardKind kind,
     List<CommunityMemberRating> members,
     Map<String, PlayerAchievementRecency> recency,
-    num Function(CommunityMemberRating) measure,
-  ) {
+    num Function(CommunityMemberRating) measure, {
+    num Function(CommunityMemberRating)? secondary,
+  }) {
     final ranked = [
       for (final member in members)
         if (measure(member) > 0) member,
@@ -321,6 +344,8 @@ class StatisticsRepository {
         rank: ahead + 1,
         value: value,
         avatarUrl: member.avatarUrl,
+        // Display only: computed after the ranking, never part of it.
+        secondary: secondary?.call(member),
       ));
     }
 
@@ -329,6 +354,105 @@ class StatisticsRepository {
 
   /// Top three. A social board for a group that plays together, not a table.
   static const _boardDepth = 3;
+
+  /// Goals per match. Zero when nothing was played, rather than a division by
+  /// zero — although Top Scorer only ever ranks players with goals.
+  static double goalsPerMatch(int goals, int matchesPlayed) =>
+      matchesPlayed <= 0 ? 0 : goals / matchesPlayed;
+
+  /// Football points per game: three for a win, one for a draw.
+  static double pointsPerGame(int wins, int draws, int matchesPlayed) =>
+      matchesPlayed <= 0 ? 0 : (3 * wins + draws) / matchesPlayed;
+
+  /// Lowest Rated, Least Active and Fewest Wins, from rows already read.
+  ///
+  /// **The population is the current membership**, so a member with no counter
+  /// row for a bounded period is a member who did nothing in it and measures as
+  /// zero — which is the answer Least Active and Fewest Wins exist to give.
+  /// Lowest Rated reads the Global Rating, exactly as Highest Rated does, and
+  /// has no periodic form.
+  static List<ReverseLeaderboard> _reverseBoardsOf(
+    List<CommunityMemberRating> members,
+    List<CommunityPlayerStatistics> players,
+    Map<String, PlayerAchievementRecency> recency,
+  ) {
+    if (members.isEmpty) return const [];
+    final counters = {for (final row in players) row.userId: row};
+
+    num measure(CommunityMemberRating member, ReverseLeaderboardKind kind) {
+      final row = counters[member.userId];
+      return switch (kind) {
+        ReverseLeaderboardKind.lowestRated => member.rating,
+        ReverseLeaderboardKind.leastActive => row?.matchesPlayed ?? 0,
+        ReverseLeaderboardKind.fewestWins => row?.wins ?? 0,
+      };
+    }
+
+    DateTime? lastOf(String userId, ReverseLeaderboardKind kind) {
+      final history = recency[userId];
+      return switch (kind) {
+        ReverseLeaderboardKind.lowestRated => history?.lastRatingAt,
+        ReverseLeaderboardKind.leastActive => history?.lastPlayedAt,
+        ReverseLeaderboardKind.fewestWins => history?.lastWinAt,
+      };
+    }
+
+    return [
+      for (final kind in ReverseLeaderboardKind.values)
+        _buildReverseBoard(
+          kind,
+          members,
+          (m) => measure(m, kind),
+          (id) => lastOf(id, kind),
+        ),
+    ];
+  }
+
+  /// Lowest first, three deep, zeros included.
+  ///
+  /// Equal values share a Competition Rank computed from the value alone. The
+  /// tie-break below orders them for display and nothing else: a member with no
+  /// history of the measure first, then the one whose last occurrence is
+  /// oldest, then `userId` so the order is the same on every device.
+  static ReverseLeaderboard _buildReverseBoard(
+    ReverseLeaderboardKind kind,
+    List<CommunityMemberRating> members,
+    num Function(CommunityMemberRating) measure,
+    DateTime? Function(String userId) lastOf,
+  ) {
+    final ranked = [...members]..sort((a, b) {
+        final byValue = measure(a).compareTo(measure(b));
+        if (byValue != 0) return byValue;
+        final byHistory = _oldestFirst(lastOf(a.userId), lastOf(b.userId));
+        if (byHistory != 0) return byHistory;
+        return a.userId.compareTo(b.userId);
+      });
+
+    final entries = <LeaderboardEntry>[];
+    for (var i = 0; i < ranked.length && entries.length < _boardDepth; i++) {
+      final member = ranked[i];
+      final value = measure(member);
+      // Mirror of the positive boards: one more than the players strictly
+      // *below* this value, so equals share a rank.
+      final ahead = ranked.where((other) => measure(other) < value).length;
+      entries.add(LeaderboardEntry(
+        userId: member.userId,
+        fullName: member.fullName,
+        rank: ahead + 1,
+        value: value,
+        avatarUrl: member.avatarUrl,
+      ));
+    }
+    return ReverseLeaderboard(kind: kind, entries: entries);
+  }
+
+  /// Never-happened first, then oldest first.
+  static int _oldestFirst(DateTime? a, DateTime? b) {
+    if (a == null && b == null) return 0;
+    if (a == null) return -1;
+    if (b == null) return 1;
+    return a.compareTo(b);
+  }
 
   /// The player with the highest [measure], or null when nobody has any.
   ///

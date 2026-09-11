@@ -790,5 +790,14 @@
   "teamOfPeriodMatchCount": "{count, plural, =0{لا مباريات} =1{مباراة واحدة} =2{مباراتان} few{{count} مباريات} many{{count} مباراة} other{{count} مباراة}}",
   "@teamOfPeriodMatchCount": { "placeholders": { "count": { "type": "int" } } },
   "teamOfPeriodMatchesOf": "{played} من {total}",
-  "@teamOfPeriodMatchesOf": { "placeholders": { "played": { "type": "int" }, "total": { "type": "int" } } }
+  "@teamOfPeriodMatchesOf": { "placeholders": { "played": { "type": "int" }, "total": { "type": "int" } } },
+
+  "leaderboardLowestRated": "الأقل تقييماً",
+  "leaderboardLeastActive": "الأقل نشاطاً",
+  "leaderboardFewestWins": "الأقل فوزاً",
+  "reverseStatisticsTitle": "الإحصائيات العكسية",
+  "leaderboardGoalsPerMatch": "{value} لكل مباراة",
+  "@leaderboardGoalsPerMatch": { "placeholders": { "value": { "type": "String" } } },
+  "leaderboardPointsPerGame": "{value} نقطة/مباراة",
+  "@leaderboardPointsPerGame": { "placeholders": { "value": { "type": "String" } } }
 }

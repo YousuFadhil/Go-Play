@@ -27,35 +27,92 @@ import 'statistics_models.dart';
 ///
 /// A board with nobody behind the leader shows no control at all. "Show more"
 /// that reveals nothing is worse than no button.
-class LeaderboardCard extends StatefulWidget {
+class LeaderboardCard extends StatelessWidget {
   const LeaderboardCard({super.key, required this.board});
 
   final Leaderboard board;
 
   @override
-  State<LeaderboardCard> createState() => _LeaderboardCardState();
-}
-
-class _LeaderboardCardState extends State<LeaderboardCard> {
-  bool _expanded = false;
-
-  Leaderboard get _board => widget.board;
-
-  String _title(AppLocalizations l10n) => switch (_board.kind) {
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return _BoardCard(
+      title: switch (board.kind) {
         LeaderboardKind.highestRated => l10n.leaderboardHighestRated,
         LeaderboardKind.topScorer => l10n.leaderboardTopScorer,
         LeaderboardKind.mostMvp => l10n.leaderboardMostMvp,
         LeaderboardKind.mostActive => l10n.leaderboardMostActive,
         LeaderboardKind.mostWins => l10n.leaderboardMostWins,
-      };
-
-  IconData get _icon => switch (_board.kind) {
+      },
+      icon: switch (board.kind) {
         LeaderboardKind.highestRated => Icons.military_tech,
         LeaderboardKind.topScorer => Icons.sports_soccer,
         LeaderboardKind.mostMvp => Icons.star,
         LeaderboardKind.mostActive => Icons.directions_run,
         LeaderboardKind.mostWins => Icons.emoji_events,
-      };
+      },
+      isRating: board.kind.isRating,
+      entries: board.entries,
+      // The efficiency line under two boards' values. Every other board draws
+      // exactly the row it always drew.
+      secondaryOf: switch (board.kind) {
+        LeaderboardKind.topScorer => (value) =>
+            l10n.leaderboardGoalsPerMatch(value.toStringAsFixed(2)),
+        LeaderboardKind.mostWins => (value) =>
+            l10n.leaderboardPointsPerGame(value.toStringAsFixed(2)),
+        _ => null,
+      },
+    );
+  }
+}
+
+/// A reverse board, drawn in the same card as every other board.
+class ReverseLeaderboardCard extends StatelessWidget {
+  const ReverseLeaderboardCard({super.key, required this.board});
+
+  final ReverseLeaderboard board;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return _BoardCard(
+      title: switch (board.kind) {
+        ReverseLeaderboardKind.lowestRated => l10n.leaderboardLowestRated,
+        ReverseLeaderboardKind.leastActive => l10n.leaderboardLeastActive,
+        ReverseLeaderboardKind.fewestWins => l10n.leaderboardFewestWins,
+      },
+      icon: switch (board.kind) {
+        ReverseLeaderboardKind.lowestRated => Icons.trending_down,
+        ReverseLeaderboardKind.leastActive => Icons.hourglass_empty,
+        ReverseLeaderboardKind.fewestWins => Icons.sports,
+      },
+      isRating: board.kind.isRating,
+      entries: board.entries,
+    );
+  }
+}
+
+/// The card both kinds of board share: the same surface, rows and control.
+class _BoardCard extends StatefulWidget {
+  const _BoardCard({
+    required this.title,
+    required this.icon,
+    required this.isRating,
+    required this.entries,
+    this.secondaryOf,
+  });
+
+  final String title;
+  final IconData icon;
+  final bool isRating;
+  final List<LeaderboardEntry> entries;
+  final String Function(num value)? secondaryOf;
+
+  @override
+  State<_BoardCard> createState() => _BoardCardState();
+}
+
+class _BoardCardState extends State<_BoardCard> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +120,7 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final entries = _board.entries;
+    final entries = widget.entries;
     final rest = entries.skip(1).toList();
 
     return Padding(
@@ -83,11 +140,11 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
                   const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, Gap.sm),
               child: Row(
                 children: [
-                  Icon(_icon, size: 20, color: scheme.primary),
+                  Icon(widget.icon, size: 20, color: scheme.primary),
                   const SizedBox(width: Gap.sm),
                   Expanded(
                     child: Text(
-                      _title(l10n),
+                      widget.title,
                       style: theme.textTheme.titleSmall
                           ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
@@ -96,7 +153,11 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
               ),
             ),
             // The leader, always, and given the room a leader deserves.
-            _LeaderRow(entry: entries.first, isRating: _board.kind.isRating),
+            _LeaderRow(
+              entry: entries.first,
+              isRating: widget.isRating,
+              secondaryOf: widget.secondaryOf,
+            ),
             // The rest, at their own size, behind the control below.
             AnimatedSize(
               duration: const Duration(milliseconds: 180),
@@ -111,7 +172,8 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
                         for (final entry in rest)
                           _RunnerUpRow(
                             entry: entry,
-                            isRating: _board.kind.isRating,
+                            isRating: widget.isRating,
+                            secondaryOf: widget.secondaryOf,
                           ),
                       ],
                     )
@@ -149,10 +211,20 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
 /// collapsed board is that one name is the answer, and a leader drawn like a
 /// list item makes the reader look for the list.
 class _LeaderRow extends StatelessWidget {
-  const _LeaderRow({required this.entry, required this.isRating});
+  const _LeaderRow({
+    required this.entry,
+    required this.isRating,
+    this.secondaryOf,
+  });
 
   final LeaderboardEntry entry;
   final bool isRating;
+  final String Function(num value)? secondaryOf;
+
+  String? get _secondary {
+    final value = entry.secondary;
+    return value == null || secondaryOf == null ? null : secondaryOf!(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,9 +247,13 @@ class _LeaderRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: Gap.sm),
-          Text(
-            formatBoardValue(entry.value, isRating: isRating),
-            style: theme.textTheme.titleLarge?.copyWith(color: scheme.primary),
+          _BoardValue(
+            secondary: _secondary,
+            value: Text(
+              formatBoardValue(entry.value, isRating: isRating),
+              style:
+                  theme.textTheme.titleLarge?.copyWith(color: scheme.primary),
+            ),
           ),
         ],
       ),
@@ -187,10 +263,20 @@ class _LeaderRow extends StatelessWidget {
 
 /// A player behind the leader. Same information, quieter.
 class _RunnerUpRow extends StatelessWidget {
-  const _RunnerUpRow({required this.entry, required this.isRating});
+  const _RunnerUpRow({
+    required this.entry,
+    required this.isRating,
+    this.secondaryOf,
+  });
 
   final LeaderboardEntry entry;
   final bool isRating;
+  final String Function(num value)? secondaryOf;
+
+  String? get _secondary {
+    final value = entry.secondary;
+    return value == null || secondaryOf == null ? null : secondaryOf!(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,10 +297,13 @@ class _RunnerUpRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: Gap.sm),
-          Text(
-            formatBoardValue(entry.value, isRating: isRating),
-            style: theme.textTheme.titleSmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
+          _BoardValue(
+            secondary: _secondary,
+            value: Text(
+              formatBoardValue(entry.value, isRating: isRating),
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
           ),
         ],
       ),
@@ -306,6 +395,35 @@ class _RankBadge extends StatelessWidget {
               : theme.colorScheme.onSurfaceVariant,
         ),
       ),
+    );
+  }
+}
+
+/// A board's value, with a compact efficiency line beneath it where the board
+/// has one. Without one it is the value alone — the same widget as before.
+class _BoardValue extends StatelessWidget {
+  const _BoardValue({required this.value, this.secondary});
+
+  final Widget value;
+  final String? secondary;
+
+  @override
+  Widget build(BuildContext context) {
+    final line = secondary;
+    if (line == null) return value;
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        value,
+        Text(
+          line,
+          maxLines: 1,
+          style: theme.textTheme.labelSmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
     );
   }
 }
