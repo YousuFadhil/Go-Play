@@ -924,5 +924,14 @@
   "teamOfPeriodMatchCount": "{count, plural, =0{No matches} =1{1 match} other{{count} matches}}",
   "@teamOfPeriodMatchCount": { "placeholders": { "count": { "type": "int" } } },
   "teamOfPeriodMatchesOf": "{played} of {total}",
-  "@teamOfPeriodMatchesOf": { "placeholders": { "played": { "type": "int" }, "total": { "type": "int" } } }
+  "@teamOfPeriodMatchesOf": { "placeholders": { "played": { "type": "int" }, "total": { "type": "int" } } },
+
+  "leaderboardLowestRated": "Lowest Rated",
+  "leaderboardLeastActive": "Least Active",
+  "leaderboardFewestWins": "Fewest Wins",
+  "reverseStatisticsTitle": "Reverse Statistics",
+  "leaderboardGoalsPerMatch": "{value} per match",
+  "@leaderboardGoalsPerMatch": { "placeholders": { "value": { "type": "String" } } },
+  "leaderboardPointsPerGame": "{value} PPG",
+  "@leaderboardPointsPerGame": { "placeholders": { "value": { "type": "String" } } }
 }

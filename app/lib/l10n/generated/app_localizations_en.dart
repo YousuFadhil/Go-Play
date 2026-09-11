@@ -2256,4 +2256,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String teamOfPeriodMatchesOf(int played, int total) {
     return '$played of $total';
   }
+
+  @override
+  String get leaderboardLowestRated => 'Lowest Rated';
+
+  @override
+  String get leaderboardLeastActive => 'Least Active';
+
+  @override
+  String get leaderboardFewestWins => 'Fewest Wins';
+
+  @override
+  String get reverseStatisticsTitle => 'Reverse Statistics';
+
+  @override
+  String leaderboardGoalsPerMatch(String value) {
+    return '$value per match';
+  }
+
+  @override
+  String leaderboardPointsPerGame(String value) {
+    return '$value PPG';
+  }
 }

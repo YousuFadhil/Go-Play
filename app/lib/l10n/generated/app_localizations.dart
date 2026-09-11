@@ -3949,6 +3949,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{played} of {total}'**
   String teamOfPeriodMatchesOf(int played, int total);
+
+  /// No description provided for @leaderboardLowestRated.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest Rated'**
+  String get leaderboardLowestRated;
+
+  /// No description provided for @leaderboardLeastActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Least Active'**
+  String get leaderboardLeastActive;
+
+  /// No description provided for @leaderboardFewestWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Fewest Wins'**
+  String get leaderboardFewestWins;
+
+  /// No description provided for @reverseStatisticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reverse Statistics'**
+  String get reverseStatisticsTitle;
+
+  /// No description provided for @leaderboardGoalsPerMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} per match'**
+  String leaderboardGoalsPerMatch(String value);
+
+  /// No description provided for @leaderboardPointsPerGame.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} PPG'**
+  String leaderboardPointsPerGame(String value);
 }
 
 class _AppLocalizationsDelegate

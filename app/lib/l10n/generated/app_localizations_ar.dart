@@ -2243,4 +2243,26 @@ class AppLocalizationsAr extends AppLocalizations {
   String teamOfPeriodMatchesOf(int played, int total) {
     return '$played من $total';
   }
+
+  @override
+  String get leaderboardLowestRated => 'الأقل تقييماً';
+
+  @override
+  String get leaderboardLeastActive => 'الأقل مشاركة';
+
+  @override
+  String get leaderboardFewestWins => 'الأقل فوزاً';
+
+  @override
+  String get reverseStatisticsTitle => 'الإحصائيات العكسية';
+
+  @override
+  String leaderboardGoalsPerMatch(String value) {
+    return '$value هدف/مباراة';
+  }
+
+  @override
+  String leaderboardPointsPerGame(String value) {
+    return '$value نقطة/مباراة';
+  }
 }

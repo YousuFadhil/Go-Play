@@ -6,7 +6,8 @@ import '../../core/states.dart';
 import '../sharing/share_card_flow.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
-import 'community_leaderboards_tab.dart' show LeaderboardCard;
+import 'community_leaderboards_tab.dart'
+    show LeaderboardCard, ReverseLeaderboardCard;
 import 'community_statistics_card.dart';
 import 'stat_card.dart';
 import 'statistics_models.dart';
@@ -394,6 +395,10 @@ class _StatisticsBody extends StatelessWidget {
           // the screen is where somebody is reading, and second place is worth
           // reading.
           for (final board in boards) LeaderboardCard(board: board),
+        // After every positive board, collapsed until asked for. The low end of
+        // a table is worth being able to read and not worth leading with.
+        if (statistics.reverseBoards.isNotEmpty)
+          _ReverseStatistics(boards: statistics.reverseBoards),
         // Which stretch the counted figures cover. Said before the rating note,
         // because in a bounded period the two together are the whole answer:
         // the counters are this week's, and the rating is not a week's figure
@@ -474,6 +479,36 @@ class _TeamOfPeriodEntry extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Lowest Rated, Least Active and Fewest Wins, behind one control.
+///
+/// Collapsed by default, and the boards are not built until it opens. The same
+/// cards as the boards above it; no new screen and no new route.
+class _ReverseStatistics extends StatelessWidget {
+  const _ReverseStatistics({required this.boards});
+
+  final List<ReverseLeaderboard> boards;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    return ExpansionTile(
+      key: const ValueKey('reverse-statistics'),
+      tilePadding: const EdgeInsets.symmetric(horizontal: kPageMargin),
+      childrenPadding: EdgeInsets.zero,
+      shape: const Border(),
+      collapsedShape: const Border(),
+      title: Text(
+        l10n.reverseStatisticsTitle,
+        style: theme.textTheme.titleMedium,
+      ),
+      children: [
+        for (final board in boards) ReverseLeaderboardCard(board: board),
       ],
     );
   }
