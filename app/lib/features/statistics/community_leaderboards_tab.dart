@@ -364,10 +364,18 @@ class _BoardIdentity extends StatelessWidget {
   }
 }
 
-/// A rating keeps its one decimal (`OP-1`); a count is a whole number and
-/// showing it as "5.0" would read as a different kind of figure.
+/// A rating keeps two decimals; a count is a whole number and showing it as
+/// "5.0" would read as a different kind of figure.
+///
+/// Two decimals because one of them made the board contradict itself: 4.64 and
+/// 4.62 are ranked first and second on the raw values the database ranks them
+/// on, and both printed as "4.6", so the board showed two equal figures in two
+/// different places. The ranking is not what changed here -- only how much of
+/// the number the rows are allowed to show. Presentation for the community
+/// leaderboards alone: the Share Card, the player profile and every other
+/// rating display keep the formatting they had.
 String formatBoardValue(num value, {required bool isRating}) =>
-    isRating ? (value as double).toStringAsFixed(1) : '${value.toInt()}';
+    isRating ? (value as double).toStringAsFixed(2) : '${value.toInt()}';
 
 /// The place a player holds. Equal values share a badge, which is the whole
 /// point of showing the number rather than the row's position.

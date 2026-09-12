@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -376,7 +377,7 @@ void main() {
         expect(
           find.descendant(
             of: find.widgetWithText(LeaderboardCard, 'Highest rated'),
-            matching: find.text('6.0'),
+            matching: find.text('6.00'),
           ),
           findsOneWidget,
         );
@@ -482,7 +483,7 @@ void main() {
       );
     });
 
-    testWidgets('a rating keeps its decimal and a count does not',
+    testWidgets('a rating keeps its two decimals and a count has none',
         (tester) async {
       await pumpBoards(
         tester,
@@ -497,11 +498,72 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('6.0'), findsOneWidget, reason: "Ali's rating");
-      expect(find.text('5.5'), findsNWidgets(2), reason: 'the tied pair');
+      expect(find.text('6.00'), findsOneWidget, reason: "Ali's rating");
+      expect(find.text('5.50'), findsNWidgets(2), reason: 'the tied pair');
       expect(find.text('5'), findsWidgets, reason: "Ali's goals, as a count");
-      expect(find.text('5.0'), findsNothing,
+      expect(find.text('5.00'), findsNothing,
           reason: 'a count shown with a decimal reads as a rating');
+    });
+
+    testWidgets('ratings a tenth apart are shown as the values they rank on',
+        (tester) async {
+      // The reported defect: 4.64 and 4.62 are first and second on the raw
+      // values, and one decimal printed both as "4.6", so the board showed
+      // two equal figures in two different places.
+      await pumpBoards(
+        tester,
+        FakeLeaderboardAdapter(
+          members: [
+            member('u1', 'Ali', 4.70),
+            member('u2', 'Sara', 4.64),
+            member('u3', 'Omar', 4.62),
+          ],
+          records: [
+            counters('u1', played: 1),
+            counters('u2', played: 1),
+            counters('u3', played: 1),
+          ],
+        ),
+      );
+
+      await tester.tap(find.descendant(
+        of: find.widgetWithText(LeaderboardCard, 'Highest rated'),
+        matching: find.text('Show more'),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('4.70'), findsWidgets);
+      expect(find.text('4.64'), findsWidgets);
+      expect(find.text('4.62'), findsWidgets);
+      expect(find.text('4.6'), findsNothing,
+          reason: 'the ambiguous rendering the fix removes');
+    });
+
+    test('both rating boards print two decimals, and counts none', () {
+      // The forward board and the reverse board read the same formatter
+      // through the same flag, so neither can drift from the other.
+      expect(LeaderboardKind.highestRated.isRating, isTrue);
+      expect(ReverseLeaderboardKind.lowestRated.isRating, isTrue);
+
+      for (final value in [4.62, 4.64, 4.70]) {
+        expect(
+            formatBoardValue(value, isRating: true), value.toStringAsFixed(2));
+      }
+      expect(formatBoardValue(4.62, isRating: true), '4.62');
+      expect(formatBoardValue(4.64, isRating: true), '4.64');
+      expect(formatBoardValue(4.70, isRating: true), '4.70');
+      expect(formatBoardValue(5, isRating: false), '5',
+          reason: 'a count is still a whole number');
+    });
+
+    test('the Community Statistics share card is left as it was', () {
+      // The fix is for the leaderboard rows on the screen. The card is a
+      // separate presentation and keeps the single decimal it shipped with.
+      final source =
+          File('lib/features/statistics/community_statistics_card.dart')
+              .readAsStringSync();
+      expect(source, contains("(value as double).toStringAsFixed(1)"));
+      expect(source, isNot(contains('toStringAsFixed(2)')));
     });
 
     testWidgets('a board with only a leader offers nothing to expand',
@@ -994,7 +1056,6 @@ class FakeLeaderboardAdapter implements StatisticsAdapter {
   Future<Map<String, TeamOfPeriodPlayerIdentity>>
       fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
           throw UnimplementedError('no Team of Period identities here');
-
 }
 
 /// Records a pushed route without letting it build: `ProfileScreen` makes the
