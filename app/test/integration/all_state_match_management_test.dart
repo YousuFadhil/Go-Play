@@ -235,6 +235,47 @@ void main() {
           reason: 'two answers to one question change nothing');
     });
 
+    test('an empty batch is refused, and recalculates nothing', () async {
+      await recordResult();
+      final before = await snapshot();
+      final audit = await owner.client
+          .from('rating_history')
+          .select('id')
+          .eq('match_id', matchId)
+          .count();
+
+      expect(await correct(owner, const []), 'INVALID_CHANGES');
+
+      expect(await snapshot(), before);
+      final after = await owner.client
+          .from('rating_history')
+          .select('id')
+          .eq('match_id', matchId)
+          .count();
+      expect(after.count, audit.count,
+          reason: 'nothing was detached and reattached for an empty batch');
+    });
+
+    test('the same uuid in two cases is one player, and refuses the batch',
+        () async {
+      // PostgreSQL reads both spellings as the same uuid, so this is a doubled
+      // entry however it is written.
+      expect(
+        await correct(owner, [
+          upsert(player3, 'A', 'FWD'),
+          {
+            'user_id': player3.id.toUpperCase(),
+            'action': 'UPSERT',
+            'team': 'B',
+            'assigned_position': 'GK',
+          },
+        ]),
+        'INVALID_CHANGES',
+      );
+      expect(await assignmentOf(player3), isNull,
+          reason: 'neither entry was applied');
+    });
+
     test('a payload that is not an array is refused the same way', () async {
       expect(await correct(owner, {'user_id': player3.id, 'action': 'REMOVE'}),
           'INVALID_CHANGES');
@@ -740,6 +781,154 @@ void main() {
         await edit(await completedMatch(), startsIn: const Duration(days: 7)),
         'MATCH_COMPLETED',
       );
+    });
+
+    /// Five registrations on a four-a-side match, so the fifth holds a reserve
+    /// seat. Promoting that seat is what `rebalance_roster` does, which makes it
+    /// the observable difference between the branches below.
+    Future<String> crowdedFutureMatch() async {
+      final id = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 7), startingPlayers: 4);
+      for (final user in [owner, admin, player, player2, player3]) {
+        await owner.client.rpc('register_player_in_match', params: {
+          'p_match_id': id,
+          'p_user_id': user.id,
+        });
+      }
+      return id;
+    }
+
+    Future<Map<String, String>> statuses(String id) async {
+      final rows = await owner.client
+          .from('match_registrations')
+          .select('user_id, status')
+          .eq('match_id', id);
+      return {
+        for (final row in rows) row['user_id'] as String: row['status'] as String,
+      };
+    }
+
+    Future<String> reserveOf(String id) async {
+      final all = await statuses(id);
+      return all.entries
+          .firstWhere((entry) => entry.value == 'reserve',
+              orElse: () => throw StateError('the fixture holds no reserve'))
+          .key;
+    }
+
+    test('future to future re-cuts the roster, as it always did', () async {
+      final id = await crowdedFutureMatch();
+      final reserve = await reserveOf(id);
+
+      // Room for five now, and the match is still a plan: the reserve is
+      // promoted, which is the ordinary behaviour this cycle preserves.
+      expect(
+        await edit(id, startsIn: const Duration(days: 14), startingPlayers: 5),
+        'ALLOW',
+      );
+
+      expect((await statuses(id))[reserve], 'confirmed');
+    });
+
+    test('future to active does not promote anybody', () async {
+      final id = await crowdedFutureMatch();
+      final reserve = await reserveOf(id);
+
+      expect(
+        await edit(id,
+            startsIn: const Duration(minutes: -30),
+            duration: const Duration(hours: 2),
+            startingPlayers: 5),
+        'ALLOW',
+      );
+
+      expect((await statuses(id))[reserve], 'reserve',
+          reason: 'the match is being played; its roster is participation');
+    });
+
+    test('future to completed does not promote anybody', () async {
+      final id = await crowdedFutureMatch();
+      final reserve = await reserveOf(id);
+
+      expect(
+        await edit(id,
+            startsIn: const Duration(days: -3),
+            duration: const Duration(hours: 2),
+            startingPlayers: 5),
+        'ALLOW',
+      );
+
+      expect((await statuses(id))[reserve], 'reserve',
+          reason: 'a match entered as a record of itself rebalances nothing');
+      final row = await owner.client
+          .from('matches')
+          .select('status')
+          .eq('id', id)
+          .single();
+      expect(row['status'], 'completed');
+    });
+
+    test('active to active does not promote anybody', () async {
+      final id = await crowdedFutureMatch();
+      final reserve = await reserveOf(id);
+      // Into progress first, which is itself a future -> active edit.
+      await edit(id,
+          startsIn: const Duration(minutes: -30),
+          duration: const Duration(hours: 3),
+          startingPlayers: 4);
+
+      expect(
+        await edit(id,
+            startsIn: const Duration(minutes: -30),
+            duration: const Duration(hours: 4),
+            startingPlayers: 5),
+        'ALLOW',
+      );
+
+      expect((await statuses(id))[reserve], 'reserve');
+    });
+
+    test('active to completed does not promote anybody', () async {
+      final id = await crowdedFutureMatch();
+      final reserve = await reserveOf(id);
+      await edit(id,
+          startsIn: const Duration(hours: -1),
+          duration: const Duration(hours: 3),
+          startingPlayers: 4);
+
+      // Ended early, with room for five.
+      expect(
+        await edit(id,
+            startsIn: const Duration(hours: -3),
+            duration: const Duration(hours: 1),
+            startingPlayers: 5),
+        'ALLOW',
+      );
+
+      expect((await statuses(id))[reserve], 'reserve');
+      final row = await owner.client
+          .from('matches')
+          .select('status')
+          .eq('id', id)
+          .single();
+      expect(row['status'], 'completed');
+    });
+
+    test('an active match keeps a non-completed status through an edit',
+        () async {
+      final id = await crowdedFutureMatch();
+      await edit(id,
+          startsIn: const Duration(minutes: -30),
+          duration: const Duration(hours: 3),
+          startingPlayers: 5);
+
+      final row = await owner.client
+          .from('matches')
+          .select('status')
+          .eq('id', id)
+          .single();
+      expect(row['status'], isNot('completed'),
+          reason: 'it is being played, not over');
     });
 
     test('starting_players is editable in every state', () async {

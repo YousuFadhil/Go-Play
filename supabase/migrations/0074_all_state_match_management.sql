@@ -195,6 +195,16 @@ begin
     raise exception 'INVALID_CHANGES';
   end if;
 
+  -- An empty array is not a correction, and it is refused rather than allowed to
+  -- be a no-op. Letting it through would reach `detach_match_effects` and
+  -- `attach_match_effects` with nothing to apply between them, which reverses
+  -- every rating the match produced and recalculates it from an unchanged
+  -- lineup: new `rating_history` rows, a fresh audit trail, and no correction to
+  -- show for any of it. A caller with nothing to change has nothing to call.
+  if jsonb_array_length(p_changes) = 0 then
+    raise exception 'INVALID_CHANGES';
+  end if;
+
   -- Every element names a player and an action this function understands. A
   -- user_id that is not a uuid is a malformed batch, not a missing member, so
   -- it is refused here rather than by a cast failing mid-statement.
@@ -211,7 +221,15 @@ begin
   -- One statement per player. Two entries for the same player are not a bigger
   -- correction, they are two answers to one question, and which of them won
   -- would depend on the order the array happened to arrive in.
-  select count(*), count(distinct e->>'user_id')
+  --
+  -- Compared as uuids rather than as the text they arrived in. The same uuid can
+  -- be written in either case -- `A1B2...` and `a1b2...` are one value to
+  -- PostgreSQL and to every row this function writes -- so comparing the strings
+  -- would let a doubled player through the one check meant to catch them, and
+  -- the later upsert would apply whichever entry the loop happened to reach
+  -- last. Safe here because the malformed-uuid test above has already run, so
+  -- every cast below is of text known to be a uuid.
+  select count(*), count(distinct (e->>'user_id')::uuid)
     into v_entries, v_players
   from jsonb_array_elements(p_changes) as e;
   if v_entries <> v_players then
@@ -403,6 +421,12 @@ declare
   -- NEW (0074): the ORIGINAL lifecycle, read from the locked row before
   -- the new times are applied.
   v_was_active boolean;
+  -- NEW (0074): the REQUESTED lifecycle, derived from the new times. The
+  -- original state decides which transitions are allowed; the resulting state
+  -- decides what happens to the roster afterwards. They are not the same
+  -- question and a single flag cannot answer both.
+  v_becomes_completed boolean;
+  v_becomes_active boolean;
 begin
   if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
   -- Added by migration 0065: a suspended account performs no new activity.
@@ -445,13 +469,18 @@ begin
   -- together: both of them ask for an end that has not happened yet. It also
   -- stops the unreadable state where `status` says completed and the times
   -- say the match is still to come.
+  v_becomes_completed := p_end_at <= now();
+  v_becomes_active := not v_becomes_completed and p_start_at <= now();
+
   if v_played then
-    if p_end_at > now() then raise exception 'MATCH_COMPLETED'; end if;
+    if not v_becomes_completed then raise exception 'MATCH_COMPLETED'; end if;
   -- A match that has kicked off cannot be returned to the schedule. Players
   -- have turned up to it; reopening it for registration would be a different
   -- match wearing this one's record.
   elsif v_was_active then
-    if p_start_at > now() then raise exception 'MATCH_LOCKED'; end if;
+    if not (v_becomes_completed or v_becomes_active) then
+      raise exception 'MATCH_LOCKED';
+    end if;
   end if;
   if p_starting_players < 4 or p_starting_players > 30 then
     raise exception 'INVALID_STARTING_PLAYERS';
@@ -470,18 +499,34 @@ begin
     starting_players = p_starting_players,
     description = case when p_description is null or trim(p_description) = '' then null else trim(p_description) end
   where id = p_match_id;
-  -- CHANGED: a played match keeps the roster it played with, and the status it
-  -- earned. Re-cutting the roster would demote players out of a recorded lineup
-  -- and notify them about a match that is already over; recomputing the status
-  -- from the new `end_at` would reopen it for registration.
+  -- CHANGED (0074): WHAT HAPPENS TO THE ROSTER FOLLOWS THE RESULTING STATE.
   --
-  -- The statement below is the one `recompute_match_status` runs in its own
-  -- completed branch, so a match that finished without anything having touched it
-  -- still gets the stored status it was owed. An Open or Full match takes the
-  -- unchanged path and is recomputed exactly as before.
-  if v_played then
+  -- `0065` asked this of the ORIGINAL state, which was wrong in three cases an
+  -- organizer can reach: an active match being edited, a future match corrected
+  -- into an active one, and a future match entered as a record of one already
+  -- played. All three still ran `rebalance_roster`, so changing the starting
+  -- count promoted and demoted players -- and `recompute_match_status` went on
+  -- to re-cut the status and, through `reconcile_match_lineup`, the stored
+  -- lineup -- for a match that is being played or is over. Once a match has
+  -- kicked off its roster is participation rather than a plan, and editing its
+  -- details must not rewrite who took part.
+  --
+  -- RESULTING COMPLETED: the match is history. The stored status is settled and
+  -- nothing else is touched. This is the statement `recompute_match_status` runs
+  -- in its own completed branch, so a match that finished without anything
+  -- having touched it still gets the status it was owed.
+  if v_becomes_completed then
     update matches set status = 'completed'
     where id = p_match_id and status <> 'completed';
+  -- RESULTING ACTIVE: the match is being played. No rebalance, no promotion or
+  -- demotion, no lineup reconciliation, and no status recomputation -- the
+  -- stored status is already one of the non-completed ones and recomputing it
+  -- would reopen registration on a match in progress.
+  elsif v_becomes_active then
+    null;
+  -- RESULTING FUTURE: still a plan, so the ordinary behaviour is untouched --
+  -- the roster is re-cut to the new starting count and the status recomputed,
+  -- exactly as before this migration.
   else
     perform rebalance_roster(p_match_id);
     perform recompute_match_status(p_match_id);
@@ -510,10 +555,14 @@ comment on function public.update_match(
   'only move forward: an active match may not be returned to the future '
   '(MATCH_LOCKED) and a completed match may not be reopened as active or future '
   '(MATCH_COMPLETED), which also means a completed match''s new end_at must '
-  'already have passed. Changing starting_players on a match that has started or '
-  'finished deliberately does not rebalance the roster, promote or demote '
-  'anybody, rewrite assignments or regenerate teams -- a future match keeps the '
-  'ordinary rebalance and status recomputation. See migration 0074.';
+  'already have passed. What happens to the roster afterwards follows the '
+  'RESULTING state, not the one the match was in: once the result of the edit is '
+  'active or completed -- including a future match corrected into either -- '
+  'changing starting_players deliberately does not rebalance the roster, promote '
+  'or demote anybody, recompute the status or reconcile the stored lineup, '
+  'because a match being played or already played holds participation rather '
+  'than a plan. An edit whose result is still a future match keeps the ordinary '
+  'rebalance and status recomputation. See migration 0074.';
 
 -- 3) record_match_result -- the result guard ------------------------------------
 -- `0065`'s body with the completion guard inserted after authorization. Every

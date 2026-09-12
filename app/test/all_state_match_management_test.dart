@@ -194,13 +194,33 @@ void main() {
         () {
       expect(body, contains("jsonb_typeof(p_changes) <> 'array'"));
       // Duplicates are counted rather than assumed away: the entries and the
-      // distinct players have to be the same number.
-      expect(body, contains("count(distinct e->>'user_id')"));
+      // distinct players have to be the same number, compared as uuids.
+      expect(body, contains("count(distinct (e->>'user_id')::uuid)"));
       expect(body, contains('v_entries <> v_players'));
       expect(
           RegExp("raise exception 'INVALID_CHANGES'").allMatches(body).length,
           greaterThanOrEqualTo(3),
           reason: 'shape, element vocabulary and duplicates');
+    });
+
+    test('an empty batch is refused, and refused before anything is detached',
+        () {
+      // [] reaching detach/attach would reverse every rating the match produced
+      // and recalculate it from an unchanged lineup: a fresh audit trail and no
+      // correction to show for it.
+      expect(body, contains('jsonb_array_length(p_changes) = 0'));
+      expect(body.indexOf('jsonb_array_length(p_changes) = 0'),
+          lessThan(detach));
+    });
+
+    test('duplicates are compared as uuids, not as the text they arrived in',
+        () {
+      // The same uuid in two cases is one player. Comparing the strings would
+      // let a doubled entry past the only check meant to catch it.
+      expect(body, contains("count(distinct (e->>'user_id')::uuid)"));
+      expect(body.indexOf('!~*'),
+          lessThan(body.indexOf("count(distinct (e->>'user_id')::uuid)")),
+          reason: 'the malformed-uuid test runs first, so the cast is safe');
     });
 
     test('an UPSERT must name a valid side and position', () {
@@ -334,16 +354,17 @@ void main() {
       expect(body, contains('if v_played then'));
       expect(
           body,
-          contains(
-              "if p_end_at > now() then raise exception 'MATCH_COMPLETED'; end if;"));
+          contains("if not v_becomes_completed then "
+              "raise exception 'MATCH_COMPLETED'; end if;"));
     });
 
     test('a started match may not be returned to the schedule', () {
       expect(body, contains('elsif v_was_active then'));
-      expect(
-          body,
-          contains(
-              "if p_start_at > now() then raise exception 'MATCH_LOCKED'; end if;"));
+      // Staying active and ending are both forward moves; only a start in the
+      // future would put a match that has kicked off back on the schedule.
+      expect(body,
+          contains('if not (v_becomes_completed or v_becomes_active) then'));
+      expect(body, contains("raise exception 'MATCH_LOCKED'"));
     });
 
     test('the guard runs after the times are validated and before the write',
@@ -387,26 +408,69 @@ void main() {
           body, contains('p_starting_players < 4 or p_starting_players > 30'));
     });
 
-    test('a played match keeps the roster and the lineup it played with', () {
-      // starting_players remains editable after a match has started or
-      // finished, and changing it deliberately rebalances nothing: the played
-      // branch only settles the stored status.
-      final played = body.indexOf('if v_played then');
-      final otherwise = body.indexOf('  else\n', played);
-      final branch = body.substring(played, otherwise);
-      expect(branch, contains("update matches set status = 'completed'"));
+    test('the resulting state is derived from the new times', () {
+      // The original state decides which transitions are allowed; the resulting
+      // state decides what happens to the roster. Two questions, two flags.
+      expect(body, contains('v_becomes_completed := p_end_at <= now();'));
+      expect(
+          body,
+          contains('v_becomes_active := not v_becomes_completed '
+              'and p_start_at <= now();'));
+    });
+
+    test('the roster is re-cut only where the match is still a plan', () {
+      // The defect this replaces: keying the post-update branch on the ORIGINAL
+      // state rebalanced an active match, a future match corrected into an
+      // active one, and a future match entered as a record of one already
+      // played. Once the resulting state is active or completed, editing the
+      // details must not promote, demote or rewrite participation.
+      expect(RegExp('rebalance_roster').allMatches(body), hasLength(1));
+      expect(RegExp('recompute_match_status').allMatches(body), hasLength(1));
+
+      final completed = body.indexOf('if v_becomes_completed then');
+      final active = body.indexOf('elsif v_becomes_active then', completed);
+      final future = body.indexOf('  else\n', active);
+      expect(completed, greaterThan(body.indexOf('update matches set\n')),
+          reason: 'the decision is made after the fields are written');
+      expect(active, greaterThan(completed));
+      expect(future, greaterThan(active));
+
+      // RESULTING COMPLETED: settle the stored status, touch nothing else.
+      final completedBranch = body.substring(completed, active);
+      expect(completedBranch, contains("update matches set status = 'completed'"));
+      // RESULTING ACTIVE: do nothing at all.
+      final activeBranch = body.substring(active, future);
+      expect(activeBranch, contains('null;'));
+      expect(activeBranch, isNot(contains('update matches')),
+          reason: 'a match in progress keeps the status it has');
+      // Neither may re-cut the roster, the status or the stored lineup.
       for (final behaviour in const [
         'rebalance_roster',
         'recompute_match_status',
+        'reconcile_match_lineup',
         'replace_match_lineup',
         'match_team_assignments',
       ]) {
-        expect(branch, isNot(contains(behaviour)),
-            reason: '$behaviour must not run for a played match');
+        expect(completedBranch, isNot(contains(behaviour)),
+            reason: '$behaviour must not run for a completed match');
+        expect(activeBranch, isNot(contains(behaviour)),
+            reason: '$behaviour must not run for a match in progress');
       }
-      // And the ordinary path is still there for a match still to come.
-      expect(body.substring(otherwise), contains('rebalance_roster'));
-      expect(body.substring(otherwise), contains('recompute_match_status'));
+
+      // RESULTING FUTURE: the ordinary behaviour, exactly as before.
+      final futureBranch = body.substring(future);
+      expect(futureBranch, contains('perform rebalance_roster(p_match_id);'));
+      expect(
+          futureBranch, contains('perform recompute_match_status(p_match_id);'));
+    });
+
+    test('the old-state flag no longer decides the roster', () {
+      // v_played still decides which transitions are allowed, and nothing else.
+      final decision = body.indexOf('if v_becomes_completed then');
+      expect(body.indexOf('if v_played then'), lessThan(decision),
+          reason: 'the original state is used for the guard, above');
+      expect(body.substring(decision), isNot(contains('v_played')),
+          reason: 'and never again below it');
     });
   });
 
