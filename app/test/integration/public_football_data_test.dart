@@ -18,10 +18,19 @@ import 'support.dart';
 ///
 /// `outsider` is the subject throughout. It is the one permanent account that
 /// belongs to no community unless a test puts it in one, which is exactly the
-/// condition "no membership required" is about. Nothing here creates, deletes or
-/// modifies a community, a match, a registration or a result: the suite reads
-/// football history that other tests have already produced, and skips rather
-/// than fabricating it.
+/// condition "no membership required" is about. The outsider is never added to
+/// the fixture community below, which is what makes every read here a read
+/// without membership.
+///
+/// The football history is built by this suite rather than borrowed from
+/// whatever other suites happen to have left behind. Waiting on another test's
+/// residue made these assertions pass or fail according to the order and the age
+/// of the database they ran against -- on a database built from the migrations
+/// alone there is no residue at all, and the strongest claims here were
+/// silently asserting emptiness. Two completed matches are created in one
+/// community: one with a recorded result, goals and an MVP, and one with a
+/// stored lineup and no result, which is the pair the assertions below need.
+/// Teardown deletes the community, whose cascade gives every trace back.
 void main() {
   if (!integrationConfigured) {
     test('public football data', () {}, skip: skipReason);
@@ -35,11 +44,78 @@ void main() {
   FootballRepository footballFor(TestUser user) =>
       FootballRepository(SupabaseFootballAdapter(user.client));
 
+  late String communityId;
+
   setUpAll(() async {
     owner = await signInTestUser('owner');
     player = await signInTestUser('player');
     outsider = await signInTestUser('outsider');
+
+    // The football this suite reads. `outsider` is deliberately left out of the
+    // community: every assertion below is about what an account with no
+    // membership can see.
+    communityId = await createCommunity(owner, 'ITest Football Public');
+    await addMember(owner, communityId, player);
+
+    Future<String> playedMatch({required int daysAgo}) async {
+      final id = await createMatch(owner, communityId,
+          startsIn: Duration(days: -daysAgo), startingPlayers: 4);
+      for (final user in [owner, player]) {
+        await owner.client.rpc('admin_add_player_to_match', params: {
+          'p_match_id': id,
+          'p_user_id': user.id,
+        });
+      }
+      await owner.client.rpc('replace_match_lineup', params: {
+        'p_match_id': id,
+        // Played already, so the lineup is the record of who played (0071).
+        'p_from_generation': false,
+        'p_completed_correction': true,
+        'p_assignments': [
+          {
+            'user_id': owner.id,
+            'team': 'A',
+            'assigned_position': 'GK',
+            'assignment_basis': 'PRIMARY',
+          },
+          {
+            'user_id': player.id,
+            'team': 'B',
+            'assigned_position': 'MID',
+            'assignment_basis': 'PRIMARY',
+          },
+        ],
+      });
+      return id;
+    }
+
+    // One with a result, goals and a best player...
+    final recorded = await playedMatch(daysAgo: 12);
+    // ...and a Professional Guest who played it, so the two assertions about how
+    // a guest appears in the public football data have a guest to look at. They
+    // skipped themselves for want of one, which on a database built from the
+    // migrations alone means they never ran at all.
+    await owner.client.rpc('add_played_professional_guest', params: {
+      'p_match_id': recorded,
+      'p_name': 'ITest Public Guest',
+      'p_team': 'A',
+      'p_assigned_position': 'DEF',
+    });
+    await owner.client.rpc('record_match_result', params: {
+      'p_match_id': recorded,
+      'p_team_a_score': 2,
+      'p_team_b_score': 1,
+      'p_mvp_user_id': owner.id,
+      'p_goals': [
+        {'user_id': owner.id, 'goals': 2},
+        {'user_id': player.id, 'goals': 1},
+      ],
+    });
+    // ...and one played but never recorded, which is the other half of the pair.
+    await playedMatch(daysAgo: 11);
   });
+
+  tearDownAll(() async => disposeCommunity(owner, communityId));
 
   /// The Cycle 2 relations, named once. Every "anon sees nothing" and
   /// "SELECT-only" assertion iterates this list, so a view added later without

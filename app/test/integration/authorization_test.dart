@@ -72,26 +72,58 @@ void main() {
         });
       });
 
-  Future<int> updateSettingsAs(TestUser user) async {
+  /// Changes the one community column a client may write.
+  ///
+  /// `join_policy` carries a column-level UPDATE grant for `authenticated`
+  /// (migration 0063) and the `communities_update_owner` policy decides who the
+  /// row is for, so the number of rows returned is RLS's answer rather than a
+  /// privilege error.
+  Future<int> updateJoinPolicyAs(TestUser user) async {
     final rows = await user.client
         .from('communities')
-        .update({'description': 'touched by ${user.label}'})
+        .update({'join_policy': 'OPEN'})
         .eq('id', communityId)
-        .select();
+        // `id` rather than `*`: the table's SELECT grant is column-level too
+        // (0056), so asking for everything is refused before RLS is reached.
+        .select('id');
     return rows.length;
   }
 
+  /// The same attempt on a column no client may write at all.
+  Future<String> updateDescriptionAs(TestUser user) => outcomeOf(() async {
+        await user.client
+            .from('communities')
+            .update({'description': 'touched by ${user.label}'})
+            .eq('id', communityId);
+      });
+
   group('community settings (PD-05)', () {
+    // The settings a client may change are the owner's, and they are reached
+    // through a column-level grant rather than a table-wide one: `join_policy`
+    // is writable and everything else on the row is not. The description was
+    // once part of this and stopped being so when 0056 and 0063 narrowed the
+    // table to named columns, which is why the owner is refused it too.
     test('the owner can edit them', () async {
-      expect(await updateSettingsAs(owner), 1);
+      expect(await updateJoinPolicyAs(owner), 1);
     });
 
     test('an admin cannot', () async {
-      expect(await updateSettingsAs(admin), 0);
+      expect(await updateJoinPolicyAs(admin), 0,
+          reason: 'the row belongs to the owner, and RLS says so');
     });
 
     test('a player cannot', () async {
-      expect(await updateSettingsAs(player), 0);
+      expect(await updateJoinPolicyAs(player), 0);
+    });
+
+    test('and no client writes the rest of the row, the owner included',
+        () async {
+      // Not an authorization answer but a privilege one: the column carries no
+      // UPDATE grant for `authenticated`, so the attempt never reaches RLS.
+      for (final user in [owner, admin, player]) {
+        expect(await updateDescriptionAs(user), isNot('ALLOW'),
+            reason: '${user.label} may not write description directly');
+      }
     });
   });
 

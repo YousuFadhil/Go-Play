@@ -1135,6 +1135,10 @@ void main() {
       // screen sends: it knows nothing about guests.
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': matchId,
+        // The match has been played, so this is an explicit correction to
+        // the record rather than a generation (0071).
+        'p_from_generation': false,
+        'p_completed_correction': true,
         'p_assignments': [
           {
             'user_id': owner.id,
@@ -1174,6 +1178,8 @@ void main() {
         () async {
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': matchId,
+        'p_from_generation': false,
+        'p_completed_correction': true,
         'p_assignments': [
           {
             'user_id': owner.id,
@@ -1210,17 +1216,50 @@ void main() {
       expect(guestRow['assignment_basis'], 'GUEST');
     });
 
-    test('a lineup that drops the guest MVP is still refused', () async {
-      // The guest half is only replaced where the payload names it, so dropping
-      // the MVP means naming them and putting them nowhere — which is what a
-      // future guest-removal UI would do, and what the result forbids.
+    test('a payload that omits the guest leaves the guest MVP standing',
+        () async {
+      // The user half is replaced wholesale and the guest half only where the
+      // payload names it, so omitting the guest is not dropping them. The
+      // recorded MVP therefore survives this write, and it is allowed --
+      // taking a played guest out is `remove_played_professional_guest`'s job,
+      // and that is where the result guard meets them.
       expect(
         await outcomeOf(() async {
           await owner.client.rpc('replace_match_lineup', params: {
             'p_match_id': matchId,
+            'p_from_generation': false,
+            'p_completed_correction': true,
             'p_assignments': [
               {
                 'user_id': owner.id,
+                'team': 'A',
+                'assigned_position': 'DEF',
+                'assignment_basis': 'TRANSITION',
+              },
+            ],
+          });
+        }),
+        'ALLOW',
+      );
+      expect(
+        (await lineup()).where((r) => r['professional_guest_id'] == guestId),
+        hasLength(1),
+        reason: 'the guest the payload never mentioned is still on the pitch',
+      );
+    });
+
+    test('a lineup that drops a recorded scorer is refused', () async {
+      // owner scored the goal on team A. A payload that leaves him out takes him
+      // out of the user half, which would orphan that goal.
+      expect(
+        await outcomeOf(() async {
+          await owner.client.rpc('replace_match_lineup', params: {
+            'p_match_id': matchId,
+            'p_from_generation': false,
+            'p_completed_correction': true,
+            'p_assignments': [
+              {
+                'user_id': admin.id,
                 'team': 'A',
                 'assigned_position': 'DEF',
                 'assignment_basis': 'TRANSITION',
@@ -1508,8 +1547,12 @@ void main() {
   // its lineup, result, goals and MVP still recorded against it. The status of a
   // played match is now preserved from the row as it was *before* the edit.
   //
-  // None of this restricts the edit. An owner or admin moves the times of a
-  // completed match freely; it simply stays completed.
+  // The approved lifecycle has since gone further than preserving the status:
+  // it refuses the move itself. A completed match may be edited without limit
+  // and may be re-dated within the past, but its new end must already have
+  // passed -- `COMPLETED -> ACTIVE` and `COMPLETED -> FUTURE` are refused with
+  // MATCH_COMPLETED (migration 0074), so a played match can no longer be given
+  // a schedule that claims it is still to come.
 
   group('a completed match stays completed', () {
     late String matchId;
@@ -1557,25 +1600,45 @@ void main() {
           .update({'status': 'completed'}).eq('id', matchId);
     });
 
-    test('1. moving end_at into the future leaves it completed', () async {
-      // The schedule now ends four days from now, and the match is still a
-      // match that was played.
+    test('1. moving end_at into the future is refused', () async {
+      // A schedule ending four days from now would say this match has not been
+      // played, while its lineup, result, goals and MVP all say it has.
       expect(
         await editBy(owner, matchId,
             title: 'ITest end moved',
             startsIn: const Duration(days: 3),
             duration: const Duration(days: 1)),
-        'ALLOW',
+        'MATCH_COMPLETED',
       );
       expect(await statusOf(matchId), 'completed');
+      final row = await owner.client
+          .from('matches')
+          .select('title, end_at')
+          .eq('id', matchId)
+          .single();
+      expect(row['title'], isNot('ITest end moved'),
+          reason: 'the refused edit wrote nothing');
+      expect(DateTime.parse(row['end_at'] as String).isBefore(DateTime.now()),
+          isTrue);
     });
 
-    test('2. moving start_at into the future leaves it completed', () async {
+    test('2. moving start_at into the future is refused', () async {
       expect(
         await editBy(owner, matchId,
             title: 'ITest start moved',
             startsIn: const Duration(days: 5),
             duration: const Duration(hours: 2)),
+        'MATCH_COMPLETED',
+      );
+      expect(await statusOf(matchId), 'completed');
+    });
+
+    test('2b. re-dating it within the past is allowed', () async {
+      // The edit is not restricted -- the direction is. A played match may be
+      // corrected to the day it was actually played.
+      expect(
+        await editBy(owner, matchId,
+            title: 'ITest re-dated', startsIn: const Duration(days: -25)),
         'ALLOW',
       );
       expect(await statusOf(matchId), 'completed');
@@ -1596,7 +1659,7 @@ void main() {
     test('4. an owner may make the edit', () async {
       expect(
         await editBy(owner, matchId,
-            title: 'ITest owner edit', startsIn: const Duration(days: 4)),
+            title: 'ITest owner edit', startsIn: const Duration(days: -4)),
         'ALLOW',
       );
       expect(await statusOf(matchId), 'completed');
@@ -1605,7 +1668,7 @@ void main() {
     test('5. an admin may make the edit', () async {
       expect(
         await editBy(admin, matchId,
-            title: 'ITest admin edit', startsIn: const Duration(days: 4)),
+            title: 'ITest admin edit', startsIn: const Duration(days: -4)),
         'ALLOW',
       );
       expect(await statusOf(matchId), 'completed');
@@ -1634,7 +1697,7 @@ void main() {
       expect(
         await editBy(owner, matchId,
             title: 'ITest rebalance probe',
-            startsIn: const Duration(days: 6)),
+            startsIn: const Duration(days: -6)),
         'ALLOW',
       );
 
@@ -1671,7 +1734,7 @@ void main() {
 
       expect(
         await editBy(owner, lazy,
-            title: 'ITest lazy', startsIn: const Duration(days: 6)),
+            title: 'ITest lazy', startsIn: const Duration(days: -6)),
         'ALLOW',
       );
       expect(await statusOf(lazy), 'completed');
@@ -2259,6 +2322,9 @@ void main() {
       // position, so a re-alternation would be visible in more than one column.
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': matchId,
+        // The match has been played, so this is a correction to its record (0071).
+        'p_from_generation': false,
+        'p_completed_correction': true,
         'p_assignments': [
           for (final (index, user) in squad.indexed)
             {

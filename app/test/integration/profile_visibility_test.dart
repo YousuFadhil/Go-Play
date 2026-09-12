@@ -61,6 +61,21 @@ void main() {
     );
   });
 
+  /// Puts the borrowed account back the way it was found.
+  ///
+  /// The six accounts are shared fixtures and this suite is the only one that
+  /// gives `outsider` a date of birth -- `btge_schema_test` asserts that same
+  /// account still has none, as an existing profile that predates the field. The
+  /// product cannot clear one (`saveMyProfile` requires a date, because once a
+  /// player gives theirs it stays), so the fixture undoes its own write here,
+  /// through the account's own row and nothing wider.
+  tearDownAll(() async {
+    await outsider.client
+        .from('users')
+        .update({'date_of_birth': null})
+        .eq('id', outsider.id);
+  });
+
   setUp(() => communityId = null);
   tearDown(() => disposeCommunity(owner, communityId));
 

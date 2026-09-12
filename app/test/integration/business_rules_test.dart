@@ -243,7 +243,11 @@ void main() {
       });
     }
     final before = await roster(matchId);
-    final start = DateTime.now().toUtc().add(const Duration(days: 2));
+    // Still started, and still running: the lifecycle may advance but never
+    // rewind, so an edit that moved a match in progress back into the future
+    // would be refused with MATCH_LOCKED -- a different rule from the one under
+    // test here. The match keeps its start and gains an hour.
+    final start = DateTime.now().toUtc().subtract(const Duration(hours: 1));
 
     final result = await outcomeOf(() async {
       await owner.client.rpc('update_match', params: {
@@ -251,7 +255,7 @@ void main() {
         'p_title': 'ITest edited match',
         'p_location': 'Edited in progress',
         'p_start_at': start.toIso8601String(),
-        'p_end_at': start.add(const Duration(hours: 2)).toIso8601String(),
+        'p_end_at': start.add(const Duration(hours: 4)).toIso8601String(),
         'p_starting_players': 10,
         'p_description': null,
       });
