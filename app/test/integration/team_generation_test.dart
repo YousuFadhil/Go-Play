@@ -254,7 +254,11 @@ void main() {
     setUp(() async {
       pastMatchId = await createMatch(owner, communityId,
           startsIn: const Duration(days: -21));
-      await adapterFor(owner).saveLineup(pastMatchId, [
+      // The match was played three weeks ago, so writing its lineup is an
+      // explicit correction to the record rather than a generation: migration
+      // 0071 refuses a generation on a completed match, and this fixture is
+      // building the history Diversity reads, not proposing teams.
+      await adapterFor(owner).saveLineup(pastMatchId, completedCorrection: true, [
         TeamAssignment(
           userId: owner.id,
           team: TeamId.a,

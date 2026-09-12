@@ -64,8 +64,13 @@ void main() {
     await addMember(owner, communityId, admin, role: 'admin');
     await addMember(owner, communityId, player);
     await addMember(owner, communityId, player2);
+    // In the past, because a final result belongs to a match that has been
+    // played: migration 0074 refuses one with MATCH_NOT_COMPLETED while the
+    // match is still to come or is under way, and every test below records a
+    // result. Day 26 stays this file's window; it is simply behind us now.
+    // The refusal itself is covered by all_state_match_management_test.dart.
     matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 26), startingPlayers: 4);
+        startsIn: const Duration(days: -26), startingPlayers: 4);
   });
 
   /// Deleting the community deletes its matches, and the `before delete` trigger
@@ -79,6 +84,12 @@ void main() {
   Future<void> storeLineup() async {
     await owner.client.rpc('replace_match_lineup', params: {
       'p_match_id': matchId,
+      // The match is played, so this is an explicit correction to the record of
+      // who played rather than a generation: migration 0071 refuses a
+      // generation on a completed match, and the flag is how the caller says
+      // which of the two it means.
+      'p_from_generation': false,
+      'p_completed_correction': true,
       'p_assignments': [
         {
           'user_id': owner.id,

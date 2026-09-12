@@ -378,7 +378,10 @@ void main() {
     test('a reserve is confirmed rather than left waiting', () async {
       // A completed match has no queue to wait in: somebody who played is
       // confirmed, whatever their seat said before.
-      await owner.client.rpc('register_player_in_match', params: {
+      // `admin_add_player_to_match` is the organizer's path; the
+      // `register_player_in_match` it wraps is an internal helper and is revoked
+      // from every client role, as it should be.
+      await owner.client.rpc('admin_add_player_to_match', params: {
         'p_match_id': matchId,
         'p_user_id': player3.id,
       });
@@ -396,6 +399,13 @@ void main() {
 
     test('correcting somebody already registered does not duplicate the seat',
         () async {
+      // Registered first, because that is the state under test: the fixture
+      // stores a lineup but no roster, so without this the correction would be
+      // creating a seat rather than confirming one.
+      await owner.client.rpc('admin_add_player_to_match', params: {
+        'p_match_id': matchId,
+        'p_user_id': admin.id,
+      });
       final before = await registrations();
 
       expect(await correct(owner, [upsert(admin, 'B', 'MID')]), 'ALLOW');
@@ -411,7 +421,10 @@ void main() {
         () async {
       // The payload cannot claim a basis, and what is stored follows the
       // player's own primary and secondary positions.
-      expect(await correct(owner, [upsert(player3, 'A', 'GK')]), 'ALLOW');
+      // Not GK: the owner already keeps goal for team A and migration 0018
+      // allows one goalkeeper a side. The basis is derived from the profile
+      // whatever the position is, which is what this asks about.
+      expect(await correct(owner, [upsert(player3, 'A', 'MID')]), 'ALLOW');
 
       final stored = (await assignmentOf(player3))?['assignment_basis'];
       expect(stored, isIn(const ['PRIMARY', 'SECONDARY', 'TRANSITION']));
@@ -441,16 +454,17 @@ void main() {
 
     setUp(() async {
       await storeLineup();
-      guestId = await owner.client.rpc('add_professional_guest', params: {
+      // The approved path for a guest on a played match (migration 0075): it
+      // writes the guest, a confirmed seat and the factual lineup row together,
+      // with the side and position the organizer states. There is no client
+      // function that sets a guest's side on its own.
+      guestId =
+          await owner.client.rpc('add_played_professional_guest', params: {
         'p_match_id': matchId,
-        'p_full_name': 'ITest Guest',
-      }) as String;
-      await owner.client.rpc('set_professional_guest_team', params: {
-        'p_match_id': matchId,
-        'p_professional_guest_id': guestId,
+        'p_name': 'ITest Guest',
         'p_team': 'A',
         'p_assigned_position': 'DEF',
-      });
+      }) as String;
     });
 
     test('a batch correction does not disturb a guest lineup row', () async {
@@ -578,7 +592,10 @@ void main() {
 
     test('a removed player gives back everything the match gave them',
         () async {
-      final baseline = await ratingOf(player2);
+      // Their rating as the recorded result left it: the loss (-0.100) and the
+      // participation (+0.005) are both on it, so the match is worth -0.095 to
+      // them.
+      final afterResult = await ratingOf(player2);
       final counters = await countersOf(player2);
       expect(counters['matches_played'], 1);
 
@@ -587,10 +604,10 @@ void main() {
       final after = await countersOf(player2);
       expect(after['matches_played'], 0);
       expect(after['losses'], 0);
-      expect(await ratingOf(player2), lessThan(baseline + 0.0005),
-          reason: 'the loss came back off');
-      expect(await ratingOf(player2), greaterThan(baseline - 0.0005),
-          reason: 'and nothing else was taken');
+      // Everything the match gave them, given back: the loss and the
+      // participation with it, which is +0.095 from where the result left them.
+      expect(await ratingOf(player2), closeTo(afterResult + 0.095, 0.0005),
+          reason: 'the loss and the participation both came back off');
     });
 
     test('a side change moves the effects from one side to the other',
@@ -637,10 +654,12 @@ void main() {
       // Observable in the audit: a correction detaches and reattaches the
       // match's effects once, so one batch writes one reversal per existing
       // entry and one fresh set -- not one cycle per player in the batch.
+      // Everything the match has credited so far, reversals excluded.
       final before = await owner.client
           .from('rating_history')
           .select('id')
           .eq('match_id', matchId)
+          .neq('change_reason', 'REVERSAL')
           .count();
 
       expect(
@@ -652,16 +671,17 @@ void main() {
         'ALLOW',
       );
 
-      final after = await owner.client
+      final reversals = await owner.client
           .from('rating_history')
           .select('id')
           .eq('match_id', matchId)
+          .eq('change_reason', 'REVERSAL')
           .count();
-      // One detach writes one reversal for each entry that stood, and one attach
-      // writes the new set. Three separate corrections would have written three
-      // such cycles.
-      expect(after.count, lessThan(before.count * 3),
-          reason: 'not one detach/attach cycle per player');
+      // One detach writes exactly one reversal for each entry that was
+      // standing, whatever the batch carries. Three players corrected one at a
+      // time would have detached three times and written three such sets.
+      expect(reversals.count, before.count,
+          reason: 'one detach for the batch, not one per player');
     });
   });
 
@@ -1026,7 +1046,7 @@ void main() {
       final id = await createMatch(owner, communityId,
           startsIn: const Duration(days: 7), startingPlayers: 4);
       for (final user in [owner, admin, player, player2, player3]) {
-        await owner.client.rpc('register_player_in_match', params: {
+        await owner.client.rpc('admin_add_player_to_match', params: {
           'p_match_id': id,
           'p_user_id': user.id,
         });
@@ -1258,7 +1278,7 @@ void main() {
 
     /// A lineup on a match of any age, written as a correction so that the
     /// completed-match guard of 0071 is satisfied where it applies.
-    Future<void> lineupOn(String id) async {
+    Future<void> lineupOn(String id, {bool completed = false}) async {
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': id,
         'p_assignments': [
@@ -1268,7 +1288,10 @@ void main() {
           seat(player2, 'B', 'FWD'),
         ],
         'p_from_generation': false,
-        'p_completed_correction': false,
+        // A played match takes this only as an explicit correction (0071); a
+        // match still to come takes it as an ordinary save. The helper serves
+        // both, so it asks the clock rather than assuming either.
+        'p_completed_correction': completed,
       });
     }
 
@@ -1339,7 +1362,8 @@ void main() {
       // match nothing has settled yet still takes its result.
       final id = await createMatch(owner, communityId,
           startsIn: const Duration(days: -2), startingPlayers: 4);
-      await lineupOn(id);
+      // Its end has passed, so writing its lineup is a correction.
+      await lineupOn(id, completed: true);
 
       expect(await resultOn(id), 'ALLOW');
     });
