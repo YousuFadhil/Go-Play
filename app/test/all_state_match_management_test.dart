@@ -844,6 +844,145 @@ void main() {
     });
   });
 
+  group('0076: the capacity rule stops at kickoff', () {
+    const capacityPath = '../supabase/migrations/'
+        '0076_post_start_starting_players_capacity.sql';
+    final capacitySql =
+        File(capacityPath).readAsStringSync().replaceAll('\r\n', '\n');
+    final capacityStatements = capacitySql
+        .split('\n')
+        .where((line) => !line.trimLeft().startsWith('--'))
+        .join('\n');
+    final capacityExecutable = capacityStatements
+        .split('\n')
+        .map((line) => line.replaceAll(RegExp("'[^']*'"), "''"))
+        .join('\n');
+    final capacityBody = () {
+      final start = capacityStatements
+          .indexOf('create or replace function public.update_match');
+      if (start < 0) throw StateError('0076 does not redefine update_match');
+      final end = capacityStatements.indexOf('\n\$\$;', start);
+      return capacityStatements.substring(
+          start, end == -1 ? capacityStatements.length : end);
+    }();
+
+    test('the file exists once, under the number the brief fixed', () {
+      expect(File(capacityPath).existsSync(), isTrue);
+      final numbered = Directory('../supabase/migrations')
+          .listSync()
+          .map((entry) => entry.uri.pathSegments.last)
+          .where((name) => name.startsWith('0076'))
+          .toList();
+      expect(numbered, hasLength(1));
+    });
+
+    test('it is append-only, and leaves 0073, 0074 and 0075 alone', () {
+      for (final forbidden in const [
+        'alter table',
+        'drop table',
+        'drop view',
+        'create table',
+        'create trigger',
+        'drop function',
+        'drop index',
+      ]) {
+        expect(capacityExecutable.toLowerCase(), isNot(contains(forbidden)),
+            reason: forbidden);
+      }
+      for (final untouched in const [
+        'function public.correct_completed_match_players',
+        'function public.record_match_result',
+        'function public.add_played_professional_guest',
+        'function public.apply_rating_delta',
+      ]) {
+        expect(capacityStatements, isNot(contains(untouched)), reason: untouched);
+      }
+    });
+
+    test('the capacity rule is asked only while the result is still future', () {
+      // The whole correction: `starting_players` is editable in every state, and
+      // the registrations-must-fit rule is about a plan. Once the result of the
+      // edit is active or completed there is nothing to fit -- the match has
+      // been played with whoever turned up, and a played match may hold more
+      // confirmed participants than it has starting slots.
+      expect(capacityBody, contains('MAX_BELOW_REGISTERED'));
+      final refusal =
+          capacityBody.indexOf("raise exception 'MAX_BELOW_REGISTERED'");
+      expect(refusal, greaterThan(-1));
+      // The nearest preceding resulting-state test, which is the capacity
+      // branch -- the same condition also spells the monotonicity guard higher
+      // up, so the last one before the refusal is the one that gates it.
+      final guard = capacityBody.lastIndexOf(
+          'if not (v_becomes_completed or v_becomes_active) then', refusal);
+      expect(guard, greaterThan(-1),
+          reason: 'the check sits behind the resulting-state test');
+      expect(guard, lessThan(refusal));
+      // The count itself is only read inside that branch.
+      expect(capacityBody.indexOf('from match_registrations'),
+          greaterThan(guard));
+    });
+
+    test('it derives the state from 0074 flags, not a second definition', () {
+      expect(capacityBody, contains('v_becomes_completed := p_end_at <= now();'));
+      expect(
+          capacityBody,
+          contains('v_becomes_active := not v_becomes_completed '
+              'and p_start_at <= now();'));
+      // No third lifecycle expression appears: the flags are computed once.
+      expect(RegExp('v_becomes_completed :=').allMatches(capacityBody),
+          hasLength(1));
+      expect(RegExp('v_becomes_active :=').allMatches(capacityBody),
+          hasLength(1));
+    });
+
+    test('the 4..30 bound stays universal', () {
+      // A statement about the number, not about the roster, so completion does
+      // not relax it.
+      final bound = capacityBody
+          .indexOf('p_starting_players < 4 or p_starting_players > 30');
+      expect(bound, greaterThan(-1));
+      final refusal =
+          capacityBody.indexOf("raise exception 'MAX_BELOW_REGISTERED'");
+      final capacityBranch = capacityBody.lastIndexOf(
+          'if not (v_becomes_completed or v_becomes_active) then', refusal);
+      expect(bound, lessThan(capacityBranch),
+          reason: 'checked before, and outside, the capacity branch');
+    });
+
+    test('everything else 0074 established is still there', () {
+      for (final rule in const [
+        "raise exception 'NOT_AUTHENTICATED'",
+        'is_current_user_active',
+        'has_active_community_role',
+        "raise exception 'INVALID_TITLE'",
+        "raise exception 'INVALID_TIME_RANGE'",
+        "raise exception 'MATCH_COMPLETED'",
+        "raise exception 'MATCH_LOCKED'",
+        'create_notification',
+        'security definer',
+        'set search_path = public',
+      ]) {
+        expect(capacityBody, contains(rule), reason: rule);
+      }
+      // And the resulting-state roster branch, unchanged.
+      expect(capacityBody, contains('if v_becomes_completed then'));
+      expect(capacityBody, contains('elsif v_becomes_active then'));
+      expect(RegExp('rebalance_roster').allMatches(capacityBody), hasLength(1));
+      expect(RegExp('recompute_match_status').allMatches(capacityBody),
+          hasLength(1));
+    });
+
+    test('its privileges and its comment are restated', () {
+      expect(capacityStatements, contains('revoke execute on function public.update_match'));
+      expect(capacityStatements, contains('grant execute on function public.update_match'));
+      expect(capacityStatements, contains('to authenticated;'));
+      expect(capacityExecutable, isNot(contains('to anon')));
+      expect(capacityStatements, contains('comment on function public.update_match'));
+      expect(capacitySql, contains('MAX_BELOW_REGISTERED) applies ONLY while the'),
+          reason: 'the comment says what the capacity semantics now are');
+    });
+  });
+
   group('the Dart domain model', () {
     test('a player who played carries a side and a position', () {
       const correction = CompletedPlayerCorrection.played(
