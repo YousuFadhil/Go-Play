@@ -1231,6 +1231,67 @@ void main() {
               'visit to the screen');
     });
 
+    testWidgets('each candidate shows both profile positions, as reference',
+        (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches:
+            FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+        members: FakeMemberAdapter(
+          role: CommunityRole.admin,
+          members: [
+            const CommunityMember(
+              userId: 'u5',
+              fullName: 'Layla Al Riyami',
+              position: 'MID',
+              secondaryPosition: 'DEF',
+              role: CommunityRole.player,
+            ),
+            const CommunityMember(
+              userId: 'u6',
+              fullName: 'Maha Al Saidi',
+              position: 'GK',
+              role: CommunityRole.player,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Edit played participants'));
+      await tester.pumpAndSettle();
+
+      // Both, where the profile names both.
+      expect(find.text('Midfielder • Defender'), findsOneWidget);
+      // And only one where it names one: an invented "none" would read as a
+      // fact about the player.
+      expect(find.text('Goalkeeper'), findsWidgets);
+
+      // Neither is used for anything. Choosing the player answers nothing about
+      // where they played.
+      await tester.tap(find.byKey(const Key('playedPick_u5')));
+      await tester.pumpAndSettle();
+      for (final key in const [
+        'playedTeam_u5_a',
+        'playedTeam_u5_b',
+        'playedPosition_u5_GK',
+        'playedPosition_u5_DEF',
+        'playedPosition_u5_MID',
+        'playedPosition_u5_FWD',
+      ]) {
+        expect(tester.widget<ChoiceChip>(find.byKey(Key(key))).selected, isFalse,
+            reason: '$key must not be pre-selected from the profile');
+      }
+      expect(
+          tester
+              .widget<FilledButton>(
+                  find.byKey(const Key('savePlayedParticipantsButton')))
+              .onPressed,
+          isNull,
+          reason: 'nothing was auto-filled, so nothing is ready to save');
+    });
+
     testWidgets('several players are corrected in one save', (tester) async {
       final teams =
           FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
@@ -2007,6 +2068,98 @@ void main() {
               'the screen never puts them on a side itself');
     });
 
+    testWidgets('on a played match it is a factual correction, not a roster add',
+        (tester) async {
+      // The defect this fixes: the roster path created the guest and a confirmed
+      // seat, and `recompute_match_status` returned at its completed branch
+      // without placing them -- so the screen reported a guest the factual
+      // lineup did not hold.
+      final matches = FakeMatchAdapter(
+        match: playedMatch,
+        registrations: fourSeats(),
+      );
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches: matches,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+
+      // The roster dialog is not what opens: this one asks for the side and the
+      // position the factual lineup row needs.
+      expect(find.byKey(const Key('teamsGuestNameField')), findsNothing);
+      expect(find.byKey(const Key('playedGuestNameField')), findsOneWidget);
+
+      await tester.enterText(
+          find.byKey(const Key('playedGuestNameField')), 'Faisal');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('playedGuestTeam_b')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('playedGuestPosition_FWD')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('savePlayedGuestButton')));
+      await tester.pumpAndSettle();
+
+      expect(teams.playedGuestCalls, 1, reason: 'one call, one guest');
+      expect(teams.playedGuestName, 'Faisal');
+      expect(teams.playedGuestTeam, TeamId.b);
+      expect(teams.playedGuestPosition, Position.fwd);
+      expect(matches.addedGuestNames, isEmpty,
+          reason: 'the roster function is not what a played match uses');
+      expect(teams.savedLineup, isNull,
+          reason: 'no lineup write from here: the RPC owns all three rows');
+    });
+
+    testWidgets('the correction needs a name, a side and a position',
+        (tester) async {
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches:
+            FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+
+      FilledButton saveButton() => tester.widget<FilledButton>(
+          find.byKey(const Key('savePlayedGuestButton')));
+
+      expect(saveButton().onPressed, isNull, reason: 'nothing said yet');
+
+      await tester.enterText(
+          find.byKey(const Key('playedGuestNameField')), 'Faisal');
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull, reason: 'no side, no position');
+
+      await tester.tap(find.byKey(const Key('playedGuestTeam_a')));
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull, reason: 'still no position');
+
+      await tester.tap(find.byKey(const Key('playedGuestPosition_GK')));
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNotNull);
+
+      // A name below the database's own bound closes it again.
+      await tester.enterText(
+          find.byKey(const Key('playedGuestNameField')), 'F');
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull);
+      expect(teams.playedGuestCalls, 0);
+    });
+
     testWidgets('added to the reserve list, is not forced onto a side',
         (tester) async {
       // Capacity and the confirmed-before-reserve priority are the database's
@@ -2481,6 +2634,38 @@ class FakeTeamAdapter implements TeamAdapter {
 
   /// The guest this adapter was asked to take out of the played record.
   String? removedPlayedGuestId;
+
+  /// What the completed-guest correction was handed, and how often.
+  int playedGuestCalls = 0;
+  String? playedGuestName;
+  TeamId? playedGuestTeam;
+  Position? playedGuestPosition;
+
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) async {
+    if (participationFailure != null) throw participationFailure!;
+    playedGuestCalls += 1;
+    playedGuestName = name;
+    playedGuestTeam = team;
+    playedGuestPosition = position;
+    // The factual lineup the screen re-reads afterwards, which is the only
+    // reason a guest appears on the pitch.
+    _lineup = [
+      ..._lineup,
+      TeamAssignment(
+        professionalGuestId: 'g-new',
+        team: team,
+        assignedPosition: position,
+        basis: null,
+      ),
+    ];
+    return 'g-new';
+  }
 
   @override
   Future<void> removePlayedProfessionalGuest(

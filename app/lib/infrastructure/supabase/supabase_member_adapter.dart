@@ -20,8 +20,12 @@ class SupabaseMemberAdapter implements MemberAdapter {
       guarded(() async {
         final rows = await _client
             .from('community_members')
+            // `secondary_position` joins the projection for the
+            // completed-match Played Participants picker, which shows both
+            // profile positions beside a name. The team adapter already reads
+            // the pair for the same profiles.
             .select('role, created_at, user:users(id, full_name, '
-                'primary_position, avatar_path)')
+                'primary_position, secondary_position, avatar_path)')
             .eq('community_id', communityId)
             .order('created_at', ascending: true);
 

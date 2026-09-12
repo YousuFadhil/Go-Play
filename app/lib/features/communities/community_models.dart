@@ -107,13 +107,28 @@ class CommunityMember {
     required this.fullName,
     required this.position,
     required this.role,
+    this.secondaryPosition,
     this.avatarUrl,
   });
 
   final String userId;
   final String fullName;
+
+  /// The position this member's profile names first.
+  ///
+  /// Keeps its name: every existing reader means the primary position by it, and
+  /// renaming the field across the app would be churn for a synonym.
   final String position;
   final CommunityRole role;
+
+  /// The position the profile names second, when they have set one.
+  ///
+  /// Null is "they did not say", not "they have none". Added for the
+  /// completed-match Played Participants picker, which shows both as a reminder
+  /// of who a player usually is -- and nothing more than that: where somebody
+  /// actually played is historical evidence the organizer states, never a value
+  /// read off a profile.
+  final String? secondaryPosition;
 
   /// Where this member's picture is, when they have set one. Null is an
   /// initials avatar rather than a missing one.

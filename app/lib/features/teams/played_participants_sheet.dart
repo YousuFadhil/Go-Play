@@ -18,11 +18,11 @@ import 'team_models.dart';
 /// people played, on these sides, in these positions" — so it leaves here as
 /// one list and reaches the database as one transaction (migration `0074`).
 ///
-/// **The position is asked for and never guessed.** A profile's position is
-/// shown beside each name as a reminder of who the player usually is, and it is
-/// nothing more than that: where somebody played on the day is historical
-/// evidence, and filling it in from their profile would be the product
-/// inventing a fact about a match it did not watch.
+/// **The positions are shown and never used.** Both of a profile's positions
+/// sit beside the name as a reminder of who the player usually is, and that is
+/// all they are: where somebody played on the day is historical evidence, so
+/// neither is preferred, neither pre-selects anything, and the side and the
+/// played position start unanswered until the organizer says.
 ///
 /// Professional Guests are absent by construction — [load] supplies community
 /// members — because a guest is corrected by the guest operations, which keep
@@ -218,7 +218,15 @@ class _CandidateRow extends StatelessWidget {
             fullName: member.fullName,
           ),
           title: Text(member.fullName),
-          subtitle: Text(positionLabel(member.position)),
+          // Both profile positions, as reference. A second is shown only when
+          // the profile names one -- an invented "none" would read as a fact
+          // about the player.
+          subtitle: Text(
+            member.secondaryPosition == null
+                ? positionLabel(member.position)
+                : '${positionLabel(member.position)}'
+                    ' • ${positionLabel(member.secondaryPosition!)}',
+          ),
           selected: chosen,
           trailing: Checkbox(
             key: Key('playedPick_${member.userId}'),
@@ -281,4 +289,138 @@ class _CandidateRow extends StatelessWidget {
 class _PlayedAssignment {
   TeamId? team;
   Position? position;
+}
+
+
+/// What a Professional Guest played a completed match as.
+class PlayedGuestEntry {
+  const PlayedGuestEntry({
+    required this.name,
+    required this.team,
+    required this.position,
+  });
+
+  final String name;
+  final TeamId team;
+  final Position position;
+}
+
+/// Recording that a Professional Guest played a completed match.
+///
+/// **Why this is not the roster's guest dialog.** Before the match, adding a
+/// guest is a roster operation: it takes a seat, the capacity rule applies, and
+/// the roster decides whether they start or wait. After the match, none of that
+/// means anything -- there is nobody waiting to play a match that is over --
+/// and the thing that matters is the one the roster path could not write: the
+/// factual lineup row. So this asks for everything that row needs, and
+/// migration `0075` writes the guest, the seat and the row together.
+///
+/// Three answers, all required. A guest has no profile, so there is nothing to
+/// infer a side or a position from, and inventing either would put a fact into
+/// the record of a match that nobody watched happen.
+class PlayedGuestSheet extends StatefulWidget {
+  const PlayedGuestSheet({super.key, required this.positionLabel});
+
+  /// The localized word for a position code, which lives with the caller.
+  final String Function(String position) positionLabel;
+
+  @override
+  State<PlayedGuestSheet> createState() => _PlayedGuestSheetState();
+}
+
+class _PlayedGuestSheetState extends State<PlayedGuestSheet> {
+  String _name = '';
+  TeamId? _team;
+  Position? _position;
+
+  /// The 2..60 bound is the database's, asked here so a mistyped name is caught
+  /// before a round trip. `0075` still refuses it if this is ever wrong.
+  bool get _complete =>
+      _name.trim().length >= 2 &&
+      _name.trim().length <= 60 &&
+      _team != null &&
+      _position != null;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Text(l10n.addGuestTitle,
+                  style: theme.textTheme.titleMedium),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('playedGuestNameField'),
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(labelText: l10n.guestNameLabel),
+              onChanged: (value) => setState(() => _name = value),
+            ),
+            const SizedBox(height: 12),
+            Text(l10n.chooseTeamTitle, style: theme.textTheme.labelLarge),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final (team, label) in [
+                  (TeamId.a, l10n.teamAName),
+                  (TeamId.b, l10n.teamBName),
+                ])
+                  ChoiceChip(
+                    key: Key('playedGuestTeam_${team.name}'),
+                    label: Text(label),
+                    selected: _team == team,
+                    onSelected: (_) => setState(() => _team = team),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(l10n.choosePositionTitle, style: theme.textTheme.labelLarge),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final position in Position.values)
+                  ChoiceChip(
+                    key: Key('playedGuestPosition_${position.code}'),
+                    label: Text(widget.positionLabel(position.code)),
+                    selected: _position == position,
+                    onSelected: (_) => setState(() => _position = position),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const Key('savePlayedGuestButton'),
+                onPressed: _complete
+                    ? () => Navigator.of(context).pop(PlayedGuestEntry(
+                          name: _name.trim(),
+                          team: _team!,
+                          position: _position!,
+                        ))
+                    : null,
+                child: Text(l10n.addGuestButton),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/team_repository.dart';
+import 'package:go_play/infrastructure/supabase/mappers/community_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/team_mapper.dart';
 
 /// All-State Match Management, Cycle A — migration `0074` and the Dart seam.
@@ -531,6 +532,291 @@ void main() {
     });
   });
 
+  group('0075: a played guest is a factual correction', () {
+    const guestPath =
+        '../supabase/migrations/0075_completed_professional_guest_correction.sql';
+    final guestSql =
+        File(guestPath).readAsStringSync().replaceAll('\r\n', '\n');
+    final guestStatements = guestSql
+        .split('\n')
+        .where((line) => !line.trimLeft().startsWith('--'))
+        .join('\n');
+    final guestExecutable = guestStatements
+        .split('\n')
+        .map((line) => line.replaceAll(RegExp("'[^']*'"), "''"))
+        .join('\n');
+    final guestBody = () {
+      final start = guestStatements
+          .indexOf('create or replace function public.add_played_professional_guest');
+      if (start < 0) throw StateError('0075 defines no such function');
+      final end = guestStatements.indexOf('\n\$\$;', start);
+      return guestStatements.substring(
+          start, end == -1 ? guestStatements.length : end);
+    }();
+
+    test('the file exists once, under the number the brief fixed', () {
+      expect(File(guestPath).existsSync(), isTrue);
+      final numbered = Directory('../supabase/migrations')
+          .listSync()
+          .map((entry) => entry.uri.pathSegments.last)
+          .where((name) => name.startsWith('0075'))
+          .toList();
+      expect(numbered, hasLength(1));
+    });
+
+    test('it is append-only, and leaves 0074 alone', () {
+      for (final forbidden in const [
+        'alter table',
+        'drop table',
+        'drop view',
+        'create table',
+        'create trigger',
+        'drop function',
+        'drop index',
+      ]) {
+        expect(guestExecutable.toLowerCase(), isNot(contains(forbidden)),
+            reason: forbidden);
+      }
+      // The community-player correction, the lifecycle guard and the result
+      // guard are 0074's and are not touched.
+      for (final untouched in const [
+        'function public.correct_completed_match_players',
+        'function public.update_match',
+        'function public.record_match_result',
+        'function public.add_professional_guest',
+        'function public.remove_professional_guest',
+        'function public.remove_played_professional_guest',
+      ]) {
+        expect(guestStatements, isNot(contains(untouched)), reason: untouched);
+      }
+    });
+
+    test('it is security definer, pinned, and authenticated-only', () {
+      expect(guestBody, contains('security definer'));
+      expect(guestBody, contains('set search_path = public'));
+      expect(
+          guestStatements,
+          contains('revoke execute on function\n'
+              '  public.add_played_professional_guest(uuid, text, text, text)\n'
+              '  from anon, public;'));
+      expect(
+          guestStatements,
+          contains('grant execute on function\n'
+              '  public.add_played_professional_guest(uuid, text, text, text)\n'
+              '  to authenticated;'));
+      expect(guestExecutable, isNot(contains('to anon')));
+      expect(guestStatements,
+          contains('comment on function public.add_played_professional_guest'));
+    });
+
+    test('it takes the name, the side and the position, and returns the id', () {
+      expect(guestBody, contains('p_match_id uuid'));
+      expect(guestBody, contains('p_name text'));
+      expect(guestBody, contains('p_team text'));
+      expect(guestBody, contains('p_assigned_position text'));
+      expect(guestBody, contains('returns uuid'));
+      expect(guestBody, contains('return v_guest_id;'));
+    });
+
+    test('only a played match, and only an organizer of an active community',
+        () {
+      expect(guestBody, contains("raise exception 'NOT_AUTHENTICATED'"));
+      expect(guestBody, contains('is_current_user_active'));
+      expect(guestBody, contains('for update'));
+      expect(guestBody, contains("raise exception 'MATCH_NOT_FOUND'"));
+      expect(guestBody, contains("raise exception 'COMMUNITY_INACTIVE'"));
+      expect(guestBody, contains('has_active_community_role'));
+      expect(guestBody, contains("v_match.status <> 'completed'"));
+      expect(guestBody, contains("raise exception 'MATCH_NOT_COMPLETED'"));
+    });
+
+    test('the name, the side and the position are all validated', () {
+      expect(guestBody, contains("raise exception 'INVALID_GUEST_NAME'"));
+      expect(guestBody, contains('char_length(trim(p_name)) < 2'));
+      expect(guestBody, contains('char_length(trim(p_name)) > 60'));
+      expect(guestBody, contains("p_team not in ('A', 'B')"));
+      expect(guestBody, contains("raise exception 'INVALID_TEAM'"));
+      expect(guestBody,
+          contains("p_assigned_position not in ('GK', 'DEF', 'MID', 'FWD')"));
+      expect(guestBody, contains("raise exception 'INVALID_POSITION'"));
+    });
+
+    test('every refusal comes before the first row is written', () {
+      final firstWrite = guestBody.indexOf('insert into');
+      for (final token in const [
+        'NOT_AUTHENTICATED',
+        'ACCOUNT_SUSPENDED',
+        'MATCH_NOT_FOUND',
+        'COMMUNITY_INACTIVE',
+        'NOT_AUTHORIZED',
+        'MATCH_NOT_COMPLETED',
+        'INVALID_GUEST_NAME',
+        'INVALID_TEAM',
+        'INVALID_POSITION',
+      ]) {
+        final at = guestBody.indexOf("raise exception '$token'");
+        expect(at, greaterThan(-1), reason: '$token is raised');
+        expect(at, lessThan(firstWrite),
+            reason: '$token is refused before anything is inserted');
+      }
+    });
+
+    test('it writes the guest, a confirmed seat and the factual lineup row', () {
+      expect(guestBody, contains('insert into match_professional_guests'));
+      expect(guestBody, contains('insert into match_registrations'));
+      expect(guestBody, contains('insert into match_team_assignments'));
+      expect(guestBody, contains("'confirmed'"));
+      expect(guestBody, contains('coalesce(max(registration_order), 0) + 1'));
+      expect(guestBody, contains("'GUEST'"),
+          reason: 'the basis a participant with no profile gets (0044)');
+      // The lineup row is the one the roster path never wrote.
+      expect(guestBody.indexOf('insert into match_professional_guests'),
+          lessThan(guestBody.indexOf('insert into match_team_assignments')));
+    });
+
+    test('it applies no roster behaviour and moves no rating', () {
+      // The whole reason it is not the roster function: none of this may run on
+      // a match that has been played, and a guest owns no rating or statistic.
+      for (final forbidden in const [
+        'rebalance_roster',
+        'recompute_match_status',
+        'detach_match_effects',
+        'attach_match_effects',
+        'apply_match_rating_effects',
+        'reverse_match_rating_effects',
+        'apply_match_statistics',
+        'apply_rating_delta',
+        'create_notification',
+        'max_registration',
+        'add_professional_guest',
+        "'reserve'",
+      ]) {
+        expect(guestBody, isNot(contains(forbidden)), reason: forbidden);
+      }
+    });
+
+    test('it leaves the result alone', () {
+      for (final untouched in const [
+        'match_results',
+        'match_goals',
+        'mvp_user_id',
+      ]) {
+        expect(guestBody, isNot(contains(untouched)), reason: untouched);
+      }
+    });
+  });
+
+  group('the completed-guest seam in Dart', () {
+    test('the repository hands the batch-free call straight through', () async {
+      final adapter = _GuestAdapter();
+
+      final id = await TeamRepository(adapter).addPlayedProfessionalGuest(
+        'm1',
+        'Faisal',
+        team: TeamId.b,
+        position: Position.fwd,
+      );
+
+      expect(id, 'g-new', reason: 'the new guest id reaches the caller');
+      expect(adapter.calls, 1);
+      expect(adapter.matchId, 'm1');
+      expect(adapter.name, 'Faisal');
+      expect(adapter.team, TeamId.b);
+      expect(adapter.position, Position.fwd);
+    });
+
+    test('the Supabase adapter sends one RPC, with the wire vocabulary', () {
+      final source =
+          File('lib/infrastructure/supabase/supabase_team_adapter.dart')
+              .readAsStringSync();
+      final start = source.indexOf('Future<String> addPlayedProfessionalGuest');
+      expect(start, greaterThan(-1));
+      final method = source.substring(start, source.indexOf('      });', start));
+
+      expect(RegExp("_client.rpc\\('add_played_professional_guest'")
+              .allMatches(method),
+          hasLength(1));
+      for (final param in const [
+        "'p_match_id': matchId",
+        "'p_name': name",
+        "'p_team': teamToDb(team)",
+        "'p_assigned_position': positionToDb(position)",
+      ]) {
+        expect(method, contains(param), reason: param);
+      }
+      expect(method, contains('guarded('));
+      expect(method, isNot(contains('add_professional_guest(')),
+          reason: 'the roster function is not what this calls');
+    });
+
+    test('the older guest operations are still there', () {
+      final port =
+          File('lib/features/teams/team_adapter.dart').readAsStringSync();
+      for (final method in const [
+        'removePlayedProfessionalGuest',
+        'addPlayedProfessionalGuest',
+      ]) {
+        expect(port, contains(method), reason: method);
+      }
+      // And the roster's own guest add still lives where it always did.
+      expect(File('lib/features/matches/match_service.dart').readAsStringSync(),
+          contains('addProfessionalGuest'));
+    });
+  });
+
+  group('both profile positions reach the picker', () {
+    test('the mapper reads the secondary position, and tolerates its absence',
+        () {
+      final member = communityMemberFromRow(const {
+        'role': 'player',
+        'user': {
+          'id': 'u5',
+          'full_name': 'Layla Al Riyami',
+          'primary_position': 'MID',
+          'secondary_position': 'DEF',
+          'avatar_path': null,
+        },
+      });
+      expect(member.position, 'MID');
+      expect(member.secondaryPosition, 'DEF');
+
+      final single = communityMemberFromRow(const {
+        'role': 'player',
+        'user': {
+          'id': 'u6',
+          'full_name': 'Maha Al Saidi',
+          'primary_position': 'GK',
+          'secondary_position': null,
+          'avatar_path': null,
+        },
+      });
+      expect(single.position, 'GK');
+      expect(single.secondaryPosition, isNull,
+          reason: 'a profile may name one position and stop');
+    });
+
+    test('the member query asks the database for it', () {
+      final source =
+          File('lib/infrastructure/supabase/supabase_member_adapter.dart')
+              .readAsStringSync();
+      expect(source, contains('secondary_position'));
+      expect(source, contains('primary_position'));
+    });
+
+    test('the sheet shows both and decides nothing from them', () {
+      final source =
+          File('lib/features/teams/played_participants_sheet.dart')
+              .readAsStringSync();
+      // Both are rendered...
+      expect(source, contains('member.secondaryPosition'));
+      expect(source, contains('positionLabel(member.position)'));
+      // ...and neither is ever assigned into what the organizer must answer.
+      expect(source, isNot(contains('team = member')));
+      expect(source, isNot(contains('position = member')));
+      expect(source, isNot(contains('_PlayedAssignment(member')));
+    });
+  });
+
   group('the Dart domain model', () {
     test('a player who played carries a side and a position', () {
       const correction = CompletedPlayerCorrection.played(
@@ -691,4 +977,32 @@ class _BatchAdapter implements TeamAdapter {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('only the batch correction is used here');
+}
+
+/// Only the completed-guest correction is exercised through this.
+class _GuestAdapter implements TeamAdapter {
+  int calls = 0;
+  String? matchId;
+  String? name;
+  TeamId? team;
+  Position? position;
+
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) async {
+    calls += 1;
+    this.matchId = matchId;
+    this.name = name;
+    this.team = team;
+    this.position = position;
+    return 'g-new';
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('only the guest correction is used here');
 }

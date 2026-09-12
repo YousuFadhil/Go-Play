@@ -666,6 +666,208 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  group('a guest who played is corrected in, never registered', () {
+    setUp(() async {
+      await storeLineup();
+      await recordResult();
+    });
+
+    Future<String> guestOutcome(
+      TestUser actor, {
+      String name = 'ITest Played Guest',
+      String team = 'A',
+      String position = 'DEF',
+      String? onMatch,
+    }) =>
+        outcomeOf(() async {
+          await actor.client.rpc('add_played_professional_guest', params: {
+            'p_match_id': onMatch ?? matchId,
+            'p_name': name,
+            'p_team': team,
+            'p_assigned_position': position,
+          });
+        });
+
+    Future<List<Map<String, dynamic>>> guests() async {
+      final rows = await owner.client
+          .from('match_professional_guests')
+          .select('id, display_name')
+          .eq('match_id', matchId);
+      return [for (final row in rows) Map<String, dynamic>.from(row)];
+    }
+
+    Future<int> auditRows() async {
+      final result = await owner.client
+          .from('rating_history')
+          .select('id')
+          .eq('match_id', matchId)
+          .count();
+      return result.count;
+    }
+
+    test('the guest, a confirmed seat and the factual lineup row, together',
+        () async {
+      final before = await registrations();
+
+      final guestId = await owner.client
+          .rpc('add_played_professional_guest', params: {
+        'p_match_id': matchId,
+        'p_name': '  ITest Played Guest  ',
+        'p_team': 'B',
+        'p_assigned_position': 'FWD',
+      }) as String;
+
+      // 1. The guest exists, under a trimmed name.
+      expect((await guests()).single['display_name'], 'ITest Played Guest');
+
+      // 2. A confirmed seat, never a reserve one: everyone in the record played.
+      final seats = await registrations();
+      final seat = seats.firstWhere((row) => row['user_id'] == null);
+      expect(seat['status'], 'confirmed');
+      expect(seat['registration_order'],
+          before.length + 1,
+          reason: 'the next number this match had to give');
+      expect(seats.where((row) => row['status'] == 'reserve'), isEmpty);
+
+      // 3. The factual lineup row -- the one the roster path never wrote.
+      final assignment = (await assignments())
+          .firstWhere((row) => row['professional_guest_id'] == guestId);
+      expect(assignment['team'], 'B');
+      expect(assignment['assigned_position'], 'FWD');
+      expect(assignment['assignment_basis'], 'GUEST');
+    });
+
+    test('it moves no rating and leaves the result alone', () async {
+      // A guest owns no rating and no statistics, and adding one takes no scorer
+      // or best player out of the result, so there is nothing to reverse.
+      final audit = await auditRows();
+      final ratings = {
+        for (final user in squad) user.label: await ratingOf(user),
+      };
+      final result = await owner.client
+          .from('match_results')
+          .select('team_a_score, team_b_score, mvp_user_id')
+          .eq('match_id', matchId)
+          .single();
+
+      expect(await guestOutcome(owner), 'ALLOW');
+
+      expect(await auditRows(), audit,
+          reason: 'no detach and reattach happened for a guest');
+      for (final user in squad) {
+        expect(await ratingOf(user), ratings[user.label], reason: user.label);
+      }
+      expect(
+        await owner.client
+            .from('match_results')
+            .select('team_a_score, team_b_score, mvp_user_id')
+            .eq('match_id', matchId)
+            .single(),
+        result,
+      );
+    });
+
+    test('an admin may, an ordinary player may not', () async {
+      expect(await guestOutcome(admin), 'ALLOW');
+      expect(await guestOutcome(player), 'NOT_AUTHORIZED');
+    });
+
+    test('a match still to come refuses it, and so does one in progress',
+        () async {
+      final upcoming = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 7), startingPlayers: 4);
+      final running = await createMatch(owner, communityId,
+          startsIn: const Duration(hours: -1),
+          duration: const Duration(hours: 3),
+          startingPlayers: 4);
+
+      // Before completion the roster operation is the right one, and this is
+      // refused rather than quietly doing its job early.
+      expect(await guestOutcome(owner, onMatch: upcoming),
+          'MATCH_NOT_COMPLETED');
+      expect(await guestOutcome(owner, onMatch: running), 'MATCH_NOT_COMPLETED');
+    });
+
+    test('a bad name, side or position writes nothing at all', () async {
+      for (final (label, outcome) in [
+        ('name', await guestOutcome(owner, name: 'A')),
+        ('team', await guestOutcome(owner, team: 'C')),
+        ('position', await guestOutcome(owner, position: 'SWEEPER')),
+      ]) {
+        expect(
+          outcome,
+          {
+            'name': 'INVALID_GUEST_NAME',
+            'team': 'INVALID_TEAM',
+            'position': 'INVALID_POSITION',
+          }[label],
+          reason: label,
+        );
+      }
+
+      // Not a guest, not a seat, not a lineup row: the refusals all come before
+      // the first insert.
+      expect(await guests(), isEmpty);
+      expect((await registrations()).where((row) => row['user_id'] == null),
+          isEmpty);
+      expect(
+          (await assignments())
+              .where((row) => row['professional_guest_id'] != null),
+          isEmpty);
+    });
+
+    test('the roster function is what the same guest gets before completion',
+        () async {
+      // The other half of the boundary: add_professional_guest still works, on a
+      // match that has not been played, exactly as it did.
+      final upcoming = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 7), startingPlayers: 4);
+
+      final guestId = await owner.client.rpc('add_professional_guest', params: {
+        'p_match_id': upcoming,
+        'p_name': 'ITest Roster Guest',
+      }) as String;
+
+      expect(guestId, isNotEmpty);
+      final seats = await owner.client
+          .from('match_registrations')
+          .select('professional_guest_id, status')
+          .eq('match_id', upcoming);
+      expect(
+          seats.where((row) => row['professional_guest_id'] == guestId).length,
+          1);
+    });
+
+    test('a guest who did not play is still removed the way they were',
+        () async {
+      // Removal after the fact is unchanged (0059): this correction adds only.
+      final guestId = await owner.client
+          .rpc('add_played_professional_guest', params: {
+        'p_match_id': matchId,
+        'p_name': 'ITest Played Guest',
+        'p_team': 'A',
+        'p_assigned_position': 'MID',
+      }) as String;
+
+      expect(
+        await outcomeOf(() async {
+          await owner.client.rpc('remove_played_professional_guest', params: {
+            'p_match_id': matchId,
+            'p_guest_id': guestId,
+          });
+        }),
+        'ALLOW',
+      );
+
+      expect(await guests(), isEmpty);
+      expect(
+          (await assignments())
+              .where((row) => row['professional_guest_id'] == guestId),
+          isEmpty);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   group('A2: the lifecycle moves forward only', () {
     Future<String> edit(
       String id, {

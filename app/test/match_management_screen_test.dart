@@ -143,8 +143,13 @@ void main() {
       await openPlayers(tester, completed);
 
       expect(find.byKey(const Key('addPlayerButton')), findsNothing);
-      expect(find.byKey(const Key('addGuestButton')), findsOneWidget,
-          reason: 'guest management on a played match is unchanged (0059)');
+      // CHANGED: the guest add is withheld here too. `add_professional_guest`
+      // creates the guest and a confirmed seat and then stops on a played match
+      // -- `recompute_match_status` returns at its completed branch without ever
+      // placing the guest -- so the roster reported a guest the factual lineup
+      // did not hold. The completed answer is the Teams screen's
+      // `add_played_professional_guest` (0075), which writes the lineup row.
+      expect(find.byKey(const Key('addGuestButton')), findsNothing);
     });
 
     testWidgets('is withheld on a recorded match, as it always was',
@@ -154,8 +159,9 @@ void main() {
       expect(find.byKey(const Key('addPlayerButton')), findsNothing,
           reason: 'a recorded match takes no registration through any path, '
               'and the screen shows the answer the server would give');
-      expect(find.byKey(const Key('addGuestButton')), findsOneWidget,
-          reason: 'guest management on a recorded match is unchanged');
+      // A recorded match is a completed one, so the same boundary applies: its
+      // guests are part of the record, corrected from Teams.
+      expect(find.byKey(const Key('addGuestButton')), findsNothing);
     });
 
     testWidgets('does not bring removal with it on a completed match',

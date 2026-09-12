@@ -143,4 +143,24 @@ abstract interface class TeamAdapter {
   /// scorer out silently would either break that or quietly rewrite the score.
   /// The organizer corrects the result first.
   Future<void> removePlayedProfessionalGuest(String matchId, String guestId);
+
+  /// Records that a Professional Guest played [matchId], on [team] at
+  /// [position], and returns their new id.
+  ///
+  /// **For a completed match only, and deliberately not the roster operation.**
+  /// `add_professional_guest` takes a seat, applies the capacity rule and lets
+  /// the roster place the guest on a side -- a chain that stops short on a match
+  /// that is over, leaving a guest with a confirmed seat and no row in the
+  /// factual lineup. This writes the guest, the seat and the lineup row
+  /// together, which is what a correction to the record of who played means.
+  ///
+  /// The side and the position are required because a guest has no profile to
+  /// infer them from, and because where somebody played is a fact about the
+  /// match.
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  });
 }

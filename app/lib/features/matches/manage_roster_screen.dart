@@ -31,6 +31,7 @@ class ManageRosterScreen extends StatefulWidget {
     required this.canRemove,
     this.canAddCommunityPlayer = false,
     this.canManageGuests = false,
+    this.canRegisterGuests = true,
     this.memberRepository,
     this.service,
   });
@@ -81,6 +82,19 @@ class ManageRosterScreen extends StatefulWidget {
   /// completed, and the database enforces exactly that. Folding the two
   /// together would hide a control the server would have honoured.
   final bool canManageGuests;
+
+  /// Whether the ordinary roster add and removal for Professional Guests are
+  /// offered, as distinct from managing the guests already on the roster.
+  ///
+  /// False once the match is over. Both of those operations are the roster's:
+  /// `add_professional_guest` takes a seat and lets the roster place the guest,
+  /// which on a completed match leaves them confirmed and absent from the
+  /// factual lineup, and `remove_professional_guest` frees a seat while keeping
+  /// the lineup row a played match needs. The completed answers to both live
+  /// on the Teams screen -- `add_played_professional_guest` (0075) and
+  /// `remove_played_professional_guest` (0059) -- which write the record rather
+  /// than the roster. Renaming is untouched: it is neither.
+  final bool canRegisterGuests;
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final MemberRepository? memberRepository;
@@ -518,7 +532,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (widget.canManageGuests)
+          if (widget.canManageGuests && widget.canRegisterGuests)
             FloatingActionButton.extended(
               key: const Key('addGuestButton'),
               heroTag: 'addProfessionalGuest',
@@ -526,7 +540,9 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
               icon: const Icon(Icons.workspace_premium_outlined),
               label: Text(l10n.addGuestButton),
             ),
-          if (widget.canManageGuests && widget.canAddCommunityPlayer)
+          if (widget.canManageGuests &&
+              widget.canRegisterGuests &&
+              widget.canAddCommunityPlayer)
             const SizedBox(height: Gap.sm),
           if (widget.canAddCommunityPlayer)
             FloatingActionButton.extended(
@@ -616,13 +632,16 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
                                 icon: const Icon(Icons.edit_outlined),
                                 onPressed: _busy ? null : () => _renameGuest(p),
                               ),
-                              IconButton(
-                                key: Key('removeGuest_${p.professionalGuestId}'),
-                                tooltip: l10n.removeGuestButton,
-                                icon: Icon(Icons.person_remove,
-                                    color: scheme.error),
-                                onPressed: _busy ? null : () => _removeGuest(p),
-                              ),
+                              if (widget.canRegisterGuests)
+                                IconButton(
+                                  key: Key(
+                                      'removeGuest_${p.professionalGuestId}'),
+                                  tooltip: l10n.removeGuestButton,
+                                  icon: Icon(Icons.person_remove,
+                                      color: scheme.error),
+                                  onPressed:
+                                      _busy ? null : () => _removeGuest(p),
+                                ),
                             ],
                           )
                         : null)

@@ -76,6 +76,17 @@ void main() {
       expect(canAdministerRoster(active, busy: true), isFalse);
     });
 
+    test('the ordinary guest roster operations stop at completion', () {
+      // Both of them are the roster's: adding a guest leaves them confirmed and
+      // unplaced on a match that is over, and the roster removal keeps the
+      // lineup row a played match needs. The completed answers live on the Teams
+      // screen instead -- 0075 to add, 0059 to remove.
+      expect(canAdministerGuestRoster(future), isTrue);
+      expect(canAdministerGuestRoster(active), isTrue);
+      expect(canAdministerGuestRoster(completed), isFalse);
+      expect(canAdministerGuestRoster(recorded), isFalse);
+    });
+
     test('adding an unregistered member stops at the same boundary', () {
       expect(canAddCommunityPlayerTo(future, busy: false), isTrue);
       expect(canAddCommunityPlayerTo(active, busy: false), isTrue);

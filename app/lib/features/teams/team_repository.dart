@@ -266,6 +266,26 @@ class TeamRepository {
   Future<void> removePlayedProfessionalGuest(String matchId, String guestId) =>
       _adapter.removePlayedProfessionalGuest(matchId, guestId);
 
+  /// Records that a Professional Guest played [matchId], returning their id.
+  ///
+  /// The completed-match counterpart of adding a guest to a roster: one write
+  /// that creates the guest, confirms their seat and puts them in the factual
+  /// lineup. Nothing is rebalanced, nobody is promoted or demoted, and no rating
+  /// or statistic moves -- a guest owns none, and adding one changes no stored
+  /// scorer, best player or score.
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) =>
+      _adapter.addPlayedProfessionalGuest(
+        matchId,
+        name,
+        team: team,
+        position: position,
+      );
+
   // --- Manual Override (§13) -------------------------------------------------
   //
   // `BTGE-MO-1` requires manual override to remain supported, and `BTGE-MO-2`

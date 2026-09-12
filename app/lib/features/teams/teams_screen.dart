@@ -512,7 +512,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // Adding a Professional Guest is not a generation: it is a roster
         // correction, and a completed match is exactly where one is made
         // (0059). Gated on management, as it was before the split.
-        if (view.canManageLineup) ..._addGuestAction(l10n),
+        if (view.canManageLineup) ..._addGuestAction(l10n, view),
         if (view.canGenerate) ..._generateAction(l10n, view),
       ];
 
@@ -574,7 +574,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         ],
         if (view.canManageLineup) ...[
           const Divider(height: 32),
-          ..._addGuestAction(l10n),
+          ..._addGuestAction(l10n, view),
         ],
         if (view.canGenerate) ...[
           const Divider(height: 32),
@@ -588,12 +588,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// playing; the roster screen is two navigations away. The convenience is the
   /// only new thing here — **where** the guest ends up is not this screen's
   /// answer to give.
-  List<Widget> _addGuestAction(AppLocalizations l10n) => [
+  List<Widget> _addGuestAction(AppLocalizations l10n, _TeamsView view) => [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: OutlinedButton.icon(
             key: const Key('teamsAddGuestButton'),
-            onPressed: _busy ? null : _addGuest,
+            onPressed: _busy ? null : () => _addGuest(view),
             icon: const Icon(Icons.workspace_premium_outlined),
             label: Text(l10n.addGuestButton),
             style: OutlinedButton.styleFrom(
@@ -603,6 +603,51 @@ class _TeamsScreenState extends State<TeamsScreen> {
           ),
         ),
       ];
+
+  /// Records that a Professional Guest played a match that is over.
+  ///
+  /// The name, the side and the position in one sheet, because the factual
+  /// lineup row needs all three and a guest has no profile to infer the last two
+  /// from. One call, and the pitch is redrawn from the database rather than from
+  /// anything assumed here: a guest appears because the lineup now holds them.
+  ///
+  /// Community players are corrected by their own batch path. The two stay
+  /// separate, as the approved boundary requires -- a guest owns no rating and no
+  /// statistics, so nothing is detached, reapplied or recalculated for one.
+  Future<void> _addPlayedGuest(AppLocalizations l10n) async {
+    final entry = await showModalBottomSheet<PlayedGuestEntry>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => PlayedGuestSheet(
+        positionLabel: (position) => _positionLabel(l10n, position),
+      ),
+    );
+    if (entry == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await _teams.addPlayedProfessionalGuest(
+        widget.matchId,
+        entry.name,
+        team: entry.team,
+        position: entry.position,
+      );
+      if (!mounted) return;
+      // Confirmed, and said so: everyone in the record of a played match played
+      // it, so there is no reserve outcome to report.
+      _showMessage(l10n.guestAddedConfirmed(entry.name));
+      setState(() => _busy = false);
+      _reload();
+    } on Failure catch (failure) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _showMessage(_guestErrorMessage(l10n, failure));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _showMessage(l10n.guestActionFailed);
+    }
+  }
 
   /// Asks for the guest's name and adds them through the roster.
   ///
@@ -620,9 +665,21 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// only if they are starting. A guest who lands on the reserve list is simply
   /// absent from the pitch until the roster says otherwise — and only a guest
   /// who is on it can be moved or swapped, because only they have a lineup row.
-  Future<void> _addGuest() async {
+  Future<void> _addGuest(_TeamsView view) async {
     if (_busy) return;
     final l10n = context.l10n;
+
+    // A played match takes the correction instead. `add_professional_guest`
+    // would create the guest and a confirmed seat and stop there: on a completed
+    // match `recompute_match_status` returns at its own completed branch without
+    // ever reaching the placement that puts a guest on a side, so the guest
+    // existed and the factual lineup did not know it. Migration `0075` writes
+    // the guest, the seat and the lineup row together.
+    if (view.match.isCompleted) {
+      await _addPlayedGuest(l10n);
+      return;
+    }
+
     final name = await _askGuestName(l10n);
     if (name == null || !mounted) return;
 
@@ -660,6 +717,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
       switch (failure.reason) {
         FailureReason.invalidGuestName => l10n.errInvalidGuestName,
         FailureReason.registrationClosed => l10n.errRegistrationClosed,
+        // The completed-match correction's own refusals (migration `0075`). The
+        // sheet asks for all three, so these are the server holding the line
+        // rather than the organizer's likely mistake.
+        FailureReason.invalidTeam => l10n.errLineupRefused,
+        FailureReason.invalidPosition => l10n.errLineupRefused,
+        FailureReason.matchNotCompleted => l10n.errMatchNotCompleted,
         _ => failure is AuthorizationFailure
             ? l10n.errNotAuthorized
             : l10n.guestActionFailed,

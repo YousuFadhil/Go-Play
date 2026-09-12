@@ -1311,6 +1311,27 @@ class FakeTeamAdapter implements TeamAdapter {
     lastCorrections = corrections;
   }
 
+  /// The completed-guest correction, recorded the same way.
+  int playedGuestCalls = 0;
+  String? playedGuestName;
+  TeamId? playedGuestTeam;
+  Position? playedGuestPosition;
+
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) async {
+    lastMatchId = matchId;
+    playedGuestCalls += 1;
+    playedGuestName = name;
+    playedGuestTeam = team;
+    playedGuestPosition = position;
+    return 'g-new';
+  }
+
   @override
   Future<void> removePlayedProfessionalGuest(String matchId, String guestId) =>
       throw UnimplementedError();

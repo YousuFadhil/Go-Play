@@ -210,4 +210,29 @@ class SupabaseTeamAdapter implements TeamAdapter {
           'p_guest_id': guestId,
         });
       });
+
+  /// `add_played_professional_guest` (migration `0075`), and deliberately not
+  /// `add_professional_guest`.
+  ///
+  /// The older function is the roster's: on a completed match it creates the
+  /// guest and a confirmed seat, and then stops -- `recompute_match_status`
+  /// returns at its completed branch without ever reaching the placement that
+  /// puts a guest on a side. The guest existed and the factual lineup did not
+  /// know it. This one writes all three rows in a single transaction.
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) =>
+      guarded(() async {
+        final id = await _client.rpc('add_played_professional_guest', params: {
+          'p_match_id': matchId,
+          'p_name': name,
+          'p_team': teamToDb(team),
+          'p_assigned_position': positionToDb(position),
+        });
+        return id as String;
+      });
 }
