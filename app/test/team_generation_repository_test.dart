@@ -627,6 +627,8 @@ class FakeTeamAdapter implements TeamAdapter {
   final List<PastMatch> played;
 
   String? lastMatchId;
+  int correctionCalls = 0;
+  List<CompletedPlayerCorrection>? lastCorrections;
   String? lastCommunityId;
   String? lastExcludedMatchId;
   int? lastLimit;
@@ -695,6 +697,16 @@ class FakeTeamAdapter implements TeamAdapter {
   Future<void> removePlayedPlayer(String matchId, String userId) async {
     lastMatchId = matchId;
     removedUserId = userId;
+  }
+
+  @override
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> corrections,
+  ) async {
+    lastMatchId = matchId;
+    correctionCalls += 1;
+    lastCorrections = corrections;
   }
 
   @override

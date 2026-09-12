@@ -170,6 +170,31 @@ class SupabaseTeamAdapter implements TeamAdapter {
         });
       });
 
+  /// `correct_completed_match_players` (migration `0074`), and deliberately
+  /// **one** call.
+  ///
+  /// The two functions above correct a single player each, and each of them
+  /// detaches the match's effects, writes, and attaches them again. Calling
+  /// either one per player would recalculate the ratings once per player over
+  /// lineups that never existed, and would leave a half-applied correction
+  /// behind if a later player were refused. The batch is therefore serialized
+  /// whole and sent once: the database validates all of it, recalculates once,
+  /// and rolls all of it back on any refusal.
+  @override
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> corrections,
+  ) =>
+      guarded(() async {
+        await _client.rpc('correct_completed_match_players', params: {
+          'p_match_id': matchId,
+          'p_changes': [
+            for (final correction in corrections)
+              completedPlayerCorrectionToRow(correction),
+          ],
+        });
+      });
+
   /// `remove_played_professional_guest` (migration `0059`), and not
   /// `remove_professional_guest`: the two answer different questions, and the
   /// older one keeps the lineup row a played match needs.

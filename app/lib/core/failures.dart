@@ -161,6 +161,13 @@ enum FailureReason {
   invalidTeam,
   invalidPosition,
 
+  // A batch correction that does not describe a batch: the payload is not an
+  // array of changes, or it names the same player twice and so gives two
+  // answers to one question. One reason for both (migration `0074`), because
+  // both say the same thing about the request rather than about the match, and
+  // as everywhere else behaviour follows the failure type.
+  invalidChanges,
+
   // Professional Guests.
   //
   // A guest is match-scoped and has no account, so neither of these describes a

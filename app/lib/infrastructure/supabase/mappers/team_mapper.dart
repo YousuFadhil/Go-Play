@@ -165,3 +165,28 @@ PastMatch pastMatchFromRow(Map<String, dynamic> row) {
     teams: teams,
   );
 }
+
+
+/// The wire shape of one element of `correct_completed_match_players`'
+/// `p_changes` (migration `0074`).
+///
+/// `assignment_basis` is deliberately not sent. §5.1 defines it as which rule
+/// produced the position, which is a fact about the player's profile, so the
+/// database derives it alongside the write and ignores anything a client might
+/// claim about it. A removal carries no side and no position, because there is
+/// no lineup row left for them to describe.
+Map<String, Object?> completedPlayerCorrectionToRow(
+  CompletedPlayerCorrection correction,
+) =>
+    switch (correction.action) {
+      CompletedPlayerAction.upsert => {
+          'user_id': correction.userId,
+          'action': 'UPSERT',
+          'team': teamToDb(correction.team!),
+          'assigned_position': positionToDb(correction.position!),
+        },
+      CompletedPlayerAction.remove => {
+          'user_id': correction.userId,
+          'action': 'REMOVE',
+        },
+    };

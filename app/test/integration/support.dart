@@ -223,6 +223,9 @@ const _codes = <String>[
   'RESULT_PARTICIPANT_REMOVED',
   'INVALID_TEAM',
   'INVALID_POSITION',
+  // The batch correction's payload token (migration 0074): not an array,
+  // or the same player named twice.
+  'INVALID_CHANGES',
   // Professional Guests (migrations 0047, 0049).
   'INVALID_GUEST_NAME',
   'GUEST_NOT_FOUND',

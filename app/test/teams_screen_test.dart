@@ -2286,6 +2286,13 @@ class FakeTeamAdapter implements TeamAdapter {
   }
 
   @override
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> corrections,
+  ) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> removePlayedPlayer(String matchId, String userId) async {
     if (participationFailure != null) throw participationFailure!;
     removedUserId = userId;

@@ -189,6 +189,14 @@ void main() {
               .having((f) => f.reason, 'reason', FailureReason.invalidTeam));
       expect(map(raised('INVALID_POSITION')).reason,
           FailureReason.invalidPosition);
+
+      // Migration 0074's batch correction: a payload that is not an array, or
+      // one naming the same player twice. Input the caller got wrong, so a
+      // validation failure rather than a conflict.
+      expect(
+          map(raised('INVALID_CHANGES')),
+          isA<ValidationFailure>().having(
+              (f) => f.reason, 'reason', FailureReason.invalidChanges));
     });
 
     test('MATCH_NOT_COMPLETED is not read as MATCH_COMPLETED', () {

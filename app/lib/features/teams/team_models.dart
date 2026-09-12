@@ -240,3 +240,55 @@ class GenerationInputs {
   /// error.
   final MatchHistory history;
 }
+
+
+/// What a completed-match correction says about one player.
+///
+/// Two actions and no third: either this player played, in which case the
+/// record says where, or they did not, in which case there is nothing left to
+/// say about them.
+enum CompletedPlayerAction { upsert, remove }
+
+/// One statement about one player in the record of a match that has been
+/// played, for migration `0074`'s batch correction.
+///
+/// Several of these are applied together as a single correction: the database
+/// validates all of them, projects the lineup they add up to, and recalculates
+/// the match's ratings and statistics once from that lineup. A list of these is
+/// therefore the whole intent of one edit, not a queue of separate edits.
+///
+/// The two constructors exist so that the shape cannot be got wrong: a player
+/// who played has both a side and a position, and a player who did not has
+/// neither. [AssignmentBasis] is deliberately absent — §5.1 makes it a fact
+/// about the player's profile, so the database derives it where that profile is
+/// authoritative.
+class CompletedPlayerCorrection {
+  /// This player played, on [team], at [position].
+  ///
+  /// Also how a player already in the lineup is moved: the lineup row says
+  /// where somebody played, and correcting it is that statement made again.
+  const CompletedPlayerCorrection.played(
+    this.userId, {
+    required TeamId this.team,
+    required Position this.position,
+  }) : action = CompletedPlayerAction.upsert;
+
+  /// This player did not play after all, so the lineup row and the roster seat
+  /// both go.
+  const CompletedPlayerCorrection.removed(this.userId)
+      : action = CompletedPlayerAction.remove,
+        team = null,
+        position = null;
+
+  /// The community player this correction is about.
+  final String userId;
+
+  /// Whether the player is being placed in the lineup or taken out of it.
+  final CompletedPlayerAction action;
+
+  /// The side they played on. Null exactly when they are being removed.
+  final TeamId? team;
+
+  /// Where they played. Null exactly when they are being removed.
+  final Position? position;
+}
