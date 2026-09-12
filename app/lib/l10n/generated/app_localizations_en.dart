@@ -1657,6 +1657,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Only a completed match\'s players can be corrected this way.';
 
   @override
+  String get editPlayedParticipantsAction => 'Edit played participants';
+
+  @override
+  String get playedParticipantsHint =>
+      'Choose who played, then say which side and position each of them played in.';
+
+  @override
+  String savePlayedParticipantsButton(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Save $count participants',
+      one: 'Save 1 participant',
+      zero: 'Save corrections',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get errInvalidChanges => 'The participant corrections are invalid.';
+
+  @override
   String get communityTitle => 'Community';
 
   @override

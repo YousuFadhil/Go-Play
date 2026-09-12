@@ -1639,6 +1639,28 @@ class AppLocalizationsAr extends AppLocalizations {
       'لا يمكن تصحيح لاعبي المباراة بهذه الطريقة إلا بعد انتهائها.';
 
   @override
+  String get editPlayedParticipantsAction => 'إدارة المشاركين الفعليين';
+
+  @override
+  String get playedParticipantsHint =>
+      'اختر من شارك فعلياً، ثم حدّد الفريق والمركز لكل لاعب.';
+
+  @override
+  String savePlayedParticipantsButton(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'حفظ $count مشاركين',
+      one: 'حفظ مشارك واحد',
+      zero: 'حفظ التعديلات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get errInvalidChanges => 'بيانات تعديل المشاركين غير صالحة.';
+
+  @override
   String get communityTitle => 'المجتمع';
 
   @override

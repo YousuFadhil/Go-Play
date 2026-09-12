@@ -131,12 +131,20 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('is offered on a completed match', (tester) async {
+    testWidgets('is withheld on a completed match, which has its own path',
+        (tester) async {
+      // CHANGED by the approved all-state contract. The database would still
+      // honour `admin_add_player_to_match` here, and for a while the screen
+      // offered it -- but a completed match's participants are a factual record,
+      // and correcting that record belongs to the Teams screen's batch
+      // correction, which reaches `correct_completed_match_players` and
+      // recalculates the ratings once. Two ways in would mean two meanings for
+      // "who played", one of which quietly rewrites the roster instead.
       await openPlayers(tester, completed);
 
-      expect(find.byKey(const Key('addPlayerButton')), findsOneWidget);
+      expect(find.byKey(const Key('addPlayerButton')), findsNothing);
       expect(find.byKey(const Key('addGuestButton')), findsOneWidget,
-          reason: 'both kinds of participant, on the same rule about state');
+          reason: 'guest management on a played match is unchanged (0059)');
     });
 
     testWidgets('is withheld on a recorded match, as it always was',

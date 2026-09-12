@@ -647,12 +647,21 @@ void main() {
       }
     });
 
-    test('no screen calls the new path yet', () {
-      // Cycle A is the DB and domain foundation: the UI is a later cycle, and
-      // this is what keeps that promise checkable.
+    test('exactly one screen calls the batch, and calls it once', () {
+      // Cycle A built the path and left it unused; Cycle B wires it to the
+      // Teams screen, which is the canonical surface for correcting who played.
+      // One call site, because the batch is the whole intent of one save -- a
+      // second would be a loop wearing a different name.
+      final teams =
+          File('lib/features/teams/teams_screen.dart').readAsStringSync();
+      expect(RegExp('correctCompletedPlayers').allMatches(teams), hasLength(1));
+
+      // And nowhere else: the roster screens administer a roster, which is a
+      // different question from who actually played.
       for (final screen in const [
-        'lib/features/teams/teams_screen.dart',
         'lib/features/matches/match_details_screen.dart',
+        'lib/features/matches/manage_roster_screen.dart',
+        'lib/features/matches/match_management_screen.dart',
       ]) {
         expect(File(screen).readAsStringSync(),
             isNot(contains('correctCompletedPlayers')),

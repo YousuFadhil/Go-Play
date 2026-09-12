@@ -11,9 +11,12 @@ import 'match_service.dart';
 /// Organizer edits an existing match. Registrations are kept; the server
 /// handles reserve demotion if the player limit shrinks and notifies players.
 class EditMatchScreen extends StatefulWidget {
-  const EditMatchScreen({super.key, required this.match});
+  const EditMatchScreen({super.key, required this.match, this.matchService});
 
   final Match match;
+
+  /// Injected by tests; the screen builds its own in the app, as it always did.
+  final MatchService? matchService;
 
   @override
   State<EditMatchScreen> createState() => _EditMatchScreenState();
@@ -25,7 +28,7 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
   late final TextEditingController _locationController;
   late final TextEditingController _startingPlayersController;
   late final TextEditingController _descriptionController;
-  final _service = MatchService();
+  late final MatchService _service = widget.matchService ?? MatchService();
 
   late DateTime _date;
   late TimeOfDay _startTime;
@@ -60,11 +63,22 @@ class _EditMatchScreenState extends State<EditMatchScreen> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
-    final first = _date.isBefore(now) ? _date : now;
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: first,
+      // CHANGED: the picker no longer stops at today, or at whatever date the
+      // match already holds. Correcting when a completed match was played is an
+      // approved edit, and a bound that only ever moves forward made it
+      // impossible -- an organizer could not say the fixture was a week earlier
+      // than the record claims. A future match may equally be corrected into a
+      // record of one already played.
+      //
+      // Which times are actually legal stays migration 0074's answer: an active
+      // match may not be returned to the schedule and a completed one may not be
+      // reopened. This is the project's existing "no meaningful lower bound"
+      // convention, the same one the profile and registration date fields use,
+      // rather than a product rule invented in the picker.
+      firstDate: DateTime(1900),
       lastDate: now.add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _date = picked);

@@ -584,6 +584,13 @@
   "choosePositionTitle": "أي مركز؟",
   "errResultParticipantRemoved": "هذا اللاعب هو أفضل لاعب أو مسجّل هدف في النتيجة المسجّلة. عدّل النتيجة أولاً.",
   "errMatchNotCompleted": "لا يمكن تصحيح لاعبي المباراة بهذه الطريقة إلا بعد انتهائها.",
+  "editPlayedParticipantsAction": "إدارة المشاركين الفعليين",
+  "playedParticipantsHint": "اختر من شارك فعلياً، ثم حدّد الفريق والمركز لكل لاعب.",
+  "savePlayedParticipantsButton": "{count, plural, =0{حفظ التعديلات} =1{حفظ مشارك واحد} other{حفظ {count} مشاركين}}",
+  "@savePlayedParticipantsButton": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "errInvalidChanges": "بيانات تعديل المشاركين غير صالحة.",
 
   "communityTitle": "المجتمع",
   "discoverHeroTitle": "كرة القدم أجمل مع مجتمعك.",

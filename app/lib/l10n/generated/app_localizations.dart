@@ -2924,6 +2924,30 @@ abstract class AppLocalizations {
   /// **'Only a completed match\'s players can be corrected this way.'**
   String get errMatchNotCompleted;
 
+  /// No description provided for @editPlayedParticipantsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit played participants'**
+  String get editPlayedParticipantsAction;
+
+  /// No description provided for @playedParticipantsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose who played, then say which side and position each of them played in.'**
+  String get playedParticipantsHint;
+
+  /// No description provided for @savePlayedParticipantsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Save corrections} =1{Save 1 participant} other{Save {count} participants}}'**
+  String savePlayedParticipantsButton(int count);
+
+  /// No description provided for @errInvalidChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'The participant corrections are invalid.'**
+  String get errInvalidChanges;
+
   /// No description provided for @communityTitle.
   ///
   /// In en, this message translates to:
