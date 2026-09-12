@@ -63,10 +63,12 @@ void main() {
 
   group('the goals must add up to the score', () {
     test('a result whose goals match the score is accepted', () {
-      expect(() => validate(teamA: 2, teamB: 1, goals: const [
-            GoalTally(userId: 'a1', goals: 2),
-            GoalTally(userId: 'b1', goals: 1),
-          ]), returnsNormally);
+      expect(
+          () => validate(teamA: 2, teamB: 1, goals: const [
+                GoalTally(userId: 'a1', goals: 2),
+                GoalTally(userId: 'b1', goals: 1),
+              ]),
+          returnsNormally);
     });
 
     test('too few goals is refused', () {
@@ -385,10 +387,9 @@ void main() {
       expect(deltaFor(deltas, 'a1', RatingChangeReason.mvp), 0.05);
     });
 
-    test('a drawn player with neither a goal nor the MVP moves nothing', () {
-      // A draw is worth 0.00, and "worth nothing" is the absence of an entry
-      // rather than an entry of zero: a zero would still be a rating change
-      // credited to somebody.
+    test('a drawn player with neither a goal nor the MVP gains 0.015', () {
+      // Rating Engine v2: a draw is an entry of its own (+0.010) on top of the
+      // participation every player receives (+0.005).
       final deltas = ratingDeltasFor(
         result(
           teamA: 1,
@@ -402,9 +403,15 @@ void main() {
         lineup(),
       );
 
-      expect(deltas.where((d) => d.userId == 'a2'), isEmpty);
-      expect(net(deltas, 'a2'), 0.0);
-      expect(net(deltas, 'b2'), 0.0);
+      expect([
+        for (final d in deltas)
+          if (d.userId == 'a2') d.reason,
+      ], [
+        RatingChangeReason.participation,
+        RatingChangeReason.draw
+      ]);
+      expect(net(deltas, 'a2'), closeTo(0.015, 1e-9));
+      expect(net(deltas, 'b2'), closeTo(0.015, 1e-9));
     });
 
     test('a goal is worth 0.02 to whoever scored it', () {
@@ -425,8 +432,8 @@ void main() {
         deltas.where((d) => d.reason == RatingChangeReason.goal),
         hasLength(1),
       );
-      expect(deltaFor(deltas, 'a1', RatingChangeReason.goal),
-          closeTo(0.06, 1e-9));
+      expect(
+          deltaFor(deltas, 'a1', RatingChangeReason.goal), closeTo(0.06, 1e-9));
     });
 
     test('five goals reach the cap exactly', () {
@@ -435,8 +442,8 @@ void main() {
         lineup(),
       );
 
-      expect(deltaFor(deltas, 'a1', RatingChangeReason.goal),
-          closeTo(0.10, 1e-9));
+      expect(
+          deltaFor(deltas, 'a1', RatingChangeReason.goal), closeTo(0.10, 1e-9));
     });
 
     test('a sixth goal is worth nothing more than the fifth', () {
@@ -473,10 +480,10 @@ void main() {
         lineup(),
       );
 
-      expect(deltaFor(deltas, 'a1', RatingChangeReason.goal),
-          closeTo(0.10, 1e-9));
-      expect(deltaFor(deltas, 'a2', RatingChangeReason.goal),
-          closeTo(0.02, 1e-9));
+      expect(
+          deltaFor(deltas, 'a1', RatingChangeReason.goal), closeTo(0.10, 1e-9));
+      expect(
+          deltaFor(deltas, 'a2', RatingChangeReason.goal), closeTo(0.02, 1e-9));
     });
 
     test('the best player gains 0.05, once', () {
@@ -499,7 +506,7 @@ void main() {
       expect(deltaFor(deltas, 'a1', RatingChangeReason.goal), 0.02);
     });
 
-    test('one player can collect all three', () {
+    test('one player can collect all four', () {
       // Won, scored, and was named best on the pitch: three entries, not one.
       final deltas = [
         for (final delta in ratingDeltasFor(result(), lineup()))
@@ -507,13 +514,14 @@ void main() {
       ];
 
       expect(deltas.map((d) => d.reason), [
+        RatingChangeReason.participation,
         RatingChangeReason.win,
         RatingChangeReason.goal,
         RatingChangeReason.mvp,
       ]);
       expect(
         deltas.fold(0.0, (sum, d) => sum + d.delta),
-        closeTo(0.17, 1e-9),
+        closeTo(0.175, 1e-9),
       );
     });
 
@@ -534,9 +542,12 @@ void main() {
           goal: 3,
           goalCap: 100,
           mvp: 4,
+          participation: 5,
+          draw: 6,
         ),
       );
 
+      expect(deltaFor(deltas, 'a2', RatingChangeReason.participation), 5);
       expect(deltaFor(deltas, 'a2', RatingChangeReason.win), 1);
       expect(deltaFor(deltas, 'b1', RatingChangeReason.loss), -2);
       expect(deltaFor(deltas, 'a1', RatingChangeReason.goal), 3);
@@ -553,6 +564,8 @@ void main() {
           goal: 3,
           goalCap: 7,
           mvp: 4,
+          participation: 5,
+          draw: 6,
         ),
       );
 
@@ -582,13 +595,16 @@ void main() {
           .where((d) => d.userId == userId)
           .fold(0.0, (sum, d) => sum + d.delta);
 
-      expect(net('a2'), closeTo(0.10, 1e-9), reason: 'a win and nothing else');
-      expect(net('b1'), closeTo(0.05, 1e-9),
-          reason: 'loss -0.10, goals capped at +0.10, MVP +0.05');
+      expect(net('a2'), closeTo(0.105, 1e-9),
+          reason: 'participation and a win, nothing else');
+      expect(net('b1'), closeTo(0.055, 1e-9),
+          reason: 'participation +0.005, loss -0.10, goals +0.10, MVP +0.05');
       expect(net('b1'), lessThan(net('a2')));
     });
 
-    test('a loser with five goals is brought back to level, no further', () {
+    test('a loser with five goals is brought back to level by the goals', () {
+      // The goals cancel the loss exactly, as they always did; participation
+      // is the only thing left over, at +0.005.
       final deltas = ratingDeltasFor(
         result(
           teamA: 6,
@@ -606,7 +622,12 @@ void main() {
         deltas
             .where((d) => d.userId == 'b1')
             .fold(0.0, (sum, d) => sum + d.delta),
-        closeTo(0.0, 1e-9),
+        closeTo(0.005, 1e-9),
+      );
+      expect(
+        deltaFor(deltas, 'b1', RatingChangeReason.goal),
+        closeTo(0.10, 1e-9),
+        reason: 'the goals alone offset the loss exactly',
       );
     });
 

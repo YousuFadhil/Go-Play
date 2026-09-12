@@ -20,6 +20,10 @@ RatingChangeReason ratingChangeReasonFromDb(String value) => switch (value) {
       'GOAL' => RatingChangeReason.goal,
       'MVP' => RatingChangeReason.mvp,
       'REVERSAL' => RatingChangeReason.reversal,
+      // Rating Engine v2 (0073). Every reason the database can now write is
+      // readable, so no history screen fails on a v2 entry.
+      'PARTICIPATION' => RatingChangeReason.participation,
+      'DRAW' => RatingChangeReason.draw,
       _ => throw const InfrastructureFailure(),
     };
 
@@ -31,8 +35,8 @@ RatingChangeReason ratingChangeReasonFromDb(String value) => switch (value) {
 /// `mvp_user_id` is nullable since migration `0033`, and a null is read as what
 /// it is: a result whose organizer named nobody best on the pitch.
 MatchResult matchResultFromRow(Map<String, dynamic> row) {
-  final goals = (row['goals'] as List? ?? const [])
-      .cast<Map<String, dynamic>>();
+  final goals =
+      (row['goals'] as List? ?? const []).cast<Map<String, dynamic>>();
   return MatchResult(
     matchId: row['match_id'] as String,
     teamAScore: row['team_a_score'] as int,
