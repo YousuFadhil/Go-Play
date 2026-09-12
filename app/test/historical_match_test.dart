@@ -415,11 +415,11 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // The existing completed-match correction controls, reached because the
-      // match is completed. This is the participant selection Feature A asks
-      // for: `set_completed_match_player` behind the button that was already
-      // there.
-      expect(find.text(l10n.addPlayedPlayerAction), findsOneWidget);
+      // The completed-match correction control, reached because the match is
+      // completed. Behind it now is the atomic batch of migration `0074`
+      // rather than one call per player, which is why the label names the
+      // participants rather than a single addition.
+      expect(find.text(l10n.editPlayedParticipantsAction), findsOneWidget);
     });
 
     test('the marker survives the round trip through the row', () {

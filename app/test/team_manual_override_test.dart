@@ -58,7 +58,7 @@ void main() {
     test('A to B', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'u2');
+      await TeamRepository(adapter).movePlayer('m1', 'u2', completedCorrection: false);
 
       expect(saved(adapter, 'u2').team, TeamId.b);
     });
@@ -66,7 +66,7 @@ void main() {
     test('B to A', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'u3');
+      await TeamRepository(adapter).movePlayer('m1', 'u3', completedCorrection: false);
 
       expect(saved(adapter, 'u3').team, TeamId.a);
     });
@@ -74,7 +74,7 @@ void main() {
     test('the player keeps the position they were playing', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'u2');
+      await TeamRepository(adapter).movePlayer('m1', 'u2', completedCorrection: false);
 
       final moved = saved(adapter, 'u2');
       expect(moved.assignedPosition, Position.def);
@@ -84,7 +84,7 @@ void main() {
     test('everybody is still there, exactly once (BTGE-HC-1, -HC-2)', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'u2');
+      await TeamRepository(adapter).movePlayer('m1', 'u2', completedCorrection: false);
 
       expect(adapter.savedLineup, hasLength(4));
       expect([for (final a in adapter.savedLineup!) a.userId],
@@ -95,7 +95,7 @@ void main() {
       // No rebalancing, and nobody moved back to make the sides even again.
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'u2');
+      await TeamRepository(adapter).movePlayer('m1', 'u2', completedCorrection: false);
 
       expect(saved(adapter, 'u1').team, TeamId.a);
       expect(saved(adapter, 'u3').team, TeamId.b);
@@ -109,7 +109,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
       await expectLater(
-        TeamRepository(adapter).movePlayer('m1', 'u9'),
+        TeamRepository(adapter).movePlayer('m1', 'u9', completedCorrection: false),
         throwsA(isA<ValidationFailure>()),
       );
       expect(adapter.savedLineup, isNull, reason: 'a refusal writes nothing');
@@ -122,7 +122,7 @@ void main() {
       );
 
       await expectLater(
-        TeamRepository(adapter).movePlayer('m1', 'u2'),
+        TeamRepository(adapter).movePlayer('m1', 'u2', completedCorrection: false),
         throwsA(isA<InfrastructureFailure>()),
       );
       expect(await adapter.fetchLineup('m1'), hasLength(4));
@@ -137,7 +137,7 @@ void main() {
       );
 
       await expectLater(
-        TeamRepository(adapter).movePlayer('m1', 'u2'),
+        TeamRepository(adapter).movePlayer('m1', 'u2', completedCorrection: false),
         throwsA(isA<AuthorizationFailure>()),
         reason: 'the database is what authorizes, and it said no',
       );
@@ -148,7 +148,7 @@ void main() {
     test('they exchange sides', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'u2', 'u3');
+      await TeamRepository(adapter).swapPlayers('m1', 'u2', 'u3', completedCorrection: false);
 
       expect(saved(adapter, 'u2').team, TeamId.b);
       expect(saved(adapter, 'u3').team, TeamId.a);
@@ -157,7 +157,7 @@ void main() {
     test('the order they are named in does not matter', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'u3', 'u2');
+      await TeamRepository(adapter).swapPlayers('m1', 'u3', 'u2', completedCorrection: false);
 
       expect(saved(adapter, 'u2').team, TeamId.b);
       expect(saved(adapter, 'u3').team, TeamId.a);
@@ -166,7 +166,7 @@ void main() {
     test('each keeps their own position', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'u2', 'u3');
+      await TeamRepository(adapter).swapPlayers('m1', 'u2', 'u3', completedCorrection: false);
 
       expect(saved(adapter, 'u2').assignedPosition, Position.def);
       expect(saved(adapter, 'u3').assignedPosition, Position.mid);
@@ -175,7 +175,7 @@ void main() {
     test('both are still there, exactly once', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'u2', 'u3');
+      await TeamRepository(adapter).swapPlayers('m1', 'u2', 'u3', completedCorrection: false);
 
       expect(adapter.savedLineup, hasLength(4));
       expect({for (final a in adapter.savedLineup!) a.userId},
@@ -189,7 +189,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
       await expectLater(
-        TeamRepository(adapter).swapPlayers('m1', 'u1', 'u2'),
+        TeamRepository(adapter).swapPlayers('m1', 'u1', 'u2', completedCorrection: false),
         throwsA(isA<ValidationFailure>()),
       );
       expect(adapter.savedLineup, isNull);
@@ -199,7 +199,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
       await expectLater(
-        TeamRepository(adapter).swapPlayers('m1', 'u2', 'u2'),
+        TeamRepository(adapter).swapPlayers('m1', 'u2', 'u2', completedCorrection: false),
         throwsA(isA<ValidationFailure>()),
       );
       expect(adapter.savedLineup, isNull);
@@ -209,7 +209,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
       await expectLater(
-        TeamRepository(adapter).swapPlayers('m1', 'u2', 'u9'),
+        TeamRepository(adapter).swapPlayers('m1', 'u2', 'u9', completedCorrection: false),
         throwsA(isA<ValidationFailure>()),
       );
       expect(adapter.savedLineup, isNull);
@@ -222,7 +222,7 @@ void main() {
       );
 
       await expectLater(
-        TeamRepository(adapter).swapPlayers('m1', 'u2', 'u3'),
+        TeamRepository(adapter).swapPlayers('m1', 'u2', 'u3', completedCorrection: false),
         throwsA(isA<InfrastructureFailure>()),
       );
       final stored = await adapter.fetchLineup('m1');
@@ -239,7 +239,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u2', Position.fwd);
+          .changeAssignedPosition('m1', 'u2', Position.fwd, completedCorrection: false);
 
       expect(saved(adapter, 'u2').assignedPosition, Position.fwd);
     });
@@ -251,7 +251,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u2', Position.fwd);
+          .changeAssignedPosition('m1', 'u2', Position.fwd, completedCorrection: false);
 
       expect(saved(adapter, 'u2').team, TeamId.a);
     });
@@ -265,7 +265,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u2', Position.fwd);
+          .changeAssignedPosition('m1', 'u2', Position.fwd, completedCorrection: false);
 
       final stored = adapter.roster.single;
       expect(stored.primaryPosition, Position.def);
@@ -282,7 +282,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u2', Position.def);
+          .changeAssignedPosition('m1', 'u2', Position.def, completedCorrection: false);
 
       expect(saved(adapter, 'u2').basis, AssignmentBasis.primary);
       expect(saved(adapter, 'u2').outOfPosition, isFalse);
@@ -296,7 +296,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u2', Position.mid);
+          .changeAssignedPosition('m1', 'u2', Position.mid, completedCorrection: false);
 
       expect(saved(adapter, 'u2').basis, AssignmentBasis.secondary);
       expect(saved(adapter, 'u2').outOfPosition, isFalse);
@@ -309,7 +309,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u2', Position.fwd);
+          .changeAssignedPosition('m1', 'u2', Position.fwd, completedCorrection: false);
 
       expect(saved(adapter, 'u2').basis, AssignmentBasis.transition);
       expect(saved(adapter, 'u2').outOfPosition, isTrue,
@@ -327,7 +327,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u1', Position.fwd);
+          .changeAssignedPosition('m1', 'u1', Position.fwd, completedCorrection: false);
 
       expect(saved(adapter, 'u1').basis, AssignmentBasis.secondary);
     });
@@ -339,7 +339,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u2', Position.fwd);
+          .changeAssignedPosition('m1', 'u2', Position.fwd, completedCorrection: false);
 
       expect(adapter.savedLineup, hasLength(4));
       expect(saved(adapter, 'u1').assignedPosition, Position.gk);
@@ -352,7 +352,7 @@ void main() {
 
       await expectLater(
         TeamRepository(adapter)
-            .changeAssignedPosition('m1', 'u9', Position.fwd),
+            .changeAssignedPosition('m1', 'u9', Position.fwd, completedCorrection: false),
         throwsA(isA<ValidationFailure>()),
       );
       expect(adapter.savedLineup, isNull);
@@ -367,7 +367,7 @@ void main() {
 
       await expectLater(
         TeamRepository(adapter)
-            .changeAssignedPosition('m1', 'u2', Position.fwd),
+            .changeAssignedPosition('m1', 'u2', Position.fwd, completedCorrection: false),
         throwsA(isA<InfrastructureFailure>()),
       );
       expect(
@@ -380,7 +380,7 @@ void main() {
     test('the whole lineup, so a stale row cannot survive it', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'u2');
+      await TeamRepository(adapter).movePlayer('m1', 'u2', completedCorrection: false);
 
       expect(adapter.savedLineup, hasLength(4),
           reason: 'the port replaces a lineup; it does not patch one');
@@ -391,7 +391,7 @@ void main() {
       // The organizer's screen may be older than the database. What is edited
       // is what is stored (`BTGE-MO-5`).
       final adapter = FakeTeamAdapter(lineup: lineup());
-      await TeamRepository(adapter).movePlayer('m1', 'u2');
+      await TeamRepository(adapter).movePlayer('m1', 'u2', completedCorrection: false);
 
       expect(adapter.lineupReads, 1,
           reason: 'the operation reads before it writes');
@@ -405,10 +405,10 @@ void main() {
         roster: [profile('u2', Position.def)],
       );
 
-      await TeamRepository(moved).movePlayer('m1', 'u2');
-      await TeamRepository(swapped).swapPlayers('m1', 'u2', 'u3');
+      await TeamRepository(moved).movePlayer('m1', 'u2', completedCorrection: false);
+      await TeamRepository(swapped).swapPlayers('m1', 'u2', 'u3', completedCorrection: false);
       await TeamRepository(positioned)
-          .changeAssignedPosition('m1', 'u2', Position.fwd);
+          .changeAssignedPosition('m1', 'u2', Position.fwd, completedCorrection: false);
 
       for (final adapter in [moved, swapped, positioned]) {
         expect(adapter.historyReads, 0,
@@ -451,7 +451,7 @@ void main() {
         () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'u1');
+      await TeamRepository(adapter).movePlayer('m1', 'u1', completedCorrection: false);
 
       final moved = savedParticipant(adapter, 'u1');
       expect(moved.userId, 'u1');
@@ -464,7 +464,7 @@ void main() {
         () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'g1');
+      await TeamRepository(adapter).movePlayer('m1', 'g1', completedCorrection: false);
 
       final moved = savedParticipant(adapter, 'g1');
       expect(moved.professionalGuestId, 'g1');
@@ -479,7 +479,7 @@ void main() {
       // whichever row it happened to.
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2');
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2', completedCorrection: false);
 
       for (final a in adapter.savedLineup!) {
         expect((a.userId == null) != (a.professionalGuestId == null), isTrue,
@@ -492,7 +492,7 @@ void main() {
     test('A to B', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'g1');
+      await TeamRepository(adapter).movePlayer('m1', 'g1', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g1').team, TeamId.b);
     });
@@ -500,7 +500,7 @@ void main() {
     test('B to A', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'g2');
+      await TeamRepository(adapter).movePlayer('m1', 'g2', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g2').team, TeamId.a);
     });
@@ -508,7 +508,7 @@ void main() {
     test('no position is invented for them', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'g1');
+      await TeamRepository(adapter).movePlayer('m1', 'g1', completedCorrection: false);
 
       final moved = savedParticipant(adapter, 'g1');
       expect(moved.assignedPosition, isNull,
@@ -522,7 +522,7 @@ void main() {
       // write that saves it.
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'g1');
+      await TeamRepository(adapter).movePlayer('m1', 'g1', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g1').teamManuallyOverridden, isTrue);
     });
@@ -532,7 +532,7 @@ void main() {
       // side, so there is nothing for it to protect them from.
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'u1');
+      await TeamRepository(adapter).movePlayer('m1', 'u1', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'u1').teamManuallyOverridden, isFalse);
     });
@@ -540,7 +540,7 @@ void main() {
     test('nobody else is touched (BTGE-MO-3)', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'g1');
+      await TeamRepository(adapter).movePlayer('m1', 'g1', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'u1').team, TeamId.a);
       expect(savedParticipant(adapter, 'u3').team, TeamId.b);
@@ -552,7 +552,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
       expect(
-        () => TeamRepository(adapter).movePlayer('m1', 'g9'),
+        () => TeamRepository(adapter).movePlayer('m1', 'g9', completedCorrection: false),
         throwsA(isA<ValidationFailure>()),
       );
     });
@@ -562,7 +562,7 @@ void main() {
     test('a guest and a community player exchange sides', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g1').team, TeamId.b);
       expect(savedParticipant(adapter, 'u3').team, TeamId.a);
@@ -573,7 +573,7 @@ void main() {
     test('two guests exchange sides', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2');
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g1').team, TeamId.b);
       expect(savedParticipant(adapter, 'g2').team, TeamId.a);
@@ -582,7 +582,7 @@ void main() {
     test('each keeps the position they had, guests included', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g1').assignedPosition, isNull);
       expect(savedParticipant(adapter, 'u3').assignedPosition, Position.mid);
@@ -591,7 +591,7 @@ void main() {
     test('each guest involved is marked, the player is not', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g1').teamManuallyOverridden, isTrue);
       expect(savedParticipant(adapter, 'u3').teamManuallyOverridden, isFalse);
@@ -600,7 +600,7 @@ void main() {
     test('both guests are marked in a guest-to-guest swap', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2');
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2', completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g1').teamManuallyOverridden, isTrue);
       expect(savedParticipant(adapter, 'g2').teamManuallyOverridden, isTrue);
@@ -615,7 +615,7 @@ void main() {
       ]);
 
       expect(
-        () => TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2'),
+        () => TeamRepository(adapter).swapPlayers('m1', 'g1', 'g2', completedCorrection: false),
         throwsA(isA<ValidationFailure>()),
       );
     });
@@ -624,7 +624,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
       expect(
-        () => TeamRepository(adapter).swapPlayers('m1', 'g1', 'g1'),
+        () => TeamRepository(adapter).swapPlayers('m1', 'g1', 'g1', completedCorrection: false),
         throwsA(isA<ValidationFailure>()),
       );
     });
@@ -635,7 +635,7 @@ void main() {
       // participants on the same side in between.
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3', completedCorrection: false);
 
       expect(adapter.saveCount, 1);
       expect(adapter.savedLineup, hasLength(4));
@@ -647,7 +647,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'g1', Position.mid);
+          .changeAssignedPosition('m1', 'g1', Position.mid, completedCorrection: false);
 
       final saved = savedParticipant(adapter, 'g1');
       expect(saved.assignedPosition, Position.mid);
@@ -662,7 +662,7 @@ void main() {
         final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
         await TeamRepository(adapter)
-            .changeAssignedPosition('m1', 'g1', position);
+            .changeAssignedPosition('m1', 'g1', position, completedCorrection: false);
 
         expect(savedParticipant(adapter, 'g1').assignedPosition, position);
       }
@@ -675,7 +675,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'g1', Position.fwd);
+          .changeAssignedPosition('m1', 'g1', Position.fwd, completedCorrection: false);
 
       expect(savedParticipant(adapter, 'g1').basis, isNull);
     });
@@ -684,7 +684,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'g1', Position.gk);
+          .changeAssignedPosition('m1', 'g1', Position.gk, completedCorrection: false);
 
       expect(adapter.historyReads, 0,
           reason: 'no Auxiliary Data read, so no generation happened');
@@ -702,7 +702,7 @@ void main() {
       );
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'u1', Position.def);
+          .changeAssignedPosition('m1', 'u1', Position.def, completedCorrection: false);
 
       final saved = savedParticipant(adapter, 'u1');
       expect(saved.assignedPosition, Position.def);
@@ -713,7 +713,7 @@ void main() {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
       await TeamRepository(adapter)
-          .changeAssignedPosition('m1', 'g1', Position.mid);
+          .changeAssignedPosition('m1', 'g1', Position.mid, completedCorrection: false);
 
       expect(adapter.lastFromGeneration, isFalse,
           reason: 'only a generation gives a chosen position back');
@@ -726,7 +726,7 @@ void main() {
       // chosen side, so it must not claim to be a generation.
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).movePlayer('m1', 'g1');
+      await TeamRepository(adapter).movePlayer('m1', 'g1', completedCorrection: false);
 
       expect(adapter.lastFromGeneration, isFalse);
     });
@@ -734,7 +734,7 @@ void main() {
     test('a swap does not either', () async {
       final adapter = FakeTeamAdapter(lineup: mixedLineup());
 
-      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3');
+      await TeamRepository(adapter).swapPlayers('m1', 'g1', 'u3', completedCorrection: false);
 
       expect(adapter.lastFromGeneration, isFalse);
     });
@@ -747,6 +747,99 @@ void main() {
       await TeamRepository(adapter).saveLineup('m1', lineup());
 
       expect(adapter.lastFromGeneration, isTrue);
+    });
+  });
+
+  // Migration 0071. The write carries two intents and they are not the same
+  // question: `fromGeneration` says how the lineup was arrived at,
+  // `completedCorrection` says what it is for. The database refuses the
+  // combinations that make no sense; these prove the repository never sends
+  // one.
+  group('a lineup write says what it is for', () {
+    test('a generated save is a generation and never a correction', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter).saveLineup('m1', lineup());
+
+      expect(adapter.lastFromGeneration, isTrue);
+      expect(adapter.lastCompletedCorrection, isFalse);
+    });
+
+    test('no path sends both flags at once', () async {
+      // The combination migration 0071 refuses outright. Every entry point the
+      // repository offers is exercised, in both intents where it takes one,
+      // and none of them produces it.
+      final seen = <(bool?, bool?)>[];
+
+      Future<void> record(
+        Future<void> Function(TeamRepository repository) run,
+      ) async {
+        final adapter = FakeTeamAdapter(lineup: mixedLineup());
+        await run(TeamRepository(adapter));
+        seen.add((adapter.lastFromGeneration, adapter.lastCompletedCorrection));
+      }
+
+      await record((r) => r.saveLineup('m1', lineup()));
+      for (final correcting in [false, true]) {
+        await record(
+            (r) => r.movePlayer('m1', 'u3', completedCorrection: correcting));
+        await record((r) => r.swapPlayers('m1', 'g1', 'u3',
+            completedCorrection: correcting));
+        await record((r) => r.changeAssignedPosition('m1', 'u3', Position.def,
+            completedCorrection: correcting));
+      }
+
+      expect(seen, hasLength(7));
+      expect(
+        seen.where((intent) => intent.$1 == true && intent.$2 == true),
+        isEmpty,
+        reason: 'a generation is never a historical correction',
+      );
+      // And the generation path in particular is unambiguous.
+      expect(seen.first, (true, false));
+    });
+
+    test('an ordinary manual save is neither', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter)
+          .movePlayer('m1', 'u3', completedCorrection: false);
+
+      expect(adapter.lastFromGeneration, isFalse);
+      expect(adapter.lastCompletedCorrection, isFalse);
+    });
+
+    test('a completed correction says so, and is not a generation', () async {
+      final adapter = FakeTeamAdapter(lineup: mixedLineup());
+
+      await TeamRepository(adapter)
+          .movePlayer('m1', 'u3', completedCorrection: true);
+
+      expect(adapter.lastFromGeneration, isFalse);
+      expect(adapter.lastCompletedCorrection, isTrue);
+    });
+
+    test('every manual operation carries the intent through', () async {
+      // Move, swap and reposition all reach the adapter through one private
+      // replace, and each takes the flag as a *required* argument so a caller
+      // cannot forget to answer it.
+      for (final correcting in [false, true]) {
+        final swap = FakeTeamAdapter(lineup: mixedLineup());
+        await TeamRepository(swap)
+            .swapPlayers('m1', 'g1', 'u3', completedCorrection: correcting);
+        expect(swap.lastCompletedCorrection, correcting);
+        expect(swap.lastFromGeneration, isFalse);
+
+        final position = FakeTeamAdapter(lineup: mixedLineup());
+        await TeamRepository(position).changeAssignedPosition(
+          'm1',
+          'u3',
+          Position.def,
+          completedCorrection: correcting,
+        );
+        expect(position.lastCompletedCorrection, correcting);
+        expect(position.lastFromGeneration, isFalse);
+      }
     });
   });
 }
@@ -784,6 +877,7 @@ class FakeTeamAdapter implements TeamAdapter {
   /// Whether the last save said it followed a generation. It is the one
   /// thing that clears a guest's chosen side (migration `0058`).
   bool? lastFromGeneration;
+  bool? lastCompletedCorrection;
 
   /// How many times the lineup was written. A swap is one write.
   int saveCount = 0;
@@ -799,11 +893,13 @@ class FakeTeamAdapter implements TeamAdapter {
     String matchId,
     List<TeamAssignment> lineup, {
     bool fromGeneration = false,
+    bool completedCorrection = false,
   }) async {
     if (saveFailure != null) throw saveFailure!;
     lastMatchId = matchId;
     savedLineup = lineup;
     lastFromGeneration = fromGeneration;
+    lastCompletedCorrection = completedCorrection;
     saveCount++;
     _lineup = [...lineup];
   }
@@ -834,6 +930,22 @@ class FakeTeamAdapter implements TeamAdapter {
 
   @override
   Future<void> removePlayedPlayer(String matchId, String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> corrections,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) =>
       throw UnimplementedError();
 
   @override

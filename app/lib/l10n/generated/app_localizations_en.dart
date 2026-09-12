@@ -1657,6 +1657,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Only a completed match\'s players can be corrected this way.';
 
   @override
+  String get editPlayedParticipantsAction => 'Edit played participants';
+
+  @override
+  String get playedParticipantsHint =>
+      'Choose who played, then say which side and position each of them played in.';
+
+  @override
+  String savePlayedParticipantsButton(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Save $count participants',
+      one: 'Save 1 participant',
+      zero: 'Save corrections',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get errInvalidChanges => 'The participant corrections are invalid.';
+
+  @override
   String get communityTitle => 'Community';
 
   @override
@@ -2171,4 +2193,111 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminMetricLastActivity => 'Last activity';
+
+  @override
+  String get teamOfPeriodTitle => 'Team of the Period';
+
+  @override
+  String get teamOfPeriodCtaSubtitle =>
+      'The best players of the last completed week or month';
+
+  @override
+  String get teamOfPeriodCtaAction => 'View the team';
+
+  @override
+  String get teamOfPeriodWeekTab => 'Week';
+
+  @override
+  String get teamOfPeriodMonthTab => 'Month';
+
+  @override
+  String get teamOfPeriodWeekHeading => 'Team of the Week';
+
+  @override
+  String get teamOfPeriodMonthHeading => 'Team of the Month';
+
+  @override
+  String get teamOfPeriodNoMatches =>
+      'No qualifying matches were completed in this period.';
+
+  @override
+  String teamOfPeriodNoEligible(int matches) {
+    return 'Matches were played, but nobody played the $matches needed to qualify.';
+  }
+
+  @override
+  String get teamOfPeriodPlayerFallback => 'Player';
+
+  @override
+  String get teamOfPeriodAwardedPosition => 'Awarded position';
+
+  @override
+  String get teamOfPeriodCurrentRating => 'Current rating';
+
+  @override
+  String get teamOfPeriodMatchesPlayed => 'Matches played';
+
+  @override
+  String get teamOfPeriodParticipation => 'Participation';
+
+  @override
+  String get teamOfPeriodGoals => 'Goals';
+
+  @override
+  String get teamOfPeriodGoalsPerMatch => 'Goals per match';
+
+  @override
+  String get teamOfPeriodRecord => 'Won / Drawn / Lost';
+
+  @override
+  String get teamOfPeriodWinRate => 'Win rate';
+
+  @override
+  String get teamOfPeriodPointsPerGame => 'Points per game';
+
+  @override
+  String get teamOfPeriodMvpCount => 'Best player awards';
+
+  @override
+  String get teamOfPeriodCurrentRatingNote =>
+      'The rating shown is the player\'s rating today, not their rating during this period.';
+
+  @override
+  String teamOfPeriodMatchCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count matches',
+      one: '1 match',
+      zero: 'No matches',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String teamOfPeriodMatchesOf(int played, int total) {
+    return '$played of $total';
+  }
+
+  @override
+  String get leaderboardLowestRated => 'Lowest Rated';
+
+  @override
+  String get leaderboardLeastActive => 'Least Active';
+
+  @override
+  String get leaderboardFewestWins => 'Fewest Wins';
+
+  @override
+  String get reverseStatisticsTitle => 'Reverse Statistics';
+
+  @override
+  String leaderboardGoalsPerMatch(String value) {
+    return '$value per match';
+  }
+
+  @override
+  String leaderboardPointsPerGame(String value) {
+    return '$value PPG';
+  }
 }

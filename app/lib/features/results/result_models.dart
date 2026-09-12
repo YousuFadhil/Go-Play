@@ -100,8 +100,7 @@ class MatchResult {
   /// The goals actually attributed to a player. The approved rules require this
   /// to equal [teamAScore] + [teamBScore]; nothing here enforces that, because
   /// [validateResultInputs] is where the rules are stated.
-  int get recordedGoals =>
-      goals.fold(0, (total, tally) => total + tally.goals);
+  int get recordedGoals => goals.fold(0, (total, tally) => total + tally.goals);
 
   bool get isDraw => teamAScore == teamBScore;
 
@@ -129,7 +128,18 @@ class MatchResult {
 /// [reversal] is not an outcome of a match but the undoing of one: a correction
 /// records the reversal of every change the previous result made rather than
 /// editing what was already written.
-enum RatingChangeReason { win, loss, goal, mvp, reversal }
+/// Why a rating moved. `participation` and `draw` arrived with Rating
+/// Engine v2 (migration `0073`) and are appended, so no existing value
+/// changes its position.
+enum RatingChangeReason {
+  win,
+  loss,
+  goal,
+  mvp,
+  reversal,
+  participation,
+  draw,
+}
 
 /// One entry of the rating audit — a change that was applied, and the ratings
 /// it moved between.

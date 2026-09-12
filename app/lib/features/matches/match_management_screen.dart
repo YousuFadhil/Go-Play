@@ -159,17 +159,33 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
     }
   }
 
-  Future<void> _openRoster(RegistrationStatus filter, String title,
-      bool canRemove, bool canAddCommunityPlayer, String communityId) async {
+  Future<void> _openRoster(
+      RegistrationStatus filter,
+      String title,
+      bool canRemove,
+      bool canAddCommunityPlayer,
+      Match match,
+      String communityId) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ManageRosterScreen(
           matchId: widget.matchId,
           // Unconditional, and not `canRemove`. This screen is already gated on
-          // the owner/admin role, and the approved rule is that they manage
-          // Professional Guests in every match state — the lock that closes the
-          // community roster does not close this.
+          // the owner/admin role, and the lock that closes the community roster
+          // at kickoff does not close guest management. What the completed state
+          // closes is the guest *add* and the roster removal of a guest who
+          // played, which the roster screen decides from the match below;
+          // renaming stays available throughout.
           canManageGuests: true,
+          // The match itself, not a verdict about it. The roster screen asks it
+          // the lifecycle question at every tap, so a screen left open while
+          // the match finishes stops offering -- and stops sending -- the
+          // roster operations of a match in progress. The ordinary guest add
+          // and removal stop at completion that way: both are roster
+          // operations, and a played match's guests are a record, whose
+          // completed answers live on the Teams screen (0075 writes a guest
+          // into the factual lineup, 0059 takes one out). Renaming stays here.
+          match: match,
           // The same rule about state, for the other kind of participant. It is
           // still not `canRemove`: adding is what the database allows in every
           // ordinary state, removing is what it closes once the match is the
@@ -239,20 +255,34 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
             final scheme = theme.colorScheme;
             final (match, registrations) = snapshot.data!;
             final total = registrations.length;
-            // The match locks at kickoff and stays locked until it completes,
-            // so roster/detail changes are only possible before the start.
-            final canModify = match.isOpenForChanges && !_busy;
-            // Adding a community member is not one of those changes. This
-            // screen is already gated on the owner/admin role, and
-            // `admin_add_player_to_match` turns the time lock off deliberately,
-            // so an ordinary match takes an added player in any state.
+            // CHANGED: the details of a match are editable in every
+            // lifecycle state, any number of times, which is the approved
+            // contract. `isOpenForChanges` is a question about a *player's*
+            // ability to join -- it is false from kickoff onwards -- and using
+            // it as the organizer's edit permission is what locked Edit Match
+            // out of active and completed matches. Which new times are legal is
+            // migration 0074's to answer, and it answers at the database.
+            // `_busy` is the only thing that closes this control.
+            final canEditDetails = canEditMatchDetails(match, busy: _busy);
+            // The ordinary roster path stays a pre-completion one. An owner or
+            // admin adds and removes through it while the match is still to
+            // come or is being played -- which is new for an active match, and
+            // is the approved contract.
             //
-            // A recorded match is the exception, and it is the database's:
-            // `register_player_in_match` raises `MATCH_HISTORICAL` on every
-            // path, time lock or not. Withholding the control there shows the
-            // same answer the server would give, and leaves recorded matches
-            // exactly as they behave today.
-            final canAddCommunityPlayer = !match.isHistorical && !_busy;
+            // Once the match is over it is withheld deliberately: who played is
+            // then a factual record, and correcting it belongs to the Teams
+            // screen's batch path, which reaches
+            // `correct_completed_match_players` and recalculates the ratings
+            // once. Routing it through the registration functions instead would
+            // make the record of who played a side effect of a roster edit.
+            final canManageRoster = canAdministerRoster(match, busy: _busy);
+            // The same boundary for adding somebody who never registered. The
+            // database would still honour `admin_add_player_to_match` on a
+            // completed match, and a recorded (historical) one it refuses
+            // outright with `MATCH_HISTORICAL`; what decides it here is that a
+            // completed match has a canonical correction path of its own.
+            final canAddCommunityPlayer =
+                canAddCommunityPlayerTo(match, busy: _busy);
             // Deletion is time-independent; it will be restricted only once
             // matches can become historical (results, stats, ratings...).
             final canDelete = !_busy;
@@ -323,8 +353,8 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                       leading: const Icon(Icons.edit_outlined),
                       title: Text(l10n.editMatchTitle),
                       trailing: const Icon(Icons.chevron_right),
-                      enabled: canModify,
-                      onTap: canModify ? () => _edit(match) : null,
+                      enabled: canEditDetails,
+                      onTap: canEditDetails ? () => _edit(match) : null,
                     ),
                     ListTile(
                       leading: const Icon(Icons.groups_outlined),
@@ -335,8 +365,9 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                           ? () => _openRoster(
                               RegistrationStatus.confirmed,
                               l10n.managePlayersTitle,
-                              canModify,
+                              canManageRoster,
                               canAddCommunityPlayer,
+                              match,
                               match.communityId)
                           : null,
                     ),
@@ -349,8 +380,9 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                           ? () => _openRoster(
                               RegistrationStatus.reserve,
                               l10n.manageReserveTitle,
-                              canModify,
+                              canManageRoster,
                               canAddCommunityPlayer,
+                              match,
                               match.communityId)
                           : null,
                     ),
@@ -398,3 +430,39 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
     );
   }
 }
+
+/// Whether an owner or admin may edit the match's details right now.
+///
+/// Every lifecycle state, any number of times, which is the approved contract:
+/// a future match is a plan, an active one is being played and a completed one
+/// is a record, and all three can be described wrongly. Only [busy] closes the
+/// control, and only for as long as a save is in flight.
+///
+/// Deliberately NOT `match.isOpenForChanges`. That getter answers a player's
+/// question -- may I still join? -- and is false from kickoff onwards; using it
+/// as the organizer's permission is what locked Edit Match out of active and
+/// completed matches. Which new times are legal is migration `0074`'s answer,
+/// given at the database.
+bool canEditMatchDetails(Match match, {required bool busy}) => !busy;
+
+/// Whether the ordinary roster path may be used to add and remove players.
+///
+/// True while the match is still to come or is being played -- an owner or admin
+/// administers the roster through kickoff, which is the approved contract and is
+/// new for an active match.
+///
+/// False once the match is over, deliberately. Who played is then a factual
+/// record, and correcting it belongs to the Teams screen's batch path, which
+/// reaches `correct_completed_match_players` and recalculates the ratings once.
+/// Routing a historical correction through the registration functions would make
+/// the record of who played a side effect of a roster edit.
+bool canAdministerRoster(Match match, {required bool busy}) =>
+    !match.isCompleted && !busy;
+
+/// Whether to offer adding a community member who never registered themselves.
+///
+/// The same completion boundary as [canAdministerRoster], and one more: a
+/// recorded (historical) match refuses registration outright at the database
+/// with `MATCH_HISTORICAL`, so the control would be offering a refusal.
+bool canAddCommunityPlayerTo(Match match, {required bool busy}) =>
+    !match.isHistorical && !match.isCompleted && !busy;

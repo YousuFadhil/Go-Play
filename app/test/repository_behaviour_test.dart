@@ -1229,6 +1229,8 @@ class FakeTeamAdapter implements TeamAdapter {
   final List<PastMatch> played;
 
   String? lastMatchId;
+  int correctionCalls = 0;
+  List<CompletedPlayerCorrection>? lastCorrections;
   String? lastCommunityId;
   String? lastExcludedMatchId;
   int? lastLimit;
@@ -1237,6 +1239,7 @@ class FakeTeamAdapter implements TeamAdapter {
   /// Whether the last save said it followed a generation. It is the one
   /// thing that clears a guest's chosen side (migration `0058`).
   bool? lastFromGeneration;
+  bool? lastCompletedCorrection;
 
   @override
   Future<List<PlayerCoreInputs>> fetchConfirmedPlayerInputs(
@@ -1262,10 +1265,12 @@ class FakeTeamAdapter implements TeamAdapter {
     String matchId,
     List<TeamAssignment> lineup, {
     bool fromGeneration = false,
+    bool completedCorrection = false,
   }) async {
     lastMatchId = matchId;
     savedLineup = lineup;
     lastFromGeneration = fromGeneration;
+    lastCompletedCorrection = completedCorrection;
   }
 
   @override
@@ -1294,6 +1299,37 @@ class FakeTeamAdapter implements TeamAdapter {
   Future<void> removePlayedPlayer(String matchId, String userId) async {
     lastMatchId = matchId;
     removedUserId = userId;
+  }
+
+  @override
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> corrections,
+  ) async {
+    lastMatchId = matchId;
+    correctionCalls += 1;
+    lastCorrections = corrections;
+  }
+
+  /// The completed-guest correction, recorded the same way.
+  int playedGuestCalls = 0;
+  String? playedGuestName;
+  TeamId? playedGuestTeam;
+  Position? playedGuestPosition;
+
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) async {
+    lastMatchId = matchId;
+    playedGuestCalls += 1;
+    playedGuestName = name;
+    playedGuestTeam = team;
+    playedGuestPosition = position;
+    return 'g-new';
   }
 
   @override

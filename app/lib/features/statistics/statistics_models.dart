@@ -129,6 +129,22 @@ enum LeaderboardKind {
   bool get isRating => this == LeaderboardKind.highestRated;
 }
 
+/// The three measures read from the other end.
+///
+/// **Its own enum, and deliberately not three more [LeaderboardKind] values.**
+/// The Community Statistics share card iterates `LeaderboardKind.values` and
+/// switches on it exhaustively, so extending that enum would either break it or
+/// put these boards on a picture meant to celebrate a community. Keeping them
+/// apart is what lets the screen gain a section while the card stays exactly as
+/// it was approved.
+enum ReverseLeaderboardKind {
+  lowestRated,
+  leastActive,
+  fewestWins;
+
+  bool get isRating => this == ReverseLeaderboardKind.lowestRated;
+}
+
 /// One row of a board: who, where they placed, and on what.
 class LeaderboardEntry {
   const LeaderboardEntry({
@@ -137,6 +153,7 @@ class LeaderboardEntry {
     required this.rank,
     required this.value,
     this.avatarUrl,
+    this.secondary,
   });
 
   final String userId;
@@ -153,6 +170,11 @@ class LeaderboardEntry {
 
   /// `double` for a rating, `int` for a count. The screen formats it by kind.
   final num value;
+
+  /// Context under [value] where a board carries any: goals per match on Top
+  /// Scorer, points per game on Most Wins. **Display only** — the board is
+  /// still ranked by [value], and this never enters a comparison.
+  final num? secondary;
 }
 
 /// One board: a measure, and the top three who lead it.
@@ -163,6 +185,18 @@ class Leaderboard {
 
   /// At most three, best first. Never empty — a board with nothing to say is
   /// not built at all.
+  final List<LeaderboardEntry> entries;
+}
+
+/// One reverse board: the three at the low end of a measure.
+///
+/// Unlike [Leaderboard], zero is a legitimate place here — a member who has not
+/// played is exactly who Least Active is about — so a reverse board is built
+/// whenever the community has members.
+class ReverseLeaderboard {
+  const ReverseLeaderboard({required this.kind, required this.entries});
+
+  final ReverseLeaderboardKind kind;
   final List<LeaderboardEntry> entries;
 }
 
@@ -303,7 +337,11 @@ class PlayerAchievementRecency {
 /// new shape: [dashboard] is what `fetchDashboard` builds and [boards] is what
 /// `fetchLeaderboards` builds, assembled from one set of reads instead of two.
 class CommunityStatistics {
-  const CommunityStatistics({required this.dashboard, required this.boards});
+  const CommunityStatistics({
+    required this.dashboard,
+    required this.boards,
+    this.reverseBoards = const [],
+  });
 
   /// The three community totals, and the three leaders the old Dashboard drew.
   ///
@@ -319,6 +357,10 @@ class CommunityStatistics {
   /// tab received them. A measure nobody has achieved yet produces no board,
   /// so this can be shorter than five and can be empty.
   final List<Leaderboard> boards;
+
+  /// Lowest Rated, Least Active and Fewest Wins, in that order. Empty only for
+  /// a community with no members. Not read by the share card.
+  final List<ReverseLeaderboard> reverseBoards;
 
   /// The board for [kind], or null where the measure has not happened yet.
   ///

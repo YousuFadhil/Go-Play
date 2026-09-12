@@ -6,6 +6,7 @@ import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/states.dart';
 import 'package:go_play/features/statistics/community_leaderboards_tab.dart';
+import 'package:go_play/features/statistics/team_of_period_models.dart';
 import 'package:go_play/features/statistics/community_statistics_tab.dart';
 import 'package:go_play/features/statistics/stat_card.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
@@ -13,6 +14,7 @@ import 'package:go_play/features/statistics/statistics_models.dart';
 import 'package:go_play/features/statistics/statistics_period.dart';
 import 'package:go_play/features/statistics/statistics_period_selector.dart';
 import 'package:go_play/features/statistics/statistics_repository.dart';
+import 'package:go_play/features/statistics/team_of_period_screen.dart';
 
 /// The one Statistics tab.
 ///
@@ -335,6 +337,47 @@ void main() {
       expect(find.byType(LeaderboardCard), findsNWidgets(5));
     });
   });
+
+  group('the way in to the Team of Period', () {
+    testWidgets('one entry sits between the summary and the boards',
+        (tester) async {
+      await pumpTab(tester);
+
+      final entry = find.byKey(const ValueKey('team-of-period-cta'));
+      expect(entry, findsOneWidget, reason: 'exactly one call to action');
+
+      // After the three summary cards, before the leaderboards heading.
+      final summary = tester.getCenter(find.text('Completed matches')).dy;
+      final boards = tester.getCenter(find.text('Leaders')).dy;
+      final cta = tester.getCenter(entry).dy;
+      expect(summary, lessThan(cta));
+      expect(cta, lessThan(boards));
+    });
+
+    testWidgets('the entry opens the Team of Period screen', (tester) async {
+      await pumpTab(tester);
+
+      await tester.tap(find.byKey(const ValueKey('team-of-period-cta')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.byType(TeamOfPeriodScreen), findsOneWidget);
+    });
+
+    testWidgets('it does not disturb the statistics period selector',
+        (tester) async {
+      // The two are different questions: this selector says which stretch the
+      // figures above cover, and the award is always the last period that
+      // finished. Nothing here changes what the selector offers or shows.
+      await pumpTab(tester);
+
+      expect(find.text('Weekly'), findsOneWidget);
+      expect(find.text('Monthly'), findsOneWidget);
+      expect(find.text('All time'), findsOneWidget);
+      expect(find.byKey(const ValueKey('team-of-period-cta')), findsOneWidget);
+    });
+  });
+
 }
 
 /// The statistics port, answering from memory and counting what it was asked.
@@ -420,4 +463,26 @@ class _Adapter implements StatisticsAdapter {
     StatisticsPeriod period,
   ) =>
       throw UnimplementedError('the Statistics tab reads no player totals');
+
+  // Team of Period is a separate read path with its own period vocabulary
+  // (migration 0070). Nothing in this suite reaches it.
+  @override
+  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      throw UnimplementedError('no Team of Period read here');
+
+  @override
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
+          throw UnimplementedError('no Team of Period identities here');
+
 }

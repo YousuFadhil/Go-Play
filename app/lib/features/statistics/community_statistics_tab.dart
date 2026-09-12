@@ -6,13 +6,15 @@ import '../../core/states.dart';
 import '../sharing/share_card_flow.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
-import 'community_leaderboards_tab.dart' show LeaderboardCard;
+import 'community_leaderboards_tab.dart'
+    show LeaderboardCard, ReverseLeaderboardCard;
 import 'community_statistics_card.dart';
 import 'stat_card.dart';
 import 'statistics_models.dart';
 import 'statistics_period.dart';
 import 'statistics_period_selector.dart';
 import 'statistics_repository.dart';
+import 'team_of_period_screen.dart';
 
 /// The Statistics tab: what this community has done, and who is ahead in it,
 /// over the one period the reader picked.
@@ -35,6 +37,7 @@ class CommunityStatisticsTab extends StatefulWidget {
   const CommunityStatisticsTab({
     super.key,
     required this.communityId,
+    this.communityLogoUrl,
     this.communityName,
     this.repository,
     this.renderer,
@@ -42,6 +45,10 @@ class CommunityStatisticsTab extends StatefulWidget {
   });
 
   final String communityId;
+
+  /// Passed through to the Team of Period card so the crest needs no read of
+  /// its own. Presentation only.
+  final String? communityLogoUrl;
 
   /// What this community is called, for the card that carries these figures.
   ///
@@ -253,6 +260,10 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
                 child: _StatisticsBody(
                   statistics: snapshot.data!,
                   period: _period,
+                  communityId: widget.communityId,
+                  communityName: widget.communityName,
+                  communityLogoUrl: widget.communityLogoUrl,
+                  repository: widget.repository,
                 ),
               );
             },
@@ -265,10 +276,24 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
 
 /// The totals, then the boards. In that order and only once each.
 class _StatisticsBody extends StatelessWidget {
-  const _StatisticsBody({required this.statistics, required this.period});
+  const _StatisticsBody({
+    required this.statistics,
+    required this.period,
+    required this.communityId,
+    this.communityName,
+    this.communityLogoUrl,
+    this.repository,
+  });
 
   final CommunityStatistics statistics;
   final StatisticsPeriod period;
+  final String communityId;
+  final String? communityName;
+  final String? communityLogoUrl;
+
+  /// Handed to the Team of Period screen so a test can inject one. Production
+  /// passes nothing and the screen builds its own.
+  final StatisticsRepository? repository;
 
   @override
   Widget build(BuildContext context) {
@@ -329,6 +354,23 @@ class _StatisticsBody extends StatelessWidget {
             ),
           ),
         ),
+        // Between the summary and the boards, which is where the approved
+        // experience puts it: after what the community did, before who leads.
+        //
+        // **One card and one destination.** The pitch is not embedded here --
+        // Statistics is a page somebody scrolls, and a pitch inside it would
+        // compete with the boards below for the same attention while answering
+        // a different question.
+        //
+        // Its period is not this tab's. The selector above may be showing All
+        // Time or the week now running; the award is always the last week or
+        // month that finished, and the two never share state.
+        _TeamOfPeriodEntry(
+          communityId: communityId,
+          communityName: communityName,
+          communityLogoUrl: communityLogoUrl,
+          repository: repository,
+        ),
         SectionHeading(title: l10n.statLeadersTitle),
         // Every board was empty, which means nothing has happened here yet
         // rather than that something is wrong. One message says so once,
@@ -353,6 +395,10 @@ class _StatisticsBody extends StatelessWidget {
           // the screen is where somebody is reading, and second place is worth
           // reading.
           for (final board in boards) LeaderboardCard(board: board),
+        // After every positive board, collapsed until asked for. The low end of
+        // a table is worth being able to read and not worth leading with.
+        if (statistics.reverseBoards.isNotEmpty)
+          _ReverseStatistics(boards: statistics.reverseBoards),
         // Which stretch the counted figures cover. Said before the rating note,
         // because in a bounded period the two together are the whole answer:
         // the counters are this week's, and the rating is not a week's figure
@@ -365,6 +411,104 @@ class _StatisticsBody extends StatelessWidget {
         // is the player's rating everywhere, not their rating here.
         if (showsRating) FootNote(l10n.leaderboardRatingNote),
         FootNote(l10n.statScopeNote),
+      ],
+    );
+  }
+}
+
+/// The one way into the Team of Period, from Statistics.
+///
+/// Club tokens throughout and nothing invented: the same [SectionHeading] the
+/// sections around it use, the same card surface, the same page margin.
+class _TeamOfPeriodEntry extends StatelessWidget {
+  const _TeamOfPeriodEntry({
+    required this.communityId,
+    this.communityName,
+    this.communityLogoUrl,
+    this.repository,
+  });
+
+  final String communityId;
+  final String? communityName;
+  final String? communityLogoUrl;
+  final StatisticsRepository? repository;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeading(title: l10n.teamOfPeriodTitle),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: kPageMargin),
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(Gap.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.teamOfPeriodCtaSubtitle,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: Gap.md),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: FilledButton.tonalIcon(
+                      key: const ValueKey('team-of-period-cta'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => TeamOfPeriodScreen(
+                            communityId: communityId,
+                            communityName: communityName,
+                            communityLogoUrl: communityLogoUrl,
+                            repository: repository,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.emoji_events_outlined),
+                      label: Text(l10n.teamOfPeriodCtaAction),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Lowest Rated, Least Active and Fewest Wins, behind one control.
+///
+/// Collapsed by default, and the boards are not built until it opens. The same
+/// cards as the boards above it; no new screen and no new route.
+class _ReverseStatistics extends StatelessWidget {
+  const _ReverseStatistics({required this.boards});
+
+  final List<ReverseLeaderboard> boards;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    return ExpansionTile(
+      key: const ValueKey('reverse-statistics'),
+      tilePadding: const EdgeInsets.symmetric(horizontal: kPageMargin),
+      childrenPadding: EdgeInsets.zero,
+      shape: const Border(),
+      collapsedShape: const Border(),
+      title: Text(
+        l10n.reverseStatisticsTitle,
+        style: theme.textTheme.titleMedium,
+      ),
+      children: [
+        for (final board in boards) ReverseLeaderboardCard(board: board),
       ],
     );
   }

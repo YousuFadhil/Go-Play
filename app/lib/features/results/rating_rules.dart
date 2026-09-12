@@ -25,6 +25,8 @@ class RatingRules {
     required this.goal,
     required this.goalCap,
     required this.mvp,
+    required this.participation,
+    required this.draw,
   });
 
   /// What each player on the winning side gains.
@@ -43,22 +45,31 @@ class RatingRules {
 
   /// What being the best player on the pitch is worth.
   final double mvp;
+
+  /// What every real player on the lineup gains for taking part.
+  final double participation;
+
+  /// What each player on either side of a drawn match gains.
+  final double draw;
 }
 
-/// The approved values. A draw is not among them: it is the absence of a win and
-/// of a loss, so a drawn side gets no entry from the outcome at all.
+/// Rating Engine v2, the approved values (migration `0073`).
 ///
-/// The five hold together rather than standing alone: the goal bonus caps at
-/// exactly what a loss costs, so a loser's goals can at best bring them back to
-/// where they started, and the MVP award is smaller than a win — which is what
-/// keeps a winner who did nothing else ahead of a losing top scorer who was also
-/// named best on the pitch (+0.10 against +0.05).
+/// A win still outweighs everything a loser can add: five goals and the
+/// MVP bring a loser to +0.055, while a winner who did nothing else earns
+/// +0.105. A draw is now worth something of its own, and turning up is
+/// worth +0.005 to everyone who played.
+///
+/// **Not the Period Form Score.** PFS v1 keeps its own frozen weights, with
+/// no participation and no draw bonus, and is untouched by this.
 const ratingRules = RatingRules(
   win: 0.10,
   loss: -0.10,
   goal: 0.02,
   goalCap: 0.10,
   mvp: 0.05,
+  participation: 0.005,
+  draw: 0.01,
 );
 
 /// The lowest and highest rating a player may hold (`OP-1`).
@@ -103,17 +114,38 @@ List<RatingDelta> ratingDeltasFor(
   // have no account, so there is no rating for one to move. This mirrors
   // migration `0046`, which filters the same participants out of the database's
   // own engine, and it is what keeps the two statements of the rules in step.
-  if (!result.isDraw) {
-    for (final assignment in lineup) {
-      final userId = assignment.userId;
-      if (userId == null) continue;
-      final won = assignment.team == result.winner;
+  // PARTICIPATION first, once per real player however many rows name them.
+  final played = <String>{};
+  for (final assignment in lineup) {
+    final userId = assignment.userId;
+    if (userId == null || !played.add(userId)) continue;
+    deltas.add(RatingDelta(
+      userId: userId,
+      reason: RatingChangeReason.participation,
+      delta: rules.participation,
+    ));
+  }
+
+  // OUTCOME: a win, a loss, or a draw -- which since v2 is an entry of its
+  // own for every real player rather than the absence of one.
+  final decided = <String>{};
+  for (final assignment in lineup) {
+    final userId = assignment.userId;
+    if (userId == null || !decided.add(userId)) continue;
+    if (result.isDraw) {
       deltas.add(RatingDelta(
         userId: userId,
-        reason: won ? RatingChangeReason.win : RatingChangeReason.loss,
-        delta: won ? rules.win : rules.loss,
+        reason: RatingChangeReason.draw,
+        delta: rules.draw,
       ));
+      continue;
     }
+    final won = assignment.team == result.winner;
+    deltas.add(RatingDelta(
+      userId: userId,
+      reason: won ? RatingChangeReason.win : RatingChangeReason.loss,
+      delta: won ? rules.win : rules.loss,
+    ));
   }
 
   // Scorers in the lineup's order, so two runs over the same result produce the

@@ -73,6 +73,11 @@ void main() {
   Future<void> storeLineup() async {
     await owner.client.rpc('replace_match_lineup', params: {
       'p_match_id': matchId,
+      // The match is played: this is an explicit correction to the
+      // record of who played, which migration 0071 requires a caller
+      // to state. A generation is refused here, deliberately.
+      'p_from_generation': false,
+      'p_completed_correction': true,
       'p_assignments': [
         seat(owner, 'A', 'GK'),
         seat(admin, 'A', 'MID'),
@@ -172,6 +177,11 @@ void main() {
       // player2 moves from the losing side to the winning one.
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': matchId,
+        // The match is played: this is an explicit correction to the
+        // record of who played, which migration 0071 requires a caller
+        // to state. A generation is refused here, deliberately.
+        'p_from_generation': false,
+        'p_completed_correction': true,
         'p_assignments': [
           seat(owner, 'A', 'GK'),
           seat(admin, 'A', 'MID'),
@@ -192,6 +202,11 @@ void main() {
 
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': matchId,
+        // The match is played: this is an explicit correction to the
+        // record of who played, which migration 0071 requires a caller
+        // to state. A generation is refused here, deliberately.
+        'p_from_generation': false,
+        'p_completed_correction': true,
         'p_assignments': [
           seat(owner, 'A', 'GK'),
           seat(admin, 'A', 'MID'),
@@ -213,6 +228,11 @@ void main() {
       final outcome = await outcomeOf(() async {
         await owner.client.rpc('replace_match_lineup', params: {
           'p_match_id': second,
+          // The match is played: this is an explicit correction to the
+          // record of who played, which migration 0071 requires a caller
+          // to state. A generation is refused here, deliberately.
+          'p_from_generation': false,
+          'p_completed_correction': true,
           'p_assignments': [seat(owner, 'A', 'GK'), seat(admin, 'B', 'MID')],
         });
       });
@@ -264,8 +284,11 @@ void main() {
       final after = await countersOf(player2);
       expect(after['matches_played'], before['matches_played']! - 1);
       expect(after['losses'], before['losses']! - 1);
-      expect(await ratingOf(player2), closeTo(ratingBefore + 0.10, 0.001),
-          reason: 'the 0.10 the loss cost them comes back');
+      // Rating Engine v2: the match cost them 0.095, not 0.100 -- the loss was
+      // -0.100 and taking part was worth +0.005 -- and removal gives back
+      // everything the match gave them, the participation included.
+      expect(await ratingOf(player2), closeTo(ratingBefore + 0.095, 0.001),
+          reason: 'the 0.095 the match cost them comes back');
     });
 
     test('the assignment basis is derived, never taken from the caller',
@@ -336,6 +359,11 @@ void main() {
       final outcome = await outcomeOf(() async {
         await owner.client.rpc('replace_match_lineup', params: {
           'p_match_id': matchId,
+          // The match is played: this is an explicit correction to the
+          // record of who played, which migration 0071 requires a caller
+          // to state. A generation is refused here, deliberately.
+          'p_from_generation': false,
+          'p_completed_correction': true,
           'p_assignments': [
             seat(owner, 'A', 'GK'),
             seat(admin, 'A', 'MID'),
@@ -425,6 +453,11 @@ void main() {
       // The operation that used to corrupt the row.
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': matchId,
+        // The match is played: this is an explicit correction to the
+        // record of who played, which migration 0071 requires a caller
+        // to state. A generation is refused here, deliberately.
+        'p_from_generation': false,
+        'p_completed_correction': true,
         'p_assignments': [
           seat(owner, 'A', 'GK'),
           seat(admin, 'A', 'MID'),

@@ -64,8 +64,13 @@ void main() {
     await addMember(owner, communityId, admin, role: 'admin');
     await addMember(owner, communityId, player);
     await addMember(owner, communityId, player2);
+    // In the past, because a final result belongs to a match that has been
+    // played: migration 0074 refuses one with MATCH_NOT_COMPLETED while the
+    // match is still to come or is under way, and every test below records a
+    // result. Day 26 stays this file's window; it is simply behind us now.
+    // The refusal itself is covered by all_state_match_management_test.dart.
     matchId = await createMatch(owner, communityId,
-        startsIn: const Duration(days: 26), startingPlayers: 4);
+        startsIn: const Duration(days: -26), startingPlayers: 4);
   });
 
   /// Deleting the community deletes its matches, and the `before delete` trigger
@@ -79,6 +84,12 @@ void main() {
   Future<void> storeLineup() async {
     await owner.client.rpc('replace_match_lineup', params: {
       'p_match_id': matchId,
+      // The match is played, so this is an explicit correction to the record of
+      // who played rather than a generation: migration 0071 refuses a
+      // generation on a completed match, and the flag is how the caller says
+      // which of the two it means.
+      'p_from_generation': false,
+      'p_completed_correction': true,
       'p_assignments': [
         {
           'user_id': owner.id,
@@ -234,8 +245,8 @@ void main() {
         owner.client
             .from('users')
             .update({'overall_rating': 9.9}).eq('id', owner.id),
-        throwsA(isA<PostgrestException>()
-            .having((e) => e.code, 'code', '42501')),
+        throwsA(
+            isA<PostgrestException>().having((e) => e.code, 'code', '42501')),
       );
       expect(await ratingOf(owner), closeTo(before, 0.001));
     });
@@ -259,12 +270,16 @@ void main() {
 
       final history = await owner.client
           .from('rating_history')
-          .update({'delta': 9.9}).eq('match_id', matchId).select();
+          .update({'delta': 9.9})
+          .eq('match_id', matchId)
+          .select();
       expect(history, isEmpty, reason: 'no update policy exists');
 
       final counters = await owner.client
           .from('player_statistics')
-          .update({'wins': 99}).eq('user_id', owner.id).select();
+          .update({'wins': 99})
+          .eq('user_id', owner.id)
+          .select();
       expect(counters, isEmpty);
     });
   });
@@ -274,13 +289,9 @@ void main() {
 
     test('goals that do not add up to the score are refused', () async {
       expect(
-        await recordRaw(owner,
-            teamA: 3,
-            teamB: 0,
-            mvpUserId: owner.id,
-            goals: [
-              {'user_id': owner.id, 'goals': 1},
-            ]),
+        await recordRaw(owner, teamA: 3, teamB: 0, mvpUserId: owner.id, goals: [
+          {'user_id': owner.id, 'goals': 1},
+        ]),
         'GOALS_DO_NOT_MATCH_SCORE',
       );
     });
@@ -294,27 +305,19 @@ void main() {
 
     test('a negative goal tally is refused', () async {
       expect(
-        await recordRaw(owner,
-            teamA: 0,
-            teamB: 0,
-            mvpUserId: owner.id,
-            goals: [
-              {'user_id': owner.id, 'goals': -1},
-            ]),
+        await recordRaw(owner, teamA: 0, teamB: 0, mvpUserId: owner.id, goals: [
+          {'user_id': owner.id, 'goals': -1},
+        ]),
         'INVALID_GOALS',
       );
     });
 
     test('the same scorer twice is refused', () async {
       expect(
-        await recordRaw(owner,
-            teamA: 3,
-            teamB: 0,
-            mvpUserId: owner.id,
-            goals: [
-              {'user_id': owner.id, 'goals': 1},
-              {'user_id': owner.id, 'goals': 2},
-            ]),
+        await recordRaw(owner, teamA: 3, teamB: 0, mvpUserId: owner.id, goals: [
+          {'user_id': owner.id, 'goals': 1},
+          {'user_id': owner.id, 'goals': 2},
+        ]),
         'INVALID_GOALS',
       );
     });
@@ -328,13 +331,9 @@ void main() {
 
     test('a scorer who did not play is refused', () async {
       expect(
-        await recordRaw(owner,
-            teamA: 1,
-            teamB: 0,
-            mvpUserId: owner.id,
-            goals: [
-              {'user_id': outsider.id, 'goals': 1},
-            ]),
+        await recordRaw(owner, teamA: 1, teamB: 0, mvpUserId: owner.id, goals: [
+          {'user_id': outsider.id, 'goals': 1},
+        ]),
         'SCORER_NOT_PARTICIPANT',
       );
     });
@@ -399,45 +398,47 @@ void main() {
     test('the winners gain 0.10 and the losers are charged 0.10', () async {
       await record(owner, teamA: 1, teamB: 0, mvp: player, goals: {owner: 1});
 
+      // Everyone +0.005 for playing, then
       // owner: win 0.10 + goal 0.02   admin: win 0.10
       // player: loss -0.10 + mvp 0.05  player2: loss -0.10
-      expect(await gainOf(owner), closeTo(0.12, 0.001));
-      expect(await gainOf(admin), closeTo(0.10, 0.001));
-      expect(await gainOf(player), closeTo(-0.05, 0.001));
-      expect(await gainOf(player2), closeTo(-0.10, 0.001));
+      expect(await gainOf(owner), closeTo(0.125, 0.001));
+      expect(await gainOf(admin), closeTo(0.105, 0.001));
+      expect(await gainOf(player), closeTo(-0.045, 0.001));
+      expect(await gainOf(player2), closeTo(-0.095, 0.001));
     });
 
-    test('a draw charges nobody and rewards nobody for the outcome', () async {
+    test('a draw rewards everyone who played it', () async {
       await record(owner,
           teamA: 1, teamB: 1, mvp: owner, goals: {owner: 1, player: 1});
 
-      // owner: goal 0.02 + mvp 0.05; admin untouched; player: goal 0.02.
-      expect(await gainOf(owner), closeTo(0.07, 0.001));
-      expect(await gainOf(admin), closeTo(0.0, 0.001));
-      expect(await gainOf(player), closeTo(0.02, 0.001));
-      expect(await gainOf(player2), closeTo(0.0, 0.001));
+      // Everyone: participation 0.005 + draw 0.010; on top of that
+      // owner: goal 0.02 + mvp 0.05; player: goal 0.02.
+      expect(await gainOf(owner), closeTo(0.085, 0.001));
+      expect(await gainOf(admin), closeTo(0.015, 0.001));
+      expect(await gainOf(player), closeTo(0.035, 0.001));
+      expect(await gainOf(player2), closeTo(0.015, 0.001));
     });
 
     test('a goalless match still moves the outcome and the best player',
         () async {
       await record(owner, teamA: 0, teamB: 0, mvp: player2);
 
-      expect(await gainOf(owner), closeTo(0.0, 0.001));
-      expect(await gainOf(player2), closeTo(0.05, 0.001));
+      expect(await gainOf(owner), closeTo(0.015, 0.001));
+      expect(await gainOf(player2), closeTo(0.065, 0.001));
     });
 
     test('several goals by one player are worth 0.02 each', () async {
       await record(owner, teamA: 3, teamB: 0, mvp: player, goals: {owner: 3});
 
-      // win 0.10 + three goals 0.06.
-      expect(await gainOf(owner), closeTo(0.16, 0.001));
+      // participation 0.005 + win 0.10 + three goals 0.06.
+      expect(await gainOf(owner), closeTo(0.165, 0.001));
     });
 
     test('a scorer past the fifth goal gains no more than the cap', () async {
       await record(owner, teamA: 6, teamB: 0, mvp: player, goals: {owner: 6});
 
-      // win 0.10 + goals capped at 0.10.
-      expect(await gainOf(owner), closeTo(0.20, 0.001));
+      // participation 0.005 + win 0.10 + goals capped at 0.10.
+      expect(await gainOf(owner), closeTo(0.205, 0.001));
     });
 
     test('the losing top scorer with the MVP stays below a plain winner',
@@ -445,13 +446,10 @@ void main() {
       // The rule the values exist to serve, as the database applies it: player
       // loses, scores five and is named best on the pitch; admin only won.
       await record(owner,
-          teamA: 6,
-          teamB: 5,
-          mvp: player,
-          goals: {owner: 6, player: 5});
+          teamA: 6, teamB: 5, mvp: player, goals: {owner: 6, player: 5});
 
-      expect(await gainOf(player), closeTo(0.05, 0.001));
-      expect(await gainOf(admin), closeTo(0.10, 0.001));
+      expect(await gainOf(player), closeTo(0.055, 0.001));
+      expect(await gainOf(admin), closeTo(0.105, 0.001));
       expect(await gainOf(player), lessThan(await gainOf(admin)));
     });
 
@@ -514,9 +512,13 @@ void main() {
       await record(owner, teamA: 1, teamB: 0, mvp: owner, goals: {owner: 1});
 
       final history = await repositoryFor(owner).fetchRatingHistory(matchId);
-      final mine = [for (final c in history) if (c.userId == owner.id) c];
+      final mine = [
+        for (final c in history)
+          if (c.userId == owner.id) c
+      ];
 
       expect(mine.map((c) => c.reason), [
+        RatingChangeReason.participation,
         RatingChangeReason.win,
         RatingChangeReason.goal,
         RatingChangeReason.mvp,
@@ -529,10 +531,12 @@ void main() {
       await record(owner, teamA: 0, teamB: 0, mvp: owner);
 
       final history = await repositoryFor(owner).fetchRatingHistory(matchId);
-      final mvp = history.singleWhere((c) => c.reason == RatingChangeReason.mvp);
+      final mvp =
+          history.singleWhere((c) => c.reason == RatingChangeReason.mvp);
 
-      expect(mvp.ratingBefore, closeTo(5.00, 0.001));
-      expect(mvp.ratingAfter, closeTo(5.05, 0.001));
+      // Participation (+0.005) and the draw (+0.010) are applied first.
+      expect(mvp.ratingBefore, closeTo(5.015, 0.001));
+      expect(mvp.ratingAfter, closeTo(5.065, 0.001));
       expect(mvp.delta, closeTo(0.05, 0.001));
       expect(mvp.reversesId, isNull);
     });
@@ -555,9 +559,8 @@ void main() {
       expect(mine.draws, 0);
       expect(mine.goals, 1);
       expect(mine.mvpCount, 1);
-      // win 0.10 + goal 0.02 + mvp 0.05.
-      expect(mine.currentRating,
-          closeTo(baseline[owner.id]! + 0.17, 0.001));
+      // participation 0.005 + win 0.10 + goal 0.02 + mvp 0.05.
+      expect(mine.currentRating, closeTo(baseline[owner.id]! + 0.175, 0.001));
 
       final theirs = await statisticsOf(player);
       expect(theirs.matchesPlayed, 1);
@@ -592,11 +595,10 @@ void main() {
       await captureBaseline();
     });
 
-    test('the ratings end where the new result alone would put them',
-        () async {
+    test('the ratings end where the new result alone would put them', () async {
       await record(owner, teamA: 3, teamB: 0, mvp: owner, goals: {owner: 3});
-      // 3-0 with a hat-trick and the MVP: 0.10 + 0.06 + 0.05.
-      expect(await gainOf(owner), closeTo(0.21, 0.001));
+      // 3-0 with a hat-trick and the MVP: 0.005 + 0.10 + 0.06 + 0.05.
+      expect(await gainOf(owner), closeTo(0.215, 0.001));
 
       await record(owner, teamA: 0, teamB: 1, mvp: player, goals: {player: 1});
       // Every change the 3-0 made is given back, and the 0-1 applied in its
@@ -604,8 +606,8 @@ void main() {
       // now on the winning side, having scored it and taken the MVP — collects
       // all three. Neither carries anything over from the result that was
       // replaced.
-      expect(await gainOf(owner), closeTo(-0.10, 0.001));
-      expect(await gainOf(player), closeTo(0.17, 0.001));
+      expect(await gainOf(owner), closeTo(-0.095, 0.001));
+      expect(await gainOf(player), closeTo(0.175, 0.001));
     });
 
     test('the counters end where the new result alone would put them',
@@ -654,7 +656,10 @@ void main() {
         expect(kept.reason, original.reason);
       }
 
-      final reversals = [for (final c in after) if (c.isReversal) c];
+      final reversals = [
+        for (final c in after)
+          if (c.isReversal) c
+      ];
       expect(reversals, hasLength(first.length),
           reason: 'every change the first result made was given back');
       expect(
@@ -670,8 +675,8 @@ void main() {
       await record(owner, teamA: 0, teamB: 0, mvp: admin);
 
       // Only the last result stands: a draw, with admin as best player.
-      expect(await gainOf(owner), closeTo(0.0, 0.001));
-      expect(await gainOf(admin), closeTo(0.05, 0.001));
+      expect(await gainOf(owner), closeTo(0.015, 0.001));
+      expect(await gainOf(admin), closeTo(0.065, 0.001));
 
       final mine = await statisticsOf(owner);
       expect(mine.matchesPlayed, 1);
@@ -699,8 +704,8 @@ void main() {
 
       await expectLater(
         record(owner, teamA: 4, teamB: 0, mvp: owner, goals: {owner: 1}),
-        throwsA(isA<ValidationFailure>().having((f) => f.reason, 'reason',
-            FailureReason.goalsDoNotMatchScore)),
+        throwsA(isA<ValidationFailure>().having(
+            (f) => f.reason, 'reason', FailureReason.goalsDoNotMatchScore)),
       );
     });
   });
@@ -715,14 +720,14 @@ void main() {
       // Without this a deleted match would leave the ratings it produced
       // standing, credited to something that no longer exists.
       await record(owner, teamA: 2, teamB: 0, mvp: owner, goals: {owner: 2});
-      expect(await gainOf(owner), closeTo(0.40, 0.001));
+      // participation 0.005 + win 0.10 + two goals 0.04 + mvp 0.05.
+      expect(await gainOf(owner), closeTo(0.195, 0.001));
 
       await owner.client.rpc('delete_match', params: {'p_match_id': matchId});
 
       for (final user in squad) {
         expect(await gainOf(user), closeTo(0.0, 0.001), reason: user.label);
-        expect((await statisticsOf(user)).matchesPlayed, 0,
-            reason: user.label);
+        expect((await statisticsOf(user)).matchesPlayed, 0, reason: user.label);
       }
     });
   });

@@ -668,6 +668,13 @@
   "choosePositionTitle": "Which position?",
   "errResultParticipantRemoved": "This player is the best player or a scorer in the recorded result. Edit the result first.",
   "errMatchNotCompleted": "Only a completed match's players can be corrected this way.",
+  "editPlayedParticipantsAction": "Edit played participants",
+  "playedParticipantsHint": "Choose who played, then say which side and position each of them played in.",
+  "savePlayedParticipantsButton": "{count, plural, =0{Save corrections} =1{Save 1 participant} other{Save {count} participants}}",
+  "@savePlayedParticipantsButton": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "errInvalidChanges": "The participant corrections are invalid.",
 
   "communityTitle": "Community",
   "discoverHeroTitle": "Football, with your people.",
@@ -890,5 +897,48 @@
   "adminMetricStartingPlayers": "Starting players",
   "adminMetricScore": "Score",
   "adminMetricResultRecorded": "Result recorded",
-  "adminMetricLastActivity": "Last activity"
+  "adminMetricLastActivity": "Last activity",
+
+  "teamOfPeriodTitle": "Team of the Period",
+  "teamOfPeriodCtaSubtitle": "The best players of the last completed week or month",
+  "teamOfPeriodCtaAction": "View the team",
+  "teamOfPeriodWeekTab": "Week",
+  "teamOfPeriodMonthTab": "Month",
+  "teamOfPeriodWeekHeading": "Team of the Week",
+  "teamOfPeriodMonthHeading": "Team of the Month",
+  "teamOfPeriodNoMatches": "No qualifying matches were completed in this period.",
+  "teamOfPeriodNoEligible": "Matches were played, but nobody played the {matches} needed to qualify.",
+  "@teamOfPeriodNoEligible": {
+    "placeholders": {
+      "matches": {
+        "type": "int"
+      }
+    }
+  },
+  "teamOfPeriodPlayerFallback": "Player",
+  "teamOfPeriodAwardedPosition": "Awarded position",
+  "teamOfPeriodCurrentRating": "Current rating",
+  "teamOfPeriodMatchesPlayed": "Matches played",
+  "teamOfPeriodParticipation": "Participation",
+  "teamOfPeriodGoals": "Goals",
+  "teamOfPeriodGoalsPerMatch": "Goals per match",
+  "teamOfPeriodRecord": "Won / Drawn / Lost",
+  "teamOfPeriodWinRate": "Win rate",
+  "teamOfPeriodPointsPerGame": "Points per game",
+  "teamOfPeriodMvpCount": "Best player awards",
+  "teamOfPeriodCurrentRatingNote": "The rating shown is the player's rating today, not their rating during this period.",
+
+  "teamOfPeriodMatchCount": "{count, plural, =0{No matches} =1{1 match} other{{count} matches}}",
+  "@teamOfPeriodMatchCount": { "placeholders": { "count": { "type": "int" } } },
+  "teamOfPeriodMatchesOf": "{played} of {total}",
+  "@teamOfPeriodMatchesOf": { "placeholders": { "played": { "type": "int" }, "total": { "type": "int" } } },
+
+  "leaderboardLowestRated": "Lowest Rated",
+  "leaderboardLeastActive": "Least Active",
+  "leaderboardFewestWins": "Fewest Wins",
+  "reverseStatisticsTitle": "Reverse Statistics",
+  "leaderboardGoalsPerMatch": "{value} per match",
+  "@leaderboardGoalsPerMatch": { "placeholders": { "value": { "type": "String" } } },
+  "leaderboardPointsPerGame": "{value} PPG",
+  "@leaderboardPointsPerGame": { "placeholders": { "value": { "type": "String" } } }
 }

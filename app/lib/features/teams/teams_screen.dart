@@ -18,6 +18,7 @@ import '../sharing/share_card_flow.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import 'match_stage.dart';
+import 'played_participants_sheet.dart';
 import 'match_stage_board.dart';
 import 'team_generation_settings.dart';
 import 'team_models.dart';
@@ -243,6 +244,23 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// what keeps the stored lineup the only source of truth.
   Future<void> _generate(_TeamsView view, {required bool replacing}) async {
     if (_busy) return;
+
+    // The screen may have been built before `end_at` and left open until after
+    // it passed, so the button being on screen is not evidence that generating
+    // is still allowed. `canGenerate` reads the clock, so asking it again here
+    // is asking about now.
+    //
+    // Nothing is generated and nothing is written; the screen is reloaded so
+    // what is shown catches up with the match that has since finished. No new
+    // dialog: the controls simply will not be there after the reload, which is
+    // the same answer the screen would have given had it been built a moment
+    // later. The database stays the final authority for a race that lands
+    // after this check.
+    if (!view.canGenerate) {
+      _reload();
+      return;
+    }
+
     final l10n = context.l10n;
 
     // Asking comes before the screen is put to work, so nothing reports itself
@@ -251,6 +269,20 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // only the first answer may start a generation.
     if (replacing && !await _confirmReplace(l10n)) return;
     if (_busy || !mounted) return;
+
+    // Asked again, because the question above can be on screen across `end_at`.
+    // The check before the dialog covers a screen left open; this one covers a
+    // dialog left open, which is the same race one step further along.
+    //
+    // Migration `0071` is what actually protects the record -- it refuses a
+    // generation onto a completed match whatever the client believes -- so this
+    // is not the guarantee. It is what stops the app running a whole BTGE
+    // search and a save in order to be told no.
+    if (!view.canGenerate) {
+      _reload();
+      return;
+    }
+
     setState(() => _busy = true);
 
     try {
@@ -476,8 +508,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // The rule is unchanged and so is the database's: `canEditPlayed` is
         // still an organizer on a match that is over, and
         // `set_completed_match_player` still refuses it on any other.
-        if (view.canEditPlayed) ..._addPlayerAction(l10n, view),
-        if (view.canGenerate) ..._addGuestAction(l10n),
+        if (view.canEditPlayed) ..._playedParticipantsAction(l10n, view),
+        // Adding a Professional Guest is not a generation: it is a roster
+        // correction, and a completed match is exactly where one is made
+        // (0059). Gated on management, as it was before the split.
+        if (view.canManageLineup) ..._addGuestAction(l10n, view),
         if (view.canGenerate) ..._generateAction(l10n, view),
       ];
 
@@ -521,7 +556,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
           onTapPlayer: _busy
               ? null
               : (assignment) {
-                  if (view.canGenerate) {
+                  // Management, not generation. This sheet is the completed
+                  // match's correction control -- move, swap, reposition --
+                  // so gating it on `canGenerate` would have removed the very
+                  // thing 0071 keeps available.
+                  if (view.canManageLineup) {
                     _editPlayer(l10n, view, assignment);
                     return;
                   }
@@ -531,11 +570,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
         ),
         if (view.canEditPlayed) ...[
           const Divider(height: 32),
-          ..._addPlayerAction(l10n, view),
+          ..._playedParticipantsAction(l10n, view),
         ],
-        if (view.canGenerate) ...[
+        if (view.canManageLineup) ...[
           const Divider(height: 32),
-          ..._addGuestAction(l10n),
+          ..._addGuestAction(l10n, view),
         ],
         if (view.canGenerate) ...[
           const Divider(height: 32),
@@ -549,12 +588,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// playing; the roster screen is two navigations away. The convenience is the
   /// only new thing here — **where** the guest ends up is not this screen's
   /// answer to give.
-  List<Widget> _addGuestAction(AppLocalizations l10n) => [
+  List<Widget> _addGuestAction(AppLocalizations l10n, _TeamsView view) => [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: OutlinedButton.icon(
             key: const Key('teamsAddGuestButton'),
-            onPressed: _busy ? null : _addGuest,
+            onPressed: _busy ? null : () => _addGuest(view),
             icon: const Icon(Icons.workspace_premium_outlined),
             label: Text(l10n.addGuestButton),
             style: OutlinedButton.styleFrom(
@@ -564,6 +603,51 @@ class _TeamsScreenState extends State<TeamsScreen> {
           ),
         ),
       ];
+
+  /// Records that a Professional Guest played a match that is over.
+  ///
+  /// The name, the side and the position in one sheet, because the factual
+  /// lineup row needs all three and a guest has no profile to infer the last two
+  /// from. One call, and the pitch is redrawn from the database rather than from
+  /// anything assumed here: a guest appears because the lineup now holds them.
+  ///
+  /// Community players are corrected by their own batch path. The two stay
+  /// separate, as the approved boundary requires -- a guest owns no rating and no
+  /// statistics, so nothing is detached, reapplied or recalculated for one.
+  Future<void> _addPlayedGuest(AppLocalizations l10n) async {
+    final entry = await showModalBottomSheet<PlayedGuestEntry>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => PlayedGuestSheet(
+        positionLabel: (position) => _positionLabel(l10n, position),
+      ),
+    );
+    if (entry == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await _teams.addPlayedProfessionalGuest(
+        widget.matchId,
+        entry.name,
+        team: entry.team,
+        position: entry.position,
+      );
+      if (!mounted) return;
+      // Confirmed, and said so: everyone in the record of a played match played
+      // it, so there is no reserve outcome to report.
+      _showMessage(l10n.guestAddedConfirmed(entry.name));
+      setState(() => _busy = false);
+      _reload();
+    } on Failure catch (failure) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _showMessage(_guestErrorMessage(l10n, failure));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _showMessage(l10n.guestActionFailed);
+    }
+  }
 
   /// Asks for the guest's name and adds them through the roster.
   ///
@@ -581,9 +665,21 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// only if they are starting. A guest who lands on the reserve list is simply
   /// absent from the pitch until the roster says otherwise — and only a guest
   /// who is on it can be moved or swapped, because only they have a lineup row.
-  Future<void> _addGuest() async {
+  Future<void> _addGuest(_TeamsView view) async {
     if (_busy) return;
     final l10n = context.l10n;
+
+    // A played match takes the correction instead. `add_professional_guest`
+    // would create the guest and a confirmed seat and stop there: on a completed
+    // match `recompute_match_status` returns at its own completed branch without
+    // ever reaching the placement that puts a guest on a side, so the guest
+    // existed and the factual lineup did not know it. Migration `0075` writes
+    // the guest, the seat and the lineup row together.
+    if (view.match.isCompleted) {
+      await _addPlayedGuest(l10n);
+      return;
+    }
+
     final name = await _askGuestName(l10n);
     if (name == null || !mounted) return;
 
@@ -621,6 +717,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
       switch (failure.reason) {
         FailureReason.invalidGuestName => l10n.errInvalidGuestName,
         FailureReason.registrationClosed => l10n.errRegistrationClosed,
+        // The completed-match correction's own refusals (migration `0075`). The
+        // sheet asks for all three, so these are the server holding the line
+        // rather than the organizer's likely mistake.
+        FailureReason.invalidTeam => l10n.errLineupRefused,
+        FailureReason.invalidPosition => l10n.errLineupRefused,
+        FailureReason.matchNotCompleted => l10n.errMatchNotCompleted,
         _ => failure is AuthorizationFailure
             ? l10n.errNotAuthorized
             : l10n.guestActionFailed,
@@ -688,13 +790,18 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// record to correct — before that a seat is the player's to claim and the
   /// reserve queue decides who holds one. So this appears only on a completed
   /// match, and the database refuses it on any other.
-  List<Widget> _addPlayerAction(AppLocalizations l10n, _TeamsView view) => [
+  List<Widget> _playedParticipantsAction(
+    AppLocalizations l10n,
+    _TeamsView view,
+  ) =>
+      [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: OutlinedButton.icon(
-            onPressed: _busy ? null : () => _addPlayer(l10n, view),
+            key: const Key('editPlayedParticipantsButton'),
+            onPressed: _busy ? null : () => _editPlayedParticipants(l10n, view),
             icon: const Icon(Icons.person_add_alt),
-            label: Text(l10n.addPlayedPlayerAction),
+            label: Text(l10n.editPlayedParticipantsAction),
             style: OutlinedButton.styleFrom(
               foregroundColor: MatchStage.ink,
               side: const BorderSide(color: MatchStage.inkMuted),
@@ -849,12 +956,16 @@ class _TeamsScreenState extends State<TeamsScreen> {
           l10n,
           // The participant id, not the user id: a guest is moved by the same
           // operation as anybody else, and `userId!` would have thrown on one.
-          () => _teams.movePlayer(widget.matchId, assignment.participantId),
+          () => _teams.movePlayer(
+            widget.matchId,
+            assignment.participantId,
+            completedCorrection: view.match.isCompleted,
+          ),
         );
       case _PlayerAction.swap:
         await _swap(l10n, view, assignment);
       case _PlayerAction.position:
-        await _changePosition(l10n, assignment);
+        await _changePosition(l10n, view, assignment);
       case _PlayerAction.remove:
         await _removeParticipant(l10n, view, assignment);
     }
@@ -927,95 +1038,56 @@ class _TeamsScreenState extends State<TeamsScreen> {
     });
   }
 
-  /// Adds a community member to the record of who played.
+  /// Corrects who played, for as many community players as it takes.
   ///
-  /// The list is read when the dialog opens rather than with the screen: it is
-  /// needed only by an admin correcting a played match, and reading it for
-  /// everyone who opens the Teams screen would be a request per visit for a
-  /// list almost nobody asks for.
-  Future<void> _addPlayer(AppLocalizations l10n, _TeamsView view) async {
+  /// **One save, one recalculation.** Every correction to a played match
+  /// reverses the ratings and counters it produced and reapplies them, so adding
+  /// four players one at a time would do that four times over lineups nobody
+  /// played, and a refusal on the fourth would leave the first three standing.
+  /// The sheet collects the whole intent and this sends it once, to
+  /// `correct_completed_match_players` (migration `0074`), which validates all
+  /// of it, recalculates once and rolls all of it back on any refusal. There is
+  /// deliberately no loop over `addPlayedPlayer` here.
+  ///
+  /// The candidates are read when the sheet opens rather than with the screen:
+  /// the list is needed only by an organizer correcting a played match, and
+  /// reading it for every visitor would be a request for something almost
+  /// nobody asks for. Anybody already in the factual lineup is filtered out --
+  /// moving somebody who is already recorded is the card's own edit, not an
+  /// addition -- and Professional Guests never appear, because they are
+  /// corrected by the guest operations that keep their own rules.
+  Future<void> _editPlayedParticipants(
+    AppLocalizations l10n,
+    _TeamsView view,
+  ) async {
     if (_busy) return;
-    setState(() => _busy = true);
 
-    final List<CommunityMember> members;
-    try {
-      members = await _members.fetchMembers(view.match.communityId);
-    } catch (_) {
-      if (mounted) {
-        setState(() => _busy = false);
-        _showMessage(l10n.loadFailed);
-      }
-      return;
-    }
-    if (!mounted) return;
-    setState(() => _busy = false);
-
-    final inLineup = {for (final a in view.lineup) a.participantId};
-    final candidates = [
-      for (final member in members)
-        if (!inLineup.contains(member.userId)) member,
-    ];
-    if (candidates.isEmpty) {
-      _showMessage(l10n.addPlayedPlayerNobodyAvailable);
-      return;
-    }
-
-    final member = await showDialog<CommunityMember>(
+    final corrections =
+        await showModalBottomSheet<List<CompletedPlayerCorrection>>(
       context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: Text(l10n.addPlayedPlayerAction),
-        children: [
-          for (final candidate in candidates)
-            ListTile(
-              // A picker's row belongs to its selection: tapping is choosing
-              // this player, not reading about them. The face is here because
-              // recognising somebody is what the list is for.
-              leading: PlayerAvatar(
-                avatarUrl: candidate.avatarUrl,
-                fullName: candidate.fullName,
-              ),
-              title: Text(candidate.fullName),
-              onTap: () => Navigator.of(dialogContext).pop(candidate),
-            ),
-        ],
+      isScrollControlled: true,
+      builder: (sheetContext) => PlayedParticipantsSheet(
+        positionLabel: (position) => _positionLabel(l10n, position),
+        load: () async {
+          final members = await _members.fetchMembers(view.match.communityId);
+          final inLineup = {for (final a in view.lineup) a.participantId};
+          return [
+            for (final member in members)
+              if (!inLineup.contains(member.userId)) member,
+          ];
+        },
       ),
     );
-    if (member == null || !mounted) return;
-
-    final team = await _askTeam(l10n);
-    if (team == null || !mounted) return;
-
-    final position = await _askPosition(l10n, l10n.choosePositionTitle);
-    if (position == null || !mounted) return;
+    // Nothing chosen, or the sheet dismissed. An empty batch is not sent: `0074`
+    // refuses one, and it would otherwise reverse and reapply every rating the
+    // match produced for no correction at all.
+    if (corrections == null || corrections.isEmpty || !mounted) return;
 
     await _runEdit(
       l10n,
-      () => _teams.addPlayedPlayer(
-        widget.matchId,
-        member.userId,
-        team: team,
-        position: position,
-      ),
+      () => _teams.correctCompletedPlayers(widget.matchId, corrections),
     );
   }
-
-  Future<TeamId?> _askTeam(AppLocalizations l10n) => showDialog<TeamId>(
-        context: context,
-        builder: (dialogContext) => SimpleDialog(
-          title: Text(l10n.chooseTeamTitle),
-          children: [
-            for (final (team, label) in [
-              (TeamId.a, l10n.teamAName),
-              (TeamId.b, l10n.teamBName),
-            ])
-              ListTile(
-                leading: const Icon(Icons.groups_2),
-                title: Text(label),
-                onTap: () => Navigator.of(dialogContext).pop(team),
-              ),
-          ],
-        ),
-      );
 
   /// Asks who on the other side to swap with, then swaps them.
   ///
@@ -1051,9 +1123,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
                 isProfessionalGuest: other.isProfessionalGuest,
               ),
               title: Text(_nameOf(view, other.participantId)),
-              // A guest has no position, and none is invented for them: the row
-              // says what they are instead. A registered player always carries
-              // one — the database refuses a lineup row naming a user without.
+              // A guest may have no position — an ordinary roster-derived
+              // lineup invents none for them — and the row says what they are
+              // instead of inventing one here either. A guest recorded by a
+              // completed-match correction does carry the position they played,
+              // and it is shown like anybody else's. A registered player always
+              // carries one: the database refuses a lineup row naming a user
+              // without.
               subtitle: Text(
                 other.assignedPosition == null
                     ? l10n.professionalGuestLabel
@@ -1074,6 +1150,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         widget.matchId,
         assignment.participantId,
         partner.participantId,
+        completedCorrection: view.match.isCompleted,
       ),
     );
   }
@@ -1107,6 +1184,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// Asks which position to give the player, then records it.
   Future<void> _changePosition(
     AppLocalizations l10n,
+    _TeamsView view,
     TeamAssignment assignment,
   ) async {
     final chosen = await _askPosition(
@@ -1124,6 +1202,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         widget.matchId,
         assignment.participantId,
         chosen,
+        completedCorrection: view.match.isCompleted,
       ),
     );
   }
@@ -1181,6 +1260,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
     if (failure.reason == FailureReason.matchNotCompleted) {
       return l10n.errMatchNotCompleted;
     }
+    // The batch correction's own refusal (migration `0074`): the payload was not
+    // a batch -- empty, or naming the same player twice. The organizer can fix
+    // it, so it gets its own sentence rather than the generic refusal.
+    if (failure.reason == FailureReason.invalidChanges) {
+      return l10n.errInvalidChanges;
+    }
     return switch (failure) {
       AuthorizationFailure() => l10n.errNotAuthorized,
       ConflictFailure() => l10n.errLineupRefused,
@@ -1232,13 +1317,33 @@ class _TeamsView {
 
   final int confirmedPlayers;
 
-  /// Whether to offer the generation controls.
+  /// Whether this reader may manage the lineup at all.
   ///
   /// `PD-07`: management is a community role, never a creator privilege, and
   /// migration `0018` gates writing a lineup on the same `admin` role through
   /// `is_match_community_admin`. The database remains what enforces it; this
   /// only decides what is shown.
-  bool get canGenerate => role?.atLeast(CommunityRole.admin) ?? false;
+  ///
+  /// This is the broad capability, and it is deliberately separate from
+  /// [canGenerate] below. It used to be the same getter, which is how a
+  /// completed match still offered Regenerate -- and why narrowing that one
+  /// getter would have taken the completed-match correction controls with it,
+  /// since several of them are gated on "is this an organizer?" and nothing
+  /// more.
+  bool get canManageLineup => role?.atLeast(CommunityRole.admin) ?? false;
+
+  /// Whether BTGE Generate / Regenerate may be offered.
+  ///
+  /// An organizer, **and** a match that has not been played. A generation is
+  /// the engine proposing teams; once the match is over the lineup is the
+  /// record of who was actually on the pitch, and proposing a different one
+  /// would overwrite history with a guess. Migration `0071` refuses it at the
+  /// database, and this is what stops the product offering a refusal.
+  ///
+  /// `match.isCompleted` reads the clock, so this is answered afresh every time
+  /// it is asked -- which is what makes it usable as the tap-time check in
+  /// `_generate` and not merely as a build-time one.
+  bool get canGenerate => canManageLineup && !match.isCompleted;
 
   /// Whether to offer the corrections that only a played match can take.
   ///
@@ -1247,7 +1352,7 @@ class _TeamsView {
   /// match is over there is no history to correct — the roster is the players'
   /// own to join and leave — and `set_completed_match_player` refuses it, so
   /// offering the control would be offering a refusal.
-  bool get canEditPlayed => canGenerate && match.isCompleted;
+  bool get canEditPlayed => canManageLineup && match.isCompleted;
 
   /// Whether anybody in the squad keeps goal — §10.1's natural goalkeeper,
   /// `GK` as primary or secondary.

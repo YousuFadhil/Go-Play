@@ -1639,6 +1639,28 @@ class AppLocalizationsAr extends AppLocalizations {
       'لا يمكن تصحيح لاعبي المباراة بهذه الطريقة إلا بعد انتهائها.';
 
   @override
+  String get editPlayedParticipantsAction => 'إدارة المشاركين الفعليين';
+
+  @override
+  String get playedParticipantsHint =>
+      'اختر من شارك فعلياً، ثم حدّد الفريق والمركز لكل لاعب.';
+
+  @override
+  String savePlayedParticipantsButton(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'حفظ $count مشاركين',
+      one: 'حفظ مشارك واحد',
+      zero: 'حفظ التعديلات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get errInvalidChanges => 'بيانات تعديل المشاركين غير صالحة.';
+
+  @override
   String get communityTitle => 'المجتمع';
 
   @override
@@ -2155,4 +2177,114 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminMetricLastActivity => 'آخر نشاط';
+
+  @override
+  String get teamOfPeriodTitle => 'تشكيلة الفترة';
+
+  @override
+  String get teamOfPeriodCtaSubtitle =>
+      'أفضل اللاعبين في آخر أسبوع أو شهر مكتمل';
+
+  @override
+  String get teamOfPeriodCtaAction => 'عرض التشكيلة';
+
+  @override
+  String get teamOfPeriodWeekTab => 'الأسبوع';
+
+  @override
+  String get teamOfPeriodMonthTab => 'الشهر';
+
+  @override
+  String get teamOfPeriodWeekHeading => 'تشكيلة الأسبوع';
+
+  @override
+  String get teamOfPeriodMonthHeading => 'تشكيلة الشهر';
+
+  @override
+  String get teamOfPeriodNoMatches =>
+      'لا توجد مباريات مكتملة مؤهلة في هذه الفترة.';
+
+  @override
+  String teamOfPeriodNoEligible(int matches) {
+    return 'أُقيمت مباريات، لكن لم يشارك أي لاعب في $matches مباراة المطلوبة للتأهل.';
+  }
+
+  @override
+  String get teamOfPeriodPlayerFallback => 'لاعب';
+
+  @override
+  String get teamOfPeriodAwardedPosition => 'المركز الممنوح';
+
+  @override
+  String get teamOfPeriodCurrentRating => 'التقييم الحالي';
+
+  @override
+  String get teamOfPeriodMatchesPlayed => 'المباريات';
+
+  @override
+  String get teamOfPeriodParticipation => 'نسبة المشاركة';
+
+  @override
+  String get teamOfPeriodGoals => 'الأهداف';
+
+  @override
+  String get teamOfPeriodGoalsPerMatch => 'الأهداف لكل مباراة';
+
+  @override
+  String get teamOfPeriodRecord => 'فوز / تعادل / خسارة';
+
+  @override
+  String get teamOfPeriodWinRate => 'نسبة الفوز';
+
+  @override
+  String get teamOfPeriodPointsPerGame => 'النقاط لكل مباراة';
+
+  @override
+  String get teamOfPeriodMvpCount => 'جوائز أفضل لاعب';
+
+  @override
+  String get teamOfPeriodCurrentRatingNote =>
+      'التقييم المعروض هو تقييم اللاعب اليوم، وليس تقييمه خلال هذه الفترة.';
+
+  @override
+  String teamOfPeriodMatchCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مباراة',
+      many: '$count مباراة',
+      few: '$count مباريات',
+      two: 'مباراتان',
+      one: 'مباراة واحدة',
+      zero: 'لا مباريات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String teamOfPeriodMatchesOf(int played, int total) {
+    return '$played من $total';
+  }
+
+  @override
+  String get leaderboardLowestRated => 'الأقل تقييماً';
+
+  @override
+  String get leaderboardLeastActive => 'الأقل مشاركة';
+
+  @override
+  String get leaderboardFewestWins => 'الأقل فوزاً';
+
+  @override
+  String get reverseStatisticsTitle => 'الإحصائيات العكسية';
+
+  @override
+  String leaderboardGoalsPerMatch(String value) {
+    return '$value هدف/مباراة';
+  }
+
+  @override
+  String leaderboardPointsPerGame(String value) {
+    return '$value نقطة/مباراة';
+  }
 }

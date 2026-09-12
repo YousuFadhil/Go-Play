@@ -209,7 +209,9 @@ void main() {
       final matchId = await playedMatch(daysAgo: 5);
       final guestId = await owner.client.rpc('add_professional_guest',
           params: {'p_match_id': matchId, 'p_name': 'Faisal'});
-      await recordResult(matchId, teamA: 1, teamB: 0);
+      await recordResult(matchId, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
 
       expect((await recency(owner)).keys, isNot(contains(guestId)));
     });
@@ -253,7 +255,9 @@ void main() {
       // Highest Rated shows the Global Rating in every period, so its
       // tie-break is the same answer in all three.
       final matchId = await playedMatch(daysAgo: 40);
-      await recordResult(matchId, teamA: 1, teamB: 0);
+      await recordResult(matchId, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
 
       final overall = stamp((await recency(owner))[owner.id], 'last_rating_at');
       final weekly = stamp(
@@ -305,10 +309,22 @@ void main() {
 
     test('a replaced MVP is no longer the MVP timestamp', () async {
       final matchId = await playedMatch(daysAgo: 5);
-      await recordResult(matchId, teamA: 1, teamB: 0, mvpUserId: owner.id);
+      await recordResult(matchId,
+          teamA: 1,
+          teamB: 0,
+          mvpUserId: owner.id,
+          goals: [
+            {'user_id': owner.id, 'goals': 1}
+          ]);
       expect(stamp((await recency(owner))[owner.id], 'last_mvp_at'), isNotNull);
 
-      await recordResult(matchId, teamA: 1, teamB: 0, mvpUserId: admin.id);
+      await recordResult(matchId,
+          teamA: 1,
+          teamB: 0,
+          mvpUserId: admin.id,
+          goals: [
+            {'user_id': owner.id, 'goals': 1}
+          ]);
 
       final rows = await recency(owner);
       expect(stamp(rows[owner.id], 'last_mvp_at'), isNull);
@@ -318,14 +334,20 @@ void main() {
     test('a corrected score moves the win to the side that won', () async {
       final matchId = await playedMatch(daysAgo: 5);
       // Team A wins: owner and admin are on A.
-      await recordResult(matchId, teamA: 2, teamB: 1);
+      await recordResult(matchId, teamA: 2, teamB: 1, goals: [
+        {'user_id': owner.id, 'goals': 2},
+        {'user_id': player.id, 'goals': 1}
+      ]);
 
       var rows = await recency(owner);
       expect(stamp(rows[owner.id], 'last_win_at'), isNotNull);
       expect(stamp(rows[player.id], 'last_win_at'), isNull);
 
       // The score was entered the wrong way round.
-      await recordResult(matchId, teamA: 1, teamB: 2);
+      await recordResult(matchId, teamA: 1, teamB: 2, goals: [
+        {'user_id': owner.id, 'goals': 1},
+        {'user_id': player.id, 'goals': 2}
+      ]);
 
       rows = await recency(owner);
       expect(stamp(rows[owner.id], 'last_win_at'), isNull);
@@ -336,7 +358,9 @@ void main() {
     test('participation taken out of the lineup stops being participation',
         () async {
       final matchId = await playedMatch(daysAgo: 5);
-      await recordResult(matchId, teamA: 1, teamB: 0);
+      await recordResult(matchId, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
       expect(stamp((await recency(owner))[player2.id], 'last_played_at'),
           isNotNull);
 
@@ -354,9 +378,13 @@ void main() {
 
     test('a reversed rating entry is not rating recency', () async {
       final older = await playedMatch(daysAgo: 30);
-      await recordResult(older, teamA: 1, teamB: 0);
+      await recordResult(older, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
       final newer = await playedMatch(daysAgo: 3);
-      await recordResult(newer, teamA: 1, teamB: 0);
+      await recordResult(newer, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
 
       expect(stamp((await recency(owner))[player2.id], 'last_rating_at'),
           await startOf(newer));
@@ -383,7 +411,9 @@ void main() {
 
     test('a non-member is refused, and enumerates nobody', () async {
       final matchId = await playedMatch(daysAgo: 5);
-      await recordResult(matchId, teamA: 1, teamB: 0);
+      await recordResult(matchId, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
 
       expect(await recency(owner), isNotEmpty);
 
@@ -414,7 +444,9 @@ void main() {
 
     test('a member reads the community they belong to', () async {
       final matchId = await playedMatch(daysAgo: 5);
-      await recordResult(matchId, teamA: 1, teamB: 0);
+      await recordResult(matchId, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
 
       expect(await recency(player), isNotEmpty);
     });
@@ -453,7 +485,9 @@ void main() {
           .rpc('register_for_match', params: {'p_match_id': otherMatch});
 
       final matchId = await playedMatch(daysAgo: 5);
-      await recordResult(matchId, teamA: 1, teamB: 0);
+      await recordResult(matchId, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
 
       expect((await recency(owner)).keys, isNot(contains(outsider.id)));
     });
@@ -468,7 +502,9 @@ void main() {
       // rating entry that makes `player`'s recency newer, and the two viewers
       // would order the same tied board differently.
       final older = await playedMatch(daysAgo: 40);
-      await recordResult(older, teamA: 1, teamB: 0);
+      await recordResult(older, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
 
       final elsewhere =
           await createCommunity(outsider, 'ITest Recency Elsewhere');
@@ -479,7 +515,10 @@ void main() {
         outsider,
         elsewhere,
         startsIn: const Duration(days: 9),
-        startingPlayers: 2,
+        // The approved minimum match size is four (0019); the stored lineup
+        // below is still the two players this test needs, because a lineup is
+        // not bound to the starting count.
+        startingPlayers: 4,
       );
       for (final user in [outsider, player]) {
         await user.client
@@ -515,7 +554,11 @@ void main() {
         'p_team_a_score': 0,
         'p_team_b_score': 1,
         'p_mvp_user_id': null,
-        'p_goals': <Map<String, Object?>>[],
+        // The attributed goals have to equal the score (0022), and `player` is
+        // the one on team B in this hidden match.
+        'p_goals': <Map<String, Object?>>[
+          {'user_id': player.id, 'goals': 1}
+        ],
       });
 
       // Read by a member who is *not* in the second community.
@@ -542,7 +585,9 @@ void main() {
       // The widening is one timestamp. The output carries six columns and no
       // identifier of the football behind the rating half.
       final matchId = await playedMatch(daysAgo: 5);
-      await recordResult(matchId, teamA: 1, teamB: 0);
+      await recordResult(matchId, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1}
+      ]);
 
       final rows = await recency(owner);
       expect(rows, isNotEmpty);

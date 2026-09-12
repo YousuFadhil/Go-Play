@@ -1,9 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/failures.dart';
 import '../../features/statistics/statistics_adapter.dart';
 import '../../features/statistics/statistics_models.dart';
 import '../../features/statistics/statistics_period.dart';
+import '../../features/statistics/team_of_period_models.dart';
 import 'mappers/statistics_mapper.dart';
+import 'mappers/team_of_period_mapper.dart';
 import 'statistics_period_window.dart';
 import 'supabase_avatars.dart';
 import 'supabase_bootstrap.dart';
@@ -215,4 +218,108 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
         final response = await query.count(CountOption.exact);
         return response.count;
       });
+
+  /// The award period, through `community_period_xi_window` (migration
+  /// `0070`).
+  ///
+  /// The function returns exactly one row for an authorized caller and raises
+  /// otherwise, so an empty result is the contract being broken rather than a
+  /// community with no football — that case comes back as a row saying zero
+  /// qualifying matches. It is refused here rather than turned into a default
+  /// window, which would have described a period the database never resolved.
+  ///
+  /// Authorization is the function's, as everywhere else in this class: it
+  /// checks authentication and current membership itself and raises
+  /// `NOT_AUTHENTICATED` or `NOT_AUTHORIZED`, which the failure mapper already
+  /// knows.
+  @override
+  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'community_period_xi_window',
+            params: {
+              'p_community_id': communityId,
+              'p_period_type': teamOfPeriodKindToDb(kind),
+            },
+          ) as List<dynamic>;
+
+          if (rows.length != 1) throw const InfrastructureFailure();
+          return teamOfPeriodWindowFromRow(
+            rows.single as Map<String, dynamic>,
+          );
+        },
+        operation: 'community_period_xi_window',
+      );
+
+  /// The candidates, through `community_period_xi_evidence` (migration
+  /// `0070`).
+  ///
+  /// An empty list is a legitimate answer and is returned as one: a period can
+  /// hold matches that nobody played enough of, and the window says so. What
+  /// that means for the award is the repository's and the selector's to decide,
+  /// not this class's.
+  @override
+  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
+    String communityId,
+    TeamOfPeriodKind kind,
+  ) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'community_period_xi_evidence',
+            params: {
+              'p_community_id': communityId,
+              'p_period_type': teamOfPeriodKindToDb(kind),
+            },
+          ) as List<dynamic>;
+
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              teamOfPeriodCandidateFromRow(row),
+          ];
+        },
+        operation: 'community_period_xi_evidence',
+      );
+
+  /// Names and faces for an award that has already been selected.
+  ///
+  /// One read of `users` for the whole team, under the caller's own policies --
+  /// `authenticated_select_active_users` decides which rows come back, exactly
+  /// as it does everywhere else a name is shown. Nothing here widens that: a
+  /// profile this reader could not see on any other screen is not visible here
+  /// either, and the award keeps the player regardless.
+  ///
+  /// The avatar goes through [SupabaseAvatars] like every other list of faces,
+  /// unversioned for the same reason -- busting the cache on each read would
+  /// refetch the whole team every time the screen is opened.
+  @override
+  Future<Map<String, TeamOfPeriodPlayerIdentity>>
+      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) => guarded(
+            () async {
+              final ids = userIds.toSet().toList();
+              if (ids.isEmpty) return const <String, TeamOfPeriodPlayerIdentity>{};
+
+              final rows = await _client
+                  .from('users')
+                  .select('id, full_name, avatar_path')
+                  .inFilter('id', ids);
+
+              return {
+                for (final row in rows)
+                  row['id'] as String: TeamOfPeriodPlayerIdentity(
+                    userId: row['id'] as String,
+                    fullName: row['full_name'] as String,
+                    avatarUrl: SupabaseAvatars.publicUrl(
+                      _client,
+                      row['avatar_path'] as String?,
+                    ),
+                  ),
+              };
+            },
+            operation: 'team_of_period_player_identities',
+          );
 }
