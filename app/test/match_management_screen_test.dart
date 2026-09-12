@@ -168,7 +168,10 @@ void main() {
         (tester) async {
       await openPlayers(tester, completed);
 
-      expect(find.byTooltip('Remove player'), findsNothing);
+      // 'Remove', which is what the tooltip actually says -- asserting
+      // 'Remove player' here matched nothing whatever the screen did, so the
+      // rule was never really being checked.
+      expect(find.byTooltip('Remove'), findsNothing);
     });
   });
 

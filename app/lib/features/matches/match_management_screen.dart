@@ -164,22 +164,28 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
       String title,
       bool canRemove,
       bool canAddCommunityPlayer,
-      bool canRegisterGuests,
+      Match match,
       String communityId) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ManageRosterScreen(
           matchId: widget.matchId,
           // Unconditional, and not `canRemove`. This screen is already gated on
-          // the owner/admin role, and the approved rule is that they manage
-          // Professional Guests in every match state — the lock that closes the
-          // community roster does not close this.
+          // the owner/admin role, and the lock that closes the community roster
+          // at kickoff does not close guest management. What the completed state
+          // closes is the guest *add* and the roster removal of a guest who
+          // played, which the roster screen decides from the match below;
+          // renaming stays available throughout.
           canManageGuests: true,
-          // The ordinary guest add and removal stop at completion: both are
-          // roster operations, and a played match's guests are a record. The
-          // Teams screen holds the completed answers -- 0075 writes a guest
-          // into the factual lineup, 0059 takes one out. Renaming stays here.
-          canRegisterGuests: canRegisterGuests,
+          // The match itself, not a verdict about it. The roster screen asks it
+          // the lifecycle question at every tap, so a screen left open while
+          // the match finishes stops offering -- and stops sending -- the
+          // roster operations of a match in progress. The ordinary guest add
+          // and removal stop at completion that way: both are roster
+          // operations, and a played match's guests are a record, whose
+          // completed answers live on the Teams screen (0075 writes a guest
+          // into the factual lineup, 0059 takes one out). Renaming stays here.
+          match: match,
           // The same rule about state, for the other kind of participant. It is
           // still not `canRemove`: adding is what the database allows in every
           // ordinary state, removing is what it closes once the match is the
@@ -277,7 +283,6 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
             // completed match has a canonical correction path of its own.
             final canAddCommunityPlayer =
                 canAddCommunityPlayerTo(match, busy: _busy);
-            final canRegisterGuests = canAdministerGuestRoster(match);
             // Deletion is time-independent; it will be restricted only once
             // matches can become historical (results, stats, ratings...).
             final canDelete = !_busy;
@@ -362,7 +367,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                               l10n.managePlayersTitle,
                               canManageRoster,
                               canAddCommunityPlayer,
-                              canRegisterGuests,
+                              match,
                               match.communityId)
                           : null,
                     ),
@@ -377,7 +382,7 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
                               l10n.manageReserveTitle,
                               canManageRoster,
                               canAddCommunityPlayer,
-                              canRegisterGuests,
+                              match,
                               match.communityId)
                           : null,
                     ),
@@ -461,13 +466,3 @@ bool canAdministerRoster(Match match, {required bool busy}) =>
 /// with `MATCH_HISTORICAL`, so the control would be offering a refusal.
 bool canAddCommunityPlayerTo(Match match, {required bool busy}) =>
     !match.isHistorical && !match.isCompleted && !busy;
-
-/// Whether the ordinary guest roster operations -- adding a guest and taking one
-/// off the roster -- are offered.
-///
-/// True up to completion, where they are the right operations. False afterwards:
-/// a played match's guests are part of the record, and the corrections that keep
-/// the factual lineup honest live on the Teams screen instead. Not gated on
-/// [busy], because it describes which path is correct rather than whether a save
-/// is in flight; the roster screen disables its own controls while it works.
-bool canAdministerGuestRoster(Match match) => !match.isCompleted;

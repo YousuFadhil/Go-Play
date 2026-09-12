@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
@@ -63,12 +65,33 @@ void main() {
         registrationOrder: ++nextOrder,
       );
 
+  /// A match in one of the two states this suite cares about. `isCompleted`
+  /// and `isLocked` are derived from these times, so a fixture with a past end
+  /// is a played match to every reader that asks.
+  Match matchIn({required Duration startsIn, Duration length = const Duration(hours: 2)}) {
+    final start = DateTime.now().add(startsIn);
+    return Match(
+      id: matchId,
+      communityId: communityId,
+      createdBy: 'u9',
+      location: 'Al Amerat Pitch',
+      startAt: start,
+      endAt: start.add(length),
+      startingPlayers: 4,
+      maxRegistration: 6,
+      status: MatchStatus.open,
+      title: 'ITest match',
+    );
+  }
+
+  Match playedMatch() => matchIn(startsIn: const Duration(days: -3));
+
   Future<void> pumpRoster(
     WidgetTester tester, {
     required FakeMatchAdapter matches,
     bool canRemove = true,
     bool canManageGuests = true,
-    bool canRegisterGuests = true,
+    Match? match,
     List<TeamAssignment> lineup = const [],
     RegistrationStatus filter = RegistrationStatus.confirmed,
     Locale locale = const Locale('en'),
@@ -89,7 +112,7 @@ void main() {
           title: 'Players',
           canRemove: canRemove,
           canManageGuests: canManageGuests,
-          canRegisterGuests: canRegisterGuests,
+          match: match,
           service: MatchService(matches),
           memberRepository: MemberRepository(FakeMemberAdapter()),
           teamRepository: TeamRepository(_LineupOnlyAdapter(lineup)),
@@ -461,7 +484,7 @@ void main() {
       await pumpRoster(
         tester,
         matches: matches,
-        canRegisterGuests: false,
+        match: playedMatch(),
         lineup: const [],
       );
 
@@ -492,7 +515,7 @@ void main() {
       await pumpRoster(
         tester,
         matches: matches,
-        canRegisterGuests: false,
+        match: playedMatch(),
         lineup: [played('g1')],
       );
 
@@ -519,7 +542,7 @@ void main() {
       await pumpRoster(
         tester,
         matches: matches,
-        canRegisterGuests: false,
+        match: playedMatch(),
         lineup: [played('g2')],
         filter: RegistrationStatus.confirmed,
       );
@@ -529,7 +552,7 @@ void main() {
       await pumpRoster(
         tester,
         matches: matches,
-        canRegisterGuests: false,
+        match: playedMatch(),
         lineup: [played('g2')],
         filter: RegistrationStatus.reserve,
       );
@@ -554,6 +577,162 @@ void main() {
       expect(find.byKey(const Key('renameGuest_g1')), findsOneWidget);
       expect(find.byKey(const Key('removeGuest_g1')), findsOneWidget,
           reason: 'the roster removal is the right one until the match is over');
+    });
+  });
+
+  group('a match that finishes while the roster is open', () {
+    // The race this guards: the screen is built while the match is being played,
+    // so the permissions handed down say the roster is administrable -- and then
+    // `end_at` passes with the screen still open. None of the ordinary roster
+    // functions has a completion guard of its own: `remove_player` would delete
+    // a seat, promote a reserve and notify them both about a match that is over,
+    // and `admin_add_player_to_match` turns the time lock off deliberately. So
+    // the stale screen must not offer, or send, any of them.
+    //
+    // The fixture is the stale state exactly: permissions computed for a match
+    // in progress, paired with the match object as it now reads.
+    Future<void> pumpStale(
+      WidgetTester tester, {
+      required FakeMatchAdapter matches,
+      List<TeamAssignment> lineup = const [],
+    }) =>
+        pumpRoster(
+          tester,
+          matches: matches,
+          canRemove: true,
+          canManageGuests: true,
+          match: playedMatch(),
+          lineup: lineup,
+        );
+
+    testWidgets('the ordinary roster controls are gone once it is over',
+        (tester) async {
+      final matches = FakeMatchAdapter(
+        registrations: [player('u1'), guest('g1', 'Ahmed')],
+      );
+      await pumpStale(tester, matches: matches);
+
+      // Adding either kind of participant was right a moment ago and is not now.
+      expect(find.byKey(const Key('addPlayerButton')), findsNothing);
+      expect(find.byKey(const Key('addGuestButton')), findsNothing);
+      // Removing a community player is the factual correction's business now.
+      expect(find.byTooltip('Remove'), findsNothing);
+      // Renaming a guest is neither an add nor a remove, so it stays.
+      expect(find.byKey(const Key('renameGuest_g1')), findsOneWidget);
+    });
+
+    testWidgets('a guest the lineup names cannot be removed from the roster',
+        (tester) async {
+      final matches = FakeMatchAdapter(
+        registrations: [player('u1'), guest('g1', 'Ahmed')],
+      );
+      await pumpStale(
+        tester,
+        matches: matches,
+        lineup: const [
+          TeamAssignment(
+            professionalGuestId: 'g1',
+            team: TeamId.a,
+            assignedPosition: Position.mid,
+            basis: null,
+          ),
+        ],
+      );
+
+      expect(find.byKey(const Key('removeGuest_g1')), findsNothing);
+      expect(matches.removedGuests, isEmpty);
+    });
+
+    testWidgets('a guest the lineup does not name still may be', (tester) async {
+      // The historical reserve: registered, never played, nothing factual about
+      // them. The ordinary removal is still the right one, even now.
+      final matches = FakeMatchAdapter(
+        registrations: [player('u1'), guest('g1', 'Ahmed')],
+      );
+      await pumpStale(tester, matches: matches, lineup: const []);
+
+      await tester.tap(find.byKey(const Key('removeGuest_g1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove guest'));
+      await tester.pumpAndSettle();
+
+      expect(matches.removedGuests, [(matchId, 'g1')]);
+    });
+
+    testWidgets('while the match is still being played, nothing is withheld',
+        (tester) async {
+      // The other side of the same rule: kickoff is not what closes the roster.
+      final matches = FakeMatchAdapter(
+        registrations: [player('u1'), guest('g1', 'Ahmed')],
+      );
+      await pumpRoster(
+        tester,
+        matches: matches,
+        canRemove: true,
+        canManageGuests: true,
+        match: matchIn(
+          startsIn: const Duration(hours: -1),
+          length: const Duration(hours: 3),
+        ),
+      );
+
+      expect(find.byKey(const Key('addGuestButton')), findsOneWidget);
+      expect(find.byKey(const Key('removeGuest_g1')), findsOneWidget);
+      expect(find.byTooltip('Remove'), findsOneWidget,
+          reason: 'the community player removal is still the right one');
+    });
+
+    test('every handler re-asks the clock before it writes', () {
+      // The controls above are the first half. This is the second: each handler
+      // checks again immediately before its RPC, because a dialog or a sheet can
+      // be open across the moment the match ends. Read as source, since the
+      // window between a tap and a write is not something a widget test can sit
+      // inside deterministically.
+      final source = File('lib/features/matches/manage_roster_screen.dart')
+          .readAsStringSync()
+          .replaceAll('\r\n', '\n');
+
+      String handler(String signature) {
+        final start = source.indexOf(signature);
+        expect(start, greaterThan(-1), reason: signature);
+        return source.substring(start, source.indexOf('\n  }', start));
+      }
+
+      // Community players: both ways in, each refusing before the service call.
+      for (final signature in const [
+        'Future<void> _addPlayers() async {',
+        'Future<void> _remove(MatchRegistration player) async {',
+        'Future<void> _addGuest() async {',
+      ]) {
+        final body = handler(signature);
+        expect(body, contains('_refuseIfPlayed(l10n)'), reason: signature);
+        expect(body.indexOf('_refuseIfPlayed(l10n)'),
+            lessThan(body.indexOf('_service.')),
+            reason: '$signature refuses before it calls the port');
+      }
+
+      // The two that stay open across a dialog ask a second time afterwards.
+      expect(
+          RegExp('_refuseIfPlayed').allMatches(handler(
+              'Future<void> _addPlayers() async {')),
+          hasLength(2));
+      expect(
+          RegExp('_refuseIfPlayed').allMatches(handler(
+              'Future<void> _addGuest() async {')),
+          hasLength(2));
+
+      // Guest removal asks the factual lineup instead, and reads it first if the
+      // match finished after the screen opened.
+      final removeGuest =
+          handler('Future<void> _removeGuest(MatchRegistration guest) async {');
+      expect(removeGuest, contains('_mayRemoveFromRoster(guest)'));
+      expect(removeGuest, contains('_loadPlayedGuestIds()'));
+      expect(removeGuest.indexOf('_mayRemoveFromRoster(guest)'),
+          lessThan(removeGuest.indexOf('_service.')));
+
+      // And the live question is the clock's, never the flag the screen opened
+      // with.
+      expect(source, contains('bool get _played => widget.match?.isCompleted'));
     });
   });
 

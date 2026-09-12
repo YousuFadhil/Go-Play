@@ -91,15 +91,20 @@ void main() {
       expect(sql, contains("'GUEST', true)"));
     });
 
-    test('the ordinary guest roster operations stop at completion', () {
-      // Both of them are the roster's: adding a guest leaves them confirmed and
-      // unplaced on a match that is over, and the roster removal keeps the
-      // lineup row a played match needs. The completed answers live on the Teams
-      // screen instead -- 0075 to add, 0059 to remove.
-      expect(canAdministerGuestRoster(future), isTrue);
-      expect(canAdministerGuestRoster(active), isTrue);
-      expect(canAdministerGuestRoster(completed), isFalse);
-      expect(canAdministerGuestRoster(recorded), isFalse);
+    test('the roster screen is handed the match, not a verdict about it', () {
+      // The lifecycle question has to be asked at the moment of the tap: a
+      // screen opened during a match that has since finished must not still
+      // offer the roster operations of a match in progress, and none of the
+      // ordinary roster functions has a completion guard of its own. Passing
+      // the match -- whose isCompleted reads the clock -- is what makes the
+      // answer keep up; the behaviour itself is pinned in
+      // professional_guest_test.dart.
+      final source =
+          File('lib/features/matches/match_management_screen.dart')
+              .readAsStringSync();
+      expect(source, contains('match: match,'));
+      expect(source, isNot(contains('canRegisterGuests')),
+          reason: 'no precomputed verdict travels down any more');
     });
 
     test('adding an unregistered member stops at the same boundary', () {
