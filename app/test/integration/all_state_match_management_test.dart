@@ -1262,6 +1262,268 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  group('the capacity rule belongs to a match that is still a plan', () {
+    // `starting_players` means two different things either side of kickoff.
+    // Before it, it is the number of places the roster is being cut to, and the
+    // registrations already taken have to fit inside it. After it, the match has
+    // been played with whoever turned up, and the count is planning metadata
+    // about participation that is already recorded -- which is why a completed
+    // match may legitimately hold more confirmed participants than it has
+    // starting slots. Migration 0076 stops the capacity rule applying there.
+
+    Future<String> edit(
+      String id, {
+      required Duration startsIn,
+      Duration duration = const Duration(hours: 2),
+      required int startingPlayers,
+      String title = 'ITest capacity',
+    }) {
+      final start = DateTime.now().toUtc().add(startsIn);
+      return outcomeOf(() async {
+        await owner.client.rpc('update_match', params: {
+          'p_match_id': id,
+          'p_title': title,
+          'p_location': 'ITest pitch',
+          'p_start_at': start.toIso8601String(),
+          'p_end_at': start.add(duration).toIso8601String(),
+          'p_starting_players': startingPlayers,
+          'p_description': null,
+        });
+      });
+    }
+
+    /// A match carrying more participants than a four-a-side count could hold.
+    ///
+    /// Capacity is `starting_players + reserve_players`, so with the approved
+    /// reserve allowance the eleven participants below do not fit a requested
+    /// count of four. Guests are part of that total, which is how the fixture
+    /// reaches eleven with six accounts.
+    Future<String> crowdedMatch({required Duration startsIn}) async {
+      final id = await createMatch(owner, communityId,
+          startsIn: startsIn, startingPlayers: 30);
+      for (final user in [owner, admin, player, player2, player3]) {
+        await owner.client.rpc('admin_add_player_to_match', params: {
+          'p_match_id': id,
+          'p_user_id': user.id,
+        });
+      }
+      for (var i = 0; i < 6; i++) {
+        await owner.client.rpc('add_professional_guest', params: {
+          'p_match_id': id,
+          'p_name': 'ITest Capacity Guest ${i + 1}',
+        });
+      }
+      return id;
+    }
+
+    Future<int> participantCount(String id) async {
+      final result = await owner.client
+          .from('match_registrations')
+          .select('id')
+          .eq('match_id', id)
+          .count();
+      return result.count;
+    }
+
+    Future<List<Map<String, dynamic>>> seats(String id) async {
+      final rows = await owner.client
+          .from('match_registrations')
+          .select('user_id, professional_guest_id, status, registration_order')
+          .eq('match_id', id)
+          .order('registration_order', ascending: true);
+      return [for (final row in rows) Map<String, dynamic>.from(row)];
+    }
+
+    Future<List<Map<String, dynamic>>> lineupOf(String id) async {
+      final rows = await owner.client
+          .from('match_team_assignments')
+          .select('user_id, professional_guest_id, team, assigned_position')
+          .eq('match_id', id);
+      return [for (final row in rows) Map<String, dynamic>.from(row)];
+    }
+
+    Future<int> storedStartingPlayers(String id) async {
+      final row = await owner.client
+          .from('matches')
+          .select('starting_players')
+          .eq('id', id)
+          .single();
+      return row['starting_players'] as int;
+    }
+
+    test('1. a match still to come is held to it', () async {
+      final id = await crowdedMatch(startsIn: const Duration(days: 7));
+      expect(await participantCount(id), 11,
+          reason: 'five members and six guests share one capacity');
+
+      expect(await edit(id, startsIn: const Duration(days: 14), startingPlayers: 4),
+          'MAX_BELOW_REGISTERED',
+          reason: 'four places plus the reserve allowance cannot hold eleven');
+      expect(await storedStartingPlayers(id), 30,
+          reason: 'the refused edit wrote nothing');
+    });
+
+    test('2. a future match corrected into an active one is not', () async {
+      final id = await crowdedMatch(startsIn: const Duration(days: 7));
+      final before = await seats(id);
+      final lineupBefore = await lineupOf(id);
+
+      expect(
+        await edit(id,
+            startsIn: const Duration(minutes: -30),
+            duration: const Duration(hours: 2),
+            startingPlayers: 4),
+        'ALLOW',
+      );
+
+      expect(await storedStartingPlayers(id), 4);
+      expect(await seats(id), before,
+          reason: 'no promotion, no demotion, no seat touched');
+      expect(await lineupOf(id), lineupBefore,
+          reason: 'the factual lineup is not rewritten by a detail edit');
+    });
+
+    test('3. a future match corrected into a played one is not', () async {
+      final id = await crowdedMatch(startsIn: const Duration(days: 7));
+      final before = await seats(id);
+      final lineupBefore = await lineupOf(id);
+
+      expect(
+        await edit(id, startsIn: const Duration(days: -3), startingPlayers: 4),
+        'ALLOW',
+      );
+
+      expect(await storedStartingPlayers(id), 4);
+      expect(await seats(id), before, reason: 'the roster is not re-cut');
+      expect(await lineupOf(id), lineupBefore);
+    });
+
+    test('4. a match under way is not', () async {
+      final id = await crowdedMatch(startsIn: const Duration(days: 7));
+      // Into progress first, which is itself a future -> active edit.
+      await edit(id,
+          startsIn: const Duration(minutes: -30),
+          duration: const Duration(hours: 3),
+          startingPlayers: 30);
+      final before = await seats(id);
+      final lineupBefore = await lineupOf(id);
+
+      expect(
+        await edit(id,
+            startsIn: const Duration(minutes: -30),
+            duration: const Duration(hours: 4),
+            startingPlayers: 4),
+        'ALLOW',
+      );
+
+      expect(await storedStartingPlayers(id), 4);
+      expect(await seats(id), before);
+      expect(await lineupOf(id), lineupBefore);
+    });
+
+    test('5. a match being ended is not', () async {
+      final id = await crowdedMatch(startsIn: const Duration(days: 7));
+      await edit(id,
+          startsIn: const Duration(hours: -1),
+          duration: const Duration(hours: 3),
+          startingPlayers: 30);
+      final before = await seats(id);
+      final lineupBefore = await lineupOf(id);
+
+      expect(
+        await edit(id,
+            startsIn: const Duration(hours: -3),
+            duration: const Duration(hours: 1),
+            startingPlayers: 4),
+        'ALLOW',
+      );
+
+      expect(await storedStartingPlayers(id), 4);
+      expect(await seats(id), before);
+      expect(await lineupOf(id), lineupBefore);
+    });
+
+    test('6. a played match is not, however often it is corrected', () async {
+      final id = await crowdedMatch(startsIn: const Duration(days: 7));
+      await edit(id, startsIn: const Duration(days: -3), startingPlayers: 30);
+      final before = await seats(id);
+      final lineupBefore = await lineupOf(id);
+
+      for (final count in const [4, 8, 5]) {
+        expect(
+          await edit(id, startsIn: const Duration(days: -3), startingPlayers: count),
+          'ALLOW',
+          reason: 'correcting the count of a played match is unlimited',
+        );
+        expect(await storedStartingPlayers(id), count);
+      }
+      expect(await seats(id), before, reason: 'registrations are untouched');
+      expect(await lineupOf(id), lineupBefore,
+          reason: 'and so is the record of who played');
+    });
+
+    test('7. the lower bound holds in every state', () async {
+      // The 4..30 bound is a statement about the number itself, so completion
+      // does not relax it.
+      final future = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 7), startingPlayers: 10);
+      final active = await createMatch(owner, communityId,
+          startsIn: const Duration(hours: -1),
+          duration: const Duration(hours: 3),
+          startingPlayers: 10);
+      final played = await createMatch(owner, communityId,
+          startsIn: const Duration(days: -3), startingPlayers: 10);
+
+      expect(await edit(future, startsIn: const Duration(days: 7), startingPlayers: 3),
+          'INVALID_STARTING_PLAYERS');
+      expect(
+          await edit(active,
+              startsIn: const Duration(hours: -1),
+              duration: const Duration(hours: 3),
+              startingPlayers: 3),
+          'INVALID_STARTING_PLAYERS');
+      expect(await edit(played, startsIn: const Duration(days: -3), startingPlayers: 3),
+          'INVALID_STARTING_PLAYERS');
+    });
+
+    test('8. and so does the upper bound', () async {
+      final future = await createMatch(owner, communityId,
+          startsIn: const Duration(days: 7), startingPlayers: 10);
+      final played = await createMatch(owner, communityId,
+          startsIn: const Duration(days: -3), startingPlayers: 10);
+
+      expect(await edit(future, startsIn: const Duration(days: 7), startingPlayers: 31),
+          'INVALID_STARTING_PLAYERS');
+      expect(await edit(played, startsIn: const Duration(days: -3), startingPlayers: 31),
+          'INVALID_STARTING_PLAYERS');
+    });
+
+    test('9. and the lifecycle still refuses a move backwards', () async {
+      // The capacity change must not have loosened the monotonicity guard.
+      final active = await crowdedMatch(startsIn: const Duration(days: 7));
+      await edit(active,
+          startsIn: const Duration(minutes: -30),
+          duration: const Duration(hours: 3),
+          startingPlayers: 30);
+      expect(
+          await edit(active, startsIn: const Duration(days: 2), startingPlayers: 4),
+          'MATCH_LOCKED');
+
+      final played = await crowdedMatch(startsIn: const Duration(days: 7));
+      await edit(played, startsIn: const Duration(days: -3), startingPlayers: 30);
+      expect(
+          await edit(played,
+              startsIn: const Duration(hours: -1),
+              duration: const Duration(hours: 3),
+              startingPlayers: 4),
+          'MATCH_COMPLETED');
+      expect(
+          await edit(played, startsIn: const Duration(days: 2), startingPlayers: 4),
+          'MATCH_COMPLETED');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   group('A3: a result belongs to a played match', () {
     Future<String> resultOn(String id, {int teamA = 1, int teamB = 0}) =>
         outcomeOf(() async {
