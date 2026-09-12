@@ -627,6 +627,8 @@ class FakeTeamAdapter implements TeamAdapter {
   final List<PastMatch> played;
 
   String? lastMatchId;
+  int correctionCalls = 0;
+  List<CompletedPlayerCorrection>? lastCorrections;
   String? lastCommunityId;
   String? lastExcludedMatchId;
   int? lastLimit;
@@ -695,6 +697,37 @@ class FakeTeamAdapter implements TeamAdapter {
   Future<void> removePlayedPlayer(String matchId, String userId) async {
     lastMatchId = matchId;
     removedUserId = userId;
+  }
+
+  @override
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> corrections,
+  ) async {
+    lastMatchId = matchId;
+    correctionCalls += 1;
+    lastCorrections = corrections;
+  }
+
+  /// The completed-guest correction, recorded the same way.
+  int playedGuestCalls = 0;
+  String? playedGuestName;
+  TeamId? playedGuestTeam;
+  Position? playedGuestPosition;
+
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) async {
+    lastMatchId = matchId;
+    playedGuestCalls += 1;
+    playedGuestName = name;
+    playedGuestTeam = team;
+    playedGuestPosition = position;
+    return 'g-new';
   }
 
   @override

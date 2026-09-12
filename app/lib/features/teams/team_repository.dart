@@ -236,6 +236,25 @@ class TeamRepository {
   Future<void> removePlayedPlayer(String matchId, String userId) =>
       _adapter.removePlayedPlayer(matchId, userId);
 
+  /// Corrects several players of a completed match as one edit.
+  ///
+  /// The list is the whole intent: what the lineup should say once this edit is
+  /// applied, for every player it mentions. Nothing is sequenced here — the
+  /// ratings, the player counters and the community leaderboards are
+  /// recalculated once, by the database, from the lineup the corrections add up
+  /// to, and a batch that is refused changes nothing at all.
+  ///
+  /// Refused with [FailureReason.invalidChanges] when the batch names the same
+  /// player twice, and with [FailureReason.resultParticipantRemoved] when it
+  /// would take a scorer or the best player out of a lineup the recorded result
+  /// depends on. The organizer corrects the result first; no goal is deleted
+  /// and no score is changed to make a removal possible.
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> corrections,
+  ) =>
+      _adapter.correctCompletedPlayers(matchId, corrections);
+
   /// Records that the Professional Guest [guestId] did not play [matchId] after
   /// all: the lineup row goes with the roster seat.
   ///
@@ -246,6 +265,26 @@ class TeamRepository {
   /// possible.
   Future<void> removePlayedProfessionalGuest(String matchId, String guestId) =>
       _adapter.removePlayedProfessionalGuest(matchId, guestId);
+
+  /// Records that a Professional Guest played [matchId], returning their id.
+  ///
+  /// The completed-match counterpart of adding a guest to a roster: one write
+  /// that creates the guest, confirms their seat and puts them in the factual
+  /// lineup. Nothing is rebalanced, nobody is promoted or demoted, and no rating
+  /// or statistic moves -- a guest owns none, and adding one changes no stored
+  /// scorer, best player or score.
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) =>
+      _adapter.addPlayedProfessionalGuest(
+        matchId,
+        name,
+        team: team,
+        position: position,
+      );
 
   // --- Manual Override (§13) -------------------------------------------------
   //

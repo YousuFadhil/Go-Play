@@ -170,6 +170,31 @@ class SupabaseTeamAdapter implements TeamAdapter {
         });
       });
 
+  /// `correct_completed_match_players` (migration `0074`), and deliberately
+  /// **one** call.
+  ///
+  /// The two functions above correct a single player each, and each of them
+  /// detaches the match's effects, writes, and attaches them again. Calling
+  /// either one per player would recalculate the ratings once per player over
+  /// lineups that never existed, and would leave a half-applied correction
+  /// behind if a later player were refused. The batch is therefore serialized
+  /// whole and sent once: the database validates all of it, recalculates once,
+  /// and rolls all of it back on any refusal.
+  @override
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> corrections,
+  ) =>
+      guarded(() async {
+        await _client.rpc('correct_completed_match_players', params: {
+          'p_match_id': matchId,
+          'p_changes': [
+            for (final correction in corrections)
+              completedPlayerCorrectionToRow(correction),
+          ],
+        });
+      });
+
   /// `remove_played_professional_guest` (migration `0059`), and not
   /// `remove_professional_guest`: the two answer different questions, and the
   /// older one keeps the lineup row a played match needs.
@@ -184,5 +209,30 @@ class SupabaseTeamAdapter implements TeamAdapter {
           'p_match_id': matchId,
           'p_guest_id': guestId,
         });
+      });
+
+  /// `add_played_professional_guest` (migration `0075`), and deliberately not
+  /// `add_professional_guest`.
+  ///
+  /// The older function is the roster's: on a completed match it creates the
+  /// guest and a confirmed seat, and then stops -- `recompute_match_status`
+  /// returns at its completed branch without ever reaching the placement that
+  /// puts a guest on a side. The guest existed and the factual lineup did not
+  /// know it. This one writes all three rows in a single transaction.
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) =>
+      guarded(() async {
+        final id = await _client.rpc('add_played_professional_guest', params: {
+          'p_match_id': matchId,
+          'p_name': name,
+          'p_team': teamToDb(team),
+          'p_assigned_position': positionToDb(position),
+        });
+        return id as String;
       });
 }

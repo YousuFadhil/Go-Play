@@ -593,6 +593,91 @@ void main() {
     });
   });
 
+  group('the Final Result action, by lifecycle state', () {
+    // The approved contract: a result belongs to a match that has been played.
+    // There is no live score and no provisional one, so the action is absent
+    // until the match is over -- and migration 0074 refuses it at the database
+    // either way, which is what this keeps the product from walking into.
+    Match matchIn({required Duration startsIn, Duration length = const Duration(hours: 2)}) {
+      final start = DateTime.now().add(startsIn);
+      return Match(
+        id: 'm1',
+        communityId: 'c1',
+        createdBy: 'u9',
+        location: 'Al Amerat Pitch',
+        startAt: start,
+        endAt: start.add(length),
+        startingPlayers: 10,
+        maxRegistration: 16,
+        status: MatchStatus.open,
+        title: 'Friday Night',
+      );
+    }
+
+    testWidgets('a match still to come offers no result', (tester) async {
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(
+          match: matchIn(startsIn: const Duration(days: 2)),
+          access: memberContext,
+        ),
+        role: CommunityRole.admin,
+      );
+
+      expect(find.text('Match result'), findsNothing);
+      expect(find.text('Teams'), findsOneWidget,
+          reason: 'the lineup is reachable in every state');
+    });
+
+    testWidgets('a match being played offers no result either', (tester) async {
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(
+          match: matchIn(
+            startsIn: const Duration(hours: -1),
+            length: const Duration(hours: 3),
+          ),
+          access: memberContext,
+        ),
+        role: CommunityRole.admin,
+      );
+
+      expect(find.text('Match result'), findsNothing);
+      expect(find.text('Teams'), findsOneWidget);
+    });
+
+    testWidgets('a match that is over offers it, and keeps offering it',
+        (tester) async {
+      final played = matchIn(startsIn: const Duration(hours: -3));
+
+      for (final visit in const ['first', 'second']) {
+        await pumpDetails(
+          tester,
+          matches: FakeMatchAdapter(match: played, access: memberContext),
+          role: CommunityRole.admin,
+        );
+
+        expect(find.text('Match result'), findsOneWidget,
+            reason: '$visit visit: a completed result stays editable');
+      }
+    });
+
+    testWidgets('a player sees no result action on a completed match',
+        (tester) async {
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(
+          match: matchIn(startsIn: const Duration(hours: -3)),
+          access: memberContext,
+        ),
+        role: CommunityRole.player,
+      );
+
+      expect(find.text('Match result'), findsNothing,
+          reason: 'recording a result is still the organizer’s job');
+    });
+  });
+
   group('a genuine loading failure', () {
     testWidgets('a dropped connection is still reported as one',
         (tester) async {

@@ -165,6 +165,11 @@ class SupabaseFailureMapper {
     'INVALID_TEAM': ValidationFailure(FailureReason.invalidTeam),
     'INVALID_POSITION': ValidationFailure(FailureReason.invalidPosition),
 
+    // The batch correction's own payload token (migration `0074`): not an
+    // array, or the same player named twice. Input the caller got wrong, so a
+    // validation failure like the two above it.
+    'INVALID_CHANGES': ValidationFailure(FailureReason.invalidChanges),
+
     // The community named in a request
     'JOIN_CODE_REQUIRED': ValidationFailure(FailureReason.joinCodeRequired),
     'ALREADY_MEMBER': ConflictFailure(FailureReason.alreadyMember),

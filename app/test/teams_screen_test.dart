@@ -291,6 +291,26 @@ void main() {
       expect(find.text('Generate teams'), findsOneWidget);
     });
 
+    testWidgets('a match being played is still offered the generation',
+        (tester) async {
+      // The approved contract: generation is allowed while a match is in
+      // progress and forbidden only once it is over, which is migration 0071's
+      // boundary too. Kickoff is not what closes it.
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(roster: fourInputs()),
+        matches: FakeMatchAdapter(
+          match: matchAt(DateTime.now().subtract(const Duration(hours: 1))),
+          registrations: fourSeats(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Generate teams'), findsOneWidget);
+      expect(find.text('Edit played participants'), findsNothing,
+          reason: 'there is no record to correct until the match is over');
+    });
+
     testWidgets('a player gets the empty state and no control', (tester) async {
       await pumpTeams(
         tester,
@@ -1163,10 +1183,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Add a player who played'), findsNothing);
+      expect(find.text('Edit played participants'), findsNothing);
     });
 
-    testWidgets('a member who played can be added to a side', (tester) async {
+    testWidgets('a member who played is added through the batch correction',
+        (tester) async {
       final teams =
           FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
       final members = roster();
@@ -1179,32 +1200,225 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Add a player who played'));
+      await tester.tap(find.text('Edit played participants'));
       await tester.pumpAndSettle();
 
-      // Only the members who are not already in the lineup are offered.
-      expect(find.text('Layla Al Riyami'), findsOneWidget);
-      expect(find.text('Sara Al Balushi'), findsOneWidget,
-          reason: 'the one behind the dialog, in the lineup itself');
+      // Only the members who are not already in the factual lineup are offered.
+      expect(find.byKey(const Key('playedPick_u5')), findsOneWidget);
+      expect(find.byKey(const Key('playedPick_u1')), findsNothing,
+          reason: 'u1 is already in the lineup');
 
-      await tester.tap(find.text('Layla Al Riyami'));
+      await tester.tap(find.byKey(const Key('playedPick_u5')));
       await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(SimpleDialog),
-        matching: find.text('Team B'),
-      ));
+      await tester.tap(find.byKey(const Key('playedTeam_u5_b')));
       await tester.pumpAndSettle();
-      // The dialog is over the lineup, which names a defender of its own.
-      await tester.tap(find.text('Defender').last);
+      await tester.tap(find.byKey(const Key('playedPosition_u5_DEF')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('savePlayedParticipantsButton')));
       await tester.pumpAndSettle();
 
-      expect(teams.addedUserId, 'u5');
-      expect(teams.addedTeam, TeamId.b);
-      expect(teams.addedPosition, Position.def);
+      expect(teams.correctionCalls, 1, reason: 'one batch, one call');
+      expect(teams.correctedMatchId, 'm1');
+      expect(teams.corrections, hasLength(1));
+      expect(teams.corrections.single.userId, 'u5');
+      expect(teams.corrections.single.team, TeamId.b);
+      expect(teams.corrections.single.position, Position.def);
+      expect(teams.corrections.single.action, CompletedPlayerAction.upsert);
+      expect(teams.addedUserId, isNull,
+          reason: 'the single-player RPC is not what a correction uses now');
       expect(members.memberReads, 1,
           reason: 'the member list is read when it is needed, not on every '
               'visit to the screen');
-      expect(find.text('Team B'), findsOneWidget);
+    });
+
+    testWidgets('each candidate shows both profile positions, as reference',
+        (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches:
+            FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+        members: FakeMemberAdapter(
+          role: CommunityRole.admin,
+          members: [
+            const CommunityMember(
+              userId: 'u5',
+              fullName: 'Layla Al Riyami',
+              position: 'MID',
+              secondaryPosition: 'DEF',
+              role: CommunityRole.player,
+            ),
+            const CommunityMember(
+              userId: 'u6',
+              fullName: 'Maha Al Saidi',
+              position: 'GK',
+              role: CommunityRole.player,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Edit played participants'));
+      await tester.pumpAndSettle();
+
+      // Both, where the profile names both.
+      expect(find.text('Midfielder • Defender'), findsOneWidget);
+      // And only one where it names one: an invented "none" would read as a
+      // fact about the player.
+      expect(find.text('Goalkeeper'), findsWidgets);
+
+      // Neither is used for anything. Choosing the player answers nothing about
+      // where they played.
+      await tester.tap(find.byKey(const Key('playedPick_u5')));
+      await tester.pumpAndSettle();
+      for (final key in const [
+        'playedTeam_u5_a',
+        'playedTeam_u5_b',
+        'playedPosition_u5_GK',
+        'playedPosition_u5_DEF',
+        'playedPosition_u5_MID',
+        'playedPosition_u5_FWD',
+      ]) {
+        expect(tester.widget<ChoiceChip>(find.byKey(Key(key))).selected, isFalse,
+            reason: '$key must not be pre-selected from the profile');
+      }
+      expect(
+          tester
+              .widget<FilledButton>(
+                  find.byKey(const Key('savePlayedParticipantsButton')))
+              .onPressed,
+          isNull,
+          reason: 'nothing was auto-filled, so nothing is ready to save');
+    });
+
+    testWidgets('several players are corrected in one save', (tester) async {
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches:
+            FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+        members: FakeMemberAdapter(
+          role: CommunityRole.admin,
+          members: [
+            member('u1', 'Sara Al Balushi'),
+            member('u5', 'Layla Al Riyami'),
+            member('u6', 'Maha Al Saidi'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Edit played participants'));
+      await tester.pumpAndSettle();
+
+      for (final (id, team, position) in const [
+        ('u5', 'a', 'MID'),
+        ('u6', 'b', 'FWD'),
+      ]) {
+        await tester.tap(find.byKey(Key('playedPick_$id')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('playedTeam_${id}_$team')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('playedPosition_${id}_$position')));
+        await tester.pumpAndSettle();
+      }
+
+      await tester.tap(find.byKey(const Key('savePlayedParticipantsButton')));
+      await tester.pumpAndSettle();
+
+      expect(teams.correctionCalls, 1,
+          reason: 'two players, one atomic save -- not one call each');
+      expect([for (final c in teams.corrections) c.userId], ['u5', 'u6']);
+      expect([for (final c in teams.corrections) c.team],
+          [TeamId.a, TeamId.b]);
+      expect([for (final c in teams.corrections) c.position],
+          [Position.mid, Position.fwd]);
+    });
+
+    testWidgets('Save waits until every chosen player is complete',
+        (tester) async {
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches:
+            FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+        // Two candidates, so the batch can be made incomplete again after it
+        // has once been complete.
+        members: FakeMemberAdapter(
+          role: CommunityRole.admin,
+          members: [
+            member('u5', 'Layla Al Riyami'),
+            member('u6', 'Maha Al Saidi'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Edit played participants'));
+      await tester.pumpAndSettle();
+
+      FilledButton saveButton() => tester.widget<FilledButton>(
+          find.byKey(const Key('savePlayedParticipantsButton')));
+
+      // Nothing chosen: an empty batch is never sent.
+      expect(saveButton().onPressed, isNull);
+
+      await tester.tap(find.byKey(const Key('playedPick_u5')));
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull,
+          reason: 'no side and no position yet');
+
+      await tester.tap(find.byKey(const Key('playedTeam_u5_a')));
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull, reason: 'still no position');
+
+      await tester.tap(find.byKey(const Key('playedPosition_u5_GK')));
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNotNull);
+
+      // A second player with nothing said about them closes it again.
+      await tester.tap(find.byKey(const Key('playedPick_u6')));
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull,
+          reason: 'the batch is only as complete as its least complete entry');
+      expect(teams.correctionCalls, 0);
+    });
+
+    testWidgets('a refused batch leaves the lineup as it was', (tester) async {
+      final teams = FakeTeamAdapter(
+        lineup: storedLineup(),
+        roster: fourInputs(),
+      )..participationFailure =
+          const ValidationFailure(FailureReason.invalidChanges);
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches:
+            FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+        members: roster(),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Edit played participants'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('playedPick_u5')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('playedTeam_u5_a')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('playedPosition_u5_MID')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('savePlayedParticipantsButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The participant corrections are invalid.'),
+          findsOneWidget);
+      expect(find.text('Layla Al Riyami'), findsNothing,
+          reason: 'nothing was added to the lineup on screen');
     });
 
     testWidgets('with everybody already in the lineup there is nobody to add',
@@ -1226,7 +1440,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Add a player who played'));
+      await tester.tap(find.text('Edit played participants'));
       await tester.pumpAndSettle();
 
       expect(find.text('Every community member is already in this lineup.'),
@@ -1854,6 +2068,98 @@ void main() {
               'the screen never puts them on a side itself');
     });
 
+    testWidgets('on a played match it is a factual correction, not a roster add',
+        (tester) async {
+      // The defect this fixes: the roster path created the guest and a confirmed
+      // seat, and `recompute_match_status` returned at its completed branch
+      // without placing them -- so the screen reported a guest the factual
+      // lineup did not hold.
+      final matches = FakeMatchAdapter(
+        match: playedMatch,
+        registrations: fourSeats(),
+      );
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches: matches,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+
+      // The roster dialog is not what opens: this one asks for the side and the
+      // position the factual lineup row needs.
+      expect(find.byKey(const Key('teamsGuestNameField')), findsNothing);
+      expect(find.byKey(const Key('playedGuestNameField')), findsOneWidget);
+
+      await tester.enterText(
+          find.byKey(const Key('playedGuestNameField')), 'Faisal');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('playedGuestTeam_b')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('playedGuestPosition_FWD')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('savePlayedGuestButton')));
+      await tester.pumpAndSettle();
+
+      expect(teams.playedGuestCalls, 1, reason: 'one call, one guest');
+      expect(teams.playedGuestName, 'Faisal');
+      expect(teams.playedGuestTeam, TeamId.b);
+      expect(teams.playedGuestPosition, Position.fwd);
+      expect(matches.addedGuestNames, isEmpty,
+          reason: 'the roster function is not what a played match uses');
+      expect(teams.savedLineup, isNull,
+          reason: 'no lineup write from here: the RPC owns all three rows');
+    });
+
+    testWidgets('the correction needs a name, a side and a position',
+        (tester) async {
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches:
+            FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
+      await tester.pumpAndSettle();
+
+      FilledButton saveButton() => tester.widget<FilledButton>(
+          find.byKey(const Key('savePlayedGuestButton')));
+
+      expect(saveButton().onPressed, isNull, reason: 'nothing said yet');
+
+      await tester.enterText(
+          find.byKey(const Key('playedGuestNameField')), 'Faisal');
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull, reason: 'no side, no position');
+
+      await tester.tap(find.byKey(const Key('playedGuestTeam_a')));
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull, reason: 'still no position');
+
+      await tester.tap(find.byKey(const Key('playedGuestPosition_GK')));
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNotNull);
+
+      // A name below the database's own bound closes it again.
+      await tester.enterText(
+          find.byKey(const Key('playedGuestNameField')), 'F');
+      await tester.pumpAndSettle();
+      expect(saveButton().onPressed, isNull);
+      expect(teams.playedGuestCalls, 0);
+    });
+
     testWidgets('added to the reserve list, is not forced onto a side',
         (tester) async {
       // Capacity and the confirmed-before-reserve priority are the database's
@@ -2006,7 +2312,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Add a player who played'), findsOneWidget);
+      expect(find.text('Edit played participants'), findsOneWidget);
 
       await tester.tap(find.text('Sara Al Balushi'));
       await tester.pumpAndSettle();
@@ -2285,6 +2591,37 @@ class FakeTeamAdapter implements TeamAdapter {
     ];
   }
 
+  /// What the batch correction was handed, and how many times.
+  ///
+  /// The count is the point: one save of several players must cross this
+  /// boundary once, because each crossing reverses and reapplies the match's
+  /// ratings.
+  int correctionCalls = 0;
+  String? correctedMatchId;
+  List<CompletedPlayerCorrection> corrections = const [];
+
+  @override
+  Future<void> correctCompletedPlayers(
+    String matchId,
+    List<CompletedPlayerCorrection> batch,
+  ) async {
+    if (participationFailure != null) throw participationFailure!;
+    correctionCalls += 1;
+    correctedMatchId = matchId;
+    corrections = batch;
+    // The factual lineup the screen re-reads after a correction.
+    _lineup = [
+      ..._lineup,
+      for (final correction in batch)
+        TeamAssignment(
+          userId: correction.userId,
+          team: correction.team!,
+          assignedPosition: correction.position!,
+          basis: AssignmentBasis.primary,
+        ),
+    ];
+  }
+
   @override
   Future<void> removePlayedPlayer(String matchId, String userId) async {
     if (participationFailure != null) throw participationFailure!;
@@ -2297,6 +2634,38 @@ class FakeTeamAdapter implements TeamAdapter {
 
   /// The guest this adapter was asked to take out of the played record.
   String? removedPlayedGuestId;
+
+  /// What the completed-guest correction was handed, and how often.
+  int playedGuestCalls = 0;
+  String? playedGuestName;
+  TeamId? playedGuestTeam;
+  Position? playedGuestPosition;
+
+  @override
+  Future<String> addPlayedProfessionalGuest(
+    String matchId,
+    String name, {
+    required TeamId team,
+    required Position position,
+  }) async {
+    if (participationFailure != null) throw participationFailure!;
+    playedGuestCalls += 1;
+    playedGuestName = name;
+    playedGuestTeam = team;
+    playedGuestPosition = position;
+    // The factual lineup the screen re-reads afterwards, which is the only
+    // reason a guest appears on the pitch.
+    _lineup = [
+      ..._lineup,
+      TeamAssignment(
+        professionalGuestId: 'g-new',
+        team: team,
+        assignedPosition: position,
+        basis: null,
+      ),
+    ];
+    return 'g-new';
+  }
 
   @override
   Future<void> removePlayedProfessionalGuest(

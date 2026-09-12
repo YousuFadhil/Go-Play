@@ -131,12 +131,25 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('is offered on a completed match', (tester) async {
+    testWidgets('is withheld on a completed match, which has its own path',
+        (tester) async {
+      // CHANGED by the approved all-state contract. The database would still
+      // honour `admin_add_player_to_match` here, and for a while the screen
+      // offered it -- but a completed match's participants are a factual record,
+      // and correcting that record belongs to the Teams screen's batch
+      // correction, which reaches `correct_completed_match_players` and
+      // recalculates the ratings once. Two ways in would mean two meanings for
+      // "who played", one of which quietly rewrites the roster instead.
       await openPlayers(tester, completed);
 
-      expect(find.byKey(const Key('addPlayerButton')), findsOneWidget);
-      expect(find.byKey(const Key('addGuestButton')), findsOneWidget,
-          reason: 'both kinds of participant, on the same rule about state');
+      expect(find.byKey(const Key('addPlayerButton')), findsNothing);
+      // CHANGED: the guest add is withheld here too. `add_professional_guest`
+      // creates the guest and a confirmed seat and then stops on a played match
+      // -- `recompute_match_status` returns at its completed branch without ever
+      // placing the guest -- so the roster reported a guest the factual lineup
+      // did not hold. The completed answer is the Teams screen's
+      // `add_played_professional_guest` (0075), which writes the lineup row.
+      expect(find.byKey(const Key('addGuestButton')), findsNothing);
     });
 
     testWidgets('is withheld on a recorded match, as it always was',
@@ -146,15 +159,19 @@ void main() {
       expect(find.byKey(const Key('addPlayerButton')), findsNothing,
           reason: 'a recorded match takes no registration through any path, '
               'and the screen shows the answer the server would give');
-      expect(find.byKey(const Key('addGuestButton')), findsOneWidget,
-          reason: 'guest management on a recorded match is unchanged');
+      // A recorded match is a completed one, so the same boundary applies: its
+      // guests are part of the record, corrected from Teams.
+      expect(find.byKey(const Key('addGuestButton')), findsNothing);
     });
 
     testWidgets('does not bring removal with it on a completed match',
         (tester) async {
       await openPlayers(tester, completed);
 
-      expect(find.byTooltip('Remove player'), findsNothing);
+      // 'Remove', which is what the tooltip actually says -- asserting
+      // 'Remove player' here matched nothing whatever the screen did, so the
+      // rule was never really being checked.
+      expect(find.byTooltip('Remove'), findsNothing);
     });
   });
 

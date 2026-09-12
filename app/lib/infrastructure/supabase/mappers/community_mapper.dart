@@ -61,6 +61,8 @@ CommunityMember communityMemberFromRow(
     userId: user['id'] as String,
     fullName: user['full_name'] as String,
     position: user['primary_position'] as String,
+    // Nullable in the schema: a profile may name one position and stop.
+    secondaryPosition: user['secondary_position'] as String?,
     role: communityRoleFromDb(row['role'] as String),
     avatarUrl: avatarUrl?.call(user['avatar_path'] as String?),
   );
