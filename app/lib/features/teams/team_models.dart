@@ -126,13 +126,20 @@ class TeamAssignment {
   /// (`KB-D6`).
   final TeamId team;
 
-  /// Where they played — or null for a Professional Guest.
+  /// Where they played — optional for a Professional Guest.
   ///
   /// A registered player always has one: the engine names a position for
   /// everybody it places, and the database requires it of any lineup row naming
-  /// a user. A guest has no profile for one to be derived against, and nothing
-  /// invents one for them, so null here is the **absence** of a position rather
-  /// than an unknown one.
+  /// a user (`0051`).
+  ///
+  /// For a guest it is optional, and the two cases are different statements. In
+  /// an ordinary roster-derived lineup it is null, because a guest has no
+  /// profile for a position to be derived against and nothing invents one for
+  /// them: null is the **absence** of a position rather than an unknown one. A
+  /// completed-match correction, where the organizer states the position the
+  /// guest actually played (migration `0075`), records that position here —
+  /// evidence about the match, still not a claim about the player's profile.
+  /// The field stays nullable because both cases are real.
   ///
   /// `Position` gains no fifth value for this. It is `package:btge`'s enum, and
   /// a participant the engine never sees must not widen the engine's

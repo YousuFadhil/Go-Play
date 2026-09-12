@@ -1123,9 +1123,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
                 isProfessionalGuest: other.isProfessionalGuest,
               ),
               title: Text(_nameOf(view, other.participantId)),
-              // A guest has no position, and none is invented for them: the row
-              // says what they are instead. A registered player always carries
-              // one — the database refuses a lineup row naming a user without.
+              // A guest may have no position — an ordinary roster-derived
+              // lineup invents none for them — and the row says what they are
+              // instead of inventing one here either. A guest recorded by a
+              // completed-match correction does carry the position they played,
+              // and it is shown like anybody else's. A registered player always
+              // carries one: the database refuses a lineup row naming a user
+              // without.
               subtitle: Text(
                 other.assignedPosition == null
                     ? l10n.professionalGuestLabel

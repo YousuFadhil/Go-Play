@@ -661,6 +661,33 @@ void main() {
       }
     });
 
+    test('the recorded side is marked as chosen, so nothing may alternate it',
+        () {
+      // `assign_professional_guest_teams` (0058) moves guests whose side was
+      // never chosen, and it reads this flag to know which those are. A side
+      // entered as historical fact must therefore say it was chosen, or a later
+      // lineup write could alternate a recorded Team B guest onto Team A.
+      expect(guestBody, contains('team_manually_overridden'));
+      expect(
+          guestBody,
+          contains("values (p_match_id, v_guest_id, p_team, "
+              "p_assigned_position, 'GUEST', true);"));
+      // And the flag is written by this function rather than left to the column
+      // default, which is false.
+      expect(
+          guestBody.indexOf('team_manually_overridden'),
+          lessThan(guestBody.indexOf("'GUEST', true)")),
+          reason: 'named in the column list, then given its value');
+    });
+
+    test('it neither redefines nor calls the guest placement it protects', () {
+      // 0058 and its function stay exactly as they are: this migration opts out
+      // of alternation rather than changing how alternation works.
+      expect(guestStatements,
+          isNot(contains('function public.assign_professional_guest_teams')));
+      expect(guestBody, isNot(contains('assign_professional_guest_teams')));
+    });
+
     test('it writes the guest, a confirmed seat and the factual lineup row', () {
       expect(guestBody, contains('insert into match_professional_guests'));
       expect(guestBody, contains('insert into match_registrations'));

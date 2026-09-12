@@ -11,6 +11,7 @@ import '../members/member_repository.dart';
 import 'match_card.dart';
 import 'match_models.dart';
 import 'match_service.dart';
+import '../teams/team_repository.dart';
 
 /// Organizer view of a match roster (confirmed players or reserve list),
 /// with the ability to remove a player. Removing a confirmed player promotes
@@ -34,6 +35,7 @@ class ManageRosterScreen extends StatefulWidget {
     this.canRegisterGuests = true,
     this.memberRepository,
     this.service,
+    this.teamRepository,
   });
 
   final String matchId;
@@ -99,6 +101,7 @@ class ManageRosterScreen extends StatefulWidget {
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final MemberRepository? memberRepository;
   final MatchService? service;
+  final TeamRepository? teamRepository;
 
   @override
   State<ManageRosterScreen> createState() => _ManageRosterScreenState();
@@ -108,6 +111,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
   late final MatchService _service = widget.service ?? MatchService();
   late final MemberRepository _members =
       widget.memberRepository ?? MemberRepository();
+  late final TeamRepository _teams = widget.teamRepository ?? TeamRepository();
   late Future<List<MatchRegistration>> _future;
   bool _busy = false;
   bool _changed = false;
@@ -120,6 +124,20 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
   /// be offering a duplicate the database would refuse.
   List<MatchRegistration> _allRegistrations = const [];
 
+  /// The Professional Guests this match's stored lineup actually holds, by id.
+  ///
+  /// **The authoritative question about a played match, and the only one.** After
+  /// completion a guest is a participant because `match_team_assignments` says
+  /// so -- not because their registration is confirmed, not because of where they
+  /// sit in `registration_order`. A guest may hold a confirmed seat and have
+  /// played nothing, which is what a historical reserve is; production holds such
+  /// rows today and they are legitimate.
+  ///
+  /// Read once per load of this screen and only for a played match, because it is
+  /// only there that it decides anything. Empty before completion, where nothing
+  /// consults it.
+  Set<String> _playedGuestIds = const {};
+
   @override
   void initState() {
     super.initState();
@@ -129,6 +147,16 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
   Future<List<MatchRegistration>> _load() async {
     final all = await _service.fetchRegistrations(widget.matchId);
     _allRegistrations = all;
+    // One read, not one per row, and only where the answer is used: a played
+    // match's guest removals are decided by the factual lineup.
+    if (!widget.canRegisterGuests) {
+      final lineup = await _teams.fetchLineup(widget.matchId);
+      _playedGuestIds = {
+        for (final assignment in lineup)
+          if (assignment.professionalGuestId != null)
+            assignment.professionalGuestId!,
+      };
+    }
     return [
       for (final r in all)
         if (r.status == widget.filter) r
@@ -144,6 +172,19 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     setState(() {
       _future = _load();
     });
+  }
+
+  /// Whether this guest may be taken off the roster from here.
+  ///
+  /// Up to completion, yes: that is what the roster removal is for. Afterwards
+  /// only if the stored lineup does not name them -- a guest who did not play is
+  /// a roster row and nothing more, and production holds plenty of them. A guest
+  /// the lineup does name is a recorded participant, and the removal that
+  /// understands that lives on the Teams screen.
+  bool _mayRemoveFromRoster(MatchRegistration participant) {
+    if (widget.canRegisterGuests) return true;
+    final guestId = participant.professionalGuestId;
+    return guestId != null && !_playedGuestIds.contains(guestId);
   }
 
   String _positionLabel(AppLocalizations l10n, String position) =>
@@ -632,7 +673,16 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
                                 icon: const Icon(Icons.edit_outlined),
                                 onPressed: _busy ? null : () => _renameGuest(p),
                               ),
-                              if (widget.canRegisterGuests)
+                              // Before completion, the roster removal is the
+                              // right one for any guest. After it, only for a
+                              // guest the factual lineup does not hold: taking
+                              // one who played off the roster here would free a
+                              // seat and leave their lineup row standing, which
+                              // is what `remove_played_professional_guest` on
+                              // the Teams screen exists to do properly -- with
+                              // the scorer and best-player guard that protects
+                              // the recorded result.
+                              if (_mayRemoveFromRoster(p))
                                 IconButton(
                                   key: Key(
                                       'removeGuest_${p.professionalGuestId}'),

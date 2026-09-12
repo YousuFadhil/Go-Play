@@ -737,6 +737,40 @@ void main() {
       expect(assignment['assignment_basis'], 'GUEST');
     });
 
+    test('the side is recorded as chosen, and survives a later lineup write',
+        () async {
+      final guestId = await owner.client
+          .rpc('add_played_professional_guest', params: {
+        'p_match_id': matchId,
+        'p_name': 'ITest Played Guest',
+        'p_team': 'B',
+        'p_assigned_position': 'DEF',
+      }) as String;
+
+      Future<Map<String, dynamic>> guestRow() async => Map<String, dynamic>.from(
+            await owner.client
+                .from('match_team_assignments')
+                .select('team, assigned_position, team_manually_overridden')
+                .eq('match_id', matchId)
+                .eq('professional_guest_id', guestId)
+                .single(),
+          );
+
+      // Stored as a choice, not as a placement: `assign_professional_guest_teams`
+      // alternates only guests whose side was never chosen.
+      expect((await guestRow())['team_manually_overridden'], isTrue);
+
+      // A later correction to the community half of the same lineup leaves the
+      // recorded side alone. Without the flag this is exactly where an
+      // alternation would move them.
+      expect(await correct(owner, [upsert(player3, 'A', 'MID')]), 'ALLOW');
+
+      final after = await guestRow();
+      expect(after['team'], 'B', reason: 'the side the organizer recorded');
+      expect(after['assigned_position'], 'DEF');
+      expect(after['team_manually_overridden'], isTrue);
+    });
+
     test('it moves no rating and leaves the result alone', () async {
       // A guest owns no rating and no statistics, and adding one takes no scorer
       // or best player out of the result, so there is nothing to reverse.

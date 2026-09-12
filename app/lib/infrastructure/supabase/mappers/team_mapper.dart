@@ -36,6 +36,12 @@ String teamToDb(TeamId team) => switch (team) {
 /// three profile-derived bases is true of them. `AssignmentBasis` is the
 /// engine's own vocabulary and gains no fourth value for a participant the
 /// engine never sees.
+///
+/// This is about the *basis*, not the position. A guest's `assigned_position`
+/// may be null in an ordinary roster-derived lineup, and a completed-match
+/// correction may state the position they actually played (migration `0075`);
+/// either way no basis is inferred, because there is still no profile to
+/// compare the position against.
 AssignmentBasis? assignmentBasisFromDb(String value) => switch (value) {
       'PRIMARY' => AssignmentBasis.primary,
       'SECONDARY' => AssignmentBasis.secondary,
@@ -90,9 +96,11 @@ PlayerCoreInputs playerCoreInputsFromRow(
 
 /// A lineup row, naming either a registered user or a Professional Guest.
 ///
-/// `assigned_position` is null for a guest and never for a registered player —
-/// migration `0051` makes that a CHECK constraint, so the absence here is the
-/// database's statement that there is no position, not a gap to fill.
+/// `assigned_position` is required of a registered player and optional for a
+/// guest — migration `0051` states both halves as CHECK constraints. So null
+/// here is the database's statement that there is no position, not a gap to
+/// fill; a guest recorded by a completed-match correction (migration `0075`)
+/// carries the position they actually played.
 TeamAssignment teamAssignmentFromRow(Map<String, dynamic> row) {
   final position = row['assigned_position'] as String?;
   return TeamAssignment(

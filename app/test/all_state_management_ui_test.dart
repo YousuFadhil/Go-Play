@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/l10n.dart';
@@ -74,6 +76,19 @@ void main() {
       expect(canAdministerRoster(completed, busy: false), isFalse,
           reason: 'who played is corrected through the batch path instead');
       expect(canAdministerRoster(active, busy: true), isFalse);
+    });
+
+    test('a played guest keeps the side that was recorded for them', () {
+      // Correction 1, from the Dart side: the sheet states a side, and 0075
+      // stores it as chosen so nothing may alternate it afterwards. The
+      // migration's own assertion lives in the static suite; this pins the
+      // boundary the UI depends on -- the organizer's choice is the fact.
+      final sql = File('../supabase/migrations/'
+              '0075_completed_professional_guest_correction.sql')
+          .readAsStringSync()
+          .replaceAll('\r\n', '\n');
+      expect(sql, contains('team_manually_overridden'));
+      expect(sql, contains("'GUEST', true)"));
     });
 
     test('the ordinary guest roster operations stop at completion', () {

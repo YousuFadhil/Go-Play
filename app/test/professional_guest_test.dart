@@ -9,6 +9,10 @@ import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'package:go_play/features/teams/team_adapter.dart';
+import 'package:go_play/features/teams/team_models.dart';
+import 'package:go_play/features/teams/team_repository.dart';
+import 'package:btge/btge.dart';
 import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/infrastructure/supabase/mappers/match_mapper.dart';
 
@@ -64,6 +68,8 @@ void main() {
     required FakeMatchAdapter matches,
     bool canRemove = true,
     bool canManageGuests = true,
+    bool canRegisterGuests = true,
+    List<TeamAssignment> lineup = const [],
     RegistrationStatus filter = RegistrationStatus.confirmed,
     Locale locale = const Locale('en'),
   }) async {
@@ -83,8 +89,10 @@ void main() {
           title: 'Players',
           canRemove: canRemove,
           canManageGuests: canManageGuests,
+          canRegisterGuests: canRegisterGuests,
           service: MatchService(matches),
           memberRepository: MemberRepository(FakeMemberAdapter()),
+          teamRepository: TeamRepository(_LineupOnlyAdapter(lineup)),
         ),
       ),
     );
@@ -431,6 +439,124 @@ void main() {
 
   // --- 11. the ordering is the server's ----------------------------------------------
 
+  group('a played match: the factual lineup decides who may be removed', () {
+    /// A guest's lineup row -- the only thing that makes them a participant of a
+    /// match that has been played.
+    TeamAssignment played(String guestId, {TeamId team = TeamId.a}) =>
+        TeamAssignment(
+          professionalGuestId: guestId,
+          team: team,
+          assignedPosition: Position.mid,
+          basis: null,
+        );
+
+    testWidgets('a guest the lineup does not name may still leave the roster',
+        (tester) async {
+      // The case production already holds: a guest who was registered for a
+      // match they did not play. Nothing factual records them, so the ordinary
+      // roster removal is exactly right.
+      final matches = FakeMatchAdapter(
+        registrations: [player('u1'), guest('g1', 'Ahmed')],
+      );
+      await pumpRoster(
+        tester,
+        matches: matches,
+        canRegisterGuests: false,
+        lineup: const [],
+      );
+
+      expect(find.byKey(const Key('addGuestButton')), findsNothing,
+          reason: 'a new guest after completion goes through Teams');
+      expect(find.byKey(const Key('renameGuest_g1')), findsOneWidget,
+          reason: 'renaming is neither an add nor a remove');
+      expect(find.byKey(const Key('removeGuest_g1')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('removeGuest_g1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove guest'));
+      await tester.pumpAndSettle();
+
+      expect(matches.removedGuests, [(matchId, 'g1')],
+          reason: 'the ordinary roster removal, called once');
+    });
+
+    testWidgets('a guest the lineup names is not removable from here',
+        (tester) async {
+      // They played. Taking their seat away here would free the seat and leave
+      // the lineup row standing; the Teams screen's
+      // `remove_played_professional_guest` is what takes both, with the guard
+      // that protects a recorded scorer or best player.
+      final matches = FakeMatchAdapter(
+        registrations: [player('u1'), guest('g1', 'Ahmed')],
+      );
+      await pumpRoster(
+        tester,
+        matches: matches,
+        canRegisterGuests: false,
+        lineup: [played('g1')],
+      );
+
+      expect(find.byKey(const Key('addGuestButton')), findsNothing);
+      expect(find.byKey(const Key('renameGuest_g1')), findsOneWidget);
+      expect(find.byKey(const Key('removeGuest_g1')), findsNothing);
+      expect(matches.removedGuests, isEmpty);
+    });
+
+    testWidgets('the lineup is authoritative, not the registration status',
+        (tester) async {
+      // The rule, stated where it can be got wrong. A confirmed seat is not
+      // evidence of playing, and a reserve seat is not evidence of not playing:
+      // only `match_team_assignments` answers that question.
+      final matches = FakeMatchAdapter(
+        registrations: [
+          player('u1'),
+          guest('g1', 'Confirmed but absent'),
+          guest('g2', 'Reserve but played',
+              status: RegistrationStatus.reserve),
+        ],
+      );
+
+      await pumpRoster(
+        tester,
+        matches: matches,
+        canRegisterGuests: false,
+        lineup: [played('g2')],
+        filter: RegistrationStatus.confirmed,
+      );
+      expect(find.byKey(const Key('removeGuest_g1')), findsOneWidget,
+          reason: 'confirmed, but no lineup row: a roster row and nothing more');
+
+      await pumpRoster(
+        tester,
+        matches: matches,
+        canRegisterGuests: false,
+        lineup: [played('g2')],
+        filter: RegistrationStatus.reserve,
+      );
+      expect(find.byKey(const Key('removeGuest_g2')), findsNothing,
+          reason: 'a reserve seat with a lineup row is a participant, because '
+              'the assignment is what is authoritative');
+    });
+
+    testWidgets('before completion the lineup decides nothing', (tester) async {
+      // Future and active are untouched: every guest keeps add, rename and
+      // remove, whether or not a lineup exists yet.
+      final matches = FakeMatchAdapter(
+        registrations: [player('u1'), guest('g1', 'Ahmed')],
+      );
+      await pumpRoster(
+        tester,
+        matches: matches,
+        lineup: [played('g1')],
+      );
+
+      expect(find.byKey(const Key('addGuestButton')), findsOneWidget);
+      expect(find.byKey(const Key('renameGuest_g1')), findsOneWidget);
+      expect(find.byKey(const Key('removeGuest_g1')), findsOneWidget,
+          reason: 'the roster removal is the right one until the match is over');
+    });
+  });
+
   group('11. the roster shown is the roster returned', () {
     testWidgets('reserve guests appear under the reserve filter, in order',
         (tester) async {
@@ -544,4 +670,19 @@ class FakeMemberAdapter implements MemberAdapter {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+/// Serves one stored lineup and refuses everything else: the roster screen reads
+/// nothing else through this port.
+class _LineupOnlyAdapter implements TeamAdapter {
+  _LineupOnlyAdapter(this.lineup);
+
+  final List<TeamAssignment> lineup;
+
+  @override
+  Future<List<TeamAssignment>> fetchLineup(String matchId) async => lineup;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('the roster screen reads only the lineup');
 }

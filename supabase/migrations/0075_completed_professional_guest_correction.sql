@@ -167,9 +167,23 @@ begin
   -- basis 0044 gives a participant with no profile: none of PRIMARY, SECONDARY
   -- or TRANSITION can be true of somebody who has no positions to compare
   -- against.
+  --
+  -- `team_manually_overridden` is true, and it has to be said rather than left
+  -- at its default. The column is 0058's record of "a person chose this side, do
+  -- not choose another one for them": `assign_professional_guest_teams`
+  -- alternates guests whose side was never chosen, and it reads exactly this
+  -- flag to decide whom it may move. A side entered here is the organizer's
+  -- statement about a match that has already been played, so leaving the flag
+  -- false would let an unrelated lineup write alternate a recorded Team B guest
+  -- onto Team A -- silently rewriting history to balance a match nobody can
+  -- play again.
+  --
+  -- Pre-completion alternation is untouched: a guest added through the roster
+  -- still arrives with the flag false and is still placed automatically.
   insert into match_team_assignments
-    (match_id, professional_guest_id, team, assigned_position, assignment_basis)
-  values (p_match_id, v_guest_id, p_team, p_assigned_position, 'GUEST');
+    (match_id, professional_guest_id, team, assigned_position,
+     assignment_basis, team_manually_overridden)
+  values (p_match_id, v_guest_id, p_team, p_assigned_position, 'GUEST', true);
 
   return v_guest_id;
 end;
@@ -182,7 +196,10 @@ comment on function public.add_played_professional_guest(
   'confirmed registration and the factual match_team_assignments row, written '
   'together in one transaction. The side and the position are stated by the '
   'organizer and never inferred -- a guest has no profile to infer them from -- '
-  'and assignment_basis is GUEST. Refused with MATCH_NOT_COMPLETED before '
+  'and assignment_basis is GUEST. The side is stored with '
+  'team_manually_overridden = true, so assign_professional_guest_teams may '
+  'never alternate a guest off the side they were recorded on. Refused with '
+  'MATCH_NOT_COMPLETED before '
   'completion, where add_professional_guest remains the roster operation. '
   'Deliberately applies no capacity rule, creates no reserve seat, rebalances '
   'and recomputes nothing, notifies nobody, and touches no rating or statistic: '
