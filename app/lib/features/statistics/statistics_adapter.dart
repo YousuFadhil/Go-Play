@@ -110,8 +110,9 @@ abstract interface class StatisticsAdapter {
   ///
   /// **[TeamOfPeriodKind] rather than [StatisticsPeriod], and the distinction
   /// is the whole contract.** Every other read on this port asks about the
-  /// period a screen is currently showing; this one asks about the last period
-  /// that *finished*. The database resolves which that is and refuses to be
+  /// period a screen is currently showing; this one asks about an award period
+  /// — the week now running, or the last month that *finished* (migration
+  /// `0077`). The database resolves which that is and refuses to be
   /// handed a timestamp, so there is no window parameter here and no All Time
   /// value to pass.
   ///
@@ -124,7 +125,7 @@ abstract interface class StatisticsAdapter {
     TeamOfPeriodKind kind,
   );
 
-  /// Every real player who played in that completed period, with the evidence
+  /// Every real player who played in that period, with the evidence
   /// the award is decided from.
   ///
   /// Zero rows is a complete answer, not an absence: a period may hold matches
