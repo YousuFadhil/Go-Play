@@ -2183,7 +2183,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get teamOfPeriodCtaSubtitle =>
-      'أفضل اللاعبين في آخر أسبوع أو شهر مكتمل';
+      'أفضل اللاعبين في هذا الأسبوع، أو في آخر شهر مكتمل';
 
   @override
   String get teamOfPeriodCtaAction => 'عرض التشكيلة';
