@@ -371,7 +371,9 @@ void main() {
         start: expected.end.subtract(const Duration(days: 8)),
         duration: const Duration(hours: 1),
       );
-      await recordResult(lastMonth, teamA: 1, teamB: 0);
+      await recordResult(lastMonth, teamA: 1, teamB: 0, goals: [
+        {'user_id': owner.id, 'goals': 1},
+      ]);
 
       window = await windowOf(owner, 'monthly');
       expect(window['qualifying_match_count'], 1);
