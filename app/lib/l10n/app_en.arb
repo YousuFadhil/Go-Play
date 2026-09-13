@@ -900,7 +900,7 @@
   "adminMetricLastActivity": "Last activity",
 
   "teamOfPeriodTitle": "Team of the Period",
-  "teamOfPeriodCtaSubtitle": "The best players of the last completed week or month",
+  "teamOfPeriodCtaSubtitle": "The best players of this week, or of the last completed month",
   "teamOfPeriodCtaAction": "View the team",
   "teamOfPeriodWeekTab": "Week",
   "teamOfPeriodMonthTab": "Month",

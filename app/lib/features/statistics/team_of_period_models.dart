@@ -1,20 +1,20 @@
 import 'package:btge/btge.dart';
 
-/// Which completed period a Team of Period award describes.
+/// Which period a Team of Period award describes.
 ///
 /// **Not [StatisticsPeriod], and deliberately not.** That enum names the period
-/// a screen is *currently* showing — this week, this month, all time — and its
-/// weekly value means the week now running. An award is always about a period
-/// that has finished: migration `0070` resolves the last completed ISO week or
-/// calendar month itself and refuses to be handed a timestamp. Reusing the
+/// a screen is *currently* showing — this week, this month, all time. An award
+/// period is resolved by the database, which refuses to be handed a timestamp:
+/// migration `0077` makes the weekly award the ISO week now running, and keeps
+/// the monthly award on the last completed calendar month. Reusing the
 /// statistics enum would have let a caller ask for an award for `allTime`, or
-/// read "weekly" as "so far this week", and both are questions this feature
-/// does not have an answer to.
+/// for "this month so far", and both are questions this feature does not have
+/// an answer to.
 ///
 /// There is no `allTime` here for the same reason: an all-time XI is not a
 /// period, and the read model has no such window.
 enum TeamOfPeriodKind {
-  /// The last completed ISO week, in Asia/Muscat.
+  /// The current ISO week, Monday to Sunday, in Asia/Muscat.
   weekly,
 
   /// The last completed calendar month, in Asia/Muscat.

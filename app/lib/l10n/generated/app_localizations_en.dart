@@ -2199,7 +2199,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get teamOfPeriodCtaSubtitle =>
-      'The best players of the last completed week or month';
+      'The best players of this week, or of the last completed month';
 
   @override
   String get teamOfPeriodCtaAction => 'View the team';

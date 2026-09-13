@@ -3845,7 +3845,7 @@ abstract class AppLocalizations {
   /// No description provided for @teamOfPeriodCtaSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'The best players of the last completed week or month'**
+  /// **'The best players of this week, or of the last completed month'**
   String get teamOfPeriodCtaSubtitle;
 
   /// No description provided for @teamOfPeriodCtaAction.
