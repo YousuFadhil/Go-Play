@@ -7,10 +7,14 @@ import 'core/l10n.dart';
 import 'core/states.dart';
 import 'core/locale_controller.dart';
 import 'core/theme.dart';
+import 'features/analytics/analytics_models.dart';
 import 'features/analytics/analytics_service.dart';
 import 'features/auth/account_suspended_screen.dart';
 import 'features/auth/auth_service.dart';
 import 'features/discover/discover_screen.dart';
+import 'features/discover/public_community_screen.dart';
+import 'features/discover/public_match_screen.dart';
+import 'features/football/football_community_screen.dart';
 import 'features/home/home_shell.dart';
 import 'features/invitations/invite_landing_screen.dart';
 import 'features/invitations/invite_link.dart';
@@ -20,6 +24,8 @@ import 'features/notifications/notification_route.dart';
 import 'features/notifications/notification_service.dart';
 import 'features/notifications/notifications_screen.dart';
 import 'features/notifications/push_service.dart';
+import 'features/profile/profile_screen.dart';
+import 'features/sharing/public_link.dart';
 
 class GoPlayApp extends StatefulWidget {
   const GoPlayApp({super.key});
@@ -51,6 +57,9 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
     // Attached before anything can be offered, so a tap that arrives during
     // this method is not published to an empty room.
     PendingNotificationTap.instance.target.addListener(_openTappedNotification);
+    // A public link tapped while the app is already running reaches
+    // `didPushRouteInformation`, which offers it here; this is what acts on it.
+    PendingPublicLink.instance.target.addListener(_openPendingPublicLink);
 
     // A cold start from a tapped invitation arrives here, before any frame.
     PendingInvite.instance.offer(PlatformDispatcher.instance.defaultRouteName);
@@ -61,12 +70,26 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
     // `InviteLink.parse` before this runs.
     _consumeNotificationLink(PlatformDispatcher.instance.defaultRouteName);
 
+    // And a cold start from a tapped **public link** — `/player/{id}`,
+    // `/community/{id}`, `/match/{id}`. Offered last of the three because it
+    // is the broadest: an invitation and a notification route are each one
+    // exact shape, and neither is public-link-shaped, so neither can be taken
+    // by mistake. Nothing here navigates; where a public target is opened
+    // depends on whether there is a session, which is decided below.
+    PendingPublicLink.instance.offer(
+      PlatformDispatcher.instance.defaultRouteName,
+    );
+
     // The cold-start case needs one more nudge. Everything above runs before
     // the first frame, so there is no Navigator yet and the listener above can
     // only decline — which it does *without* consuming the tap. This is where
     // it is picked up, once there is something to navigate with.
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _openTappedNotification());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _openTappedNotification();
+      // Same reason: on a cold start there was no Navigator when the link was
+      // offered, so the signed-in path could not take it.
+      _openPendingPublicLink();
+    });
   }
 
   /// Takes a notification target out of an incoming route and clears it from
@@ -90,6 +113,7 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
   void dispose() {
     PendingNotificationTap.instance.target
         .removeListener(_openTappedNotification);
+    PendingPublicLink.instance.target.removeListener(_openPendingPublicLink);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -168,14 +192,72 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
     _notificationsChanged();
   }
 
+  /// Opens a public link for a reader who is signed in.
+  ///
+  /// **Signed out, this does nothing, and that is the whole routing rule.** A
+  /// visitor has no stack to push onto — the app opens on Discover — so their
+  /// target stays pending and [AuthGate] renders it as what the app opens on,
+  /// exactly as a pending invitation already works. A signed-in reader has a
+  /// stack, and a link should add a destination to it rather than replace
+  /// wherever they were, so theirs is pushed.
+  ///
+  /// Nothing here decides what may be read. Each destination asks the server
+  /// with the reader's own session when it loads, so a link to something they
+  /// may not see fails on that screen, in that screen's own words — which is
+  /// the same thing that happens when they arrive from anywhere else.
+  Future<void> _openPendingPublicLink() async {
+    // No Navigator yet: a cold start reaches here before the first frame.
+    // Returning *without* consuming is the point — the post-frame callback in
+    // `initState` collects it.
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+
+    final target = PendingPublicLink.instance.target.value;
+    if (target == null) return;
+
+    // A visitor's target belongs to the gate, not to this push. Left pending.
+    if (!_authService.isSignedIn) return;
+
+    // Cleared before navigating, so a second link arriving while this one is
+    // opening is not mistaken for a duplicate of one already consumed.
+    PendingPublicLink.instance.clear();
+
+    // The arrival, recorded — for a signed-in reader only, which is the whole
+    // of Package 5's link telemetry. A signed-out visitor's open is
+    // deliberately not recorded anywhere: `record_product_event` takes its
+    // actor from `auth.uid()` and `anon` cannot call it, and back-dating the
+    // event once they register would be inventing one.
+    ProductAnalytics.instance.track(
+      ProductEvent.publicLinkOpened,
+      communityId: target.kind == PublicLinkKind.community ? target.id : null,
+      matchId: target.kind == PublicLinkKind.match ? target.id : null,
+      source: ShareSource.publicLink,
+    );
+
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => switch (target.kind) {
+          PublicLinkKind.player => ProfileScreen(userId: target.id),
+          // The screen a signed-in reader gets for a community they may or may
+          // not belong to. It loads the public part for everyone and the
+          // football part for whoever may read it, and offers Join — so a
+          // link never lands on a screen that refuses the reader outright,
+          // which `CommunityDetailsScreen` would for a non-member.
+          PublicLinkKind.community =>
+            FootballCommunityScreen(communityId: target.id),
+          PublicLinkKind.match => MatchDetailsScreen(matchId: target.id),
+        },
+      ),
+    );
+  }
+
   /// Tells the screens that watch the Notification Center to re-read it.
   ///
   /// This is the signal `HomeTab` and `MatchDetailsScreen` already listen to.
   /// Reused rather than duplicated: its meaning is "the notification state has
   /// moved, re-read the record", and marking a notice read moves it exactly as
   /// a push arriving does.
-  void _notificationsChanged() =>
-      PushService.instance.foregroundPushes.value++;
+  void _notificationsChanged() => PushService.instance.foregroundPushes.value++;
 
   /// Whether Match Details would have something to show.
   ///
@@ -204,9 +286,18 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
     if (_consumeNotificationLink(route)) return Future.value(true);
 
     final code = InviteLink.parse(route);
-    if (code == null) return super.didPushRouteInformation(routeInformation);
-    PendingInvite.instance.offer(code);
-    return Future.value(true);
+    if (code != null) {
+      PendingInvite.instance.offer(code);
+      return Future.value(true);
+    }
+
+    // Tried last, for the reason the cold-start offers are ordered the same
+    // way: this is the broadest of the three shapes. Offering it publishes to
+    // the listener above, which opens it for a signed-in reader and leaves it
+    // for the gate otherwise.
+    if (PendingPublicLink.instance.offer(route)) return Future.value(true);
+
+    return super.didPushRouteInformation(routeInformation);
   }
 
   @override
@@ -359,13 +450,44 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         }
 
         if (!signedIn) {
-          // Signed out: the invitation still outranks Discover, exactly as
-          // before. Nothing about the visitor path changes.
+          // Signed out. The invitation still outranks everything, exactly as
+          // before: somebody who tapped an invitation asked for that and
+          // nothing else. A public link comes next, and Discover is what the
+          // app opens on when there is neither.
+          //
+          // A visitor's public target is *rendered here* rather than pushed,
+          // because there is nothing to push onto — this is the app's first
+          // screen, and the reader arrived at it by asking for this player,
+          // this community or this match.
           return ValueListenableBuilder<String?>(
             valueListenable: PendingInvite.instance.code,
-            builder: (context, code, _) => code != null
-                ? InviteLandingScreen(key: ValueKey(code), code: code)
-                : const DiscoverScreen(),
+            builder: (context, code, _) {
+              if (code != null) {
+                return InviteLandingScreen(key: ValueKey(code), code: code);
+              }
+              return ValueListenableBuilder<PublicLinkTarget?>(
+                valueListenable: PendingPublicLink.instance.target,
+                builder: (context, target, _) => switch (target?.kind) {
+                  null => const DiscoverScreen(),
+                  // The one place in the app that opens a profile for
+                  // somebody with no account, which is why it is the one place
+                  // that says so.
+                  PublicLinkKind.player => ProfileScreen(
+                      key: ValueKey(target!.id),
+                      userId: target.id,
+                      asVisitor: true,
+                    ),
+                  PublicLinkKind.community => PublicCommunityScreen(
+                      key: ValueKey(target!.id),
+                      communityId: target.id,
+                    ),
+                  PublicLinkKind.match => PublicMatchScreen(
+                      key: ValueKey(target!.id),
+                      matchId: target.id,
+                    ),
+                },
+              );
+            },
           );
         }
 

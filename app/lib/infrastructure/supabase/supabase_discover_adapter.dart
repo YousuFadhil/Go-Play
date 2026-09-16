@@ -53,6 +53,27 @@ class SupabaseDiscoverAdapter implements DiscoverAdapter {
         return publicCommunityFromRow(row);
       });
 
+  /// One match, through `public_match_detail` (migration `0078`) rather than
+  /// through the view directly.
+  ///
+  /// The view would have answered the same question, and the function is used
+  /// anyway: a single named contract is what the deep link depends on, and it
+  /// is the thing whose grants and column list a reviewer can check in one
+  /// place. No rows means the match is not publicly visible — see the port.
+  @override
+  Future<PublicMatch?> fetchMatch(String matchId) => guarded(() async {
+        final rows = await _client.rpc(
+          'public_match_detail',
+          params: {'p_match_id': matchId},
+        ) as List<dynamic>;
+        if (rows.isEmpty) return null;
+        final row = rows.first as Map<String, dynamic>;
+        // The function names the id `match_id`; the view and the mapper both
+        // call it `id`. Renamed here, at the edge, rather than by teaching the
+        // mapper two spellings of one column.
+        return publicMatchFromRow({...row, 'id': row['match_id']});
+      }, operation: 'rpc public_match_detail');
+
   /// Soonest first: a landing page is about what happens next, so the ordering
   /// is the opposite of the community list's on purpose.
   @override

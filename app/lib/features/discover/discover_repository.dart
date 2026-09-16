@@ -32,6 +32,11 @@ class DiscoverRepository {
     );
   }
 
+  /// One publicly visible match, or null. Passed straight through: there is
+  /// nothing to decide about it, which is this repository's whole character.
+  Future<PublicMatch?> fetchMatch(String matchId) =>
+      _adapter.fetchMatch(matchId);
+
   /// One community and what it has scheduled — the guest's community details.
   Future<PublicCommunityDetails> fetchCommunityDetails(
     String communityId,
@@ -57,7 +62,8 @@ class DiscoverOverview {
 
 /// What a guest sees when they open a community.
 class PublicCommunityDetails {
-  const PublicCommunityDetails({required this.community, required this.matches});
+  const PublicCommunityDetails(
+      {required this.community, required this.matches});
 
   final PublicCommunity community;
   final List<PublicMatch> matches;

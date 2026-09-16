@@ -896,7 +896,11 @@ class FakeShareService implements ShareService {
   final List<ShareCardImage> shared = [];
 
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async {
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async {
     shared.add(image);
     return ShareOutcome.shared;
   }

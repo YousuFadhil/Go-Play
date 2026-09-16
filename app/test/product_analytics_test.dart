@@ -10,11 +10,22 @@ import 'package:go_play/features/analytics/analytics_service.dart';
 
 /// One recorded event, as the fake port saw it.
 class RecordedEvent {
-  const RecordedEvent(this.event, this.communityId, this.matchId);
+  const RecordedEvent(
+    this.event,
+    this.communityId,
+    this.matchId, {
+    this.shareType,
+    this.source,
+  });
 
   final ProductEvent event;
   final String? communityId;
   final String? matchId;
+
+  /// The structured share metadata migration `0078` added. Null on every event
+  /// that is not a share, which is most of them.
+  final ShareType? shareType;
+  final String? source;
 }
 
 /// An analytics port that remembers, and fails on demand.
@@ -33,28 +44,44 @@ class FakeAnalyticsAdapter implements AnalyticsAdapter {
     ProductEvent event, {
     String? communityId,
     String? matchId,
+    ShareType? shareType,
+    String? source,
   }) async {
     if (thrown != null) throw thrown!;
-    recorded.add(RecordedEvent(event, communityId, matchId));
+    recorded.add(RecordedEvent(
+      event,
+      communityId,
+      matchId,
+      shareType: shareType,
+      source: source,
+    ));
   }
 }
 
 void main() {
   group('the event model matches the database', () {
+    // `0078` is the *current* definition of both the constraint and the
+    // writer's guard: it restates all eleven names rather than appending one,
+    // so this is the file the enum has to agree with. `0067` established the
+    // first ten and is still asserted, separately, by
+    // `analytics_migration_test.dart`.
     final sql = File(
-      '../supabase/migrations/0067_platform_admin_product_analytics.sql',
-    ).readAsStringSync();
+      '../supabase/migrations/0078_package_five_public_sharing.sql',
+    ).readAsStringSync().replaceAll('\r\n', '\n');
 
-    test('there are exactly ten events', () {
-      expect(ProductEvent.values.length, 10);
+    // Eleven since migration `0078` added `public_link_opened`. The number is
+    // asserted rather than the list length alone so that adding a twelfth is a
+    // deliberate edit here and not a silent one.
+    test('there are exactly eleven events', () {
+      expect(ProductEvent.values.length, 11);
     });
 
     test('every wire name is one the database accepts', () {
       // Both the CHECK constraint and the writer's own restatement of it, so a
       // name that satisfies the table but not the function cannot slip past.
       final check = sql.substring(
-        sql.indexOf('product_events_event_name_check'),
-        sql.indexOf('community_id uuid,'),
+        sql.indexOf('add constraint product_events_event_name_check'),
+        sql.indexOf('comment on column public.product_events.share_type'),
       );
       final guard = sql.substring(
         sql.indexOf('if p_event_name is null or p_event_name not in ('),

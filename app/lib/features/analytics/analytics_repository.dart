@@ -42,10 +42,18 @@ class AnalyticsRepository {
     ProductEvent event, {
     String? communityId,
     String? matchId,
+    ShareType? shareType,
+    String? source,
   }) async {
     try {
       final adapter = _injected ?? (_adapter ??= SupabaseAnalyticsAdapter());
-      await adapter.record(event, communityId: communityId, matchId: matchId);
+      await adapter.record(
+        event,
+        communityId: communityId,
+        matchId: matchId,
+        shareType: shareType,
+        source: source,
+      );
     } catch (_) {
       // Deliberately silent, and deliberately catching everything. See above.
       // Nothing is shown to the reader, nothing is retried, and nothing is

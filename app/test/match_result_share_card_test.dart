@@ -1327,7 +1327,11 @@ class _FakeShareService implements ShareService {
   final List<ShareCardImage> shared = [];
 
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async {
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async {
     shared.add(image);
     return ShareOutcome.shared;
   }
@@ -1337,7 +1341,11 @@ class _FakeShareService implements ShareService {
 /// one the download exists for.
 class _FailingShareService implements ShareService {
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async =>
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async =>
       throw const InfrastructureFailure();
 }
 

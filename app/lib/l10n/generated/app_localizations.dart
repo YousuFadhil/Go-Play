@@ -2510,6 +2510,12 @@ abstract class AppLocalizations {
   /// **'Matches'**
   String get shareCardStatMatches;
 
+  /// No description provided for @shareCardPositionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Position'**
+  String get shareCardPositionLabel;
+
   /// No description provided for @shareCardStatWins.
   ///
   /// In en, this message translates to:
@@ -2605,6 +2611,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image saved to your downloads.'**
   String get shareCardDownloaded;
+
+  /// No description provided for @sharePlayerProfileAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share profile'**
+  String get sharePlayerProfileAction;
+
+  /// No description provided for @shareMyProfileAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share my profile'**
+  String get shareMyProfileAction;
+
+  /// No description provided for @shareTextMyProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'My player profile on Go Play.'**
+  String get shareTextMyProfile;
+
+  /// No description provided for @shareTextPlayerProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} — player profile on Go Play.'**
+  String shareTextPlayerProfile(String name);
+
+  /// No description provided for @shareTextMyStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'My statistics on Go Play.'**
+  String get shareTextMyStatistics;
+
+  /// No description provided for @shareTextCommunityStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'{community} — statistics on Go Play.'**
+  String shareTextCommunityStatistics(String community);
+
+  /// No description provided for @shareTextTeamOfPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'{community} — Team of the Period on Go Play.'**
+  String shareTextTeamOfPeriod(String community);
+
+  /// No description provided for @shareTextMatchLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'{match} — the lineup on Go Play.'**
+  String shareTextMatchLineup(String match);
+
+  /// No description provided for @shareTextMatchResult.
+  ///
+  /// In en, this message translates to:
+  /// **'{match} — the result on Go Play.'**
+  String shareTextMatchResult(String match);
+
+  /// No description provided for @recentFormTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent form'**
+  String get recentFormTitle;
+
+  /// No description provided for @recentFormNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The player\'s last {count} completed matches, most recent first.'**
+  String recentFormNote(int count);
+
+  /// No description provided for @recentFormEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed matches yet. Once a result is saved, the last five appear here.'**
+  String get recentFormEmpty;
+
+  /// No description provided for @recentFormWin.
+  ///
+  /// In en, this message translates to:
+  /// **'Win'**
+  String get recentFormWin;
+
+  /// No description provided for @recentFormDraw.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw'**
+  String get recentFormDraw;
+
+  /// No description provided for @recentFormLoss.
+  ///
+  /// In en, this message translates to:
+  /// **'Loss'**
+  String get recentFormLoss;
+
+  /// No description provided for @recentFormWinShort.
+  ///
+  /// In en, this message translates to:
+  /// **'W'**
+  String get recentFormWinShort;
+
+  /// No description provided for @recentFormDrawShort.
+  ///
+  /// In en, this message translates to:
+  /// **'D'**
+  String get recentFormDrawShort;
+
+  /// No description provided for @recentFormLossShort.
+  ///
+  /// In en, this message translates to:
+  /// **'L'**
+  String get recentFormLossShort;
+
+  /// No description provided for @recentHighlightTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent highlight'**
+  String get recentHighlightTitle;
+
+  /// No description provided for @highlightMvpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Player of the match'**
+  String get highlightMvpTitle;
+
+  /// No description provided for @highlightTeamOfPeriodTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the period'**
+  String get highlightTeamOfPeriodTitle;
+
+  /// No description provided for @highlightInCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'In {community}'**
+  String highlightInCommunity(String community);
+
+  /// No description provided for @shareCardFormLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 5'**
+  String get shareCardFormLabel;
+
+  /// No description provided for @publicContentUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available'**
+  String get publicContentUnavailableTitle;
+
+  /// No description provided for @publicContentUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This link is no longer available, or it points to something that needs an account.'**
+  String get publicContentUnavailable;
 
   /// No description provided for @matchResultScorersLabel.
   ///
@@ -3715,6 +3871,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Share used'**
   String get adminEventShareUsed;
+
+  /// No description provided for @adminEventPublicLinkOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'Public link opened'**
+  String get adminEventPublicLinkOpened;
 
   /// No description provided for @adminDrilldownEmpty.
   ///

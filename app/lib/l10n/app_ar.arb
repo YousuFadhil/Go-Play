@@ -492,6 +492,7 @@
   "errShareCardShare": "المشاركة غير متاحة حالياً.",
 
   "shareCardStatMatches": "المباريات",
+  "shareCardPositionLabel": "المركز",
   "shareCardStatWins": "الانتصارات",
   "shareCardPeriodAllTime": "كل الفترات",
   "shareCardStatDraws": "التعادلات",
@@ -514,6 +515,56 @@
   "shareTeamLineupAction": "مشاركة التشكيلة",
   "shareMatchResultAction": "مشاركة النتيجة",
   "shareCardDownloaded": "حُفظت الصورة في تنزيلاتك.",
+
+  "sharePlayerProfileAction": "مشاركة الملف",
+  "shareMyProfileAction": "مشاركة ملفي",
+  "shareTextMyProfile": "ملفي كلاعب في Go Play.",
+  "shareTextPlayerProfile": "{name} — ملف اللاعب في Go Play.",
+  "@shareTextPlayerProfile": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "shareTextMyStatistics": "إحصائياتي في Go Play.",
+  "shareTextCommunityStatistics": "{community} — الإحصائيات في Go Play.",
+  "@shareTextCommunityStatistics": {
+    "placeholders": { "community": { "type": "String" } }
+  },
+  "shareTextTeamOfPeriod": "{community} — تشكيلة الفترة في Go Play.",
+  "@shareTextTeamOfPeriod": {
+    "placeholders": { "community": { "type": "String" } }
+  },
+  "shareTextMatchLineup": "{match} — التشكيلة في Go Play.",
+  "@shareTextMatchLineup": {
+    "placeholders": { "match": { "type": "String" } }
+  },
+  "shareTextMatchResult": "{match} — النتيجة في Go Play.",
+  "@shareTextMatchResult": {
+    "placeholders": { "match": { "type": "String" } }
+  },
+
+  "recentFormTitle": "الأداء الأخير",
+  "recentFormNote": "آخر {count} مباريات مكتملة للاعب، الأحدث أولاً.",
+  "@recentFormNote": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "recentFormEmpty": "لا توجد مباريات مكتملة بعد. عند حفظ أول نتيجة تظهر هنا آخر خمس مباريات.",
+  "recentFormWin": "فوز",
+  "recentFormDraw": "تعادل",
+  "recentFormLoss": "خسارة",
+  "recentFormWinShort": "ف",
+  "recentFormDrawShort": "ت",
+  "recentFormLossShort": "خ",
+
+  "recentHighlightTitle": "أبرز إنجاز",
+  "highlightMvpTitle": "أفضل لاعب في المباراة",
+  "highlightTeamOfPeriodTitle": "تشكيلة الفترة",
+  "highlightInCommunity": "في {community}",
+  "@highlightInCommunity": {
+    "placeholders": { "community": { "type": "String" } }
+  },
+
+  "shareCardFormLabel": "آخر ٥",
+  "publicContentUnavailableTitle": "غير متاح",
+  "publicContentUnavailable": "هذا الرابط لم يعد متاحاً، أو يشير إلى محتوى يتطلب حساباً.",
   "matchResultScorersLabel": "الهدّافون",
   "matchResultDrawLabel": "تعادل",
   "matchResultWinnerLabel": "الفائز",
@@ -744,6 +795,7 @@
   "adminEventTeamsViewed": "عرض الفرق",
   "adminEventResultViewed": "عرض نتيجة",
   "adminEventShareUsed": "مشاركة",
+  "adminEventPublicLinkOpened": "فتح رابط عام",
   "adminDrilldownEmpty": "لا توجد سجلات لهذا المؤشر.",
   "adminDrilldownLoadMore": "تحميل المزيد",
   "adminReturned": "عاد",

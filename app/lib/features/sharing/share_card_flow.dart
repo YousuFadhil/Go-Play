@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../analytics/analytics_models.dart';
 import 'share_card_preview_screen.dart';
 import 'share_card_renderer.dart';
 import 'share_service.dart';
@@ -17,8 +18,16 @@ import 'widget_share_card_renderer.dart';
 /// await presentShareCard(
 ///   context,
 ///   template: (context) => PlayerStatisticsCard(statistics: statistics),
+///   message: ShareMessage(text: l10n.sharePlayerStatisticsText(name)),
+///   shareType: ShareType.playerStatistics,
+///   source: ShareSource.playerStatistics,
 /// );
 /// ```
+///
+/// [message] is the localized words and public link that travel with the
+/// picture; [shareType] and [source] are what a completed share is recorded as.
+/// All three are optional and all three are the caller's knowledge: the engine
+/// cannot compose a sentence about a card it deliberately knows nothing about.
 ///
 /// **The caller brings the data already loaded.** [template] is a widget, so
 /// whatever it shows was fetched by the feature that owns it, through that
@@ -33,6 +42,9 @@ Future<void> presentShareCard(
   double pixelRatio = 1.0,
   String? matchId,
   String? communityId,
+  ShareMessage? message,
+  ShareType? shareType,
+  String? source,
   ShareCardRenderer? renderer,
   ShareService? shareService,
   ShareCardDownloader? downloader,
@@ -85,6 +97,9 @@ Future<void> presentShareCard(
         image: image!,
         matchId: matchId,
         communityId: communityId,
+        message: message,
+        shareType: shareType,
+        source: source,
         shareService: shareService,
         downloader: downloader,
       ),

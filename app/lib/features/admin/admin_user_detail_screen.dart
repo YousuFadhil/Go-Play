@@ -37,6 +37,7 @@ String _eventLabel(AppLocalizations l10n, String wireName) =>
       ProductEvent.teamsViewed => l10n.adminEventTeamsViewed,
       ProductEvent.resultViewed => l10n.adminEventResultViewed,
       ProductEvent.shareUsed => l10n.adminEventShareUsed,
+      ProductEvent.publicLinkOpened => l10n.adminEventPublicLinkOpened,
       null => wireName,
     };
 
@@ -310,7 +311,8 @@ class _DetailRow extends StatelessWidget {
           Text(
             value,
             textAlign: TextAlign.end,
-            semanticsLabel: unknown ? context.l10n.adminMetricUnavailable : null,
+            semanticsLabel:
+                unknown ? context.l10n.adminMetricUnavailable : null,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -375,8 +377,7 @@ class _ActivityRow extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            [formatMatchDay(context, event.createdAt), ...context_]
-                .join(' · '),
+            [formatMatchDay(context, event.createdAt), ...context_].join(' · '),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

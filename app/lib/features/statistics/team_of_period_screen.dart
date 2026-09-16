@@ -6,6 +6,8 @@ import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../../core/time_format.dart';
 import '../sharing/share_card_flow.dart';
+import '../analytics/analytics_models.dart';
+import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import '../teams/pitch_view.dart';
@@ -89,6 +91,7 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
   }
 
   Future<void> _share() async {
+    final l10n = context.l10n;
     final view = _shareable;
     final community = widget.communityName;
     if (view == null || community == null) return;
@@ -117,6 +120,15 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
       context,
       template: (_) => TeamOfPeriodCard(data: data),
       communityId: widget.communityId,
+      message: ShareMessage(
+        text: l10n.shareTextTeamOfPeriod(data.communityName),
+        url: PublicLink.format(PublicLinkKind.community, widget.communityId),
+      ),
+      // The XI is a picture of the community's period, so it is recorded as a
+      // community share rather than as a lineup: `lineup` is a match's two
+      // sides, which is a different card and a different question.
+      shareType: ShareType.community,
+      source: ShareSource.teamOfPeriod,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );
@@ -451,8 +463,10 @@ class _PlayerPeriodDetail extends StatelessWidget {
             for (final (label, value) in [
               // Labelled "current" wherever it appears, because it is the one
               // figure here that is not about the period.
-              (l10n.teamOfPeriodCurrentRating,
-                  _decimal(candidate.currentOverallRating)),
+              (
+                l10n.teamOfPeriodCurrentRating,
+                _decimal(candidate.currentOverallRating)
+              ),
               // "1 of 5" rather than "1". The same figure, with the only
               // context that makes it mean anything -- and the participation
               // rate below still states it as a proportion.

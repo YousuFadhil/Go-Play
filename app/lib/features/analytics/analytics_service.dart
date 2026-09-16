@@ -46,9 +46,17 @@ class ProductAnalytics {
     ProductEvent event, {
     String? communityId,
     String? matchId,
+    ShareType? shareType,
+    String? source,
   }) {
     unawaited(
-      _repository.track(event, communityId: communityId, matchId: matchId),
+      _repository.track(
+        event,
+        communityId: communityId,
+        matchId: matchId,
+        shareType: shareType,
+        source: source,
+      ),
     );
   }
 

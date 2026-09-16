@@ -1583,6 +1583,17 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
   }
 
   @override
+  Future<PublicMatch?> fetchMatch(String matchId) async {
+    if (failure != null) throw failure!;
+    for (final match in matches) {
+      if (match.id == matchId) return match;
+    }
+    // No row is how the public contract says "not publicly visible", and the
+    // fake says it the same way rather than throwing.
+    return null;
+  }
+
+  @override
   Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId}) async {
     if (failure != null) throw failure!;
     return matches;
@@ -1707,7 +1718,11 @@ class _StubContext implements BuildContext {
 
 class _Share implements ShareService {
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async =>
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async =>
       ShareOutcome.shared;
 }
 

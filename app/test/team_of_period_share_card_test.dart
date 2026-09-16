@@ -910,7 +910,11 @@ const _pixel = <int>[
 
 class _FakeShareService implements ShareService {
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async =>
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async =>
       ShareOutcome.shared;
 }
 

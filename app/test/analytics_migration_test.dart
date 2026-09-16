@@ -53,26 +53,48 @@ void main() {
   );
 
   group('product_events is shaped as approved', () {
-    test('carries exactly the ten approved event names, and no eleventh', () {
-      // Sourced from the enum rather than retyped, so this test cannot drift
-      // from the application while appearing to agree with it.
-      for (final event in ProductEvent.values) {
+    test('carries exactly the ten event names 0067 was approved with', () {
+      // **Not sourced from the enum any more, and that is the point.** This
+      // file is `0067`, which was approved with ten names; the eleventh was
+      // added by `0078` and is asserted there. Reading the enum here would
+      // make this test agree with the application by construction and stop it
+      // noticing anything -- and it would fail the moment a later migration
+      // legitimately extends the list, which is exactly what happened.
+      const approved = [
+        'session_started',
+        'community_viewed',
+        'community_created',
+        'community_joined',
+        'match_viewed',
+        'match_registered',
+        'match_withdrawn',
+        'teams_viewed',
+        'result_viewed',
+        'share_used',
+      ];
+      for (final name in approved) {
         expect(
           tableBody,
-          contains("'${event.wireName}'"),
-          reason: '${event.name} is missing from the CHECK constraint',
+          contains("'$name'"),
+          reason: '$name is missing from the CHECK constraint',
         );
       }
 
       // And nothing else. Counted inside the constraint itself -- bounded at
-      // the next column, so the platform CHECK below it is not swept in -- so
-      // any name the enum does not have would push this past ten.
+      // the next column, so the platform CHECK below it is not swept in.
       final check = tableBody.substring(
         tableBody.indexOf('product_events_event_name_check'),
         tableBody.indexOf('community_id uuid,'),
       );
       final quoted = RegExp("'[a-z_]+'").allMatches(check).length;
-      expect(quoted, ProductEvent.values.length);
+      expect(quoted, approved.length);
+
+      // Every name `0067` approved is still an event the application knows.
+      // A migration may add to the list; removing one would be a different
+      // decision and this is what would notice.
+      for (final name in approved) {
+        expect(ProductEvent.fromWireName(name), isNotNull);
+      }
     });
 
     test('platform admits null, web and android only', () {
@@ -106,7 +128,8 @@ void main() {
     });
 
     test('created_at is the database clock, not the caller', () {
-      expect(tableBody, contains('created_at timestamptz not null default now()'));
+      expect(
+          tableBody, contains('created_at timestamptz not null default now()'));
     });
 
     test('indexes the four scans the Overview performs', () {
@@ -123,8 +146,10 @@ void main() {
 
   group('no client reaches the table', () {
     test('row-level security is on', () {
-      expect(statements,
-          contains('alter table public.product_events enable row level security'));
+      expect(
+          statements,
+          contains(
+              'alter table public.product_events enable row level security'));
     });
 
     test('and there is not a single policy', () {
@@ -144,13 +169,16 @@ void main() {
       // what it covered -- and TRUNCATE is not filtered by RLS at all.
       expect(
         statements,
-        contains('revoke select, insert, update, delete, truncate, references, trigger'),
+        contains(
+            'revoke select, insert, update, delete, truncate, references, trigger'),
       );
     });
 
     test('and no grant on the table follows', () {
-      expect(statements, isNot(contains('grant select on public.product_events')));
-      expect(statements, isNot(contains('grant insert on public.product_events')));
+      expect(
+          statements, isNot(contains('grant select on public.product_events')));
+      expect(
+          statements, isNot(contains('grant insert on public.product_events')));
       expect(statements, isNot(contains('grant all on public.product_events')));
     });
   });
@@ -173,14 +201,16 @@ void main() {
 
     test('refuses an unapproved event name and platform', () {
       expect(statements, contains("raise exception 'INVALID_ANALYTICS_EVENT'"));
-      expect(statements, contains("raise exception 'INVALID_ANALYTICS_PLATFORM'"));
+      expect(
+          statements, contains("raise exception 'INVALID_ANALYTICS_PLATFORM'"));
     });
 
     test('inserts the derived user, and lets the column default set the time',
         () {
       expect(
         statements,
-        contains('user_id, event_name, community_id, match_id, platform, app_version'),
+        contains(
+            'user_id, event_name, community_id, match_id, platform, app_version'),
       );
       expect(statements, contains('v_user_id,'));
       expect(statements, isNot(contains('created_at)')));
@@ -189,8 +219,10 @@ void main() {
     test('is executable by authenticated and service_role, and by nobody else',
         () {
       const fn = 'public.record_product_event(text, uuid, uuid, text, text)';
-      expect(statements, contains('revoke execute on function\n  $fn\n  from anon, public;'));
-      expect(statements, contains('grant execute on function\n  $fn\n  to authenticated;'));
+      expect(statements,
+          contains('revoke execute on function\n  $fn\n  from anon, public;'));
+      expect(statements,
+          contains('grant execute on function\n  $fn\n  to authenticated;'));
       expect(
         statements,
         contains('grant execute on function\n  $fn\n  to service_role;'),
@@ -203,11 +235,15 @@ void main() {
   group('admin_analytics_overview', () {
     /// Everything from the function's own header to the end of its body.
     final overview = sql.substring(
-      sql.indexOf('create or replace function public.admin_analytics_overview()'),
+      sql.indexOf(
+          'create or replace function public.admin_analytics_overview()'),
     );
 
     test('opens with the System Admin gate, before any other work', () {
-      expect(overview, contains("if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;"));
+      expect(
+          overview,
+          contains(
+              "if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;"));
 
       // And nothing precedes it. The declared variable is deliberately left
       // uninitialised so that not even the day boundary is computed before the
@@ -242,7 +278,8 @@ void main() {
       expect(overview, contains('count(distinct s.user_id)'));
     });
 
-    test('counts registrations from the events, not from the table that '
+    test(
+        'counts registrations from the events, not from the table that '
         'loses a withdrawn row', () {
       expect(overview, contains("pe.event_name = 'match_registered'"));
       // `match_registrations` may still be read -- but only for Weekly Active
@@ -262,7 +299,8 @@ void main() {
       expect(wac, contains('from matches m'));
       expect(wac, contains('from match_registrations r'));
       expect(wac, contains('from match_results res'));
-      expect(wac, contains("pe.event_name in ('match_registered', 'match_withdrawn')"));
+      expect(wac,
+          contains("pe.event_name in ('match_registered', 'match_withdrawn')"));
 
       // The seven that must not make a community active.
       for (final viewing in [
@@ -284,13 +322,15 @@ void main() {
       expect(overview, contains("s.created_at <  now() - interval '7 days'"));
       // The overlap: the same user, present in both windows.
       expect(overview, contains('where s.user_id = p.user_id'));
-      expect(overview, contains("and s.created_at >= now() - interval '7 days'"));
+      expect(
+          overview, contains("and s.created_at >= now() - interval '7 days'"));
     });
 
     test('reports NULL, not zero, when there was no previous cohort', () {
       expect(
         overview,
-        contains('when (select count(*) from previous_week) = 0 then null::numeric'),
+        contains(
+            'when (select count(*) from previous_week) = 0 then null::numeric'),
         reason: 'no cohort to return is not a cohort that failed to return',
       );
     });
@@ -303,9 +343,12 @@ void main() {
     test('is executable by authenticated and service_role, and by nobody else',
         () {
       const fn = 'public.admin_analytics_overview()';
-      expect(statements, contains('revoke execute on function $fn from anon, public;'));
-      expect(statements, contains('grant execute on function $fn to authenticated;'));
-      expect(statements, contains('grant execute on function $fn to service_role;'));
+      expect(statements,
+          contains('revoke execute on function $fn from anon, public;'));
+      expect(statements,
+          contains('grant execute on function $fn to authenticated;'));
+      expect(statements,
+          contains('grant execute on function $fn to service_role;'));
     });
   });
 
@@ -317,7 +360,8 @@ void main() {
       expect(statements, contains('insert into product_events ('));
       // A VALUES insert, not an `insert ... select` from a business table --
       // which is exactly what a backfill would look like.
-      expect(statements, isNot(contains('insert into product_events (\n    select')));
+      expect(statements,
+          isNot(contains('insert into product_events (\n    select')));
       expect(statements, contains('  values (\n    v_user_id,'));
     });
 
@@ -325,15 +369,16 @@ void main() {
       expect(statements, isNot(contains('delete from')));
       expect(statements, isNot(contains('truncate table')));
       // `update` appears only in the privilege list being revoked.
-      final updates = RegExp(r'^\s*update ', multiLine: true)
-          .allMatches(statements);
+      final updates =
+          RegExp(r'^\s*update ', multiLine: true).allMatches(statements);
       expect(updates, isEmpty);
     });
 
     test('no fabricated session, withdrawal or registration', () {
       // The three inventions that would each be plausible and each be a lie.
       expect(statements, isNot(contains("'session_started', now()")));
-      expect(statements, isNot(contains('from match_registrations r\n      where true')));
+      expect(statements,
+          isNot(contains('from match_registrations r\n      where true')));
       expect(statements, isNot(contains('generate_series')));
     });
 

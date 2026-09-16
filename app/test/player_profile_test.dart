@@ -26,7 +26,10 @@ import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
 import 'package:go_play/features/settings/settings_screen.dart';
 import 'package:go_play/features/statistics/player_statistics_screen.dart';
+import 'package:go_play/features/profile/player_record_repository.dart';
 import 'package:go_play/infrastructure/supabase/mappers/profile_mapper.dart';
+
+import 'player_record_fakes.dart';
 
 /// A player's profile, as another player sees it.
 ///
@@ -91,6 +94,7 @@ void main() {
   Future<void> pumpPlayerProfile(
     WidgetTester tester, {
     required FakeProfileAdapter profiles,
+    FakePlayerRecordAdapter? records,
     String? userId = 'u2',
     Locale locale = const Locale('en'),
     Size size = const Size(900, 2000),
@@ -109,6 +113,11 @@ void main() {
         profileRepository: ProfileRepository(profiles),
         resultRepository: ResultRepository(_FakeResultAdapter(stats())),
         communityRepository: CommunityRepository(_FakeCommunityAdapter()),
+        // The record behind Recent Form and Recent Highlight. Empty unless a
+        // test says otherwise, which is a real player's ordinary state and
+        // keeps every existing assertion about this screen unchanged.
+        playerRecordRepository:
+            PlayerRecordRepository(records ?? FakePlayerRecordAdapter()),
         authService: AuthService(_StubAuthAdapter()),
       ),
     ));
@@ -136,10 +145,8 @@ void main() {
       expect(find.text('12'), findsOneWidget, reason: 'matches played');
     });
 
-    testWidgets('long English names remain safe at 320 pixels',
-        (tester) async {
-      final name =
-          'Alexanderson Montgomery-Wellington the Third of Al Amerat';
+    testWidgets('long English names remain safe at 320 pixels', (tester) async {
+      final name = 'Alexanderson Montgomery-Wellington the Third of Al Amerat';
       await pumpPlayerProfile(
         tester,
         profiles: FakeProfileAdapter(player: viewOf(fullName: name)),
@@ -287,8 +294,15 @@ void main() {
       expect(find.text('Salim Al Harthy'), findsOneWidget);
       expect(find.text('34 years old'), findsOneWidget);
       expect(find.byTooltip('Edit profile'), findsOneWidget);
-      expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
+
+      // Scrolled to, because Package 5 put Recent Form between the career
+      // counters and the account's own controls — on a 480-point screen the
+      // account block is now below the fold, and a `ListView` does not build
+      // what it is not showing. What is asserted is unchanged: the controls
+      // are on the player's own record and reachable.
+      await tester.scrollUntilVisible(find.text('Settings'), 200);
+      expect(find.text('Settings'), findsOneWidget);
     });
   });
 
@@ -324,6 +338,8 @@ void main() {
               ProfileRepository(FakeProfileAdapter(profile: ownProfile())),
           resultRepository: ResultRepository(_FakeResultAdapter(stats())),
           communityRepository: CommunityRepository(_FakeCommunityAdapter()),
+          playerRecordRepository:
+              PlayerRecordRepository(FakePlayerRecordAdapter()),
           authService: AuthService(_StubAuthAdapter()),
         ),
       ));
@@ -585,6 +601,8 @@ void main() {
               ProfileRepository(FakeProfileAdapter(player: viewOf())),
           resultRepository: ResultRepository(_FakeResultAdapter(stats())),
           communityRepository: CommunityRepository(_FakeCommunityAdapter()),
+          playerRecordRepository:
+              PlayerRecordRepository(FakePlayerRecordAdapter()),
           authService: AuthService(_StubAuthAdapter()),
         ),
       ));
@@ -615,6 +633,8 @@ void main() {
                           ResultRepository(_FakeResultAdapter(stats())),
                       communityRepository:
                           CommunityRepository(_FakeCommunityAdapter()),
+                      playerRecordRepository:
+                          PlayerRecordRepository(FakePlayerRecordAdapter()),
                       authService: AuthService(_StubAuthAdapter()),
                     ),
                   ),
@@ -661,7 +681,6 @@ void main() {
       expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
     });
   });
-
 }
 
 // --- Fake ports -------------------------------------------------------------

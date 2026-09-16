@@ -9,6 +9,7 @@ import '../analytics/analytics_service.dart';
 import '../profile/player_identity.dart';
 import '../results/match_result_card.dart';
 import '../sharing/share_card_flow.dart';
+import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import '../teams/match_stage.dart';
@@ -154,6 +155,7 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
   /// [CompletedMatchPresentation.of] when the match loaded, and the names are
   /// the ones the pitch is already showing.
   Future<void> _shareResult() async {
+    final l10n = context.l10n;
     final view = _shown;
     if (view == null || !view.presentation.hasLineup) return;
 
@@ -185,6 +187,12 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
       // Already loaded and already on screen; nothing is read for these.
       matchId: widget.matchId,
       communityId: match.communityId,
+      message: ShareMessage(
+        text: l10n.shareTextMatchResult(match.displayName),
+        url: PublicLink.format(PublicLinkKind.match, widget.matchId),
+      ),
+      shareType: ShareType.result,
+      source: ShareSource.matchResult,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );
