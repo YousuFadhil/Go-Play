@@ -19,6 +19,7 @@ import 'package:go_play/features/invitations/invite_link.dart';
 import 'package:go_play/features/profile/player_record_repository.dart';
 import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/sharing/public_link.dart';
+import 'package:go_play/infrastructure/supabase/mappers/discover_mapper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -225,6 +226,203 @@ void main() {
     });
   });
 
+  group('a completed public match, as data', () {
+    // The page that draws a played match for a visitor is awaiting an approved
+    // mockup, so what is asserted here is the read path it will be handed, not
+    // a presentation.
+
+    PublicCompletedMatch played({List<PublicLineupEntry> lineup = const []}) =>
+        PublicCompletedMatch(
+          id: match,
+          communityId: community,
+          communityName: 'Al Amerat FC',
+          startAt: DateTime(2026, 9, 12, 18),
+          endAt: DateTime(2026, 9, 12, 20),
+          hasResult: true,
+          teamAScore: 3,
+          teamBScore: 2,
+          mvpDisplayName: 'Noor Al Kindi',
+          lineup: lineup,
+        );
+
+    test('a completed match comes back with its lineup attached', () async {
+      final discover = _FakeDiscoverAdapter(
+        completed: played(lineup: const [
+          PublicLineupEntry(
+            team: 'A',
+            displayName: 'Noor Al Kindi',
+            isProfessionalGuest: false,
+            goals: 2,
+            isMvp: true,
+            playerId: player,
+          ),
+        ]),
+      );
+
+      final detail = await DiscoverRepository(discover).fetchMatchDetail(match);
+
+      expect(detail, isA<PublicCompletedMatch>());
+      final completed = detail! as PublicCompletedMatch;
+      expect(completed.teamAScore, 3);
+      expect(completed.lineup.single.playerId, player);
+      expect(discover.lineupReads, [match]);
+    });
+
+    test('an upcoming match never asks for a roster', () async {
+      final discover = _FakeDiscoverAdapter(match: _publicMatch());
+
+      final detail = await DiscoverRepository(discover).fetchMatchDetail(match);
+
+      expect(detail, isA<PublicUpcomingMatch>());
+      expect(
+        discover.lineupReads,
+        isEmpty,
+        reason: 'an upcoming roster is not public, so it is never requested',
+      );
+    });
+
+    test('a match that is not public is null, and nothing else is read',
+        () async {
+      // Inactive or suspended community, or a guessed id: the contract returns
+      // no rows for all of them, and the repository asks no follow-up question
+      // that could tell them apart.
+      final discover = _FakeDiscoverAdapter();
+
+      expect(
+        await DiscoverRepository(discover).fetchMatchDetail(match),
+        isNull,
+      );
+      expect(discover.lineupReads, isEmpty);
+    });
+
+    test('the provisional page still reads only the upcoming shape', () async {
+      // Until the public result page is approved, `fetchMatch` answers null for
+      // a played match rather than letting the page improvise a presentation.
+      final discover = _FakeDiscoverAdapter(completed: played());
+      expect(await DiscoverRepository(discover).fetchMatch(match), isNull);
+    });
+  });
+
+  group('reading the public match contract', () {
+    String? avatar(String? path) => path == null ? null : 'https://img/$path';
+
+    test('an upcoming row maps to the upcoming shape, with no result', () {
+      final detail = publicMatchDetailFromRow({
+        'match_id': match,
+        'community_id': community,
+        'community_name': 'Al Amerat FC',
+        'community_logo_url': null,
+        'title': 'Friday football',
+        'location': 'Al Amerat Pitch',
+        'start_at': '2026-09-20T15:00:00Z',
+        'end_at': '2026-09-20T17:00:00Z',
+        'public_state': 'UPCOMING',
+        'starting_players': 10,
+        'open_slots': 3,
+        'has_result': null,
+        'team_a_score': null,
+        'team_b_score': null,
+        'mvp_display_name': null,
+        'mvp_avatar_path': null,
+      }, avatarUrl: avatar);
+
+      expect(detail, isA<PublicUpcomingMatch>());
+      expect((detail! as PublicUpcomingMatch).match.openSlots, 3);
+    });
+
+    test('a completed row maps to the completed shape, with no places', () {
+      final detail = publicMatchDetailFromRow({
+        'match_id': match,
+        'community_id': community,
+        'community_name': 'Al Amerat FC',
+        'community_logo_url': 'https://logo',
+        'title': null,
+        'location': 'Al Amerat Pitch',
+        'start_at': '2026-09-12T15:00:00Z',
+        'end_at': '2026-09-12T17:00:00Z',
+        'public_state': 'COMPLETED',
+        'starting_players': null,
+        'open_slots': null,
+        'has_result': true,
+        'team_a_score': 3,
+        'team_b_score': 2,
+        'mvp_display_name': 'Noor Al Kindi',
+        'mvp_avatar_path': 'u/1.jpg',
+      }, avatarUrl: avatar);
+
+      final completed = detail! as PublicCompletedMatch;
+      expect(completed.teamAScore, 3);
+      expect(completed.mvpAvatarUrl, 'https://img/u/1.jpg');
+      expect(completed.communityLogoUrl, 'https://logo');
+    });
+
+    test('a played match with no recorded result has no score, not nil-nil',
+        () {
+      final detail = publicMatchDetailFromRow({
+        'match_id': match,
+        'community_id': community,
+        'community_name': 'Al Amerat FC',
+        'start_at': '2026-09-12T15:00:00Z',
+        'end_at': '2026-09-12T17:00:00Z',
+        'public_state': 'COMPLETED',
+        'has_result': false,
+      }, avatarUrl: avatar) as PublicCompletedMatch;
+
+      expect(detail.hasResult, isFalse);
+      expect(detail.teamAScore, isNull);
+      expect(detail.mvpDisplayName, isNull);
+    });
+
+    test('a state this build does not know is not a match', () {
+      expect(
+        publicMatchDetailFromRow(
+          {'match_id': match, 'public_state': 'ARCHIVED'},
+          avatarUrl: avatar,
+        ),
+        isNull,
+      );
+    });
+
+    test('a lineup row carries a player id only when the database gave one',
+        () {
+      final guest = publicLineupEntryFromRow({
+        'team': 'B',
+        'assigned_position': 'FWD',
+        'participant_type': 'PROFESSIONAL',
+        'display_name': 'Guest Striker',
+        'avatar_path': null,
+        'goals': 1,
+        'is_mvp': false,
+        'player_id': null,
+      }, avatarUrl: avatar);
+      expect(guest.isProfessionalGuest, isTrue);
+      expect(guest.playerId, isNull);
+
+      // A registered player whose profile is not available arrives the same
+      // way: a name, and no id to follow.
+      final unavailable = publicLineupEntryFromRow({
+        'team': 'A',
+        'participant_type': 'USER',
+        'display_name': 'Former Player',
+        'goals': 0,
+        'is_mvp': false,
+        'player_id': null,
+      }, avatarUrl: avatar);
+      expect(unavailable.isProfessionalGuest, isFalse);
+      expect(unavailable.playerId, isNull);
+
+      final available = publicLineupEntryFromRow({
+        'team': 'A',
+        'participant_type': 'USER',
+        'display_name': 'Noor Al Kindi',
+        'goals': 2,
+        'is_mvp': true,
+        'player_id': player,
+      }, avatarUrl: avatar);
+      expect(available.playerId, player);
+    });
+  });
+
   group('a visitor cannot reach a profile that is not public', () {
     testWidgets('no public record means no profile, and no detail either',
         (tester) async {
@@ -269,15 +467,28 @@ PublicMatch _publicMatch() => PublicMatch(
     );
 
 class _FakeDiscoverAdapter implements DiscoverAdapter {
-  _FakeDiscoverAdapter({this.match, this.failure});
+  _FakeDiscoverAdapter({this.match, this.completed, this.failure});
 
   final PublicMatch? match;
+  final PublicCompletedMatch? completed;
   final Failure? failure;
 
+  /// Every lineup read, so a test can prove an upcoming match's roster is never
+  /// asked for.
+  final List<String> lineupReads = [];
+
   @override
-  Future<PublicMatch?> fetchMatch(String matchId) async {
+  Future<PublicMatchDetail?> fetchMatchDetail(String matchId) async {
     if (failure != null) throw failure!;
-    return match;
+    if (completed != null) return completed;
+    final upcoming = match;
+    return upcoming == null ? null : PublicUpcomingMatch(match: upcoming);
+  }
+
+  @override
+  Future<List<PublicLineupEntry>> fetchMatchLineup(String matchId) async {
+    lineupReads.add(matchId);
+    return completed?.lineup ?? const [];
   }
 
   @override

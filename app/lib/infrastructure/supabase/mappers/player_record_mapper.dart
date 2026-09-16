@@ -47,28 +47,24 @@ RecentForm publicRecentFormFromRows(List<dynamic> rows) {
   return RecentForm(entries);
 }
 
-/// One row of `player_recent_mvp` as a highlight.
-RecentHighlight? mvpHighlightFromRow(Map<String, dynamic> row) {
-  final occurredAt = _instant(row['occurred_at']);
-  // A highlight with no date cannot take part in "the most recent wins", and a
-  // rule that cannot be applied is better answered with no highlight than with
-  // an arbitrary one.
-  if (occurredAt == null) return null;
-  return RecentHighlight(
-    kind: HighlightKind.mvp,
-    occurredAt: occurredAt,
-    communityName: row['community_name'] as String?,
-  );
-}
-
-/// `public_player_recent_highlight`'s zero or one row.
+/// The highlight candidates `player_recent_highlights` or
+/// `public_player_recent_highlight` returned — at most one of each kind.
 ///
-/// It carries its own kind, so a future kind added to that contract arrives
-/// named rather than assumed; one this build does not know is no highlight,
-/// for the same reason an unknown outcome is no badge.
-RecentHighlight? publicHighlightFromRows(List<dynamic> rows) {
-  if (rows.isEmpty) return null;
-  final row = rows.first as Map<String, dynamic>;
+/// **Candidates, not the answer.** Which one a profile shows is
+/// [RecentHighlight.mostRecent]'s decision, and nothing here pre-empts it by
+/// dropping one.
+///
+/// Each row names its own kind, so a kind added to the contract later arrives
+/// named rather than assumed; one this build does not know is skipped, for the
+/// same reason an unknown outcome is no badge. A row with no date is skipped
+/// too: it cannot take part in "the most recent wins", and a rule that cannot
+/// be applied is better answered with no candidate than with an arbitrary one.
+List<RecentHighlight> highlightCandidatesFromRows(List<dynamic> rows) => [
+      for (final row in rows.cast<Map<String, dynamic>>())
+        if (_highlightFromRow(row) case final highlight?) highlight,
+    ];
+
+RecentHighlight? _highlightFromRow(Map<String, dynamic> row) {
   final kind = switch (row['highlight_type'] as String?) {
     'MVP' => HighlightKind.mvp,
     'TEAM_OF_PERIOD' => HighlightKind.teamOfPeriod,
@@ -81,6 +77,9 @@ RecentHighlight? publicHighlightFromRows(List<dynamic> rows) {
     kind: kind,
     occurredAt: occurredAt,
     communityName: row['community_name'] as String?,
+    period: kind == HighlightKind.teamOfPeriod
+        ? HighlightPeriod.fromWireName(row['period_type'] as String?)
+        : null,
   );
 }
 

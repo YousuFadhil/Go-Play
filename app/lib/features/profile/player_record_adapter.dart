@@ -15,7 +15,7 @@ import 'player_record_models.dart';
 /// provider exception (OP-5).
 ///
 /// **Two of everything, and the pairs are not interchangeable.** The `public`
-/// reads go to the narrow contracts migration `0078` grants `anon`; the others
+/// reads go to the narrow contracts migration `0079` grants `anon`; the others
 /// go to the authenticated ones. Which pair a caller uses is decided by whether
 /// there is a session, never by what the caller would like to show — a screen
 /// cannot reach for the richer read to fill a gap in the public one.
@@ -32,7 +32,7 @@ abstract interface class PlayerRecordAdapter {
   ///
   /// Null is an ordinary answer: most players have no MVP, and a profile
   /// without one simply has no highlight from this source.
-  Future<RecentHighlight?> fetchRecentMvp(String userId);
+  Future<List<RecentHighlight>> fetchRecentHighlights(String userId);
 
   /// The same player's record as a visitor with no session sees it.
   ///

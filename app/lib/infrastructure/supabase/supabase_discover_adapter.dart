@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/discover/discover_adapter.dart';
 import '../../features/discover/discover_models.dart';
 import 'mappers/discover_mapper.dart';
+import 'supabase_avatars.dart';
 import 'supabase_bootstrap.dart';
 import 'supabase_failure_mapper.dart';
 
@@ -53,26 +54,37 @@ class SupabaseDiscoverAdapter implements DiscoverAdapter {
         return publicCommunityFromRow(row);
       });
 
-  /// One match, through `public_match_detail` (migration `0078`) rather than
-  /// through the view directly.
-  ///
-  /// The view would have answered the same question, and the function is used
-  /// anyway: a single named contract is what the deep link depends on, and it
-  /// is the thing whose grants and column list a reviewer can check in one
-  /// place. No rows means the match is not publicly visible — see the port.
+  /// One match, upcoming or completed, through `public_match_detail`
+  /// (migration `0079`). No rows means the match is not publicly visible — see
+  /// the port.
   @override
-  Future<PublicMatch?> fetchMatch(String matchId) => guarded(() async {
+  Future<PublicMatchDetail?> fetchMatchDetail(String matchId) =>
+      guarded(() async {
         final rows = await _client.rpc(
           'public_match_detail',
           params: {'p_match_id': matchId},
         ) as List<dynamic>;
         if (rows.isEmpty) return null;
-        final row = rows.first as Map<String, dynamic>;
-        // The function names the id `match_id`; the view and the mapper both
-        // call it `id`. Renamed here, at the edge, rather than by teaching the
-        // mapper two spellings of one column.
-        return publicMatchFromRow({...row, 'id': row['match_id']});
+        return publicMatchDetailFromRow(
+          rows.first as Map<String, dynamic>,
+          avatarUrl: _avatar,
+        );
       }, operation: 'rpc public_match_detail');
+
+  @override
+  Future<List<PublicLineupEntry>> fetchMatchLineup(String matchId) =>
+      guarded(() async {
+        final rows = await _client.rpc(
+          'public_match_lineup',
+          params: {'p_match_id': matchId},
+        ) as List<dynamic>;
+        return [
+          for (final row in rows.cast<Map<String, dynamic>>())
+            publicLineupEntryFromRow(row, avatarUrl: _avatar),
+        ];
+      }, operation: 'rpc public_match_lineup');
+
+  String? _avatar(String? path) => SupabaseAvatars.publicUrl(_client, path);
 
   /// Soonest first: a landing page is about what happens next, so the ordering
   /// is the opposite of the community list's on purpose.

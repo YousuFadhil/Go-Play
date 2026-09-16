@@ -27,18 +27,18 @@ class PlayerRecordRepository {
 
   /// The one highlight to show a signed-in reader, or null when there is none.
   ///
-  /// **Team of Period is not among the candidates yet, and the shape of this
-  /// method is where it will be.** A Period XI is selected by
-  /// `TeamOfPeriodSelector` from evidence the database returns per community
-  /// and period; nothing stores a selected XI, so there is no bounded read that
-  /// answers "was this player in one" and re-running the selection for every
-  /// community a player belongs to would be a dozen round trips on a profile
-  /// open. Until that source exists this returns the MVP leg, and the tie rule
-  /// below already handles both — see [RecentHighlight.mostRecent].
-  Future<RecentHighlight?> recentHighlight(String userId) async {
-    final mvp = await _adapter.fetchRecentMvp(userId);
-    return RecentHighlight.mostRecent([mvp]);
-  }
+  /// One read returns both candidates — the latest MVP award and the latest
+  /// stored Team of Period award (migration `0079`) — and the choice between
+  /// them is [RecentHighlight.mostRecent]'s, here, rather than the database's.
+  /// That keeps the tie rule in one place for the signed-in and the public
+  /// readings alike.
+  ///
+  /// A Team of Period award is present only for a period whose snapshot has
+  /// been written. The screen's live Team of Period is not consulted: it may
+  /// describe a week still in progress, and an award that could change
+  /// tomorrow is not a highlight.
+  Future<RecentHighlight?> recentHighlight(String userId) async =>
+      RecentHighlight.mostRecent(await _adapter.fetchRecentHighlights(userId));
 
   /// Everything a public Player Profile shows, for a reader with no session.
   ///

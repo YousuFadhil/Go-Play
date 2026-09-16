@@ -22,7 +22,7 @@ class RecordedEvent {
   final String? communityId;
   final String? matchId;
 
-  /// The structured share metadata migration `0078` added. Null on every event
+  /// The structured share metadata migration `0079` added. Null on every event
   /// that is not a share, which is most of them.
   final ShareType? shareType;
   final String? source;
@@ -60,16 +60,16 @@ class FakeAnalyticsAdapter implements AnalyticsAdapter {
 
 void main() {
   group('the event model matches the database', () {
-    // `0078` is the *current* definition of both the constraint and the
+    // `0079` is the *current* definition of both the constraint and the
     // writer's guard: it restates all eleven names rather than appending one,
     // so this is the file the enum has to agree with. `0067` established the
     // first ten and is still asserted, separately, by
     // `analytics_migration_test.dart`.
     final sql = File(
-      '../supabase/migrations/0078_package_five_public_sharing.sql',
+      '../supabase/migrations/0079_package_five_public_sharing.sql',
     ).readAsStringSync().replaceAll('\r\n', '\n');
 
-    // Eleven since migration `0078` added `public_link_opened`. The number is
+    // Eleven since migration `0079` added `public_link_opened`. The number is
     // asserted rather than the list length alone so that adding a twelfth is a
     // deliberate edit here and not a silent one.
     test('there are exactly eleven events', () {

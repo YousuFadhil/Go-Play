@@ -32,10 +32,45 @@ class DiscoverRepository {
     );
   }
 
-  /// One publicly visible match, or null. Passed straight through: there is
-  /// nothing to decide about it, which is this repository's whole character.
-  Future<PublicMatch?> fetchMatch(String matchId) =>
-      _adapter.fetchMatch(matchId);
+  /// One publicly visible match — upcoming or completed — or null, with a
+  /// completed match's lineup attached.
+  ///
+  /// The lineup is asked for only once the detail says the match was played,
+  /// so an upcoming match costs one read and its roster is never requested.
+  Future<PublicMatchDetail?> fetchMatchDetail(String matchId) async {
+    final detail = await _adapter.fetchMatchDetail(matchId);
+    if (detail is! PublicCompletedMatch) return detail;
+    final lineup = await _adapter.fetchMatchLineup(matchId);
+    return PublicCompletedMatch(
+      id: detail.id,
+      communityId: detail.communityId,
+      communityName: detail.communityName,
+      communityLogoUrl: detail.communityLogoUrl,
+      title: detail.title,
+      location: detail.location,
+      startAt: detail.startAt,
+      endAt: detail.endAt,
+      hasResult: detail.hasResult,
+      teamAScore: detail.teamAScore,
+      teamBScore: detail.teamBScore,
+      mvpDisplayName: detail.mvpDisplayName,
+      mvpAvatarUrl: detail.mvpAvatarUrl,
+      lineup: lineup,
+    );
+  }
+
+  /// The upcoming reading of a public match, which is all the provisional
+  /// public match page draws today.
+  ///
+  /// **A completed match answers null here, deliberately and temporarily.** The
+  /// data for it is available through [fetchMatchDetail]; how a played match
+  /// is *presented* to a visitor is awaiting an approved mockup, and this keeps
+  /// the page from inventing that presentation in the meantime.
+  Future<PublicMatch?> fetchMatch(String matchId) async =>
+      switch (await _adapter.fetchMatchDetail(matchId)) {
+        PublicUpcomingMatch(:final match) => match,
+        _ => null,
+      };
 
   /// One community and what it has scheduled — the guest's community details.
   Future<PublicCommunityDetails> fetchCommunityDetails(

@@ -445,7 +445,7 @@ void main() {
   });
 
   group('the analytics contract is unchanged', () {
-    // Ten when `0069` was written, eleven since `0078` added
+    // Ten when `0069` was written, eleven since `0079` added
     // `public_link_opened`. What this group is actually about is unchanged:
     // `0069` itself neither records an event nor names one, which is the test
     // below.

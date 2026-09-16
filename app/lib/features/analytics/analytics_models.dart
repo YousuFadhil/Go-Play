@@ -10,7 +10,7 @@
 /// from ordinary code.
 ///
 /// [wireName] must match the CHECK constraint exactly — migration `0067` for
-/// the first ten, migration `0078` for the eleventh, which also restates the
+/// the first ten, migration `0079` for the eleventh, which also restates the
 /// whole list. Static tests assert every one of them against the migration
 /// text.
 enum ProductEvent {
@@ -85,7 +85,7 @@ enum ProductEvent {
 /// What a share was of, recorded as `product_events.share_type`.
 ///
 /// **A closed enum for the same reason [ProductEvent] is.** The six names below
-/// are a CHECK constraint on the column (migration `0078`) and are restated in
+/// are a CHECK constraint on the column (migration `0079`) and are restated in
 /// `record_product_event`, which refuses anything else as
 /// `INVALID_ANALYTICS_SHARE_TYPE`. Recording the kind is what turns one
 /// undifferentiated `share_used` count into the funnel the approved scope asks

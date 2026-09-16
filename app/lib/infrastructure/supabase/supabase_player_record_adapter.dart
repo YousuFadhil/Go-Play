@@ -12,10 +12,10 @@ import 'supabase_failure_mapper.dart';
 ///
 /// Five RPCs, in two families that are never mixed:
 ///
-///   * `player_recent_form`, `player_recent_mvp` — `authenticated` only, and
-///     the richer answer: which match, which community, when.
+///   * `player_recent_form`, `player_recent_highlights` — `authenticated`
+///     only, and the richer answer: which match, which community, when.
 ///   * `public_player_profile`, `public_player_recent_form`,
-///     `public_player_recent_highlight` — the narrow contracts migration `0078`
+///     `public_player_recent_highlight` — the narrow contracts migration `0079`
 ///     grants `anon`, which carry no match id and no kick-off time.
 ///
 /// **Which family is called is decided by the caller having a session, never
@@ -42,18 +42,17 @@ class SupabasePlayerRecordAdapter implements PlayerRecordAdapter {
       );
 
   @override
-  Future<RecentHighlight?> fetchRecentMvp(String userId) => guarded(
+  Future<List<RecentHighlight>> fetchRecentHighlights(String userId) => guarded(
         () async {
           final rows = await _client.rpc(
-            'player_recent_mvp',
+            'player_recent_highlights',
             params: {'p_user_id': userId},
           ) as List<dynamic>;
-          // No rows is "this player has never been MVP", which is the ordinary
-          // answer for most players and never an error.
-          if (rows.isEmpty) return null;
-          return mvpHighlightFromRow(rows.first as Map<String, dynamic>);
+          // No rows is "nothing eligible", the ordinary answer for most
+          // players and never an error.
+          return highlightCandidatesFromRows(rows);
         },
-        operation: 'rpc player_recent_mvp',
+        operation: 'rpc player_recent_highlights',
       );
 
   @override
@@ -101,7 +100,11 @@ class SupabasePlayerRecordAdapter implements PlayerRecordAdapter {
               ),
             ),
             form: publicRecentFormFromRows(reads[1] as List<dynamic>),
-            highlight: publicHighlightFromRows(reads[2] as List<dynamic>),
+            // The same rule the signed-in reading applies, over the public
+            // candidates.
+            highlight: RecentHighlight.mostRecent(
+              highlightCandidatesFromRows(reads[2] as List<dynamic>),
+            ),
           );
         },
         operation: 'rpc public_player_profile',

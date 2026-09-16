@@ -56,7 +56,7 @@ void main() {
     test('carries exactly the ten event names 0067 was approved with', () {
       // **Not sourced from the enum any more, and that is the point.** This
       // file is `0067`, which was approved with ten names; the eleventh was
-      // added by `0078` and is asserted there. Reading the enum here would
+      // added by `0079` and is asserted there. Reading the enum here would
       // make this test agree with the application by construction and stop it
       // noticing anything -- and it would fail the moment a later migration
       // legitimately extends the list, which is exactly what happened.

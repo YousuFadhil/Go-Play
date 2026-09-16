@@ -52,7 +52,7 @@ class ShareCardPreviewScreen extends StatefulWidget {
   final ShareMessage? message;
 
   /// What kind of card this is, and which screen it was raised from — the two
-  /// structured fields a completed share is recorded with (migration `0078`).
+  /// structured fields a completed share is recorded with (migration `0079`).
   /// Null on a caller that has not been told to classify itself, and null is
   /// recorded as null rather than guessed at.
   final ShareType? shareType;

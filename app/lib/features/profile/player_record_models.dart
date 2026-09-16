@@ -113,6 +113,20 @@ enum HighlightKind {
   mvp,
 }
 
+/// Which period a Team of Period award describes. Null on an MVP, which is a
+/// match rather than a period.
+enum HighlightPeriod {
+  week,
+  month;
+
+  /// The value `period_type` carries, or null for anything else.
+  static HighlightPeriod? fromWireName(String? name) => switch (name) {
+        'weekly' => HighlightPeriod.week,
+        'monthly' => HighlightPeriod.month,
+        _ => null,
+      };
+}
+
 /// One football achievement worth putting on a profile.
 ///
 /// At most one of these is ever shown. A player with none has no section at
@@ -124,12 +138,16 @@ class RecentHighlight {
     required this.kind,
     required this.occurredAt,
     this.communityName,
+    this.period,
   });
 
   final HighlightKind kind;
 
-  /// When it happened: the match's kick-off for an MVP, the period's own dates
-  /// for a Team of Period. Both are "the football this is about", which is how
+  /// Week or month, for a Team of Period award. Null for an MVP.
+  final HighlightPeriod? period;
+
+  /// When it happened: the match's kick-off for an MVP, and the last instant of
+  /// the period for a Team of Period (migration `0079`). Both are "the football this is about", which is how
   /// every other statistics surface dates an achievement.
   final DateTime occurredAt;
 

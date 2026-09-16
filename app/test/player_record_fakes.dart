@@ -13,12 +13,16 @@ class FakePlayerRecordAdapter implements PlayerRecordAdapter {
   FakePlayerRecordAdapter({
     this.form = RecentForm.empty,
     this.mvp,
+    this.teamOfPeriod,
     this.publicRecord,
     this.thrown,
   });
 
   RecentForm form;
   RecentHighlight? mvp;
+
+  /// The stored Team of Period award the database would return, if any.
+  RecentHighlight? teamOfPeriod;
   PublicPlayerRecord? publicRecord;
 
   /// What every read should throw instead of answering.
@@ -39,10 +43,10 @@ class FakePlayerRecordAdapter implements PlayerRecordAdapter {
   }
 
   @override
-  Future<RecentHighlight?> fetchRecentMvp(String userId) async {
+  Future<List<RecentHighlight>> fetchRecentHighlights(String userId) async {
     if (thrown != null) throw thrown!;
     requestedUserId = userId;
-    return mvp;
+    return [if (mvp != null) mvp!, if (teamOfPeriod != null) teamOfPeriod!];
   }
 
   @override

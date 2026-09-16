@@ -18,7 +18,7 @@ abstract interface class AnalyticsAdapter {
   /// already holds them. Null is ordinary: no screen makes an extra request to
   /// populate an analytics field.
   ///
-  /// [shareType] and [source] are the structured metadata migration `0078`
+  /// [shareType] and [source] are the structured metadata migration `0079`
   /// added, and they are the same kind of thing: passed when the caller knows
   /// them, null otherwise. A `share_used` without a type is a share this build
   /// did not classify, never an error — the column is nullable precisely so

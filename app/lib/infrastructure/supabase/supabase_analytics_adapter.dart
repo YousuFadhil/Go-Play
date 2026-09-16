@@ -8,7 +8,7 @@ import 'supabase_failure_mapper.dart';
 
 /// Supabase implementation of the analytics port.
 ///
-/// One RPC, `record_product_event` (migrations `0067` and `0078`), which is the
+/// One RPC, `record_product_event` (migrations `0067` and `0079`), which is the
 /// only way a row reaches `product_events` — no client holds INSERT on that
 /// table, so there is no direct-write path for this class to take even if it
 /// wanted one. `anon` has no execute on it either, which is why a signed-out

@@ -188,64 +188,146 @@ void main() {
   });
 
   group('reading highlight rows', () {
-    test('an MVP row becomes an MVP highlight, dated by the match', () {
-      final highlight = mvpHighlightFromRow({
-        'match_id': 'm1',
-        'community_id': 'c1',
-        'community_name': 'Al Amerat FC',
-        'occurred_at': '2026-09-14T18:00:00Z',
-      });
-
-      expect(highlight, isNotNull);
-      expect(highlight!.kind, HighlightKind.mvp);
-      expect(highlight.communityName, 'Al Amerat FC');
-    });
-
-    test('a highlight with no date is no highlight', () {
-      // The rule it would take part in is "the most recent wins", and a
-      // candidate that cannot be compared is better dropped than ranked
-      // arbitrarily.
-      expect(mvpHighlightFromRow(const {'match_id': 'm1'}), isNull);
-    });
-
-    test('the public contract names its own kind', () {
-      expect(publicHighlightFromRows(const []), isNull);
-
-      final highlight = publicHighlightFromRows([
+    test('an MVP row becomes an MVP candidate, dated by the match', () {
+      final candidates = highlightCandidatesFromRows([
         {
           'highlight_type': 'MVP',
           'occurred_at': '2026-09-14T18:00:00Z',
           'community_name': 'Al Amerat FC',
         },
       ]);
-      expect(highlight!.kind, HighlightKind.mvp);
+
+      final highlight = candidates.single;
+      expect(highlight.kind, HighlightKind.mvp);
+      expect(highlight.communityName, 'Al Amerat FC');
+      // A match is not a period.
+      expect(highlight.period, isNull);
     });
 
-    test('a kind this build does not know is no highlight', () {
-      final highlight = publicHighlightFromRows([
+    test('a stored Team of Period row carries its period', () {
+      final candidates = highlightCandidatesFromRows([
         {
-          'highlight_type': 'GOLDEN_BOOT',
-          'occurred_at': '2026-09-14T18:00:00Z',
+          'highlight_type': 'TEAM_OF_PERIOD',
+          'occurred_at': '2026-09-13T20:59:59.999Z',
+          'community_name': 'Al Amerat FC',
+          'period_type': 'weekly',
+        },
+        {
+          'highlight_type': 'TEAM_OF_PERIOD',
+          'occurred_at': '2026-08-31T20:59:59.999Z',
+          'community_name': 'Al Amerat FC',
+          'period_type': 'monthly',
         },
       ]);
-      expect(highlight, isNull);
+
+      expect(candidates.map((c) => c.kind),
+          everyElement(HighlightKind.teamOfPeriod));
+      expect(candidates.map((c) => c.period),
+          [HighlightPeriod.week, HighlightPeriod.month]);
+    });
+
+    test('both candidates are kept: choosing is not the mapper\'s job', () {
+      final candidates = highlightCandidatesFromRows([
+        {'highlight_type': 'MVP', 'occurred_at': '2026-09-14T18:00:00Z'},
+        {
+          'highlight_type': 'TEAM_OF_PERIOD',
+          'occurred_at': '2026-09-13T20:59:59.999Z',
+          'period_type': 'weekly',
+        },
+      ]);
+      expect(candidates, hasLength(2));
+    });
+
+    test('no rows is no candidate, and a row with no date is dropped', () {
+      // The rule a candidate takes part in is "the most recent wins", and one
+      // that cannot be compared is better dropped than ranked arbitrarily.
+      expect(highlightCandidatesFromRows(const []), isEmpty);
+      expect(
+        highlightCandidatesFromRows([
+          {'highlight_type': 'MVP'},
+        ]),
+        isEmpty,
+      );
+    });
+
+    test('a kind this build does not know is no candidate', () {
+      expect(
+        highlightCandidatesFromRows([
+          {
+            'highlight_type': 'GOLDEN_BOOT',
+            'occurred_at': '2026-09-14T18:00:00Z',
+          },
+        ]),
+        isEmpty,
+      );
     });
   });
 
   group('the repository applies the rule, and the screen never does', () {
-    test('an MVP is offered as the highlight', () async {
-      final records = FakePlayerRecordAdapter(
-        mvp: RecentHighlight(
+    RecentHighlight mvpOn(DateTime at) => RecentHighlight(
           kind: HighlightKind.mvp,
-          occurredAt: DateTime(2026, 9, 14),
-        ),
-      );
+          occurredAt: at,
+          communityName: 'Al Amerat FC',
+        );
+    RecentHighlight xiEnding(DateTime at) => RecentHighlight(
+          kind: HighlightKind.teamOfPeriod,
+          occurredAt: at,
+          communityName: 'Al Amerat FC',
+          period: HighlightPeriod.week,
+        );
+
+    test('an MVP alone is the highlight', () async {
+      final records =
+          FakePlayerRecordAdapter(mvp: mvpOn(DateTime(2026, 9, 14)));
       final highlight =
           await PlayerRecordRepository(records).recentHighlight('u1');
       expect(highlight?.kind, HighlightKind.mvp);
     });
 
-    test('a player with no MVP has no highlight', () async {
+    test('a stored Team of Period alone is the highlight', () async {
+      final records = FakePlayerRecordAdapter(
+        teamOfPeriod: xiEnding(DateTime(2026, 9, 13, 23, 59)),
+      );
+      final highlight =
+          await PlayerRecordRepository(records).recentHighlight('u1');
+      expect(highlight?.kind, HighlightKind.teamOfPeriod);
+      expect(highlight?.period, HighlightPeriod.week);
+    });
+
+    test('the more recent of the two wins', () async {
+      final newerMvp = FakePlayerRecordAdapter(
+        mvp: mvpOn(DateTime(2026, 9, 15, 19)),
+        teamOfPeriod: xiEnding(DateTime(2026, 9, 13, 23, 59)),
+      );
+      expect(
+        (await PlayerRecordRepository(newerMvp).recentHighlight('u1'))?.kind,
+        HighlightKind.mvp,
+      );
+
+      final newerXi = FakePlayerRecordAdapter(
+        mvp: mvpOn(DateTime(2026, 9, 10, 19)),
+        teamOfPeriod: xiEnding(DateTime(2026, 9, 13, 23, 59)),
+      );
+      expect(
+        (await PlayerRecordRepository(newerXi).recentHighlight('u1'))?.kind,
+        HighlightKind.teamOfPeriod,
+      );
+    });
+
+    test('an MVP on the day a period ends loses the tie to Team of Period',
+        () async {
+      // Sunday's match and the week that ends on Sunday share an effective date,
+      // and the approved rule gives it to Team of Period.
+      final records = FakePlayerRecordAdapter(
+        mvp: mvpOn(DateTime(2026, 9, 13, 19)),
+        teamOfPeriod: xiEnding(DateTime(2026, 9, 13, 23, 59)),
+      );
+      final highlight =
+          await PlayerRecordRepository(records).recentHighlight('u1');
+      expect(highlight?.kind, HighlightKind.teamOfPeriod);
+    });
+
+    test('a player with neither has no highlight', () async {
       final highlight = await PlayerRecordRepository(FakePlayerRecordAdapter())
           .recentHighlight('u1');
       expect(highlight, isNull);
