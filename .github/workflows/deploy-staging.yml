@@ -75,10 +75,18 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Where a shared link built by this bundle points. Not a secret, and
+          # stated here rather than in the environment so the address a staging
+          # card carries is reviewable in the file. Without it the app falls
+          # back to `AppConfig.publicWebBase`'s default — the production site —
+          # and a card shared from staging would send its recipient to
+          # production.
+          PUBLIC_WEB_BASE: https://go-play-staging.pages.dev
         run: |
           flutter build web --release \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            --dart-define=PUBLIC_WEB_BASE="$PUBLIC_WEB_BASE"
 
       # The build succeeds whether or not the values were compiled in, so the
       # bundle is checked rather than trusted. `grep -q` prints nothing, so no
@@ -87,6 +95,10 @@ jobs:
         run: |
           grep -q 'supabase\.co' app/build/web/main.dart.js \
             || { echo "::error::built bundle carries no Supabase URL"; exit 1; }
+          # A staging bundle whose links point at production is exactly the
+          # mistake the value above exists to prevent, so it is checked too.
+          grep -q 'go-play-staging\.pages\.dev' app/build/web/main.dart.js \
+            || { echo "::error::bundle carries no staging public link base"; exit 1; }
           if grep -q 'service_role' app/build/web/main.dart.js; then
             echo "::error::a service-role key reached the web bundle"
             exit 1
