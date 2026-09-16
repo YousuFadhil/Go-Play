@@ -176,7 +176,7 @@ void main() {
         cardOf(form: formOf([MatchOutcome.win, MatchOutcome.loss])),
       );
 
-      expect(find.text('LAST 5'), findsOneWidget);
+      expect(find.text('RECENT FORM'), findsOneWidget);
       expect(find.text('W'), findsOneWidget);
       expect(find.text('L'), findsOneWidget);
 
@@ -190,7 +190,7 @@ void main() {
         (tester) async {
       await pumpCard(tester, cardOf());
 
-      expect(find.text('LAST 5'), findsNothing);
+      expect(find.text('RECENT FORM'), findsNothing);
       expect(find.text('W'), findsNothing);
       expect(tester.takeException(), isNull);
     });

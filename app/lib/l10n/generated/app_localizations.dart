@@ -2747,7 +2747,7 @@ abstract class AppLocalizations {
   /// No description provided for @shareCardFormLabel.
   ///
   /// In en, this message translates to:
-  /// **'Last 5'**
+  /// **'Recent form'**
   String get shareCardFormLabel;
 
   /// No description provided for @publicContentUnavailableTitle.

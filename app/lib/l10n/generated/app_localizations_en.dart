@@ -1557,7 +1557,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get shareCardFormLabel => 'Last 5';
+  String get shareCardFormLabel => 'Recent form';
 
   @override
   String get publicContentUnavailableTitle => 'Not available';

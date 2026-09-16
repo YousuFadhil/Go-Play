@@ -1541,7 +1541,7 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get shareCardFormLabel => 'آخر ٥';
+  String get shareCardFormLabel => 'الأداء الأخير';
 
   @override
   String get publicContentUnavailableTitle => 'غير متاح';

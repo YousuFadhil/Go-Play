@@ -646,7 +646,7 @@
     "placeholders": { "community": { "type": "String" } }
   },
 
-  "shareCardFormLabel": "Last 5",
+  "shareCardFormLabel": "Recent form",
   "publicContentUnavailableTitle": "Not available",
   "publicContentUnavailable": "This link is no longer available, or it points to something that needs an account.",
   "matchResultScorersLabel": "Scorers",

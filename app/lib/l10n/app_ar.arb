@@ -562,7 +562,7 @@
     "placeholders": { "community": { "type": "String" } }
   },
 
-  "shareCardFormLabel": "آخر ٥",
+  "shareCardFormLabel": "الأداء الأخير",
   "publicContentUnavailableTitle": "غير متاح",
   "publicContentUnavailable": "هذا الرابط لم يعد متاحاً، أو يشير إلى محتوى يتطلب حساباً.",
   "matchResultScorersLabel": "الهدّافون",
