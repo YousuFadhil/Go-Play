@@ -600,6 +600,11 @@ void main() {
         'community_period_xi_evidence',
         'community_period_xi_window',
         'record_team_of_period_snapshot',
+        'community_period_xi_closed_window',
+        'community_period_xi_closed_evidence',
+        'community_period_xi_matches_in',
+        'community_period_xi_window_in',
+        'community_period_xi_evidence_in',
         'team_of_period_snapshots',
         'team_of_period_awards',
       ];
@@ -706,18 +711,31 @@ void main() {
     });
 
     test('the database stores a team; it never selects one', () {
-      // The evidence reads and the selection measures belong to the Dart
-      // selector. None of them appears in this migration's SQL.
-      for (final forbidden in [
-        'community_period_xi_evidence',
-        'community_period_xi_window',
-        'community_period_xi_matches',
-        'period_form_score',
-        'participation_rate',
-        'period_xi_required_matches',
-        'overall_rating desc',
+      // The writer and the highlight read neither gather evidence nor rank it:
+      // both belong elsewhere -- evidence to section 5, ranking to the Dart
+      // selector.
+      for (final name in [
+        'record_team_of_period_snapshot',
+        'player_recent_highlights',
       ]) {
-        expect(executable, isNot(contains(forbidden)), reason: forbidden);
+        final body = functionBody(name);
+        for (final forbidden in [
+          'community_period_xi',
+          'period_form_score',
+          'participation_rate',
+          'period_xi_required_matches',
+        ]) {
+          expect(body, isNot(contains(forbidden)), reason: '$name: $forbidden');
+        }
+      }
+      // And nowhere in the file is a candidate ranked: the selection order the
+      // evidence comment describes is applied by the Dart selector only.
+      for (final ranking in [
+        'period_form_score desc',
+        'participation_rate desc',
+        'goal_form_contribution_total desc',
+      ]) {
+        expect(executable, isNot(contains(ranking)), reason: ranking);
       }
     });
 
@@ -736,6 +754,244 @@ void main() {
                 functionBody('record_team_of_period_snapshot'), '')),
         isFalse,
       );
+    });
+  });
+
+  group('closed-period Team of Period evidence (section 5)', () {
+    /// 0077's text: the bodies section 5 moves.
+    final m77 = File(
+      '../supabase/migrations/0077_current_week_team_of_week.sql',
+    ).readAsStringSync().replaceAll('\r\n', '\n');
+
+    String bodyIn(String sql, String name) {
+      final start = sql.indexOf('create or replace function public.$name(');
+      expect(start, isNot(-1), reason: name);
+      final open = sql.indexOf('as \$\$\n', start) + 'as \$\$\n'.length;
+      return sql.substring(open, sql.indexOf('\$\$;', open));
+    }
+
+    String replaceOnce(String text, String from, String to) {
+      expect(from.allMatches(text).length, 1, reason: from);
+      return text.replaceFirst(from, to);
+    }
+
+    const auth = "  if auth.uid() is null then\n"
+        "    raise exception 'NOT_AUTHENTICATED';\n"
+        "  end if;\n"
+        "\n"
+        "  if not public.is_community_member(p_community_id, auth.uid()) then\n"
+        "    raise exception 'NOT_AUTHORIZED';\n"
+        "  end if;\n";
+
+    test('the moved bodies are 0077\'s, with only the named substitutions', () {
+      final live = sql;
+      for (final name in [
+        'community_period_xi_window',
+        'community_period_xi_evidence',
+      ]) {
+        var expected = bodyIn(m77, name);
+        if (name == 'community_period_xi_window') {
+          expected = replaceOnce(
+            expected,
+            "  -- Stated here rather than left to the base tables, because this "
+                "function does\n"
+                "  -- not run under the caller's policies. Both questions are "
+                "asked before a\n"
+                "  -- single row is read, and they are the same two the "
+                "candidate function asks.\n",
+            '',
+          );
+        }
+        expected = replaceOnce(
+          expected,
+          auth,
+          "  -- MOVED (0079): authorization is the caller's. The public wrapper "
+          "asks\n"
+          "  -- it of the session; the service-role read is granted to "
+          "nobody else.\n",
+        );
+        expected = replaceOnce(
+          expected,
+          "    select p.period_type, p.period_key, p.period_start, p.period_end\n"
+              "    -- CHANGED (0077): the current week, or the last completed "
+              "month.\n"
+              "    from public.team_of_period_statistics_period(p_period_type) p\n",
+          "    -- MOVED (0079): the period is the caller's argument. The public "
+              "wrapper\n"
+              "    -- passes the award period; the service-role read passes a "
+              "closed one.\n"
+              "    select\n"
+              "      p_period_type  as period_type,\n"
+              "      p_period_key   as period_key,\n"
+              "      p_period_start as period_start,\n"
+              "      p_period_end   as period_end\n",
+        );
+        expected = replaceOnce(
+          expected,
+          'from public.community_period_xi_matches(p_community_id, '
+              'p_period_type) m',
+          'from public.community_period_xi_matches_in(\n'
+              '      p_community_id, p_period_type, p_period_key) m',
+        );
+        expect(bodyIn(live, '${name}_in'), expected, reason: name);
+      }
+    });
+
+    test('the public read paths keep their signature, gate and period', () {
+      for (final name in [
+        'community_period_xi_window',
+        'community_period_xi_evidence',
+      ]) {
+        final body = bodyIn(sql, name);
+        expect(body, contains(auth), reason: name);
+        expect(
+          body,
+          contains(
+              'from public.team_of_period_statistics_period(p_period_type) p'),
+          reason: name,
+        );
+        expect(body, contains('public.${name}_in('), reason: name);
+        // Same argument list as 0077, so `create or replace` keeps the grants.
+        expect(
+          sql,
+          contains('create or replace function public.$name(\n'
+              '  p_community_id uuid,\n  p_period_type text\n)'),
+        );
+      }
+      // No grant or revoke is issued on the originals: their ACL is untouched.
+      expect(
+        RegExp(r'(grant|revoke) execute on function\s+public\.'
+                r'community_period_xi_(window|evidence|matches)\(')
+            .hasMatch(executable),
+        isFalse,
+      );
+    });
+
+    test('the closed-period reads resolve the last completed period only', () {
+      for (final name in [
+        'community_period_xi_closed_window',
+        'community_period_xi_closed_evidence',
+      ]) {
+        final body = bodyIn(sql, name);
+        expect(
+          body,
+          contains(
+              'from public.last_completed_statistics_period(p_period_type) p'),
+          reason: name,
+        );
+        expect(body, isNot(contains('team_of_period_statistics_period')));
+        expect(body, isNot(contains('p_period_start')), reason: 'no backfill');
+      }
+    });
+
+    test(
+        'closed reads are service_role only; moved bodies are granted to nobody',
+        () {
+      final flat = executable.replaceAll(RegExp(r'\s+'), ' ');
+      for (final name in [
+        'community_period_xi_closed_window',
+        'community_period_xi_closed_evidence',
+      ]) {
+        expect(
+          flat,
+          contains('revoke execute on function public.$name(uuid, text) '
+              'from anon, authenticated, public;'),
+        );
+        expect(
+          flat,
+          contains('grant execute on function public.$name(uuid, text) '
+              'to service_role;'),
+        );
+      }
+      for (final name in [
+        'community_period_xi_matches_in',
+        'community_period_xi_window_in',
+        'community_period_xi_evidence_in',
+      ]) {
+        expect(
+          flat,
+          contains('revoke execute on function public.$name('),
+          reason: name,
+        );
+        expect(
+          RegExp('grant execute on function\\s+public\\.$name\\(')
+              .hasMatch(executable),
+          isFalse,
+          reason: name,
+        );
+      }
+    });
+  });
+
+  group('the rollback script', () {
+    final rollback = File(
+      '../supabase/rollback/0079_package_five_public_sharing.rollback.sql',
+    ).readAsStringSync().replaceAll('\r\n', '\n');
+    final active = rollback
+        .split('\n')
+        .where((line) => !line.trimLeft().startsWith('--'))
+        .join('\n');
+
+    test('is not in the migrations directory', () {
+      expect(
+        File('../supabase/migrations/0079_package_five_public_sharing.rollback.sql')
+            .existsSync(),
+        isFalse,
+      );
+    });
+
+    test('restores 0067\'s writer and 0077\'s read paths verbatim', () {
+      final m67 = File(
+        '../supabase/migrations/0067_platform_admin_product_analytics.sql',
+      ).readAsStringSync().replaceAll('\r\n', '\n');
+      final m77 = File(
+        '../supabase/migrations/0077_current_week_team_of_week.sql',
+      ).readAsStringSync().replaceAll('\r\n', '\n');
+
+      String block(String src, String name) {
+        final start = src.indexOf('create or replace function public.$name(');
+        return src.substring(start, src.indexOf('\$\$;', start) + 3);
+      }
+
+      expect(rollback, contains(block(m67, 'record_product_event')));
+      for (final name in [
+        'community_period_xi_matches',
+        'community_period_xi_window',
+        'community_period_xi_evidence',
+      ]) {
+        expect(rollback, contains(block(m77, name)), reason: name);
+      }
+    });
+
+    test('drops every object 0079 creates', () {
+      for (final name in [
+        'public_match_lineup',
+        'public_match_detail',
+        'public_player_recent_highlight',
+        'public_player_recent_form',
+        'public_player_profile',
+        'player_recent_highlights',
+        'player_recent_form',
+        'record_team_of_period_snapshot',
+        'community_period_xi_closed_evidence',
+        'community_period_xi_closed_window',
+        'community_period_xi_evidence_in',
+        'community_period_xi_window_in',
+        'community_period_xi_matches_in',
+      ]) {
+        expect(active, contains('drop function if exists public.$name('),
+            reason: name);
+      }
+      expect(active,
+          contains('drop table if exists public.team_of_period_awards;'));
+      expect(active,
+          contains('drop table if exists public.team_of_period_snapshots;'));
+    });
+
+    test('touches no user data by default', () {
+      for (final dml in ['delete from', 'update public.', 'truncate']) {
+        expect(active, isNot(contains(dml)), reason: dml);
+      }
     });
   });
 }
