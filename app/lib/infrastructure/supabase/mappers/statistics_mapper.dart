@@ -48,6 +48,17 @@ CommunityPlayerStatistics communityPlayerStatisticsFromRow(
 /// member whose profile is hidden is not in this view at all.
 /// [avatarUrl] is supplied by the adapter rather than read from [row]: the view
 /// carries the roster and the rating but not the picture's path.
+/// One row of `community_scoped_rating` (migration `0081`).
+CommunityScopedRating communityScopedRatingFromRow(Map<String, dynamic> row) =>
+    CommunityScopedRating(
+      userId: row['user_id'] as String,
+      // `ratingFromDb` for the reason the Global Rating uses it: a `numeric`
+      // reaches the client as a number or as its text form depending on the
+      // transport.
+      rating: ratingFromDb(row['rating']),
+      matchesPlayed: row['matches_played'] as int? ?? 0,
+    );
+
 CommunityMemberRating communityMemberRatingFromRow(
   Map<String, dynamic> row, {
   String? avatarUrl,

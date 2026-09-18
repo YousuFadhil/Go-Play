@@ -47,7 +47,8 @@ abstract interface class StatisticsAdapter {
   /// A match falls in the period its start does, which is the same thing the
   /// database decided when it bucketed that match's counters — so this figure
   /// and the player figures beside it describe one window.
-  Future<int> fetchCompletedMatches(String communityId, StatisticsPeriod period);
+  Future<int> fetchCompletedMatches(
+      String communityId, StatisticsPeriod period);
 
   /// The community's current members and the rating each holds.
   ///
@@ -62,6 +63,19 @@ abstract interface class StatisticsAdapter {
   /// same whichever period the screen is showing.
   Future<List<CommunityMemberRating>> fetchCommunityMemberRatings(
     String communityId,
+  );
+
+  /// The **Community/Period Rating** of every player with football in this
+  /// community and [period], keyed by nothing — the rows carry their own ids.
+  ///
+  /// Derived by the database from the recorded results with the current engine
+  /// values (`community_scoped_rating`, migration `0081`), so a correction or a
+  /// deletion changes it on the next read and there is no stored copy to go
+  /// stale. A member who has not played in the period is simply absent, which
+  /// is the eligibility rule the boards apply.
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
   );
 
   /// When each player last achieved each ranked measure, in one community and

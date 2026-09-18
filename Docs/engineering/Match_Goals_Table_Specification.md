@@ -65,7 +65,9 @@ attribution exists.
 **Its consumers are two, and both are downstream:**
 
 1. **The goal counter** on a player's career record.
-2. **The goal award** in the rating engine — **+0.05 per goal**, which is why a
+2. **The goal award** in the rating engine — **+0.010 per goal, capped at
+   +0.070 per player per match** (migration `0078`, the values in force; this
+   document's earlier `+0.05` was the pre-v2 engine's) — which is why a
    scorer must be a participant (§7.2) and why a fabricated entry is a
    fabricated rating.
 
@@ -153,7 +155,7 @@ as long as the version of the result that produced it.
 | A goal record with no result | *"A goal is part of a recorded score, and one belonging to a match that has no result would be a number nothing adds up"* | The foreign key to the result (`MG-C1`) — **structural, not procedural** |
 | Two rows for one scorer in one match | Not a bigger number — the same fact recorded twice, and which counted would be arbitrary | The business key (`MG-C3`), and `INVALID_GOALS` |
 | A row saying zero or fewer | The row asserts that this player scored. Not scoring is **the absence of a row** | `MG-C4`, and `INVALID_GOALS` |
-| A scorer who was not in the lineup | A goal is worth **+0.05**; without the rule an organiser could credit rating to any account in the system | `SCORER_NOT_PARTICIPANT` — **and, independently, the derivation ignores them** (§4.5) |
+| A scorer who was not in the lineup | A goal is worth **+0.010** (`0078`); without the rule an organiser could credit rating to any account in the system | `SCORER_NOT_PARTICIPANT` — **and, independently, the derivation ignores them** (§4.5) |
 | Goals that do not sum to the score | Two statements about one match that disagree, with no rule for choosing | `GOALS_DO_NOT_MATCH_SCORE` |
 | **Editing a row** | Would change a scorer's tally without reversing the statistics and rating it produced | **No write policy exists**, and no operation updates a row |
 | **Deleting one row** | Would silently break the sum invariant | Same |
@@ -313,7 +315,8 @@ statistic.
 
 **Approved context item 9.**
 
-The rating engine awards **+0.05 per goal** to the named scorer, and records
+The rating engine awards **+0.010 per goal**, capped at **+0.070** per player
+per match (`0078`), to the named scorer, and records
 each award in the append-only audit with its before, after and *applied* delta.
 
 **Why the rating cannot be derived from these rows later.** Clamping: a player
@@ -538,7 +541,7 @@ referential target is what makes an orphan goal unrepresentable.
 *Purpose.* **The scorer.** The attribution the score itself cannot make.
 
 *Business justification.* This is the column the table exists for (§1.1), and
-it is the one that carries rating consequences: **+0.05 per goal** to whoever is
+it is the one that carries rating consequences: **+0.010 per goal** (`0078`) to whoever is
 named.
 
 *Validated against the lineup, not against registrations.* Participation is the
@@ -635,7 +638,7 @@ transaction.
 | ID | Rule | Why it exists |
 |---|---|---|
 | `MG-C7` | **The goals must sum to the total score** | The score and the goals are two statements about one match. If they disagree, every consumer must pick one and there is no rule for choosing. **This cannot be a schema constraint** — it is a cross-row aggregate compared against another table |
-| `MG-C8` | **Every scorer must be in the lineup** | A goal is worth **+0.05**; without the rule an organiser could credit rating to any account in the system. Approved context item 4 |
+| `MG-C8` | **Every scorer must be in the lineup** | A goal is worth **+0.010** (`0078`); without the rule an organiser could credit rating to any account in the system. Approved context item 4 |
 | `MG-C9` | **Each scorer appears at most once in a submission** | The duplicate rule, checked before the unique constraint would raise, so the caller gets a meaningful refusal |
 | `MG-C10` | **Each submitted tally is positive** | Refused rather than silently dropped, so a caller learns their submission was malformed |
 | `MG-C11` | **Only an owner or admin of the match's community may write** | Recording moves other people's ratings |
@@ -874,7 +877,7 @@ table is an *input to a computation*, never a source of truth:
 | Consumer | Dependency |
 |---|---|
 | `player_statistics` | The goal counter is computed from these rows, per player, by the shared helper |
-| `rating_history` and `users.overall_rating` | The **+0.05** per-goal award is applied and reversed from them |
+| `rating_history` and `users.overall_rating` | The **+0.010** per-goal award (`0078`) is applied and reversed from them |
 | Community Statistics and the Community Rating *(unbuilt)* | Will consume the same rows the same way |
 
 **And one non-dependency worth naming:** leaderboards do **not** depend on this
@@ -1003,7 +1006,7 @@ and the specification states them because a future phase will meet them:
 
 | Option today | Outcome |
 |---|---|
-| Name the player who scored it | **They receive +0.05 rating for it.** Wrong |
+| Name the player who scored it | **They receive +0.010 rating for it.** Wrong |
 | Name nobody | **The sum rule refuses the result.** Wrong |
 | Attribute it to a player on the benefiting side | **Falsifies the record**, and rewards the wrong player |
 
@@ -1013,7 +1016,7 @@ ordinary one — a nullable flag, or a small `kind` vocabulary (§14.5).
 **What must be decided first, and it is not an engineering question:** *how does
 the rating engine treat an own goal?* Football convention credits the goal to
 the opposing side and does not credit the scorer. The approved engine awards
-**+0.05 to whoever is named**, and no approved document contemplates a negative
+**+0.010 to whoever is named**, and no approved document contemplates a negative
 or absent award.
 
 **Assessment: additive to the table, blocked on a Product Decision.** Recorded
@@ -1081,7 +1084,7 @@ There is no column for it, and the sum rule binds these rows to the match score
 — which a shootout does not change. **If a `kind` vocabulary is ever added, a
 shootout value must not be among its members**, because a shootout goal in this
 table would be summed into the score check, counted in a career total and
-awarded **+0.05** — breaching item 11 in three places at once.
+awarded **+0.010** — breaching item 11 in three places at once.
 
 **Where shootout scores belong** is the result — as separate nullable columns,
 excluded from the goals-sum rule — which the Match Results specification §14.4
@@ -1275,7 +1278,7 @@ This specification follows `SL-2` and `SL-3`.
 | `MG-D5` | **RESOLVED 2026-08-02.** Which derivation chain governs — approved context items 6 and 7, or `SL-2`/`SL-3`? | **Resolved in favour of `SL-2` and `SL-3`**, confirmed by the Player Statistics brief's items 3-6 and recorded in `Player_Statistics_Table_Specification.md` §17.1. Original reasoning: **`SL-2` and `SL-3`.** Both levels derive from results independently; neither feeds the other; ratings are not derived from counters. **If items 6 and 7 are intended as decisions rather than shorthand, they overturn `SL-2`, `SL-3` and `SL-5`, and `SL-4` becomes unimplementable** (§17.1) |
 | `MG-D1` | **Do the eight `DP-n` readings in §13 match their approved definitions?** | **Confirm.** Six are stated readings. The same request as `BDC-D4` and `MRS-D4`; all three should be answered together |
 | `MG-D2` | **`updated_at` on delete-and-insert tables — present or absent?** | **Absent**, as here. A column that can never differ from `created_at` is not an audit. If the Standards are read as requiring the pair regardless, then `match_team_assignments` is right and this table should match it — **either way, the two should agree** |
-| `MG-D3` | **How should the rating engine treat an own goal?** | **Not an engineering decision.** Football convention credits the goal to the opposing side and does not credit the scorer; the approved engine awards **+0.05 to whoever is named**. Until this is settled, own goals cannot be recorded correctly (§14.1) |
+| `MG-D3` | **How should the rating engine treat an own goal?** | **Not an engineering decision.** Football convention credits the goal to the opposing side and does not credit the scorer; the approved engine awards **+0.010 to whoever is named**. Until this is settled, own goals cannot be recorded correctly (§14.1) |
 | `MG-D4` | **Is per-goal identity — times, order, individual annotation — foreseeable?** | **Decide before it is needed.** It is the one future that redesigns the table rather than extending it (§14.4): the business key stops being unique and the tally column disappears. Cheap now, disruptive later |
 
 ---

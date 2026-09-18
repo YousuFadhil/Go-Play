@@ -89,13 +89,9 @@ class ProfileSectionHeading extends StatelessWidget {
 /// is on the left in English and on the right in Arabic without this widget
 /// naming either language.
 class RecentFormSection extends StatelessWidget {
-  const RecentFormSection({super.key, required this.form, this.onViewAll});
+  const RecentFormSection({super.key, required this.form});
 
   final RecentForm form;
-
-  /// Where "View all" goes, on the one reading of the profile that has an
-  /// answer. Null draws no link — see [ProfileSectionHeading.actionLabel].
-  final VoidCallback? onViewAll;
 
   @override
   Widget build(BuildContext context) {
@@ -104,11 +100,10 @@ class RecentFormSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ProfileSectionHeading(
-          l10n.recentFormTitle,
-          actionLabel: onViewAll == null ? null : l10n.recentFormViewAll,
-          onAction: onViewAll,
-        ),
+        // No action closes this line. Recent Form is the last five results
+        // and nothing more; there is no Match History to open, and a link to
+        // the period screen would be a link to a different question.
+        ProfileSectionHeading(l10n.recentFormTitle),
         if (form.isEmpty)
           SectionCard(
             margin: const EdgeInsets.symmetric(horizontal: kPageMargin),
@@ -236,21 +231,45 @@ class _FormTile extends StatelessWidget {
   }
 }
 
-/// The one recent achievement worth showing, when there is one.
+/// The achievements a profile shows: up to five cards, newest first.
 ///
 /// **There is no empty state, deliberately.** The approved rule is that a
 /// player with nothing eligible has no section — so this widget is only ever
-/// built with a highlight, and the decision to build it at all belongs to the
-/// screen. A card reading "no highlights yet" would be a placeholder for
-/// something most players will never have.
-class RecentHighlightSection extends StatelessWidget {
-  const RecentHighlightSection({super.key, required this.highlight});
+/// built with at least one achievement, and the decision to build it at all
+/// belongs to the screen. A card reading "no achievements yet" would be a
+/// placeholder for something most players will never have.
+///
+/// **The order is the read's.** The database returns the latest MVP and every
+/// award of the last closed week and month, newest first with a deterministic
+/// tie order (migration `0081`); nothing here re-sorts or re-chooses.
+class RecentAchievementsSection extends StatelessWidget {
+  const RecentAchievementsSection({super.key, required this.achievements});
 
-  final RecentHighlight highlight;
+  final List<RecentHighlight> achievements;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ProfileSectionHeading(context.l10n.recentAchievementsTitle),
+        for (final achievement in achievements)
+          AchievementCard(achievement: achievement),
+      ],
+    );
+  }
+}
+
+/// One achievement, as a card.
+class AchievementCard extends StatelessWidget {
+  const AchievementCard({super.key, required this.achievement});
+
+  final RecentHighlight achievement;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final highlight = achievement;
 
     final (icon, title) = switch (highlight.kind) {
       HighlightKind.mvp => (Icons.star, l10n.highlightMvpTitle),
@@ -267,73 +286,72 @@ class RecentHighlightSection extends StatelessWidget {
     };
     final community = highlight.communityName;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SectionCard(
+      margin: const EdgeInsetsDirectional.fromSTEB(
+        kPageMargin,
+        0,
+        kPageMargin,
+        Gap.sm,
+      ),
+      padding: const EdgeInsets.all(Gap.md),
       children: [
-        ProfileSectionHeading(l10n.recentHighlightTitle),
-        SectionCard(
-          margin: const EdgeInsets.symmetric(horizontal: kPageMargin),
-          padding: const EdgeInsets.all(Gap.md),
+        Row(
           children: [
-            Row(
-              children: [
-                // The award mark: the product's own warn hue, which is the one
-                // amber in the palette and already what a trophy is drawn on.
-                Container(
-                  width: 46,
-                  height: 46,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: GoColors.warnContainer,
-                    borderRadius: BorderRadius.circular(Radii.sm),
+            // The award mark: the product's own warn hue, which is the one
+            // amber in the palette and already what a trophy is drawn on.
+            Container(
+              width: 46,
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: GoColors.warnContainer,
+                borderRadius: BorderRadius.circular(Radii.sm),
+              ),
+              child: Icon(icon, size: 24, color: GoColors.onWarnContainer),
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.25,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  child: Icon(icon, size: 24, color: GoColors.onWarnContainer),
-                ),
-                const SizedBox(width: Gap.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          height: 1.25,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        highlightPeriodLine(context, highlight),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          height: 1.3,
-                          fontWeight: FontWeight.w600,
-                          color: GoColors.primary,
-                        ),
-                      ),
-                      if (community != null && community.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          community,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            height: 1.3,
-                            color: GoColors.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ],
+                  const SizedBox(height: 3),
+                  Text(
+                    highlightPeriodLine(context, highlight),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                      color: GoColors.primary,
+                    ),
                   ),
-                ),
-              ],
+                  if (community != null && community.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      community,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        height: 1.3,
+                        color: GoColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),

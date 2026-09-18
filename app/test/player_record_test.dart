@@ -259,56 +259,6 @@ void main() {
     });
   });
 
-  group('choosing the one highlight to show', () {
-    RecentHighlight mvp(DateTime at) =>
-        RecentHighlight(kind: HighlightKind.mvp, occurredAt: at);
-    RecentHighlight xi(DateTime at) =>
-        RecentHighlight(kind: HighlightKind.teamOfPeriod, occurredAt: at);
-
-    test('nothing eligible means no highlight at all', () {
-      expect(RecentHighlight.mostRecent(const []), isNull);
-      expect(RecentHighlight.mostRecent([null, null]), isNull);
-    });
-
-    test('the only candidate wins', () {
-      final only = mvp(DateTime(2026, 9, 1));
-      expect(RecentHighlight.mostRecent([null, only]), same(only));
-    });
-
-    test('the most recent wins, whichever kind it is', () {
-      final older = xi(DateTime(2026, 8, 1));
-      final newer = mvp(DateTime(2026, 9, 10));
-      expect(RecentHighlight.mostRecent([older, newer]), same(newer));
-      expect(RecentHighlight.mostRecent([newer, older]), same(newer));
-
-      final newerXi = xi(DateTime(2026, 9, 12));
-      final olderMvp = mvp(DateTime(2026, 9, 11));
-      expect(RecentHighlight.mostRecent([olderMvp, newerXi]), same(newerXi));
-    });
-
-    test('on the same effective date, Team of Period takes precedence', () {
-      final sameDayMvp = mvp(DateTime(2026, 9, 14));
-      final sameDayXi = xi(DateTime(2026, 9, 14));
-
-      // Both orders, because a tie rule that depended on the order the
-      // candidates happened to be listed in would not be a rule.
-      expect(
-          RecentHighlight.mostRecent([sameDayMvp, sameDayXi]), same(sameDayXi));
-      expect(
-          RecentHighlight.mostRecent([sameDayXi, sameDayMvp]), same(sameDayXi));
-    });
-
-    test('same day means the calendar day, not the same instant', () {
-      // A Team of Period describes a period rather than a moment. Comparing it
-      // to a kick-off time to the second would let the rule turn on which hour
-      // a match started.
-      final eveningMvp = mvp(DateTime(2026, 9, 14, 20, 30));
-      final morningXi = xi(DateTime(2026, 9, 14, 6));
-      expect(
-          RecentHighlight.mostRecent([eveningMvp, morningXi]), same(morningXi));
-    });
-  });
-
   group('reading highlight rows', () {
     test('an MVP row becomes an MVP candidate, dated by the match', () {
       final candidates = highlightCandidatesFromRows([
@@ -385,74 +335,76 @@ void main() {
     });
   });
 
-  group('the repository applies the rule, and the screen never does', () {
+  group('the achievements the repository asks for', () {
     RecentHighlight mvpOn(DateTime at) => RecentHighlight(
           kind: HighlightKind.mvp,
           occurredAt: at,
           communityName: 'Al Amerat FC',
         );
-    RecentHighlight xiEnding(DateTime at) => RecentHighlight(
+    RecentHighlight weekIn(String community) => RecentHighlight(
           kind: HighlightKind.teamOfPeriod,
-          occurredAt: at,
-          communityName: 'Al Amerat FC',
+          occurredAt: DateTime(2026, 9, 13, 23, 59),
+          communityName: community,
           period: HighlightPeriod.week,
+          periodKey: '2026-W37',
         );
 
-    test('an MVP alone is the highlight', () async {
-      final records =
-          FakePlayerRecordAdapter(mvp: mvpOn(DateTime(2026, 9, 14)));
-      final highlight =
-          await PlayerRecordRepository(records).recentHighlight('u1');
-      expect(highlight?.kind, HighlightKind.mvp);
-    });
-
-    test('a stored Team of Period alone is the highlight', () async {
+    test('it returns what the database chose, in that order', () async {
+      // **The choice is not the client's any more.** The database returns the
+      // latest MVP and every award of the last closed week and month, already
+      // ordered; the repository passes them through, so a test that changes
+      // the order here changes nothing about what is shown.
       final records = FakePlayerRecordAdapter(
-        teamOfPeriod: xiEnding(DateTime(2026, 9, 13, 23, 59)),
-      );
-      final highlight =
-          await PlayerRecordRepository(records).recentHighlight('u1');
-      expect(highlight?.kind, HighlightKind.teamOfPeriod);
-      expect(highlight?.period, HighlightPeriod.week);
-    });
-
-    test('the more recent of the two wins', () async {
-      final newerMvp = FakePlayerRecordAdapter(
         mvp: mvpOn(DateTime(2026, 9, 15, 19)),
-        teamOfPeriod: xiEnding(DateTime(2026, 9, 13, 23, 59)),
+        teamOfPeriod: weekIn('Al Amerat FC'),
       );
-      expect(
-        (await PlayerRecordRepository(newerMvp).recentHighlight('u1'))?.kind,
+
+      final achievements =
+          await PlayerRecordRepository(records).recentAchievements('u1');
+
+      expect(achievements.map((a) => a.kind), [
         HighlightKind.mvp,
-      );
-
-      final newerXi = FakePlayerRecordAdapter(
-        mvp: mvpOn(DateTime(2026, 9, 10, 19)),
-        teamOfPeriod: xiEnding(DateTime(2026, 9, 13, 23, 59)),
-      );
-      expect(
-        (await PlayerRecordRepository(newerXi).recentHighlight('u1'))?.kind,
         HighlightKind.teamOfPeriod,
-      );
+      ]);
     });
 
-    test('an MVP on the day a period ends loses the tie to Team of Period',
-        () async {
-      // Sunday's match and the week that ends on Sunday share an effective date,
-      // and the approved rule gives it to Team of Period.
+    test('two communities in one period are two achievements', () async {
       final records = FakePlayerRecordAdapter(
-        mvp: mvpOn(DateTime(2026, 9, 13, 19)),
-        teamOfPeriod: xiEnding(DateTime(2026, 9, 13, 23, 59)),
+        teamOfPeriod: weekIn('Al Amerat FC'),
+        extraAchievements: [weekIn('Al Seeb Community')],
       );
-      final highlight =
-          await PlayerRecordRepository(records).recentHighlight('u1');
-      expect(highlight?.kind, HighlightKind.teamOfPeriod);
+
+      final achievements =
+          await PlayerRecordRepository(records).recentAchievements('u1');
+
+      expect(achievements, hasLength(2));
+      expect(
+        achievements.map((a) => a.communityName),
+        ['Al Amerat FC', 'Al Seeb Community'],
+      );
     });
 
-    test('a player with neither has no highlight', () async {
-      final highlight = await PlayerRecordRepository(FakePlayerRecordAdapter())
-          .recentHighlight('u1');
-      expect(highlight, isNull);
+    test('it asks for the approved window and no more', () async {
+      final records = FakePlayerRecordAdapter(
+        mvp: mvpOn(DateTime(2026, 9, 15)),
+        extraAchievements: [
+          for (var i = 0; i < 8; i++) weekIn('Community \$i'),
+        ],
+      );
+
+      final achievements =
+          await PlayerRecordRepository(records).recentAchievements('u1');
+
+      expect(records.requestedAchievementLimit, 5);
+      expect(achievements, hasLength(5),
+          reason: 'five cards is the approved maximum');
+    });
+
+    test('a player with nothing eligible has no achievements', () async {
+      final achievements =
+          await PlayerRecordRepository(FakePlayerRecordAdapter())
+              .recentAchievements('u1');
+      expect(achievements, isEmpty);
     });
   });
 

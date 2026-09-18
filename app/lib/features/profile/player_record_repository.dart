@@ -2,15 +2,16 @@ import '../../infrastructure/supabase/supabase_player_record_adapter.dart';
 import 'player_record_adapter.dart';
 import 'player_record_models.dart';
 
-/// A player's football record: their recent form, and the one achievement
-/// worth showing.
+/// A player's football record: their recent form, and the achievements a
+/// profile shows.
 ///
-/// **The highlight is decided here, not in the database and not on the
-/// screen.** Which of two achievements a profile shows is a product rule —
-/// most recent wins, Team of Period breaks a tie — and `OP-2` puts a product
-/// rule above the adapter and out of the widget. So the sources are read and
-/// [RecentHighlight.mostRecent] is applied to whatever they returned, in one
-/// place, whichever screen asked.
+/// **Which achievements those are is the database's answer, and deliberately.**
+/// The rule — the latest MVP, plus every Team of Period award for the last
+/// *closed* week and month, one per community — is a question about stored
+/// snapshots and closed periods, and `player_recent_achievements` (migration
+/// `0081`) is where both already live. Choosing here would mean reading every
+/// award a player ever won in order to discard almost all of them, and
+/// re-deciding in the client what the snapshot writer already settled.
 class PlayerRecordRepository {
   PlayerRecordRepository([PlayerRecordAdapter? adapter])
       : _adapter = adapter ?? SupabasePlayerRecordAdapter();
@@ -21,24 +22,23 @@ class PlayerRecordRepository {
   /// window, and stated once so the screen, the card and the read agree.
   static const formWindow = 5;
 
+  /// How many achievement cards a profile shows at most. Five, approved, and
+  /// stated once so the read, the screen and the public contract agree.
+  static const achievementWindow = 5;
+
   /// The player's recent form, for a signed-in reader.
   Future<RecentForm> recentForm(String userId) =>
       _adapter.fetchRecentForm(userId, limit: formWindow);
 
-  /// The one highlight to show a signed-in reader, or null when there is none.
-  ///
-  /// One read returns both candidates — the latest MVP award and the latest
-  /// stored Team of Period award (migration `0079`) — and the choice between
-  /// them is [RecentHighlight.mostRecent]'s, here, rather than the database's.
-  /// That keeps the tie rule in one place for the signed-in and the public
-  /// readings alike.
+  /// The achievements to show a signed-in reader, newest first. Empty draws no
+  /// section.
   ///
   /// A Team of Period award is present only for a period whose snapshot has
-  /// been written. The screen's live Team of Period is not consulted: it may
-  /// describe a week still in progress, and an award that could change
-  /// tomorrow is not a highlight.
-  Future<RecentHighlight?> recentHighlight(String userId) async =>
-      RecentHighlight.mostRecent(await _adapter.fetchRecentHighlights(userId));
+  /// been written, and only for the last closed one. The screen's live Team of
+  /// Period is not consulted: it may describe a week still in progress, and an
+  /// award that could change tomorrow is not an achievement.
+  Future<List<RecentHighlight>> recentAchievements(String userId) =>
+      _adapter.fetchRecentAchievements(userId, limit: achievementWindow);
 
   /// Everything a public Player Profile shows, for a reader with no session.
   ///
@@ -47,5 +47,9 @@ class PlayerRecordRepository {
   /// guessed id must not be able to tell a suspended account from a fictional
   /// one.
   Future<PublicPlayerRecord?> publicRecord(String userId) =>
-      _adapter.fetchPublicRecord(userId, limit: formWindow);
+      _adapter.fetchPublicRecord(
+        userId,
+        limit: formWindow,
+        achievements: achievementWindow,
+      );
 }

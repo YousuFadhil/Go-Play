@@ -36,6 +36,26 @@ PublicMatch publicMatchFromRow(Map<String, dynamic> row) => PublicMatch(
       title: row['title'] as String?,
     );
 
+/// Reads one row of `public_recent_results` / `public_community_recent_results`
+/// (migration `0081`).
+///
+/// A row without both scores is not a result and is not mapped: the contract
+/// only returns matches whose result was recorded, so this is a guard against a
+/// shape nobody should be able to produce rather than a case with a
+/// presentation.
+PublicResult publicResultFromRow(Map<String, dynamic> row) => PublicResult(
+      matchId: row['match_id'] as String,
+      communityId: row['community_id'] as String,
+      communityName: row['community_name'] as String? ?? '',
+      communityLogoUrl: row['community_logo_url'] as String?,
+      title: row['title'] as String?,
+      location: row['location'] as String?,
+      startAt: DateTime.parse(row['start_at'] as String).toLocal(),
+      teamAScore: row['team_a_score'] as int? ?? 0,
+      teamBScore: row['team_b_score'] as int? ?? 0,
+      mvpDisplayName: row['mvp_display_name'] as String?,
+    );
+
 /// Reads a `public_match_detail` row, or null when it names a state this build
 /// does not know.
 ///

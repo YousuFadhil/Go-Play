@@ -377,11 +377,49 @@ void main() {
       expect(find.byKey(const ValueKey('team-of-period-cta')), findsOneWidget);
     });
   });
-
 }
 
 /// The statistics port, answering from memory and counting what it was asked.
 class _Adapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async {
+    scopedRatingPeriods.add(period);
+    // **Default: the period has football for every member**, at the rating the
+    // roster carries. That keeps every board this suite already pinned meaning
+    // what it meant -- the ranking, the ties and the ranks are unchanged -- and
+    // a test about the scoped rating itself says so by setting [scopedRatings].
+    final overrides = scopedRatings;
+    if (overrides != null) {
+      return [
+        for (final entry in overrides.entries)
+          CommunityScopedRating(
+            userId: entry.key,
+            rating: entry.value.$1,
+            matchesPlayed: entry.value.$2,
+          ),
+      ];
+    }
+    return [
+      for (final member in members)
+        CommunityScopedRating(
+          userId: member.userId,
+          rating: member.rating,
+          matchesPlayed: 1,
+        ),
+    ];
+  }
+
+  /// The Community/Period Rating each player has, as (rating, matches). Null
+  /// means "every member, at the roster's rating"; a map means exactly these
+  /// players, and anybody absent from it has not played in the period.
+  Map<String, (double, int)>? scopedRatings;
+
+  /// Every period the scoped ratings were asked for, so a test can show the
+  /// boards follow the selector.
+  final List<StatisticsPeriod> scopedRatingPeriods = [];
   _Adapter({
     required this.members,
     required this.records,
@@ -484,5 +522,4 @@ class _Adapter implements StatisticsAdapter {
   Future<Map<String, TeamOfPeriodPlayerIdentity>>
       fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
           throw UnimplementedError('no Team of Period identities here');
-
 }

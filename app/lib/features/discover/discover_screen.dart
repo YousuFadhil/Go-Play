@@ -24,6 +24,7 @@ import '../matches/match_details_screen.dart';
 import 'discover_models.dart';
 import 'discover_repository.dart';
 import 'discover_widgets.dart';
+import 'public_match_screen.dart';
 import 'public_community_screen.dart';
 
 /// What the app opens on, for everybody.
@@ -406,7 +407,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                                     _FootballFeed(
                                       future: _resultsFuture!,
                                       onOpen: _openCompletedMatch,
-                                    ),
+                                    )
+                                  // A guest gets the same section from the
+                                  // public contract. It arrived with the
+                                  // overview above, so there is no second
+                                  // read to fail and nothing to sign in for:
+                                  // a completed public result was always
+                                  // openable by id, and this is how it is
+                                  // found.
+                                  else
+                                    ..._publicResultsSection(l10n, overview),
                                   ..._communitiesSection(l10n, overview),
                                 ],
                               ],
@@ -472,6 +482,50 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         ),
     ];
   }
+
+  /// Latest Results, as a visitor sees them.
+  ///
+  /// Between Upcoming Matches and Communities, which is where the signed-in
+  /// feed sits — so the page has one order for both readers. With nothing
+  /// scheduled above it, this becomes the first football on the page rather
+  /// than leaving a guest with an empty screen.
+  List<Widget> _publicResultsSection(
+    AppLocalizations l10n,
+    DiscoverOverview overview,
+  ) {
+    return [
+      DiscoverSectionHeader(
+        title: l10n.latestResultsTitle,
+        subtitle: l10n.latestResultsSubtitle,
+      ),
+      if (overview.results.isEmpty)
+        // Nothing played yet is a football state, not a fault.
+        DiscoverEmpty(
+          icon: Icons.sports_soccer,
+          message: l10n.latestResultsEmpty,
+        )
+      else
+        _PublicResultsList(
+          results: overview.results,
+          onOpen: _openPublicResult,
+        ),
+    ];
+  }
+
+  /// The public page for a completed match — the one a shared `/match/{id}`
+  /// link opens, and the only thing a guest is offered here.
+  Future<void> _openPublicResult(PublicResult result) =>
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          // The same repository this screen was built with, so one flow reads
+          // through one port -- and a test can hand both ends a fake.
+          builder: (_) => PublicMatchScreen(
+            matchId: result.matchId,
+            repository: widget.repository,
+            authService: widget.authService,
+          ),
+        ),
+      );
 
   List<Widget> _communitiesSection(
     AppLocalizations l10n,
@@ -712,6 +766,86 @@ class _ResultsListState extends State<_ResultsList> {
                 key: const Key('discoverPreviousResultsToggle'),
                 // Local state only: no read, no reload, no repository. The
                 // matches are the ones already handed to this widget.
+                onPressed: () => setState(() => _expanded = !_expanded),
+                icon: Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  size: IconSize.action,
+                ),
+                label: Text(
+                  _expanded
+                      ? l10n.hidePreviousResults
+                      : l10n.showPreviousResults(hidden),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The public results themselves: the newest, and the rest behind a disclosure.
+///
+/// The same shape the signed-in feed uses, over the public rows — one result is
+/// the answer to "what has just been played" and the four before it are context
+/// a reader can ask for. The expansion is local state and nothing else: the
+/// whole list is already in memory, fetched with the overview.
+class _PublicResultsList extends StatefulWidget {
+  const _PublicResultsList({required this.results, required this.onOpen});
+
+  /// Newest first, exactly as the repository returned them. Never re-ordered
+  /// here.
+  final List<PublicResult> results;
+  final void Function(PublicResult) onOpen;
+
+  @override
+  State<_PublicResultsList> createState() => _PublicResultsListState();
+}
+
+class _PublicResultsListState extends State<_PublicResultsList> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant _PublicResultsList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A refresh that replaced the feed did not expand it: "four more" that now
+    // means a different four would be showing something nobody asked for.
+    final before = oldWidget.results.map((r) => r.matchId).toList();
+    final now = widget.results.map((r) => r.matchId).toList();
+    if (_expanded && !_sameFeed(before, now)) _expanded = false;
+  }
+
+  static bool _sameFeed(List<String> before, List<String> now) {
+    if (before.length != now.length) return false;
+    for (var i = 0; i < now.length; i++) {
+      if (now[i] != before[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final results = widget.results;
+    final hidden = results.length - 1;
+    final visible = _expanded ? results : results.take(1);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final result in visible)
+          PublicResultCard(
+            result: result,
+            onOpen: () => widget.onOpen(result),
+          ),
+        if (hidden > 0)
+          Padding(
+            padding:
+                const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.sm),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                key: const Key('discoverPublicPreviousResultsToggle'),
                 onPressed: () => setState(() => _expanded = !_expanded),
                 icon: Icon(
                   _expanded ? Icons.expand_less : Icons.expand_more,

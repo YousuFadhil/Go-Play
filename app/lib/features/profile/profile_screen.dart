@@ -123,7 +123,7 @@ class _ProfileView {
     required this.form,
     this.secondaryPosition,
     this.avatarUrl,
-    this.highlight,
+    this.achievements = const [],
   });
 
   /// Whose record this is. Held because a share needs a public link, and a
@@ -152,9 +152,10 @@ class _ProfileView {
   /// player who has played none — and never an error.
   final RecentForm form;
 
-  /// The one achievement worth showing, or null when there is none. Null draws
-  /// no section at all rather than an empty one.
-  final RecentHighlight? highlight;
+  /// The achievements to show, newest first and at most five, chosen by the
+  /// database (migration `0081`). Empty draws no section at all rather than an
+  /// empty one.
+  final List<RecentHighlight> achievements;
 }
 
 /// The account's own actions, which only its owner is offered.
@@ -225,7 +226,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       avatarUrl: record.profile.avatarUrl,
       statistics: record.profile.statistics,
       form: record.form,
-      highlight: record.highlight,
+      achievements: record.achievements,
       isSelf: false,
     );
   }
@@ -245,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _profiles.fetchMyProfile(),
       _results.fetchStatistics(userId),
       _records.recentForm(userId),
-      _records.recentHighlight(userId),
+      _records.recentAchievements(userId),
     ]);
 
     final profile = results[0] as PlayerProfile;
@@ -257,7 +258,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       avatarUrl: profile.avatarUrl,
       statistics: results[1] as PlayerStatistics,
       form: results[2] as RecentForm,
-      highlight: results[3] as RecentHighlight?,
+      achievements: results[3] as List<RecentHighlight>,
       isSelf: true,
     );
   }
@@ -276,7 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final results = await Future.wait([
       _profiles.fetchPlayerProfile(userId),
       _records.recentForm(userId),
-      _records.recentHighlight(userId),
+      _records.recentAchievements(userId),
     ]);
     final player = results[0] as PlayerProfileView;
     return _ProfileView(
@@ -287,7 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       avatarUrl: player.avatarUrl,
       statistics: player.statistics,
       form: results[1] as RecentForm,
-      highlight: results[2] as RecentHighlight?,
+      achievements: results[2] as List<RecentHighlight>,
       isSelf: player.isSelf,
     );
   }
@@ -337,7 +338,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           draws: view.statistics.draws,
           losses: view.statistics.losses,
           form: view.form,
-          highlight: view.highlight,
+          // The newest achievement, which is the one a card has room for.
+          highlight: view.achievements.isEmpty ? null : view.achievements.first,
           publicUrl: PublicLink.format(PublicLinkKind.player, view.userId),
         ),
       ),
@@ -510,18 +512,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // total, Recent Form is what they are doing now, and
                         // the highlight is the single best thing in it. Each
                         // section is narrower than the one above it.
-                        RecentFormSection(
-                          form: view.form,
-                          // The way into the same record by period. Offered
-                          // only where it leads somewhere: the statistics
-                          // screen is the signed-in player's own.
-                          onViewAll: _isOwnProfile ? _openStatistics : null,
-                        ),
+                        RecentFormSection(form: view.form),
                         // No section at all when there is nothing eligible.
                         // An empty achievement card would be a placeholder
                         // for something most players will never have.
-                        if (view.highlight != null)
-                          RecentHighlightSection(highlight: view.highlight!),
+                        if (view.achievements.isNotEmpty)
+                          RecentAchievementsSection(
+                            achievements: view.achievements,
+                          ),
                         if (_isOwnProfile)
                           _OwnerActions(
                             onShare: () => _share(view),

@@ -154,9 +154,10 @@ enum HighlightPeriod {
 
 /// One football achievement worth putting on a profile.
 ///
-/// At most one of these is ever shown. A player with none has no section at
-/// all — [RecentHighlight.mostRecent] answers null and the screen draws
-/// nothing, rather than drawing a card that says there is nothing to say.
+/// **Which achievements a profile shows is the database's answer** since
+/// migration `0081`: the latest MVP, and every Team of Period award for the
+/// last closed week and month, newest first. A player with none has no section
+/// at all rather than a card that says there is nothing to say.
 @immutable
 class RecentHighlight {
   const RecentHighlight({
@@ -202,47 +203,6 @@ class RecentHighlight {
   /// Which community it happened in, where that is known and public. Null is
   /// ordinary and costs the card a line, never the highlight.
   final String? communityName;
-
-  /// The one to show, out of whatever the callers could find.
-  ///
-  /// The approved rule, and the whole of it:
-  ///
-  ///  * the most recent by [occurredAt] wins;
-  ///  * on the same effective date, Team of Period wins;
-  ///  * with nothing eligible, there is no highlight.
-  ///
-  /// Nulls are accepted in [candidates] so that a caller with no MVP and no XI
-  /// can simply pass what it has. "Same effective date" is compared on the
-  /// calendar day rather than the instant: a Team of Period describes a period
-  /// rather than a moment, and comparing it to a kick-off time to the second
-  /// would let the rule turn on which hour a match started.
-  static RecentHighlight? mostRecent(
-    Iterable<RecentHighlight?> candidates,
-  ) {
-    RecentHighlight? best;
-    for (final candidate in candidates) {
-      if (candidate == null) continue;
-      if (best == null) {
-        best = candidate;
-        continue;
-      }
-      final day = _day(candidate.occurredAt);
-      final bestDay = _day(best.occurredAt);
-      if (day.isAfter(bestDay)) {
-        best = candidate;
-      } else if (day.isAtSameMomentAs(bestDay) &&
-          candidate.kind.index < best.kind.index) {
-        // The tie rule, and the only place it is decided: a lower index is a
-        // higher precedence, which [HighlightKind] states by its declaration
-        // order.
-        best = candidate;
-      }
-    }
-    return best;
-  }
-
-  static DateTime _day(DateTime value) =>
-      DateTime(value.year, value.month, value.day);
 }
 
 /// Everything a public Player Profile shows, read in one pass.
@@ -259,13 +219,13 @@ class PublicPlayerRecord {
   const PublicPlayerRecord({
     required this.profile,
     required this.form,
-    this.highlight,
+    this.achievements = const [],
   });
 
   final PlayerProfileView profile;
   final RecentForm form;
 
-  /// Null when the player has no eligible achievement, which is the ordinary
-  /// case and draws no section.
-  final RecentHighlight? highlight;
+  /// The achievements the public profile shows, newest first and at most five.
+  /// Empty is the ordinary case and draws no section at all.
+  final List<RecentHighlight> achievements;
 }

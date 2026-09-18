@@ -1396,7 +1396,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leaderboardRatingNote =>
-      'Highest rated ranks by the player\'s overall rating across every community.';
+      'Rating boards rank the player\'s rating in this community for the selected period, from a 5.00 start.';
 
   @override
   String get shareCardTitle => 'Share card';
@@ -1561,6 +1561,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recentHighlightTitle => 'Recent highlight';
+
+  @override
+  String get recentAchievementsTitle => 'Recent achievements';
 
   @override
   String highlightWeekNumber(int week) {

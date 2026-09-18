@@ -8,6 +8,7 @@ import '../../core/tokens.dart';
 import '../matches/compact_match_card.dart';
 import '../profile/current_user.dart';
 import '../profile/profile_models.dart';
+import '../results/score_pair.dart';
 import 'discover_models.dart';
 import 'discover_repository.dart';
 
@@ -1136,6 +1137,114 @@ class DiscoverEmpty extends StatelessWidget {
               action!,
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One completed result, as a visitor sees it.
+///
+/// **The public counterpart of the football feed's card**, drawn in the same
+/// language and from the narrow public contract (`public_recent_results`,
+/// migration `0081`): whose community, which match, when, the score with each
+/// number bound to its team, and the best player's name where the result named
+/// one. No roster, no places, nothing a guest is not already allowed to open by
+/// id — tapping opens exactly that page.
+class PublicResultCard extends StatelessWidget {
+  const PublicResultCard({
+    super.key,
+    required this.result,
+    required this.onOpen,
+    this.showCommunityName = true,
+  });
+
+  final PublicResult result;
+  final VoidCallback onOpen;
+
+  /// False on a community's own page, where the name is already at the top.
+  final bool showCommunityName;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final mvp = result.mvpDisplayName;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kPageMargin,
+        vertical: Gap.xs + 2,
+      ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onOpen,
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            result.title ?? result.communityName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoType.cardTitle,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            showCommunityName
+                                ? '${result.communityName} · '
+                                    '${formatDayShort(context, result.startAt)}'
+                                : formatDayShort(context, result.startAt),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: Gap.md),
+                    ScorePair(
+                      teamAScore: result.teamAScore,
+                      teamBScore: result.teamBScore,
+                    ),
+                  ],
+                ),
+                if (mvp != null && mvp.isNotEmpty) ...[
+                  const SizedBox(height: Gap.md),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star,
+                        size: IconSize.meta,
+                        color: GoColors.warn,
+                      ),
+                      const SizedBox(width: Gap.sm - 2),
+                      Expanded(
+                        child: Text(
+                          '${l10n.mvpLabel}: $mvp',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

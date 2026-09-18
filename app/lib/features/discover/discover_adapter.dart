@@ -39,4 +39,16 @@ abstract interface class DiscoverAdapter {
   /// Matches that have not ended yet, soonest first. Scoped to one community
   /// when [communityId] is given, otherwise across all of them.
   Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId});
+
+  /// The most recent completed matches with a recorded result, newest first.
+  ///
+  /// [communityId] scopes the list to one community's page; null is Discover's
+  /// list across every active community. Both read the narrow public contracts
+  /// migration `0081` grants `anon`, so a guest gets the same answer a member
+  /// does and neither is asked to sign in to see a result that is already
+  /// public.
+  Future<List<PublicResult>> fetchRecentResults({
+    String? communityId,
+    int limit = 5,
+  });
 }

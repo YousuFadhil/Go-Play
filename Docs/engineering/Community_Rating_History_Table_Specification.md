@@ -1,5 +1,8 @@
 # Community Rating History (`community_rating_history`) — Table Engineering Specification
 
+> **Rating values — current source of truth.** The deltas in this document are migration `0078`'s, which is the Rating Engine definition in force (`DD-16`): participation `+0.005`, win `+0.100`, draw `+0.010`, loss `−0.100`, goal `+0.010` capped at `+0.070` per player per match, MVP `+0.020`. Earlier drafts of this document carried the pre-v2 values (`+0.05` per goal, `+0.20` MVP); those are history and are not to be revived. The Community/Period Rating uses these same values over a community-and-period scope, from a `5.00` baseline, and never touches the Global Rating (`DD-17`).
+
+
 | Field | Value |
 |---|---|
 | Version | 1.0 |
@@ -177,9 +180,10 @@ that the two audits read the same way:
 
 | Order | Reason | Who | Delta |
 |---|---|---|---|
-| 1 | `WIN` / `LOSS` | Every participant — **only if the match was not drawn** | `+0.10` / `−0.10` |
-| 2 | `GOAL` | Each scorer, **one entry per scorer** | `0.05 × goals` |
-| 3 | `MVP` | Exactly one participant | `+0.20` |
+| 1 | `PARTICIPATION` | Every participant | `+0.005` |
+| 2 | `WIN` / `DRAW` / `LOSS` | Every participant | `+0.100` / `+0.010` / `−0.100` |
+| 3 | `GOAL` | Each scorer, **one entry per scorer** | `least(0.070, 0.010 × goals)` |
+| 4 | `MVP` | Exactly one participant | `+0.020` |
 
 **And exactly one community's worth of entries.** A match belongs to one
 community, so a single match produces entries in this table for that community
@@ -261,7 +265,8 @@ foreign keys references a membership.
 `numeric(4,2)` for `delta`, `rating_before` and `rating_after`, matching
 `community_ratings.rating` exactly (`RR-1`).
 
-**Every approved delta is a multiple of `0.05`**, so two decimals are exactly
+**Every approved delta is a multiple of `0.005`** (`0078`), so three decimals
+— the precision migration `0073` gave Level 1 — are exactly
 sufficient. **Storing the applied delta rather than the constant is what makes
 clamping survivable**, and it is the reason this table exists at all (§1.1).
 

@@ -20,15 +20,27 @@ class DiscoverRepository {
 
   final DiscoverAdapter _adapter;
 
+  /// How many results a public page shows. Five, which is a practical recent
+  /// set rather than a history, and stated once so Discover and a community
+  /// page ask for the same thing.
+  static const recentResults = 5;
+
   /// Everything the Discover page shows, in one pass.
+  ///
+  /// Three lists now, and they still fail together: a guest who was shown
+  /// upcoming matches but no results was the defect this read fixes, and
+  /// leaving the results to a second request would let the page half-load into
+  /// exactly that state again.
   Future<DiscoverOverview> fetchOverview() async {
     final results = await Future.wait([
       _adapter.fetchUpcomingMatches(),
       _adapter.fetchCommunities(),
+      _adapter.fetchRecentResults(limit: recentResults),
     ]);
     return DiscoverOverview(
       matches: results[0] as List<PublicMatch>,
       communities: results[1] as List<PublicCommunity>,
+      results: results[2] as List<PublicResult>,
     );
   }
 
@@ -63,30 +75,50 @@ class DiscoverRepository {
   Future<PublicCommunityDetails> fetchCommunityDetails(
     String communityId,
   ) async {
-    final results = await Future.wait([
+    final reads = await Future.wait([
       _adapter.fetchCommunity(communityId),
       _adapter.fetchUpcomingMatches(communityId: communityId),
+      _adapter.fetchRecentResults(
+        communityId: communityId,
+        limit: recentResults,
+      ),
     ]);
     return PublicCommunityDetails(
-      community: results[0] as PublicCommunity,
-      matches: results[1] as List<PublicMatch>,
+      community: reads[0] as PublicCommunity,
+      matches: reads[1] as List<PublicMatch>,
+      results: reads[2] as List<PublicResult>,
     );
   }
 }
 
 /// What the Discover page renders.
 class DiscoverOverview {
-  const DiscoverOverview({required this.matches, required this.communities});
+  const DiscoverOverview({
+    required this.matches,
+    required this.communities,
+    this.results = const [],
+  });
 
   final List<PublicMatch> matches;
   final List<PublicCommunity> communities;
+
+  /// The most recent completed results, newest first. Public, so a guest sees
+  /// the football that has already been played rather than only what is next.
+  final List<PublicResult> results;
 }
 
 /// What a guest sees when they open a community.
 class PublicCommunityDetails {
-  const PublicCommunityDetails(
-      {required this.community, required this.matches});
+  const PublicCommunityDetails({
+    required this.community,
+    required this.matches,
+    this.results = const [],
+  });
 
   final PublicCommunity community;
   final List<PublicMatch> matches;
+
+  /// This community's most recent results. What keeps its public page from
+  /// being nearly empty in a week with nothing scheduled.
+  final List<PublicResult> results;
 }

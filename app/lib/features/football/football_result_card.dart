@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design.dart';
 import '../../core/l10n.dart';
+import '../results/score_pair.dart';
 import '../../core/time_format.dart';
 import '../../core/tokens.dart';
 import '../profile/player_identity.dart';
@@ -140,25 +141,12 @@ class _Score extends StatelessWidget {
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Gap.md,
-        vertical: Gap.xs,
-      ),
-      decoration: BoxDecoration(
-        color: GoColors.statusOpenBg,
-        borderRadius: BorderRadius.circular(Radii.control),
-      ),
-      child: Text(
-        // Left to right whatever the reader's language: a score is a pair of
-        // numbers read in the order they were scored, not a phrase.
-        '${match.teamAScore} - ${match.teamBScore}',
-        textDirection: TextDirection.ltr,
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: GoColors.primaryDeep,
-        ),
-      ),
+    // Each number under its own team's name: "2 - 3" alone does not say which
+    // side scored which, and on an Arabic page it reads as though it might be
+    // the other way round.
+    return ScorePair(
+      teamAScore: match.teamAScore!,
+      teamBScore: match.teamBScore!,
     );
   }
 }

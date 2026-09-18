@@ -1381,7 +1381,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get leaderboardRatingNote =>
-      'يعتمد ترتيب «الأعلى تقييماً» على التقييم العام للاعب في كل المجتمعات.';
+      'لوحات التقييم ترتّب بتقييم اللاعب داخل هذا المجتمع في الفترة المختارة، بدءاً من 5.00.';
 
   @override
   String get shareCardTitle => 'بطاقة المشاركة';
@@ -1545,6 +1545,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get recentHighlightTitle => 'أبرز إنجاز';
+
+  @override
+  String get recentAchievementsTitle => 'أبرز الإنجازات';
 
   @override
   String highlightWeekNumber(int week) {

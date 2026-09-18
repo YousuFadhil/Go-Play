@@ -42,23 +42,26 @@ class SupabasePlayerRecordAdapter implements PlayerRecordAdapter {
       );
 
   @override
-  Future<List<RecentHighlight>> fetchRecentHighlights(String userId) => guarded(
+  Future<List<RecentHighlight>> fetchRecentAchievements(
+    String userId, {
+    int limit = 5,
+  }) =>
+      guarded(
         () async {
           final rows = await _client.rpc(
-            'player_recent_highlights',
-            params: {'p_user_id': userId},
+            'player_recent_achievements',
+            params: {'p_user_id': userId, 'p_limit': limit},
           ) as List<dynamic>;
-          // No rows is "nothing eligible", the ordinary answer for most
-          // players and never an error.
-          return highlightCandidatesFromRows(rows);
+          return achievementsFromRows(rows);
         },
-        operation: 'rpc player_recent_highlights',
+        operation: 'rpc player_recent_achievements',
       );
 
   @override
   Future<PublicPlayerRecord?> fetchPublicRecord(
     String userId, {
     int limit = 5,
+    int achievements = 5,
   }) =>
       guarded(
         () async {
@@ -76,8 +79,8 @@ class SupabasePlayerRecordAdapter implements PlayerRecordAdapter {
               params: {'p_user_id': userId, 'p_limit': limit},
             ),
             _client.rpc(
-              'public_player_recent_highlight',
-              params: {'p_user_id': userId},
+              'public_player_recent_achievements',
+              params: {'p_user_id': userId, 'p_limit': achievements},
             ),
           ]);
 
@@ -100,11 +103,9 @@ class SupabasePlayerRecordAdapter implements PlayerRecordAdapter {
               ),
             ),
             form: publicRecentFormFromRows(reads[1] as List<dynamic>),
-            // The same rule the signed-in reading applies, over the public
-            // candidates.
-            highlight: RecentHighlight.mostRecent(
-              highlightCandidatesFromRows(reads[2] as List<dynamic>),
-            ),
+            // Already chosen and ordered by the database, exactly as the
+            // signed-in reading's are.
+            achievements: achievementsFromRows(reads[2] as List<dynamic>),
           );
         },
         operation: 'rpc public_player_profile',

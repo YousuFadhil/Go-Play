@@ -431,8 +431,7 @@ void main() {
         final adapter = _FakeAdapter(
           window: windowOf(),
           candidates: squad(),
-          identities:
-              namesFor(['gk1', 'd1', 'd2', 'm1', 'f1'], hidden: hidden),
+          identities: namesFor(['gk1', 'd1', 'd2', 'm1', 'f1'], hidden: hidden),
         );
         await pumpScreen(
           tester,
@@ -504,8 +503,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('tapping a player opens their period evidence',
-        (tester) async {
+    testWidgets('tapping a player opens their period evidence', (tester) async {
       await openDetail(tester);
 
       expect(find.text('Awarded position: Midfielder'), findsOneWidget);
@@ -709,7 +707,11 @@ void main() {
                 teamSizeObservations: [size, size, size],
                 positionShapeObservations: const [
                   PositionShapeObservation(
-                      teamSize: 6, gk: 1, def: 2, mid: 2, fwd: 1,
+                      teamSize: 6,
+                      gk: 1,
+                      def: 2,
+                      mid: 2,
+                      fwd: 1,
                       unassigned: 0),
                 ],
               ),
@@ -752,6 +754,12 @@ void main() {
 
 /// Answers from memory and records what it was asked.
 class _FakeAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async =>
+      const [];
   _FakeAdapter({
     required this.window,
     required this.candidates,

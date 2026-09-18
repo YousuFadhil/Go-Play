@@ -566,7 +566,7 @@
   "leaderboardMostWins": "Most wins",
   "leaderboardWinsValue": "{count, plural, =0{No wins} =1{1 win} other{{count} wins}}",
   "leaderboardsEmpty": "No leaderboards yet. Once a match result is recorded, this is where the community sees who is leading.",
-  "leaderboardRatingNote": "Highest rated ranks by the player's overall rating across every community.",
+  "leaderboardRatingNote": "Rating boards rank the player's rating in this community for the selected period, from a 5.00 start.",
 
   "shareCardTitle": "Share card",
   "shareCardShareAction": "Share",
@@ -644,6 +644,7 @@
   "publicMatchGuestPrompt": "Sign in to join a community and play in matches like this one.",
 
   "recentHighlightTitle": "Recent highlight",
+  "recentAchievementsTitle": "Recent achievements",
   "highlightWeekNumber": "Week {week}",
   "@highlightWeekNumber": {
     "description": "The ISO week a Team of the Week award covers, from the stored period key.",

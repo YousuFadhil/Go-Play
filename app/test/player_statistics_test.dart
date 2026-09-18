@@ -500,6 +500,26 @@ void main() {
       expect(find.textContaining('بتوقيت عُمان'), findsOneWidget);
     });
   });
+
+  group('the Player Statistics screen shares nothing', () {
+    testWidgets('there is no share action, and the periods still work',
+        (tester) async {
+      await pumpStatistics(tester, FakeResultAdapter(statistics: played));
+
+      // A player shares themselves from their Profile. This screen is the
+      // period analysis and nothing else.
+      expect(find.byIcon(Icons.ios_share), findsNothing);
+      expect(find.byTooltip('Share my statistics'), findsNothing);
+
+      // And the selector it exists for is untouched: the three periods are
+      // still there, and what switching between them shows is pinned by the
+      // groups above.
+      expect(find.byType(StatisticsPeriodSelector), findsOneWidget);
+      for (final period in ['All time', 'Monthly', 'Weekly']) {
+        expect(find.text(period), findsOneWidget, reason: period);
+      }
+    });
+  });
 }
 
 /// The statistics port, answering one player's period records from memory.
@@ -508,6 +528,12 @@ void main() {
 /// for a period the player did not play in — it deletes a periodic record with
 /// nothing in it.
 class FakePlayerPeriodAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async =>
+      const [];
   FakePlayerPeriodAdapter({required this.records});
 
   final Map<StatisticsPeriod, List<CommunityPlayerStatistics>> records;
