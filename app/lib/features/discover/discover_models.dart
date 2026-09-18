@@ -134,3 +134,95 @@ class PublicMatch {
   /// True once every starting place is taken.
   bool get isFull => openSlots == 0;
 }
+
+/// One match, as a `/match/{id}` link opens it for a visitor.
+///
+/// **Two kinds, and the fields of one are not on the other.** An upcoming match
+/// has places and no score; a completed match has a score and a lineup and no
+/// places. A sealed pair makes that a fact about the type, so no screen can
+/// read a score off a match that has not been played.
+///
+/// What either carries is the whole of `public_match_detail` and
+/// `public_match_lineup` (migration `0079`), both of which answer only for a
+/// match in an active community.
+sealed class PublicMatchDetail {
+  const PublicMatchDetail();
+}
+
+/// A match that has not finished: what public discovery already publishes.
+final class PublicUpcomingMatch extends PublicMatchDetail {
+  const PublicUpcomingMatch({required this.match, this.communityLogoUrl});
+
+  final PublicMatch match;
+  final String? communityLogoUrl;
+}
+
+/// A match that has been played, with the result information a shared result
+/// card already shows.
+final class PublicCompletedMatch extends PublicMatchDetail {
+  const PublicCompletedMatch({
+    required this.id,
+    required this.communityId,
+    required this.communityName,
+    required this.startAt,
+    required this.endAt,
+    required this.hasResult,
+    required this.lineup,
+    this.communityLogoUrl,
+    this.title,
+    this.location,
+    this.teamAScore,
+    this.teamBScore,
+    this.mvpDisplayName,
+    this.mvpAvatarUrl,
+  });
+
+  final String id;
+  final String communityId;
+  final String communityName;
+  final String? communityLogoUrl;
+  final String? title;
+  final String? location;
+  final DateTime startAt;
+  final DateTime endAt;
+
+  /// False for a match that ended with no result recorded yet. Its scores and
+  /// MVP are then null, which is the honest answer rather than a nil-nil.
+  final bool hasResult;
+  final int? teamAScore;
+  final int? teamBScore;
+  final String? mvpDisplayName;
+  final String? mvpAvatarUrl;
+
+  /// Empty when no lineup was stored.
+  final List<PublicLineupEntry> lineup;
+}
+
+/// One participant in a completed match's public lineup.
+class PublicLineupEntry {
+  const PublicLineupEntry({
+    required this.team,
+    required this.displayName,
+    required this.isProfessionalGuest,
+    required this.goals,
+    required this.isMvp,
+    this.assignedPosition,
+    this.avatarUrl,
+    this.playerId,
+  });
+
+  /// `A` or `B`, as the lineup stores it.
+  final String team;
+  final String? assignedPosition;
+  final String displayName;
+  final String? avatarUrl;
+  final bool isProfessionalGuest;
+  final int goals;
+  final bool isMvp;
+
+  /// The registered player's id, present **only** when their public profile is
+  /// available — so a name leads to `/player/{id}` exactly when that page would
+  /// open. Null for a Professional Guest and for a player whose profile is not
+  /// available; the database decides both.
+  final String? playerId;
+}

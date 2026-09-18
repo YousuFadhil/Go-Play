@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../sharing/share_card_palette.dart';
 import '../profile/player_identity.dart';
 import 'statistics_period.dart';
 import 'statistics_period_selector.dart';
@@ -86,16 +87,15 @@ class PlayerStatisticsCard extends StatelessWidget {
 
   final PlayerStatisticsCardData data;
 
-  /// The card's own palette, stated here rather than taken from the app theme.
-  ///
-  /// A share card is a picture that leaves the phone: it must not change
-  /// because the reader has dark mode on. The green is the app's own seed
-  /// colour, dark enough to sit behind white text.
-  static const _pitch = Color(0xFF07341C);
-  static const _pitchDeep = Color(0xFF04180E);
-  static const _accent = Color(0xFF3DDC84);
-  static const _ink = Color(0xFFFFFFFF);
-  static const _inkMuted = Color(0xB3FFFFFF);
+  /// The card's palette. The values moved to [ShareCardPalette] when a second
+  /// card needed them; the names are kept so nothing else in this file changed,
+  /// and the colours are now stated in one place rather than in each card that
+  /// draws them.
+  static const _pitch = ShareCardPalette.pitch;
+  static const _pitchDeep = ShareCardPalette.pitchDeep;
+  static const _accent = ShareCardPalette.accent;
+  static const _ink = ShareCardPalette.ink;
+  static const _inkMuted = ShareCardPalette.inkMuted;
 
   /// The page margin, in design units.
   static const _margin = 88.0;
@@ -183,7 +183,7 @@ class _Identity extends StatelessWidget {
             // exists only inside the card being composed.
             data: Theme.of(context).copyWith(
               colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xFF1B7A43),
+                seedColor: ShareCardPalette.avatarSeed,
                 brightness: Brightness.light,
               ),
             ),

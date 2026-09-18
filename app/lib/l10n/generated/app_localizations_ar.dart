@@ -1405,6 +1405,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shareCardStatMatches => 'المباريات';
 
   @override
+  String get shareCardPositionLabel => 'المركز';
+
+  @override
   String get shareCardStatWins => 'الانتصارات';
 
   @override
@@ -1455,6 +1458,119 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get shareCardDownloaded => 'حُفظت الصورة في تنزيلاتك.';
+
+  @override
+  String get sharePlayerProfileAction => 'مشاركة الملف';
+
+  @override
+  String get shareMyProfileAction => 'مشاركة ملفي';
+
+  @override
+  String get shareTextMyProfile => 'ملفي كلاعب في Go Play.';
+
+  @override
+  String shareTextPlayerProfile(String name) {
+    return '$name — ملف اللاعب في Go Play.';
+  }
+
+  @override
+  String get shareTextMyStatistics => 'إحصائياتي في Go Play.';
+
+  @override
+  String shareTextCommunityStatistics(String community) {
+    return '$community — الإحصائيات في Go Play.';
+  }
+
+  @override
+  String shareTextTeamOfPeriod(String community) {
+    return '$community — تشكيلة الفترة في Go Play.';
+  }
+
+  @override
+  String shareTextMatchLineup(String match) {
+    return '$match — التشكيلة في Go Play.';
+  }
+
+  @override
+  String shareTextMatchResult(String match) {
+    return '$match — النتيجة في Go Play.';
+  }
+
+  @override
+  String get recentFormTitle => 'الأداء الأخير';
+
+  @override
+  String recentFormNote(int count) {
+    return 'آخر $count مباريات مكتملة للاعب، الأحدث أولاً.';
+  }
+
+  @override
+  String get recentFormEmpty =>
+      'لا توجد مباريات مكتملة بعد. عند حفظ أول نتيجة تظهر هنا آخر خمس مباريات.';
+
+  @override
+  String get recentFormWin => 'فوز';
+
+  @override
+  String get recentFormDraw => 'تعادل';
+
+  @override
+  String get recentFormLoss => 'خسارة';
+
+  @override
+  String get recentFormWinShort => 'ف';
+
+  @override
+  String get recentFormDrawShort => 'ت';
+
+  @override
+  String get recentFormLossShort => 'خ';
+
+  @override
+  String get recentFormViewAll => 'عرض الكل';
+
+  @override
+  String get viewAsPublicAction => 'عرض كملف عام';
+
+  @override
+  String get publicProfileGuestPrompt =>
+      'سجّل الدخول للانضمام إلى المجتمعات واللعب في المباريات وبناء سجلك الخاص.';
+
+  @override
+  String get publicMatchLineupTitle => 'التشكيلة';
+
+  @override
+  String get publicMatchGuestPrompt =>
+      'سجّل الدخول للانضمام إلى مجتمع واللعب في مباريات مثل هذه.';
+
+  @override
+  String get recentHighlightTitle => 'أبرز إنجاز';
+
+  @override
+  String highlightWeekNumber(int week) {
+    return 'الأسبوع $week';
+  }
+
+  @override
+  String get highlightMvpTitle => 'أفضل لاعب في المباراة';
+
+  @override
+  String get highlightTeamOfPeriodTitle => 'تشكيلة الفترة';
+
+  @override
+  String highlightInCommunity(String community) {
+    return 'في $community';
+  }
+
+  @override
+  String get shareCardFormLabel => 'الأداء الأخير';
+
+  @override
+  String get publicContentUnavailableTitle => 'غير متاح';
+
+  @override
+  String get publicContentUnavailable =>
+      'هذا الرابط لم يعد متاحاً، أو يشير إلى محتوى يتطلب حساباً.';
 
   @override
   String get matchResultScorersLabel => 'الهدّافون';
@@ -2117,6 +2233,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminEventShareUsed => 'مشاركة';
+
+  @override
+  String get adminEventPublicLinkOpened => 'فتح رابط عام';
 
   @override
   String get adminDrilldownEmpty => 'لا توجد سجلات لهذا المؤشر.';

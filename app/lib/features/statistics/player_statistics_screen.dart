@@ -4,10 +4,12 @@ import '../../core/app_header.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../analytics/analytics_models.dart';
 import '../auth/auth_service.dart';
 import '../profile/current_user.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
+import '../sharing/public_link.dart';
 import '../sharing/share_card_flow.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
@@ -104,7 +106,8 @@ class _PlayerRecord {
 }
 
 class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
-  late final ResultRepository _results = widget.repository ?? ResultRepository();
+  late final ResultRepository _results =
+      widget.repository ?? ResultRepository();
   late final StatisticsRepository _statistics =
       widget.statistics ?? StatisticsRepository();
   late final AuthService _auth = widget.authService ?? AuthService();
@@ -208,9 +211,13 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
   /// a repository, and the period is the one the reader selected — the card is
   /// a picture of this screen's current state, not a second query for it.
   Future<void> _share() async {
+    final l10n = context.l10n;
     final record = _shown;
     final profile = CurrentUser.instance.profile.value;
     if (record == null || profile == null) return;
+    // Whose statistics these are. The screen already resolved it for the read;
+    // nothing is fetched here to carry a link.
+    final userId = widget.userId ?? _auth.currentUserId;
 
     final data = PlayerStatisticsCardData(
       fullName: profile.fullName,
@@ -238,6 +245,18 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
     await presentShareCard(
       context,
       template: (context) => PlayerStatisticsCard(data: data),
+      // The player's own statistics, so the words are theirs and the link is
+      // to their own public profile — the one public address a player has.
+      // A card with no id behind it carries the words alone, which is a
+      // complete message rather than a broken link.
+      message: ShareMessage(
+        text: l10n.shareTextMyStatistics,
+        url: userId == null
+            ? null
+            : PublicLink.format(PublicLinkKind.player, userId),
+      ),
+      shareType: ShareType.playerStatistics,
+      source: ShareSource.playerStatistics,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );
@@ -382,7 +401,9 @@ class _CareerBody extends StatelessWidget {
               // a recorded match *in this period*, which is a different
               // sentence — and the career note about a starting rating would
               // be plainly false for them.
-              period.isBounded ? l10n.statPeriodNoMatches : l10n.statNoMatchesYet,
+              period.isBounded
+                  ? l10n.statPeriodNoMatches
+                  : l10n.statNoMatchesYet,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

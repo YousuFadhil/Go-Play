@@ -4,6 +4,8 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../sharing/share_card_flow.dart';
+import '../analytics/analytics_models.dart';
+import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import 'community_leaderboards_tab.dart'
@@ -165,6 +167,7 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
   /// above is showing; sharing is a picture of the current state rather than a
   /// second query for it.
   Future<void> _share() async {
+    final l10n = context.l10n;
     final statistics = _shown;
     final name = widget.communityName;
     if (statistics == null || name == null) return;
@@ -188,6 +191,12 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
       // The community this card is of. Already held by the tab; nothing is
       // read for it.
       communityId: widget.communityId,
+      message: ShareMessage(
+        text: l10n.shareTextCommunityStatistics(data.communityName),
+        url: PublicLink.format(PublicLinkKind.community, widget.communityId),
+      ),
+      shareType: ShareType.community,
+      source: ShareSource.communityStatistics,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );

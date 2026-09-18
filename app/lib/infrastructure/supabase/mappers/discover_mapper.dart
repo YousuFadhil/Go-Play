@@ -35,3 +35,60 @@ PublicMatch publicMatchFromRow(Map<String, dynamic> row) => PublicMatch(
       openSlots: row['open_slots'] as int,
       title: row['title'] as String?,
     );
+
+/// Reads a `public_match_detail` row, or null when it names a state this build
+/// does not know.
+///
+/// [avatarUrl] turns a stored picture path into an address, which is provider
+/// knowledge the adapter holds.
+PublicMatchDetail? publicMatchDetailFromRow(
+  Map<String, dynamic> row, {
+  required String? Function(String? path) avatarUrl,
+  List<PublicLineupEntry> lineup = const [],
+}) {
+  final logo = row['community_logo_url'] as String?;
+  switch (row['public_state'] as String?) {
+    case 'UPCOMING':
+      return PublicUpcomingMatch(
+        // The function names the id `match_id`; the view and the existing
+        // mapper call it `id`. Renamed here, at the edge.
+        match: publicMatchFromRow({...row, 'id': row['match_id']}),
+        communityLogoUrl: logo,
+      );
+    case 'COMPLETED':
+      return PublicCompletedMatch(
+        id: row['match_id'] as String,
+        communityId: row['community_id'] as String,
+        communityName: row['community_name'] as String,
+        communityLogoUrl: logo,
+        title: row['title'] as String?,
+        location: row['location'] as String?,
+        startAt: DateTime.parse(row['start_at'] as String).toLocal(),
+        endAt: DateTime.parse(row['end_at'] as String).toLocal(),
+        hasResult: row['has_result'] as bool? ?? false,
+        teamAScore: row['team_a_score'] as int?,
+        teamBScore: row['team_b_score'] as int?,
+        mvpDisplayName: row['mvp_display_name'] as String?,
+        mvpAvatarUrl: avatarUrl(row['mvp_avatar_path'] as String?),
+        lineup: lineup,
+      );
+    default:
+      return null;
+  }
+}
+
+/// Reads a `public_match_lineup` row.
+PublicLineupEntry publicLineupEntryFromRow(
+  Map<String, dynamic> row, {
+  required String? Function(String? path) avatarUrl,
+}) =>
+    PublicLineupEntry(
+      team: row['team'] as String,
+      assignedPosition: row['assigned_position'] as String?,
+      displayName: row['display_name'] as String? ?? '',
+      avatarUrl: avatarUrl(row['avatar_path'] as String?),
+      isProfessionalGuest: row['participant_type'] == 'PROFESSIONAL',
+      goals: row['goals'] as int? ?? 0,
+      isMvp: row['is_mvp'] as bool? ?? false,
+      playerId: row['player_id'] as String?,
+    );

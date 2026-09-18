@@ -18,6 +18,24 @@ abstract interface class DiscoverAdapter {
 
   Future<PublicCommunity> fetchCommunity(String communityId);
 
+  /// One publicly visible match — upcoming or completed — or null when there is
+  /// not one at [matchId].
+  ///
+  /// **Null is the whole of the access answer.** A match whose community is
+  /// inactive or suspended and a match that never existed are one reply,
+  /// because telling them apart is exactly what a guessed id must not be able
+  /// to do. `public_match_detail` (migration `0079`) decides visibility; this
+  /// port only carries its answer.
+  ///
+  /// A completed match arrives without its lineup; see [fetchMatchLineup].
+  Future<PublicMatchDetail?> fetchMatchDetail(String matchId);
+
+  /// The lineup of a completed public match, or empty.
+  ///
+  /// Always empty for an upcoming match: its roster is not public, and the
+  /// database returns no rows for it rather than this port declining to ask.
+  Future<List<PublicLineupEntry>> fetchMatchLineup(String matchId);
+
   /// Matches that have not ended yet, soonest first. Scoped to one community
   /// when [communityId] is given, otherwise across all of them.
   Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId});

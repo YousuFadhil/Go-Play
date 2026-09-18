@@ -576,6 +576,7 @@
   "errShareCardShare": "Sharing is not available right now.",
 
   "shareCardStatMatches": "Matches",
+  "shareCardPositionLabel": "Position",
   "shareCardStatWins": "Wins",
   "shareCardPeriodAllTime": "All time",
   "shareCardStatDraws": "Draws",
@@ -598,6 +599,66 @@
   "shareTeamLineupAction": "Share the lineup",
   "shareMatchResultAction": "Share the result",
   "shareCardDownloaded": "Image saved to your downloads.",
+
+  "sharePlayerProfileAction": "Share profile",
+  "shareMyProfileAction": "Share my profile",
+  "shareTextMyProfile": "My player profile on Go Play.",
+  "shareTextPlayerProfile": "{name} — player profile on Go Play.",
+  "@shareTextPlayerProfile": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "shareTextMyStatistics": "My statistics on Go Play.",
+  "shareTextCommunityStatistics": "{community} — statistics on Go Play.",
+  "@shareTextCommunityStatistics": {
+    "placeholders": { "community": { "type": "String" } }
+  },
+  "shareTextTeamOfPeriod": "{community} — Team of the Period on Go Play.",
+  "@shareTextTeamOfPeriod": {
+    "placeholders": { "community": { "type": "String" } }
+  },
+  "shareTextMatchLineup": "{match} — the lineup on Go Play.",
+  "@shareTextMatchLineup": {
+    "placeholders": { "match": { "type": "String" } }
+  },
+  "shareTextMatchResult": "{match} — the result on Go Play.",
+  "@shareTextMatchResult": {
+    "placeholders": { "match": { "type": "String" } }
+  },
+
+  "recentFormTitle": "Recent form",
+  "recentFormNote": "The player's last {count} completed matches, most recent first.",
+  "@recentFormNote": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "recentFormEmpty": "No completed matches yet. Once a result is saved, the last five appear here.",
+  "recentFormWin": "Win",
+  "recentFormDraw": "Draw",
+  "recentFormLoss": "Loss",
+  "recentFormWinShort": "W",
+  "recentFormDrawShort": "D",
+  "recentFormLossShort": "L",
+  "recentFormViewAll": "View all",
+  "viewAsPublicAction": "View as public",
+  "publicProfileGuestPrompt": "Sign in to join communities, play matches and build a record of your own.",
+  "publicMatchLineupTitle": "Line-up",
+  "publicMatchGuestPrompt": "Sign in to join a community and play in matches like this one.",
+
+  "recentHighlightTitle": "Recent highlight",
+  "highlightWeekNumber": "Week {week}",
+  "@highlightWeekNumber": {
+    "description": "The ISO week a Team of the Week award covers, from the stored period key.",
+    "placeholders": { "week": { "type": "int" } }
+  },
+  "highlightMvpTitle": "Player of the match",
+  "highlightTeamOfPeriodTitle": "Team of the period",
+  "highlightInCommunity": "In {community}",
+  "@highlightInCommunity": {
+    "placeholders": { "community": { "type": "String" } }
+  },
+
+  "shareCardFormLabel": "Recent form",
+  "publicContentUnavailableTitle": "Not available",
+  "publicContentUnavailable": "This link is no longer available, or it points to something that needs an account.",
   "matchResultScorersLabel": "Scorers",
   "matchResultDrawLabel": "Draw",
   "matchResultWinnerLabel": "Winner",
@@ -878,6 +939,7 @@
   "adminEventTeamsViewed": "Teams viewed",
   "adminEventResultViewed": "Result viewed",
   "adminEventShareUsed": "Share used",
+  "adminEventPublicLinkOpened": "Public link opened",
   "adminDrilldownEmpty": "No records for this metric.",
   "adminDrilldownLoadMore": "Load more",
   "adminReturned": "Returned",

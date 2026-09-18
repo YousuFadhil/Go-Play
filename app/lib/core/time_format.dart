@@ -84,8 +84,7 @@ String formatDayAndTimeRange(
 /// stops being true, all three move together and the database is the authority.
 const _muscatOffset = Duration(hours: 4);
 
-DateTime muscatDayOf(DateTime instant) =>
-    instant.toUtc().add(_muscatOffset);
+DateTime muscatDayOf(DateTime instant) => instant.toUtc().add(_muscatOffset);
 
 /// The week an award covers, as the days a reader would name.
 ///
@@ -128,6 +127,17 @@ String formatAwardWeek(
 /// "First strong" rather than an explicit direction, so a date carries whatever
 /// direction its own locale gives it instead of one this function guessed.
 String _isolate(String text) => '\u2068$text\u2069';
+
+/// The day an achievement is dated to -- "10 Mar 2026".
+///
+/// The instant is read in Muscat before the day is taken, for the reason every
+/// other award date is: a Team of Period is dated to the last instant of its
+/// period, which in UTC falls on the evening of the previous day. Formatted in
+/// the reader's locale, so an Arabic reader gets Arabic digits and month names
+/// rather than a transliteration.
+String formatAwardDay(BuildContext context, DateTime instant) =>
+    DateFormat.yMMMd(Localizations.localeOf(context).toString())
+        .format(muscatDayOf(instant));
 
 /// The month an award covers -- "August 2026".
 String formatAwardMonth(BuildContext context, DateTime start) =>

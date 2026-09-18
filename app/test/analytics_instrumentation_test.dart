@@ -498,7 +498,11 @@ class _FakeShareService implements ShareService {
   final ShareOutcome? outcome;
 
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async {
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async {
     final result = outcome;
     if (result == null) throw const InfrastructureFailure();
     return result;

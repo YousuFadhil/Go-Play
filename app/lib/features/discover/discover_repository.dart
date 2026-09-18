@@ -32,6 +32,33 @@ class DiscoverRepository {
     );
   }
 
+  /// One publicly visible match — upcoming or completed — or null, with a
+  /// completed match's lineup attached.
+  ///
+  /// The lineup is asked for only once the detail says the match was played,
+  /// so an upcoming match costs one read and its roster is never requested.
+  Future<PublicMatchDetail?> fetchMatchDetail(String matchId) async {
+    final detail = await _adapter.fetchMatchDetail(matchId);
+    if (detail is! PublicCompletedMatch) return detail;
+    final lineup = await _adapter.fetchMatchLineup(matchId);
+    return PublicCompletedMatch(
+      id: detail.id,
+      communityId: detail.communityId,
+      communityName: detail.communityName,
+      communityLogoUrl: detail.communityLogoUrl,
+      title: detail.title,
+      location: detail.location,
+      startAt: detail.startAt,
+      endAt: detail.endAt,
+      hasResult: detail.hasResult,
+      teamAScore: detail.teamAScore,
+      teamBScore: detail.teamBScore,
+      mvpDisplayName: detail.mvpDisplayName,
+      mvpAvatarUrl: detail.mvpAvatarUrl,
+      lineup: lineup,
+    );
+  }
+
   /// One community and what it has scheduled — the guest's community details.
   Future<PublicCommunityDetails> fetchCommunityDetails(
     String communityId,
@@ -57,7 +84,8 @@ class DiscoverOverview {
 
 /// What a guest sees when they open a community.
 class PublicCommunityDetails {
-  const PublicCommunityDetails({required this.community, required this.matches});
+  const PublicCommunityDetails(
+      {required this.community, required this.matches});
 
   final PublicCommunity community;
   final List<PublicMatch> matches;

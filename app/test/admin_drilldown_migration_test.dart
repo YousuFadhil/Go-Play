@@ -445,8 +445,12 @@ void main() {
   });
 
   group('the analytics contract is unchanged', () {
-    test('there are still exactly ten product events', () {
-      expect(ProductEvent.values.length, 10);
+    // Ten when `0069` was written, eleven since `0079` added
+    // `public_link_opened`. What this group is actually about is unchanged:
+    // `0069` itself neither records an event nor names one, which is the test
+    // below.
+    test('there are exactly eleven product events', () {
+      expect(ProductEvent.values.length, 11);
     });
 
     test('0069 records no event and adds no event name', () {

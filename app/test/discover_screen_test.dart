@@ -732,6 +732,21 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
   }
 
   @override
+  Future<PublicMatchDetail?> fetchMatchDetail(String matchId) async {
+    if (failure != null) throw failure!;
+    for (final match in matches) {
+      if (match.id == matchId) return PublicUpcomingMatch(match: match);
+    }
+    // No row is how the public contract says "not publicly visible", and the
+    // fake says it the same way rather than throwing.
+    return null;
+  }
+
+  @override
+  Future<List<PublicLineupEntry>> fetchMatchLineup(String matchId) async =>
+      const [];
+
+  @override
   Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId}) async {
     await _hold();
     if (failure != null) throw failure!;

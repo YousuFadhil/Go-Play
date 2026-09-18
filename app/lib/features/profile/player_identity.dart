@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
 import '../../core/l10n.dart';
+import '../auth/auth_models.dart';
 import 'profile_screen.dart';
 
 /// How a participant is presented, wherever one appears.
@@ -17,7 +18,9 @@ import 'profile_screen.dart';
 ///   * [PlayerAvatar] — the face, including the guest treatment;
 ///   * [openPlayerProfile] — the one navigation, into the one Player Profile;
 ///   * [PlayerIdentityTap] — a tap target for the identity *alone*, used where
-///     the row itself already belongs to a management action.
+///     the row itself already belongs to a management action;
+///   * [positionLabel] — what a playing position is called, which the profile
+///     and the profile's share card must not answer differently.
 ///
 /// There is no participant model here and no data of any kind. Every caller
 /// already holds a name, an optional picture and whichever identity the row
@@ -140,3 +143,16 @@ class PlayerIdentityTap extends StatelessWidget {
     );
   }
 }
+
+/// What a playing position is called, in the reader's language.
+///
+/// Here because two surfaces now show one player's position — the profile and
+/// the card made of it — and a card that said "Forward" where the screen said
+/// something else would be a picture of a different record.
+String positionLabel(AppLocalizations l10n, PlayerPosition position) =>
+    switch (position) {
+      PlayerPosition.gk => l10n.positionGk,
+      PlayerPosition.def => l10n.positionDef,
+      PlayerPosition.mid => l10n.positionMid,
+      PlayerPosition.fwd => l10n.positionFwd,
+    };
