@@ -22,10 +22,10 @@ import 'support.dart';
 /// The rating assertions are written against *relationships* rather than against
 /// literal values -- a corrected player is compared to a teammate whose match
 /// was identical, and a removed player to their own baseline. That is
-/// deliberate: it holds under the rating values in `0073` and under the ones
-/// before it, so this suite tests the correction's behaviour rather than
-/// restating the rating engine's constants, which `rating_engine_v2_test.dart`
-/// already pins.
+/// deliberate: it holds under the rating values in `0078` -- the ones currently
+/// in force -- and under `0073`'s and the ones before them, so this suite tests
+/// the correction's behaviour rather than restating the rating engine's
+/// constants, which `rating_engine_v2_test.dart` already pins against `0078`.
 ///
 /// Day 74 is this file's match window. Ratings and counters belong to the
 /// permanent accounts, and teardown deletes the community, whose cascade gives
@@ -729,8 +729,8 @@ void main() {
         () async {
       final before = await registrations();
 
-      final guestId = await owner.client
-          .rpc('add_played_professional_guest', params: {
+      final guestId =
+          await owner.client.rpc('add_played_professional_guest', params: {
         'p_match_id': matchId,
         'p_name': '  ITest Played Guest  ',
         'p_team': 'B',
@@ -744,8 +744,7 @@ void main() {
       final seats = await registrations();
       final seat = seats.firstWhere((row) => row['user_id'] == null);
       expect(seat['status'], 'confirmed');
-      expect(seat['registration_order'],
-          before.length + 1,
+      expect(seat['registration_order'], before.length + 1,
           reason: 'the next number this match had to give');
       expect(seats.where((row) => row['status'] == 'reserve'), isEmpty);
 
@@ -759,15 +758,16 @@ void main() {
 
     test('the side is recorded as chosen, and survives a later lineup write',
         () async {
-      final guestId = await owner.client
-          .rpc('add_played_professional_guest', params: {
+      final guestId =
+          await owner.client.rpc('add_played_professional_guest', params: {
         'p_match_id': matchId,
         'p_name': 'ITest Played Guest',
         'p_team': 'B',
         'p_assigned_position': 'DEF',
       }) as String;
 
-      Future<Map<String, dynamic>> guestRow() async => Map<String, dynamic>.from(
+      Future<Map<String, dynamic>> guestRow() async =>
+          Map<String, dynamic>.from(
             await owner.client
                 .from('match_team_assignments')
                 .select('team, assigned_position, team_manually_overridden')
@@ -837,9 +837,10 @@ void main() {
 
       // Before completion the roster operation is the right one, and this is
       // refused rather than quietly doing its job early.
-      expect(await guestOutcome(owner, onMatch: upcoming),
-          'MATCH_NOT_COMPLETED');
-      expect(await guestOutcome(owner, onMatch: running), 'MATCH_NOT_COMPLETED');
+      expect(
+          await guestOutcome(owner, onMatch: upcoming), 'MATCH_NOT_COMPLETED');
+      expect(
+          await guestOutcome(owner, onMatch: running), 'MATCH_NOT_COMPLETED');
     });
 
     test('a bad name, side or position writes nothing at all', () async {
@@ -895,8 +896,8 @@ void main() {
     test('a guest who did not play is still removed the way they were',
         () async {
       // Removal after the fact is unchanged (0059): this correction adds only.
-      final guestId = await owner.client
-          .rpc('add_played_professional_guest', params: {
+      final guestId =
+          await owner.client.rpc('add_played_professional_guest', params: {
         'p_match_id': matchId,
         'p_name': 'ITest Played Guest',
         'p_team': 'A',
@@ -1060,7 +1061,8 @@ void main() {
           .select('user_id, status')
           .eq('match_id', id);
       return {
-        for (final row in rows) row['user_id'] as String: row['status'] as String,
+        for (final row in rows)
+          row['user_id'] as String: row['status'] as String,
       };
     }
 
@@ -1356,7 +1358,9 @@ void main() {
       expect(await participantCount(id), 11,
           reason: 'five members and six guests share one capacity');
 
-      expect(await edit(id, startsIn: const Duration(days: 14), startingPlayers: 4),
+      expect(
+          await edit(id,
+              startsIn: const Duration(days: 14), startingPlayers: 4),
           'MAX_BELOW_REGISTERED',
           reason: 'four places plus the reserve allowance cannot hold eleven');
       expect(await storedStartingPlayers(id), 30,
@@ -1451,7 +1455,8 @@ void main() {
 
       for (final count in const [4, 8, 5]) {
         expect(
-          await edit(id, startsIn: const Duration(days: -3), startingPlayers: count),
+          await edit(id,
+              startsIn: const Duration(days: -3), startingPlayers: count),
           'ALLOW',
           reason: 'correcting the count of a played match is unlimited',
         );
@@ -1474,7 +1479,9 @@ void main() {
       final played = await createMatch(owner, communityId,
           startsIn: const Duration(days: -3), startingPlayers: 10);
 
-      expect(await edit(future, startsIn: const Duration(days: 7), startingPlayers: 3),
+      expect(
+          await edit(future,
+              startsIn: const Duration(days: 7), startingPlayers: 3),
           'INVALID_STARTING_PLAYERS');
       expect(
           await edit(active,
@@ -1482,7 +1489,9 @@ void main() {
               duration: const Duration(hours: 3),
               startingPlayers: 3),
           'INVALID_STARTING_PLAYERS');
-      expect(await edit(played, startsIn: const Duration(days: -3), startingPlayers: 3),
+      expect(
+          await edit(played,
+              startsIn: const Duration(days: -3), startingPlayers: 3),
           'INVALID_STARTING_PLAYERS');
     });
 
@@ -1492,9 +1501,13 @@ void main() {
       final played = await createMatch(owner, communityId,
           startsIn: const Duration(days: -3), startingPlayers: 10);
 
-      expect(await edit(future, startsIn: const Duration(days: 7), startingPlayers: 31),
+      expect(
+          await edit(future,
+              startsIn: const Duration(days: 7), startingPlayers: 31),
           'INVALID_STARTING_PLAYERS');
-      expect(await edit(played, startsIn: const Duration(days: -3), startingPlayers: 31),
+      expect(
+          await edit(played,
+              startsIn: const Duration(days: -3), startingPlayers: 31),
           'INVALID_STARTING_PLAYERS');
     });
 
@@ -1506,11 +1519,13 @@ void main() {
           duration: const Duration(hours: 3),
           startingPlayers: 30);
       expect(
-          await edit(active, startsIn: const Duration(days: 2), startingPlayers: 4),
+          await edit(active,
+              startsIn: const Duration(days: 2), startingPlayers: 4),
           'MATCH_LOCKED');
 
       final played = await crowdedMatch(startsIn: const Duration(days: 7));
-      await edit(played, startsIn: const Duration(days: -3), startingPlayers: 30);
+      await edit(played,
+          startsIn: const Duration(days: -3), startingPlayers: 30);
       expect(
           await edit(played,
               startsIn: const Duration(hours: -1),
@@ -1518,7 +1533,8 @@ void main() {
               startingPlayers: 4),
           'MATCH_COMPLETED');
       expect(
-          await edit(played, startsIn: const Duration(days: 2), startingPlayers: 4),
+          await edit(played,
+              startsIn: const Duration(days: 2), startingPlayers: 4),
           'MATCH_COMPLETED');
     });
   });

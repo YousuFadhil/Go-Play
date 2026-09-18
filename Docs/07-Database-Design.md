@@ -55,13 +55,17 @@ From the Results / Rating phase (`0022`): `match_results`, `match_goals`,
   index), and an invitation can only offer `admin` or `player`.
 - `notifications.match_id` uses **ON DELETE SET NULL**, so a "match deleted"
   notice survives the match it refers to (DD-08).
-- `users.overall_rating` is `NUMERIC(4,2)`, NOT NULL, default `5.00`,
+- `users.overall_rating` is `NUMERIC(5,3)`, NOT NULL, default `5.00`,
   constrained to `0.0 … 10.0` — the approved OP-1 scale, recorded in §18.1.1 of
   the BTGE Engineering Specification. It was widened from `NUMERIC(3,1)` by
-  migration `0022`, because the approved engine moves a rating by `0.05` for a
-  goal and one decimal place cannot represent that reversibly (`RR-1`). One
-  decimal remains a *presentation* choice; round for the eye, never for the
-  record. Under `SL-3` this column is the **Global Rating** — Level 1.
+  migration `0022`, because the engine of the day moved a rating by `0.05` for a
+  goal and one decimal place cannot represent that reversibly (`RR-1`), and
+  again to `NUMERIC(5,3)` by migration `0073`. **The values currently in force
+  are migration `0078`'s:** participation `+0.005`, win `+0.100`, draw `+0.010`,
+  loss `−0.100`, goal `+0.010` capped at `+0.070` per player per match, and MVP
+  `+0.020` — which is why three decimals, not two, are what the column has to
+  hold. One decimal remains a *presentation* choice; round for the eye, never
+  for the record. Under `SL-3` this column is the **Global Rating** — Level 1.
   `users.date_of_birth` and
   `users.secondary_position` are nullable: existing players have neither, and
   the database must not invent what the engine is required to reject as missing.

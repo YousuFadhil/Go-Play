@@ -463,9 +463,11 @@ class _CardRow extends StatelessWidget {
 /// The Global Rating, given the prominence it has in the product.
 ///
 /// Shown to one decimal place because that is `OP-1`'s presentation rule. The
-/// stored value carries two — the engine moves a rating by 0.05 for a goal, and
-/// a scale that could not hold that would make corrections irreversible — so
-/// the second decimal is real and deliberately not shown here.
+/// stored value carries three (`numeric(5,3)`, migration `0073`) — the engine
+/// moves a rating by as little as 0.005 for turning up and 0.010 for a goal
+/// (migration `0078`), and a scale that could not hold those would make
+/// corrections irreversible — so the decimals beneath are real and deliberately
+/// not shown here.
 class RatingHeadline extends StatelessWidget {
   const RatingHeadline({super.key, required this.rating});
 

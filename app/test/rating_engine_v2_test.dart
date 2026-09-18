@@ -9,12 +9,22 @@ import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/infrastructure/supabase/mappers/result_mapper.dart';
 import 'package:go_play/infrastructure/supabase/mappers/team_mapper.dart';
 
-/// Rating Engine v2 (migration `0073`), from both sides.
+/// The Rating Engine, from both sides — and from two migrations.
+///
+/// **What is current and what is history.** `0073` gave the engine its v2
+/// *shape*: three-decimal precision, a participation entry, a draw entry, and
+/// the reason vocabulary the audit is written in. `0078` then set what each
+/// reason is worth and is the authoritative definition in force, so the Dart
+/// mirror is held to `0078` and the group reviewing `0073`'s text is a review
+/// of history — it says what that migration contained and is deliberately not
+/// updated when the values move.
 ///
 /// The Dart mirror (`ratingRules` / `ratingDeltasFor`) is exercised as
-/// arithmetic; the migration is reviewed as text, as every unapplied migration
-/// in this repository is. The integration suite is what holds the two to each
-/// other against a live database once `0073` is applied.
+/// arithmetic; both migrations are reviewed as text, as every migration in this
+/// repository is. The integration suite holds the mirror and the live database
+/// to each other whenever the fixture accounts exist; the contract test at the
+/// end of this file does it statically, from `0078`'s own text, so an
+/// unavailable fixture can never leave the two unchecked.
 void main() {
   TeamAssignment at(String userId, TeamId team) => TeamAssignment(
         userId: userId,
@@ -49,7 +59,7 @@ void main() {
           .where((d) => d.userId == id)
           .fold(0.0, (sum, d) => sum + d.delta);
 
-  group('the v2 values', () {
+  group('the current values (0078)', () {
     test('win only is +0.105', () {
       expect(total(result(2, 1), 'p'), closeTo(0.105, 1e-9));
     });
@@ -62,27 +72,51 @@ void main() {
       expect(total(result(2, 1), 'x'), closeTo(-0.095, 1e-9));
     });
 
-    test('win and one goal is +0.125', () {
-      expect(total(result(2, 1, goals: {'p': 1}), 'p'), closeTo(0.125, 1e-9));
+    test('win and one goal is +0.115', () {
+      expect(total(result(2, 1, goals: {'p': 1}), 'p'), closeTo(0.115, 1e-9));
     });
 
-    test('win and five goals is +0.205', () {
-      expect(total(result(5, 1, goals: {'p': 5}), 'p'), closeTo(0.205, 1e-9));
+    test('win and five goals is +0.155', () {
+      expect(total(result(5, 1, goals: {'p': 5}), 'p'), closeTo(0.155, 1e-9));
     });
 
-    test('win and six goals is still +0.205: the cap holds', () {
-      expect(total(result(6, 1, goals: {'p': 6}), 'p'), closeTo(0.205, 1e-9));
+    test('win and seven goals reaches the cap: +0.175', () {
+      expect(total(result(7, 1, goals: {'p': 7}), 'p'), closeTo(0.175, 1e-9));
     });
 
-    test('loss and five goals is +0.005', () {
-      expect(total(result(1, 5, goals: {'p': 5}), 'p'), closeTo(0.005, 1e-9));
+    test('win and eight goals is still +0.175: the cap holds', () {
+      expect(total(result(8, 1, goals: {'p': 8}), 'p'), closeTo(0.175, 1e-9));
     });
 
-    test('loss, five goals and the MVP is +0.055', () {
+    test('loss and five goals is -0.045', () {
+      expect(total(result(1, 5, goals: {'p': 5}), 'p'), closeTo(-0.045, 1e-9));
+    });
+
+    test('loss, five goals and the MVP is -0.025', () {
       expect(
         total(result(1, 5, goals: {'p': 5}, mvp: 'p'), 'p'),
-        closeTo(0.055, 1e-9),
+        closeTo(-0.025, 1e-9),
       );
+    });
+
+    test('the MVP alone is worth +0.020', () {
+      final mvpOnly = ratingDeltasFor(result(2, 1, mvp: 'p'), lineup)
+          .where((d) => d.userId == 'p' && d.reason == RatingChangeReason.mvp)
+          .single;
+      expect(mvpOnly.delta, closeTo(0.020, 1e-9));
+    });
+
+    test('a winner who did nothing else still outranks the best loser', () {
+      // The invariant the values exist to keep, at its hardest case: the
+      // losing side's best possible match is a capped seven goals and the MVP.
+      // Team A wins 7-1 here, so `p` is the plain winner and `x` the loser who
+      // did everything a loser can.
+      final match = result(7, 1, goals: {'x': 7}, mvp: 'x');
+      final winner = total(match, 'p');
+      final loser = total(match, 'x');
+      expect(winner, closeTo(0.105, 1e-9));
+      expect(loser, closeTo(-0.005, 1e-9));
+      expect(winner, greaterThan(loser));
     });
 
     test('the Dart mirror carries exactly the approved constants', () {
@@ -90,9 +124,9 @@ void main() {
       expect(ratingRules.win, 0.10);
       expect(ratingRules.draw, 0.01);
       expect(ratingRules.loss, -0.10);
-      expect(ratingRules.goal, 0.02);
-      expect(ratingRules.goalCap, 0.10);
-      expect(ratingRules.mvp, 0.05);
+      expect(ratingRules.goal, 0.01);
+      expect(ratingRules.goalCap, 0.07);
+      expect(ratingRules.mvp, 0.02);
     });
   });
 
@@ -232,6 +266,10 @@ void main() {
     });
   });
 
+  // **History, not current behaviour.** This group reviews the file `0073`
+  // shipped: its values were superseded by `0078` and these assertions are
+  // deliberately left as they are, because what a historical migration
+  // contained does not change.
   group('what migration 0073 says', () {
     const path =
         '../supabase/migrations/0073_rating_precision_and_participation.sql';
@@ -312,7 +350,9 @@ void main() {
       expect(body, contains('set search_path = public'));
     });
 
-    test('apply_match_rating_effects runs the four steps in order', () {
+    test('apply_match_rating_effects ran the four steps in 0073\'s order', () {
+      // The values below are 0073's own and are not the engine's current ones
+      // -- see the `0078` group at the end of this file.
       final body = fn('apply_match_rating_effects');
       final order = [
         "'PARTICIPATION', 0.005",
@@ -404,6 +444,86 @@ void main() {
         expect(code, isNot(contains(untouched)), reason: untouched);
       }
       expect(code, isNot(contains('grant execute')));
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // The current contract: the Dart mirror against migration 0078's own text.
+  //
+  // This is what makes "the Dart constants are the database's constants" a
+  // checked fact rather than an intention. It runs everywhere, with no fixture
+  // accounts and no network, so an unavailable integration environment cannot
+  // leave the two unchecked -- and it reads the numbers out of the migration
+  // rather than restating them, so a future migration that changes a value
+  // fails here until the mirror follows it.
+  group('what migration 0078 says, and what Dart must match', () {
+    const path = '../supabase/migrations/0078_rating_goal_mvp_values.sql';
+    final sql = File(path).readAsStringSync().replaceAll('\r\n', '\n');
+    final code =
+        sql.split('\n').where((l) => !l.trimLeft().startsWith('--')).join('\n');
+
+    /// The number `0078` passes `apply_rating_delta` for [reason].
+    double valueFor(String reason) {
+      final match = RegExp("'$reason',\\s*(-?[0-9.]+)").firstMatch(code);
+      if (match == null) throw StateError('0078 does not apply $reason');
+      return double.parse(match.group(1)!);
+    }
+
+    test('it is still the migration the database runs', () {
+      // 0078 replaces the whole of apply_match_rating_effects, which is what
+      // makes it the authoritative definition rather than a patch on one line.
+      expect(
+          code,
+          contains(
+              'create or replace function public.apply_match_rating_effects('));
+      expect(code, contains('security definer'));
+      expect(code, contains('set search_path = public'));
+      expect(
+        code,
+        contains(
+            'revoke execute on function public.apply_match_rating_effects(uuid)'),
+      );
+    });
+
+    test('every constant in the Dart mirror is the one 0078 applies', () {
+      expect(ratingRules.participation, valueFor('PARTICIPATION'));
+      expect(ratingRules.draw, valueFor('DRAW'));
+      expect(ratingRules.win, valueFor('WIN'));
+      expect(ratingRules.loss, valueFor('LOSS'));
+      expect(ratingRules.mvp, valueFor('MVP'));
+    });
+
+    test('and so are the goal award and its cap', () {
+      final goal =
+          RegExp(r"'GOAL', least\((-?[0-9.]+), (-?[0-9.]+) \* r.goals\)")
+              .firstMatch(code);
+      expect(goal, isNotNull, reason: '0078 must cap the goal award');
+      expect(ratingRules.goalCap, double.parse(goal!.group(1)!));
+      expect(ratingRules.goal, double.parse(goal.group(2)!));
+    });
+
+    test('the approved values, written out once', () {
+      // The Product Owner's list, so a reader of this suite can check the file
+      // against the decision without opening the migration.
+      expect(valueFor('PARTICIPATION'), 0.005);
+      expect(valueFor('WIN'), 0.100);
+      expect(valueFor('DRAW'), 0.010);
+      expect(valueFor('LOSS'), -0.100);
+      expect(valueFor('MVP'), 0.020);
+      expect(ratingRules.goal, 0.010);
+      expect(ratingRules.goalCap, 0.070);
+    });
+
+    test('nothing in it backfills or recomputes a stored rating', () {
+      for (final forbidden in [
+        'update rating_history',
+        'update users',
+        'delete from',
+        'truncate',
+      ]) {
+        expect(code.toLowerCase(), isNot(contains(forbidden)),
+            reason: forbidden);
+      }
     });
   });
 }
