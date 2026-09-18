@@ -11,9 +11,6 @@ import 'package:go_play/features/analytics/analytics_service.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
-import 'package:go_play/features/communities/community_adapter.dart';
-import 'package:go_play/features/communities/community_models.dart';
-import 'package:go_play/features/communities/community_repository.dart';
 import 'package:go_play/features/profile/player_profile_share_card.dart';
 import 'package:go_play/features/profile/player_record_models.dart';
 import 'package:go_play/features/profile/player_record_repository.dart';
@@ -334,7 +331,6 @@ void main() {
           profiles ?? FakeProfileAdapter(player: viewOf()),
         ),
         resultRepository: ResultRepository(_FakeResultAdapter(stats())),
-        communityRepository: CommunityRepository(_FakeCommunityAdapter()),
         playerRecordRepository:
             PlayerRecordRepository(records ?? FakePlayerRecordAdapter()),
         authService: AuthService(_StubAuthAdapter()),
@@ -577,7 +573,8 @@ void main() {
       expect(find.text('W'), findsNothing);
     });
 
-    testWidgets('a form summarises the same window it draws', (tester) async {
+    testWidgets('a form is five badges and their scorelines, and no prose',
+        (tester) async {
       await pumpProfile(
         tester,
         records: FakePlayerRecordAdapter(
@@ -590,6 +587,7 @@ void main() {
               MatchOutcome.win,
             ],
             goals: [1, 0, 2, 0, 1],
+            scores: [(2, 1), (0, 2), (3, 0), (1, 1), (4, 1)],
           ),
         ),
       );
@@ -602,13 +600,15 @@ void main() {
       expect(inForm(find.text('W')), findsNWidgets(3));
       expect(inForm(find.text('D')), findsOneWidget);
       expect(inForm(find.text('L')), findsOneWidget);
-      // The summary counts the same five the badges draw: five matches, four
-      // goals, three wins.
-      expect(
-        inForm(find.text('5 Matches  ·  4 Goals  ·  3 Wins')),
-        findsOneWidget,
-      );
-      expect(find.textContaining('last 5 completed matches'), findsOneWidget);
+      // The scoreline under each badge, from the player's own side
+      // (migration 0080).
+      for (final scoreline in ['2 - 1', '0 - 2', '3 - 0', '1 - 1', '4 - 1']) {
+        expect(inForm(find.text(scoreline)), findsOneWidget, reason: scoreline);
+      }
+      // The approved composition has no explanatory paragraph under the row
+      // and no second summary of the same five results.
+      expect(find.textContaining('last 5 completed matches'), findsNothing);
+      expect(find.textContaining('Matches  ·'), findsNothing);
     });
   });
 }
@@ -718,14 +718,6 @@ class _FakeResultAdapter implements ResultAdapter {
 
   @override
   Future<PlayerStatistics> fetchStatistics(String userId) async => statistics;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
-}
-
-class _FakeCommunityAdapter implements CommunityAdapter {
-  @override
-  Future<List<Community>> fetchMyCommunities() async => const [];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();

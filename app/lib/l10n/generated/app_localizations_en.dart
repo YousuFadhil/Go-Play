@@ -1563,6 +1563,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recentHighlightTitle => 'Recent highlight';
 
   @override
+  String highlightWeekNumber(int week) {
+    return 'Week $week';
+  }
+
+  @override
   String get highlightMvpTitle => 'Player of the match';
 
   @override

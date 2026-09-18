@@ -205,6 +205,9 @@ class _CompletedMatchPage extends StatelessWidget {
           SafeArea(
             bottom: false,
             child: ClubHero(
+              // The same ground the Player Profile opens on, so a shared match
+              // and a shared player are visibly one product.
+              stadium: true,
               bar: ClubHeroBar(
                 title: l10n.matchDetailsTitle,
                 onBack: Navigator.of(context).canPop()
@@ -405,22 +408,22 @@ class _Scoreline extends StatelessWidget {
         Row(
           children: [
             Expanded(child: _TeamName(l10n.teamAName)),
-            // The pair is isolated left-to-right: a score runs home-then-away
-            // in every language, and Team A is the first of the two whichever
-            // way the page is read.
-            Directionality(
-              textDirection: TextDirection.ltr,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                child: Text(
-                  '$a  -  $b',
-                  style: const TextStyle(
-                    fontSize: 30,
-                    height: 1,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -1,
+            // Each score sits beside its own team, so the pair mirrors with
+            // the names in Arabic rather than staying put while they swap. A
+            // single left-to-right string would put Team A's goals next to
+            // Team B on an Arabic page.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Score('$a'),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: Gap.sm),
+                    child: _Score('-'),
                   ),
-                ),
+                  _Score('$b'),
+                ],
               ),
             ),
             Expanded(child: _TeamName(l10n.teamBName)),
@@ -440,6 +443,25 @@ class _Scoreline extends StatelessWidget {
       ],
     );
   }
+}
+
+/// One half of the result, at the size a score is read at.
+class _Score extends StatelessWidget {
+  const _Score(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        textDirection: TextDirection.ltr,
+        style: const TextStyle(
+          fontSize: 30,
+          height: 1,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -1,
+        ),
+      );
 }
 
 class _TeamName extends StatelessWidget {

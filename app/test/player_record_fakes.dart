@@ -70,6 +70,7 @@ RecentForm formOf(
   List<MatchOutcome> outcomes, {
   List<int>? goals,
   List<bool>? mvp,
+  List<(int, int)>? scores,
 }) =>
     RecentForm([
       for (var i = 0; i < outcomes.length; i++)
@@ -77,8 +78,29 @@ RecentForm formOf(
           outcome: outcomes[i],
           goals: goals == null || i >= goals.length ? 0 : goals[i],
           isMvp: mvp != null && i < mvp.length && mvp[i],
+          scoreFor: _score(outcomes[i], scores, i).$1,
+          scoreAgainst: _score(outcomes[i], scores, i).$2,
         ),
     ]);
+
+/// The scoreline a test asked for, or one the outcome implies.
+///
+/// Since migration `0080` every real form row carries a scoreline, so a fixture
+/// without one would be a shape the database no longer produces. A test that
+/// cares about the numbers passes them; a test that only cares that there is a
+/// result gets a plausible pair that agrees with its own outcome.
+(int, int) _score(
+  MatchOutcome outcome,
+  List<(int, int)>? scores,
+  int index,
+) {
+  if (scores != null && index < scores.length) return scores[index];
+  return switch (outcome) {
+    MatchOutcome.win => (3, 1),
+    MatchOutcome.draw => (2, 2),
+    MatchOutcome.loss => (0, 2),
+  };
+}
 
 /// A public record built around [profile], for the visitor reading.
 PublicPlayerRecord publicRecordOf(

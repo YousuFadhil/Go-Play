@@ -644,6 +644,11 @@
   "publicMatchGuestPrompt": "Sign in to join a community and play in matches like this one.",
 
   "recentHighlightTitle": "Recent highlight",
+  "highlightWeekNumber": "Week {week}",
+  "@highlightWeekNumber": {
+    "description": "The ISO week a Team of the Week award covers, from the stored period key.",
+    "placeholders": { "week": { "type": "int" } }
+  },
   "highlightMvpTitle": "Player of the match",
   "highlightTeamOfPeriodTitle": "Team of the period",
   "highlightInCommunity": "In {community}",

@@ -49,6 +49,8 @@ class RecentFormEntry {
     this.communityId,
     this.communityName,
     this.occurredAt,
+    this.scoreFor,
+    this.scoreAgainst,
   });
 
   final MatchOutcome outcome;
@@ -58,6 +60,29 @@ class RecentFormEntry {
 
   /// Whether the player was this match's MVP.
   final bool isMvp;
+
+  /// The final score, from this player's side: their team's goals and the
+  /// other team's (migration `0080`, on both the authenticated and the public
+  /// contract).
+  ///
+  /// **Null only where the database predates `0080`.** Both arrive together or
+  /// neither does -- a form row exists because a result was recorded -- so
+  /// [scoreline] is the one place that decides what to draw when they are
+  /// absent, and the badge is still a badge without them.
+  final int? scoreFor;
+  final int? scoreAgainst;
+
+  /// The scoreline as it is written under a result badge, or null when this
+  /// build's database did not send one.
+  ///
+  /// Composed here rather than in a widget because the profile and the share
+  /// card both draw it, and two copies of "which number goes first" is exactly
+  /// how the two would come to disagree. The player's own side leads.
+  String? get scoreline {
+    final (mine, theirs) = (scoreFor, scoreAgainst);
+    if (mine == null || theirs == null) return null;
+    return '$mine - $theirs';
+  }
 
   /// Which match, for a reader allowed to know. Null on the public read.
   final String? matchId;
@@ -139,12 +164,35 @@ class RecentHighlight {
     required this.occurredAt,
     this.communityName,
     this.period,
+    this.periodKey,
   });
 
   final HighlightKind kind;
 
   /// Week or month, for a Team of Period award. Null for an MVP.
   final HighlightPeriod? period;
+
+  /// The stored period's own key -- `2026-W37`, `2026-09` (migration `0080`).
+  ///
+  /// **Read, never derived.** The snapshot was written against the canonical
+  /// window in Asia/Muscat and carries the key that window produced, so
+  /// counting weeks from [occurredAt] in the client would be a second opinion
+  /// about which week an award belongs to -- and a wrong one either side of
+  /// midnight. Null on an MVP, which is a match rather than a period, and null
+  /// on a database older than `0080`.
+  final String? periodKey;
+
+  /// The number inside a weekly key, or null for anything else.
+  ///
+  /// `2026-W37` answers 37. Anything that is not a weekly key -- a monthly one,
+  /// a missing one, a shape a later migration invents -- answers null, and the
+  /// label falls back to the date rather than to a guessed number.
+  int? get weekNumber {
+    final key = periodKey;
+    if (key == null || period != HighlightPeriod.week) return null;
+    final match = RegExp(r'^\d{4}-W(\d{1,2})$').firstMatch(key);
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
 
   /// When it happened: the match's kick-off for an MVP, and the last instant of
   /// the period for a Team of Period (migration `0079`). Both are "the football this is about", which is how

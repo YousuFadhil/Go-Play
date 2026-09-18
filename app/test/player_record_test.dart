@@ -137,6 +137,128 @@ void main() {
     });
   });
 
+  group('the scoreline migration 0080 added', () {
+    test('the authenticated read carries it, from the player own side', () {
+      final form = recentFormFromRows([
+        {
+          'match_id': 'm1',
+          'community_id': 'c1',
+          'community_name': 'Al Amerat FC',
+          'start_at': '2026-09-14T18:00:00Z',
+          'outcome': 'WIN',
+          'goals': 2,
+          'is_mvp': true,
+          'score_for': 3,
+          'score_against': 1,
+        },
+      ]);
+
+      final entry = form.entries.single;
+      expect(entry.scoreFor, 3);
+      expect(entry.scoreAgainst, 1);
+      // The player's own goals lead, whatever side they were on.
+      expect(entry.scoreline, '3 - 1');
+    });
+
+    test('so does the public one, and still nothing that names the match', () {
+      final form = publicRecentFormFromRows([
+        {
+          'sequence_no': 1,
+          'outcome': 'LOSS',
+          'goals': 0,
+          'is_mvp': false,
+          'score_for': 0,
+          'score_against': 2,
+        },
+      ]);
+
+      final entry = form.entries.single;
+      expect(entry.scoreline, '0 - 2');
+      expect(entry.matchId, isNull);
+      expect(entry.communityId, isNull);
+      expect(entry.occurredAt, isNull);
+    });
+
+    test('a row from a database older than 0080 has no scoreline, not a zero',
+        () {
+      final form = publicRecentFormFromRows([
+        {'sequence_no': 1, 'outcome': 'DRAW', 'goals': 0, 'is_mvp': false},
+      ]);
+
+      final entry = form.entries.single;
+      expect(entry.scoreFor, isNull);
+      expect(entry.scoreAgainst, isNull);
+      // Null rather than "0 - 0": the badge is drawn without a scoreline,
+      // which is not the same claim as a goalless draw.
+      expect(entry.scoreline, isNull);
+    });
+
+    test('half a scoreline is no scoreline', () {
+      final form = publicRecentFormFromRows([
+        {'sequence_no': 1, 'outcome': 'WIN', 'score_for': 3},
+      ]);
+      expect(form.entries.single.scoreline, isNull);
+    });
+  });
+
+  group('the period a stored award is about', () {
+    RecentHighlight highlightFrom(Map<String, dynamic> row) =>
+        highlightCandidatesFromRows([row]).single;
+
+    test('the week number is the stored key, not a count from the date', () {
+      final highlight = highlightFrom({
+        'highlight_type': 'TEAM_OF_PERIOD',
+        // The last instant of the week in Muscat, which in UTC is the evening
+        // before -- exactly the case a client-side week count gets wrong.
+        'occurred_at': '2026-09-13T19:59:59.999Z',
+        'community_name': 'Al Seeb Community',
+        'period_type': 'weekly',
+        'period_key': '2026-W37',
+      });
+
+      expect(highlight.periodKey, '2026-W37');
+      expect(highlight.weekNumber, 37);
+    });
+
+    test('a monthly award has a key and no week number', () {
+      final highlight = highlightFrom({
+        'highlight_type': 'TEAM_OF_PERIOD',
+        'occurred_at': '2026-09-30T19:59:59.999Z',
+        'community_name': 'Al Seeb Community',
+        'period_type': 'monthly',
+        'period_key': '2026-09',
+      });
+
+      expect(highlight.periodKey, '2026-09');
+      expect(highlight.period, HighlightPeriod.month);
+      expect(highlight.weekNumber, isNull);
+    });
+
+    test('an MVP is a match rather than a period', () {
+      final highlight = highlightFrom({
+        'highlight_type': 'MVP',
+        'occurred_at': '2026-09-11T13:00:00Z',
+        'community_name': 'Al Seeb Community',
+      });
+
+      expect(highlight.periodKey, isNull);
+      expect(highlight.period, isNull);
+      expect(highlight.weekNumber, isNull);
+    });
+
+    test('a key this build cannot read is no week number, never a guess', () {
+      for (final key in ['2026-W', 'W37', '2026-37', 'next week', '']) {
+        final highlight = highlightFrom({
+          'highlight_type': 'TEAM_OF_PERIOD',
+          'occurred_at': '2026-09-13T19:59:59.999Z',
+          'period_type': 'weekly',
+          'period_key': key,
+        });
+        expect(highlight.weekNumber, isNull, reason: key);
+      }
+    });
+  });
+
   group('choosing the one highlight to show', () {
     RecentHighlight mvp(DateTime at) =>
         RecentHighlight(kind: HighlightKind.mvp, occurredAt: at);

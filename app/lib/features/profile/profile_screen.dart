@@ -13,7 +13,6 @@ import '../auth/auth_models.dart';
 import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
-import '../communities/community_repository.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
 import '../settings/settings_screen.dart';
@@ -62,7 +61,6 @@ class ProfileScreen extends StatefulWidget {
     this.asVisitor = false,
     this.profileRepository,
     this.resultRepository,
-    this.communityRepository,
     this.playerRecordRepository,
     this.authService,
     this.renderer,
@@ -97,7 +95,6 @@ class ProfileScreen extends StatefulWidget {
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final ProfileRepository? profileRepository;
   final ResultRepository? resultRepository;
-  final CommunityRepository? communityRepository;
   final PlayerRecordRepository? playerRecordRepository;
   final AuthService? authService;
 
@@ -126,8 +123,6 @@ class _ProfileView {
     required this.form,
     this.secondaryPosition,
     this.avatarUrl,
-    this.age,
-    this.communities,
     this.highlight,
   });
 
@@ -153,16 +148,6 @@ class _ProfileView {
 
   final String? avatarUrl;
 
-  /// Completed years, derived from the date of birth and never stored
-  /// (`KB-C7`). Null when the player has none recorded, and null when they have
-  /// hidden their age — the date does not leave the database in that case, so
-  /// there is nothing here to hide.
-  final int? age;
-
-  /// How many communities the player belongs to. Their own figure only: how many
-  /// clubs somebody else is in is not part of the profile they publish.
-  final int? communities;
-
   /// The last five completed matches, newest first. Empty is ordinary — a
   /// player who has played none — and never an error.
   final RecentForm form;
@@ -180,8 +165,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       widget.profileRepository ?? ProfileRepository();
   late final ResultRepository _results =
       widget.resultRepository ?? ResultRepository();
-  late final CommunityRepository _communities =
-      widget.communityRepository ?? CommunityRepository();
   late final AuthService _auth = widget.authService ?? AuthService();
   late final PlayerRecordRepository _records =
       widget.playerRecordRepository ?? PlayerRecordRepository();
@@ -252,13 +235,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // A record is somebody's, so without a session there is no row to name.
     if (userId == null) throw const AuthenticationFailure();
 
-    // Issued together, as the three already were: the record reads are
-    // independent of the profile reads and of each other, so adding them costs
-    // the screen no extra wait.
+    // Issued together: the record reads are independent of the profile reads
+    // and of each other, so asking for all four costs the screen no extra wait.
+    //
+    // The communities read is gone with the cell that showed it: the approved
+    // career grid is the seven football figures and nothing else, and how many
+    // clubs a player is in is what the Communities tab is.
     final results = await Future.wait([
       _profiles.fetchMyProfile(),
       _results.fetchStatistics(userId),
-      _communities.fetchMyCommunities(),
       _records.recentForm(userId),
       _records.recentHighlight(userId),
     ]);
@@ -270,13 +255,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       primaryPosition: profile.primaryPosition,
       secondaryPosition: profile.secondaryPosition,
       avatarUrl: profile.avatarUrl,
-      // The owner always sees their own age, whatever they have set for
-      // everybody else. This is their own row, read through their own session.
-      age: profile.age,
       statistics: results[1] as PlayerStatistics,
-      communities: (results[2] as List).length,
-      form: results[3] as RecentForm,
-      highlight: results[4] as RecentHighlight?,
+      form: results[2] as RecentForm,
+      highlight: results[3] as RecentHighlight?,
       isSelf: true,
     );
   }
@@ -455,6 +436,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SafeArea(
                 bottom: false,
                 child: ClubHero(
+                  // The approved Package 5 hero: the player against a ground
+                  // rather than against a colour. Drawn, not photographed —
+                  // see [StadiumBackdrop].
+                  stadium: true,
                   bar: ClubHeroBar(
                     // A back button where there is somewhere to go back to,
                     // and none where there is not.
@@ -512,10 +497,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Layout.listBottom,
                       ),
                       children: [
-                        _CareerGrid(
-                          statistics: view.statistics,
-                          communities: view.communities,
-                        ),
+                        _CareerGrid(statistics: view.statistics),
                         if (view.statistics.matchesPlayed == 0)
                           FootNote(
                             l10n.statNoMatchesYet,
@@ -693,21 +675,29 @@ class _HeroIdentity extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        const SizedBox(height: Gap.sm),
         Stack(
           clipBehavior: Clip.none,
           children: [
             // The ring is what lifts a face off the hero. White, because the
             // hero is the one green surface a picture is ever set on.
             Container(
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF041A0D).withValues(alpha: 0.45),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               child: PlayerAvatar(
                 avatarUrl: view.avatarUrl,
                 fullName: view.fullName,
-                radius: 44,
+                radius: 48,
               ),
             ),
             if (onEdit != null)
@@ -764,7 +754,6 @@ class _HeroIdentity extends StatelessWidget {
             _PositionChip(position: view.primaryPosition),
             if (view.secondaryPosition != null)
               _PositionChip(position: view.secondaryPosition!),
-            if (view.age != null) _HeroChip(label: l10n.ageYears(view.age!)),
           ],
         ),
       ],
@@ -858,13 +847,9 @@ class _HeroChip extends StatelessWidget {
 /// match on the first, what the player did in them on the second, with the
 /// rating given the emphasis it has everywhere else in the product.
 class _CareerGrid extends StatelessWidget {
-  const _CareerGrid({required this.statistics, required this.communities});
+  const _CareerGrid({required this.statistics});
 
   final PlayerStatistics statistics;
-
-  /// Null on somebody else's record. How many clubs a player is in is not part
-  /// of the profile they publish, so the cell is absent rather than empty.
-  final int? communities;
 
   @override
   Widget build(BuildContext context) {
@@ -916,11 +901,6 @@ class _CareerGrid extends StatelessWidget {
                 label: l10n.statCurrentRating,
                 emphasised: true,
               ),
-              if (communities != null)
-                _Cell(
-                  value: '$communities',
-                  label: l10n.communitiesTitle,
-                ),
             ]),
           ],
         ),

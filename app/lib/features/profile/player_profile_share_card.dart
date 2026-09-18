@@ -3,12 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
-import '../../core/time_format.dart';
 import '../auth/auth_models.dart';
 import '../sharing/share_card_palette.dart';
 import 'current_user.dart';
 import 'player_identity.dart';
 import 'player_record_models.dart';
+import 'profile_record_sections.dart';
 
 /// Everything the Player Profile card draws, resolved before it is drawn.
 ///
@@ -112,17 +112,18 @@ class PlayerProfileShareCard extends StatelessWidget {
         children: [
           const Positioned.fill(child: _PitchMarkings()),
           Padding(
-            padding: const EdgeInsets.fromLTRB(_margin, 104, _margin, 96),
+            padding: const EdgeInsets.fromLTRB(_margin, 96, _margin, 88),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const _Masthead(),
-                // The panel sits a little below the middle of the frame rather
-                // than under the mark: the empty space is the pitch, and a card
-                // pinned to the top reads as a page that failed to fill.
-                const Spacer(flex: 2),
-                _Panel(data: data),
-                const Spacer(flex: 3),
+                const SizedBox(height: 56),
+                // The panel takes the room the card has, and distributes it
+                // between the four blocks inside it. A 9:16 picture whose
+                // content stops halfway down reads as a page that failed to
+                // fill; the approved card is dense from the mark to the foot.
+                Expanded(child: _Panel(data: data)),
+                const SizedBox(height: 48),
                 if (data.publicUrl != null) _Address(url: data.publicUrl!),
               ],
             ),
@@ -195,7 +196,7 @@ class _Panel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(56),
+      padding: const EdgeInsets.fromLTRB(56, 66, 56, 66),
       decoration: BoxDecoration(
         color: ShareCardPalette.ink.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(44),
@@ -206,19 +207,14 @@ class _Panel extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
+        // Spaced rather than stacked: the blocks are the same four whatever a
+        // player has, and the room between them is what the card has left.
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _Identity(data: data),
-          const SizedBox(height: 60),
           _Record(data: data),
-          if (data.form.isNotEmpty) ...[
-            const SizedBox(height: 60),
-            _FormStrip(form: data.form),
-          ],
-          if (data.highlight != null) ...[
-            const SizedBox(height: 60),
-            _Highlight(highlight: data.highlight!),
-          ],
+          if (data.form.isNotEmpty) _FormStrip(form: data.form),
+          if (data.highlight != null) _Highlight(highlight: data.highlight!),
         ],
       ),
     );
@@ -242,7 +238,7 @@ class _Identity extends StatelessWidget {
         _CardAvatar(
           avatarUrl: data.avatarUrl,
           fullName: data.fullName,
-          size: 210,
+          size: 252,
         ),
         const SizedBox(width: 40),
         Expanded(
@@ -262,7 +258,7 @@ class _Identity extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: ShareCardPalette.ink,
-                    fontSize: 66,
+                    fontSize: 78,
                     fontWeight: FontWeight.w800,
                     height: 1.1,
                     letterSpacing: -1,
@@ -425,8 +421,8 @@ class _RatingDial extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 148,
-          height: 148,
+          width: 176,
+          height: 176,
           child: CustomPaint(
             painter: _DialPainter(rating / _max),
             child: Center(
@@ -438,7 +434,7 @@ class _RatingDial extends StatelessWidget {
                 textDirection: TextDirection.ltr,
                 style: const TextStyle(
                   color: ShareCardPalette.ink,
-                  fontSize: 52,
+                  fontSize: 60,
                   height: 1,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -1,
@@ -520,14 +516,14 @@ class _Figure extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 148,
+          height: 176,
           child: Center(
             child: Text(
               '$value',
               textDirection: TextDirection.ltr,
               style: const TextStyle(
                 color: ShareCardPalette.ink,
-                fontSize: 64,
+                fontSize: 74,
                 height: 1,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -1,
@@ -587,8 +583,8 @@ class _FormStrip extends StatelessWidget {
         Row(
           children: [
             for (final entry in form.entries) ...[
-              if (entry != form.entries.first) const SizedBox(width: 22),
-              _FormBadge(outcome: entry.outcome),
+              if (entry != form.entries.first) const SizedBox(width: 28),
+              _FormBadge(entry: entry),
             ],
           ],
         ),
@@ -599,13 +595,14 @@ class _FormStrip extends StatelessWidget {
 
 /// One result, as a letter in a disc.
 class _FormBadge extends StatelessWidget {
-  const _FormBadge({required this.outcome});
+  const _FormBadge({required this.entry});
 
-  final MatchOutcome outcome;
+  final RecentFormEntry entry;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final outcome = entry.outcome;
     final (letter, background, ink) = switch (outcome) {
       MatchOutcome.win => (
           l10n.recentFormWinShort,
@@ -627,32 +624,55 @@ class _FormBadge extends StatelessWidget {
         ),
     };
 
-    return Container(
-      width: 88,
-      height: 88,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: background,
-        border: Border.all(
-          color: outcome == MatchOutcome.loss
-              ? ShareCardPalette.inkMuted.withValues(alpha: 0.45)
-              : const Color(0x00000000),
-          width: 3,
-        ),
-      ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          letter,
-          maxLines: 1,
-          style: TextStyle(
-            color: ink,
-            fontSize: 40,
-            fontWeight: FontWeight.w800,
+    final scoreline = entry.scoreline;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 104,
+          height: 104,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: background,
+            border: Border.all(
+              color: outcome == MatchOutcome.loss
+                  ? ShareCardPalette.inkMuted.withValues(alpha: 0.45)
+                  : const Color(0x00000000),
+              width: 3,
+            ),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              letter,
+              maxLines: 1,
+              style: TextStyle(
+                color: ink,
+                fontSize: 46,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ),
-      ),
+        if (scoreline != null) ...[
+          const SizedBox(height: 14),
+          Text(
+            // The player's own goals lead, in both languages: a scoreline is
+            // read home-then-away and its order is not the card's.
+            scoreline,
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            style: const TextStyle(
+              color: ShareCardPalette.inkMuted,
+              fontSize: 28,
+              height: 1,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -697,14 +717,14 @@ class _Highlight extends StatelessWidget {
         Row(
           children: [
             Container(
-              width: 106,
-              height: 106,
+              width: 120,
+              height: 120,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: ShareCardPalette.award,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(icon, size: 56, color: ShareCardPalette.onAward),
+              child: Icon(icon, size: 64, color: ShareCardPalette.onAward),
             ),
             const SizedBox(width: 26),
             Expanded(
@@ -720,7 +740,7 @@ class _Highlight extends StatelessWidget {
                       maxLines: 1,
                       style: const TextStyle(
                         color: ShareCardPalette.ink,
-                        fontSize: 40,
+                        fontSize: 44,
                         height: 1.2,
                         fontWeight: FontWeight.w700,
                       ),
@@ -728,7 +748,7 @@ class _Highlight extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    formatAwardDay(context, highlight.occurredAt),
+                    highlightPeriodLine(context, highlight),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

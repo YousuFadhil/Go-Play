@@ -23,9 +23,6 @@ import 'package:go_play/core/theme.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
-import 'package:go_play/features/communities/community_adapter.dart';
-import 'package:go_play/features/communities/community_models.dart';
-import 'package:go_play/features/communities/community_repository.dart';
 import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
@@ -124,6 +121,13 @@ void main() {
       );
       await _shoot(
         tester,
+        'profile-own-$tag-mvp-highlight',
+        locale: locale,
+        width: 412,
+        child: _ownProfile(fullName: name, highlight: _mvpHighlight()),
+      );
+      await _shoot(
+        tester,
         'profile-public-$tag-two-results',
         locale: locale,
         width: 412,
@@ -184,12 +188,20 @@ RecentForm _form() => formOf(
         MatchOutcome.win,
       ],
       goals: [2, 1, 0, 0, 1],
+      scores: [(2, 1), (3, 0), (1, 1), (0, 2), (4, 1)],
     );
 
 RecentHighlight _highlight() => RecentHighlight(
       kind: HighlightKind.teamOfPeriod,
       period: HighlightPeriod.week,
+      periodKey: '2026-W37',
       occurredAt: DateTime.utc(2026, 9, 13, 19, 59, 59),
+      communityName: 'Al Seeb Community',
+    );
+
+RecentHighlight _mvpHighlight() => RecentHighlight(
+      kind: HighlightKind.mvp,
+      occurredAt: DateTime.utc(2026, 9, 11, 13),
       communityName: 'Al Seeb Community',
     );
 
@@ -242,7 +254,6 @@ Widget _ownProfile({
         ),
       )),
       resultRepository: ResultRepository(_Results(statistics ?? _stats())),
-      communityRepository: CommunityRepository(_Communities()),
       playerRecordRepository: PlayerRecordRepository(FakePlayerRecordAdapter(
         form: form ?? _form(),
         teamOfPeriod: highlight is _KeepHighlight ? _highlight() : highlight,
@@ -549,27 +560,6 @@ class _Results implements ResultAdapter {
 
   @override
   Future<PlayerStatistics> fetchStatistics(String userId) async => statistics;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
-}
-
-class _Communities implements CommunityAdapter {
-  @override
-  Future<List<Community>> fetchMyCommunities() async => const [
-        Community(
-          id: 'c1',
-          ownerId: 'u9',
-          name: 'Al Seeb Community',
-          joinPolicy: JoinPolicy.open,
-        ),
-        Community(
-          id: 'c2',
-          ownerId: 'u9',
-          name: 'Al Amerat FC',
-          joinPolicy: JoinPolicy.open,
-        ),
-      ];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();

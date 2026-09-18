@@ -2756,6 +2756,12 @@ abstract class AppLocalizations {
   /// **'Recent highlight'**
   String get recentHighlightTitle;
 
+  /// The ISO week a Team of the Week award covers, from the stored period key.
+  ///
+  /// In en, this message translates to:
+  /// **'Week {week}'**
+  String highlightWeekNumber(int week);
+
   /// No description provided for @highlightMvpTitle.
   ///
   /// In en, this message translates to:

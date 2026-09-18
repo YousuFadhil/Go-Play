@@ -11,9 +11,7 @@ import 'package:go_play/core/states.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
-import 'package:go_play/features/communities/community_adapter.dart';
 import 'package:go_play/features/communities/community_models.dart';
-import 'package:go_play/features/communities/community_repository.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_management_screen.dart';
 import 'package:go_play/features/members/member_repository.dart';
@@ -112,7 +110,6 @@ void main() {
         userId: userId,
         profileRepository: ProfileRepository(profiles),
         resultRepository: ResultRepository(_FakeResultAdapter(stats())),
-        communityRepository: CommunityRepository(_FakeCommunityAdapter()),
         // The record behind Recent Form and Recent Highlight. Empty unless a
         // test says otherwise, which is a real player's ordinary state and
         // keeps every existing assertion about this screen unchanged.
@@ -148,7 +145,7 @@ void main() {
     });
 
     testWidgets('long English names remain safe at 320 pixels', (tester) async {
-      final name = 'Alexanderson Montgomery-Wellington the Third of Al Amerat';
+      const name = 'Alexanderson Montgomery-Wellington the Third of Al Amerat';
       await pumpPlayerProfile(
         tester,
         profiles: FakeProfileAdapter(player: viewOf(fullName: name)),
@@ -161,7 +158,7 @@ void main() {
 
     testWidgets('long Arabic names remain safe at 320 pixels in RTL',
         (tester) async {
-      final name = 'عبدالرحمن بن محمد بن عبدالله السالمي الطويل جداً';
+      const name = 'عبدالرحمن بن محمد بن عبدالله السالمي الطويل جداً';
       await pumpPlayerProfile(
         tester,
         profiles: FakeProfileAdapter(player: viewOf(fullName: name)),
@@ -269,7 +266,8 @@ void main() {
   });
 
   group('the player looking at themselves', () {
-    testWidgets('their own record keeps the controls and shows their age',
+    testWidgets(
+        'their own record keeps the controls and the seven career figures',
         (tester) async {
       // The owner always sees their own age, whatever they have set for
       // everybody else: this is their own row, read through their own session.
@@ -293,9 +291,23 @@ void main() {
       );
 
       expect(find.text('Salim Al Harthy'), findsOneWidget);
-      expect(find.text('34 years old'), findsOneWidget);
       expect(find.byTooltip('Edit profile'), findsOneWidget);
-      expect(find.text('Communities'), findsOneWidget);
+      // The approved career grid is the seven football figures and nothing
+      // else: no age pill on the hero, and no eighth cell for how many clubs
+      // the player is in.
+      expect(find.text('34 years old'), findsNothing);
+      expect(find.text('Communities'), findsNothing);
+      for (final figure in [
+        'Matches',
+        'Wins',
+        'Losses',
+        'Draws',
+        'Goals',
+        'MVP',
+        'Current rating'
+      ]) {
+        expect(find.text(figure), findsOneWidget, reason: figure);
+      }
 
       // The account's own actions are behind the approved design's overflow
       // rather than listed under the record. What is asserted is unchanged:
@@ -344,7 +356,6 @@ void main() {
           profileRepository:
               ProfileRepository(FakeProfileAdapter(profile: ownProfile())),
           resultRepository: ResultRepository(_FakeResultAdapter(stats())),
-          communityRepository: CommunityRepository(_FakeCommunityAdapter()),
           playerRecordRepository:
               PlayerRecordRepository(FakePlayerRecordAdapter()),
           authService: AuthService(_StubAuthAdapter()),
@@ -611,7 +622,6 @@ void main() {
           profileRepository:
               ProfileRepository(FakeProfileAdapter(player: viewOf())),
           resultRepository: ResultRepository(_FakeResultAdapter(stats())),
-          communityRepository: CommunityRepository(_FakeCommunityAdapter()),
           playerRecordRepository:
               PlayerRecordRepository(FakePlayerRecordAdapter()),
           authService: AuthService(_StubAuthAdapter()),
@@ -642,8 +652,6 @@ void main() {
                           FakeProfileAdapter(player: viewOf())),
                       resultRepository:
                           ResultRepository(_FakeResultAdapter(stats())),
-                      communityRepository:
-                          CommunityRepository(_FakeCommunityAdapter()),
                       playerRecordRepository:
                           PlayerRecordRepository(FakePlayerRecordAdapter()),
                       authService: AuthService(_StubAuthAdapter()),
@@ -822,79 +830,6 @@ class _FakeResultAdapter implements ResultAdapter {
     required String? mvpUserId,
     required List<GoalTally> goals,
   }) =>
-      throw UnimplementedError();
-}
-
-class _FakeCommunityAdapter implements CommunityAdapter {
-  @override
-  Future<List<Community>> fetchMyCommunities() async => const [
-        Community(
-          id: 'c1',
-          ownerId: 'u9',
-          name: 'Al Amerat FC',
-          joinPolicy: JoinPolicy.open,
-        ),
-      ];
-
-  @override
-  Future<List<Community>> fetchAllCommunities() => throw UnimplementedError();
-
-  @override
-  Future<Community> fetchCommunity(String communityId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<String> createCommunity({
-    required String name,
-    String? description,
-    required JoinPolicy joinPolicy,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<String> joinCommunity(String communityId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<String> joinCommunityByCode(String code) => throw UnimplementedError();
-
-  @override
-  Future<void> setJoinPolicy(
-    String communityId, {
-    required JoinPolicy joinPolicy,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<String> fetchJoinCode(String communityId) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<CommunityInvitePreview> previewInvite(String code) =>
-      throw UnimplementedError();
-
-  @override
-  Future<String> regenerateJoinCode(String communityId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteCommunity(String communityId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<String> uploadCommunityLogo({
-    required String communityId,
-    required Uint8List bytes,
-    required String fileExtension,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> setCommunityLogo(String communityId, String? logoUrl) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteCommunityLogoObject(String logoUrl) =>
       throw UnimplementedError();
 }
 

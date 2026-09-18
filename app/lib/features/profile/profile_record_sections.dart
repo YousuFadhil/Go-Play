@@ -124,7 +124,7 @@ class RecentFormSection extends StatelessWidget {
               ),
             ],
           )
-        else ...[
+        else
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: kPageMargin),
             child: Row(
@@ -132,11 +132,11 @@ class RecentFormSection extends StatelessWidget {
                 for (final entry in form.entries) ...[
                   if (entry != form.entries.first)
                     const SizedBox(width: Gap.sm),
-                  Expanded(child: _FormTile(outcome: entry.outcome)),
+                  Expanded(child: _FormTile(entry: entry)),
                 ],
                 // Five slots whatever the window holds, so four results are
                 // four badges at the same width as five rather than four wide
-                // ones. The count is already said in words underneath.
+                // ones.
                 for (var i = form.entries.length; i < 5; i++) ...[
                   const SizedBox(width: Gap.sm),
                   const Expanded(child: SizedBox.shrink()),
@@ -144,50 +144,6 @@ class RecentFormSection extends StatelessWidget {
               ],
             ),
           ),
-          // What the window adds up to, and the count-safe line the Product
-          // Owner asked for in place of a fixed "LAST 5". The three figures
-          // are counted from the same entries the badges are drawn from, so
-          // the summary cannot describe a different window than the row above
-          // it; the sentence says how many matches that window actually holds,
-          // which a heading cannot.
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-              kPageMargin,
-              Gap.md,
-              kPageMargin,
-              0,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  [
-                    '${form.matches} ${l10n.shareCardStatMatches}',
-                    '${form.goals} ${l10n.shareCardStatGoals}',
-                    '${form.wins} ${l10n.shareCardStatWins}',
-                  ].join('  ·  '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    height: 1.3,
-                    fontWeight: FontWeight.w600,
-                    color: GoColors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  l10n.recentFormNote(form.matches),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    height: 1.4,
-                    color: GoColors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -200,52 +156,80 @@ class RecentFormSection extends StatelessWidget {
 /// or L. `Semantics` gives the full word to a screen reader, which a single
 /// letter would not.
 class _FormTile extends StatelessWidget {
-  const _FormTile({required this.outcome});
+  const _FormTile({required this.entry});
 
-  final MatchOutcome outcome;
+  final RecentFormEntry entry;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    final (short, full) = switch (outcome) {
+    final (short, full) = switch (entry.outcome) {
       MatchOutcome.win => (l10n.recentFormWinShort, l10n.recentFormWin),
       MatchOutcome.draw => (l10n.recentFormDrawShort, l10n.recentFormDraw),
       MatchOutcome.loss => (l10n.recentFormLossShort, l10n.recentFormLoss),
     };
-    final (background, ink) = switch (outcome) {
+    final (background, ink) = switch (entry.outcome) {
       MatchOutcome.win => (GoColors.bgHero, Colors.white),
       MatchOutcome.draw => (
           GoColors.surfaceContainerHighest,
-          GoColors.onSurface
+          GoColors.onSurface,
         ),
       MatchOutcome.loss => (GoColors.error, GoColors.onError),
     };
+    final scoreline = entry.scoreline;
 
     return Semantics(
-      label: full,
+      label: scoreline == null ? full : '$full, $scoreline',
       child: Container(
-        height: 62,
-        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(vertical: Gap.sm + 2),
         decoration: BoxDecoration(
           color: GoColors.surfaceCard,
           borderRadius: BorderRadius.circular(Radii.sm),
           border: Border.all(color: GoColors.hairline),
         ),
-        child: Container(
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: background, shape: BoxShape.circle),
-          child: Text(
-            short,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1,
-              fontWeight: FontWeight.w800,
-              color: ink,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: background,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                short,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  color: ink,
+                ),
+              ),
             ),
-          ),
+            if (scoreline != null) ...[
+              const SizedBox(height: 6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                // The player's own goals lead in both languages: a scoreline
+                // is read home-then-away, and its internal order is not the
+                // page's.
+                child: Text(
+                  scoreline,
+                  textDirection: TextDirection.ltr,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1,
+                    fontWeight: FontWeight.w600,
+                    color: GoColors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -323,7 +307,7 @@ class RecentHighlightSection extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        formatAwardDay(context, highlight.occurredAt),
+                        highlightPeriodLine(context, highlight),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -356,4 +340,23 @@ class RecentHighlightSection extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The line under a highlight's title: which period it was, and when.
+///
+/// "Week 37 • Sep 13, 2026" for a stored Team of the Week, the month alone for
+/// a Team of the Month -- naming a month and then dating it to the last day of
+/// that same month says one thing twice -- and the date alone for an MVP, which
+/// is a match rather than a period.
+///
+/// The week number is the stored key's ([RecentHighlight.weekNumber]); an award
+/// from a database older than `0080` carries none and is dated instead.
+String highlightPeriodLine(BuildContext context, RecentHighlight highlight) {
+  final day = formatAwardDay(context, highlight.occurredAt);
+  final week = highlight.weekNumber;
+  if (week != null) return '${context.l10n.highlightWeekNumber(week)} • $day';
+  if (highlight.period == HighlightPeriod.month) {
+    return formatAwardMonth(context, highlight.occurredAt);
+  }
+  return day;
 }

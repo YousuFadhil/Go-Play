@@ -1547,6 +1547,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get recentHighlightTitle => 'أبرز إنجاز';
 
   @override
+  String highlightWeekNumber(int week) {
+    return 'الأسبوع $week';
+  }
+
+  @override
   String get highlightMvpTitle => 'أفضل لاعب في المباراة';
 
   @override

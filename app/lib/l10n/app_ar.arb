@@ -560,6 +560,10 @@
   "publicMatchGuestPrompt": "سجّل الدخول للانضمام إلى مجتمع واللعب في مباريات مثل هذه.",
 
   "recentHighlightTitle": "أبرز إنجاز",
+  "highlightWeekNumber": "الأسبوع {week}",
+  "@highlightWeekNumber": {
+    "placeholders": { "week": { "type": "int" } }
+  },
   "highlightMvpTitle": "أفضل لاعب في المباراة",
   "highlightTeamOfPeriodTitle": "تشكيلة الفترة",
   "highlightInCommunity": "في {community}",

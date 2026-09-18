@@ -22,6 +22,8 @@ RecentForm recentFormFromRows(List<dynamic> rows) {
       communityId: row['community_id'] as String?,
       communityName: row['community_name'] as String?,
       occurredAt: _instant(row['start_at']),
+      scoreFor: row['score_for'] as int?,
+      scoreAgainst: row['score_against'] as int?,
     ));
   }
   // Ordered by the function, never re-sorted here. See [RecentForm.entries].
@@ -42,6 +44,10 @@ RecentForm publicRecentFormFromRows(List<dynamic> rows) {
       outcome: outcome,
       goals: row['goals'] as int? ?? 0,
       isMvp: row['is_mvp'] as bool? ?? false,
+      // The public contract carries the scoreline too (`0080`) and nothing
+      // else about the fixture: two numbers and a W name no match.
+      scoreFor: row['score_for'] as int?,
+      scoreAgainst: row['score_against'] as int?,
     ));
   }
   return RecentForm(entries);
@@ -77,6 +83,7 @@ RecentHighlight? _highlightFromRow(Map<String, dynamic> row) {
     kind: kind,
     occurredAt: occurredAt,
     communityName: row['community_name'] as String?,
+    periodKey: row['period_key'] as String?,
     period: kind == HighlightKind.teamOfPeriod
         ? HighlightPeriod.fromWireName(row['period_type'] as String?)
         : null,
