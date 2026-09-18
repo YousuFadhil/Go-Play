@@ -94,13 +94,31 @@ begin
     raise exception 'INVALID_PERIOD_KEY';
   end if;
 
+  -- **Everybody `apply_match_rating_effects` would pay, and nobody else.** The
+  -- engine pays participation and the outcome to the stored lineup, a goal
+  -- award to every scorer in `match_goals`, and the MVP award to the result's
+  -- own `mvp_user_id` -- and the last two do not require a lineup row. A
+  -- population taken from the lineup alone would therefore differ from the
+  -- Global Rating for a scorer or a best player who is not in it, which is a
+  -- divergence this rating exists not to have.
   for v_player in
-    select distinct a.user_id
-    from match_team_assignments a
-    join matches m       on m.id = a.match_id
-    join match_results res on res.match_id = m.id
+    select distinct e.user_id
+    from (
+      select a.user_id, a.match_id
+      from match_team_assignments a
+      where a.user_id is not null
+      union
+      select g.user_id, g.match_id
+      from match_goals g
+      where g.user_id is not null
+      union
+      select res.mvp_user_id, res.match_id
+      from match_results res
+      where res.mvp_user_id is not null
+    ) e
+    join matches m       on m.id = e.match_id
+    join match_results x on x.match_id = m.id
     where m.community_id = p_community_id
-      and a.user_id is not null
       -- The project's own definition of completed (`0029`, `0037`).
       and (m.status = 'completed' or m.end_at <= now())
       and public.statistics_period_key(m.start_at, p_period_type) = p_period_key
@@ -109,35 +127,56 @@ begin
     v_matches := 0;
 
     for r in
-      select m.id as match_id, m.start_at, k.won, k.lost, k.scored, k.mvp
-      from match_team_assignments a
-      join matches m         on m.id = a.match_id
+      select
+        m.id as match_id,
+        m.start_at,
+        k.user_id is not null as played,
+        coalesce(k.won, 0)  as won,
+        coalesce(k.lost, 0) as lost,
+        coalesce(g.goals, 0) as scored,
+        res.mvp_user_id = v_player as is_mvp
+      from matches m
       join match_results res on res.match_id = m.id
-      join lateral public.match_result_contribution(m.id) k
-        on k.user_id = v_player
-      where a.user_id = v_player
-        and m.community_id = p_community_id
+      -- The same function the Global engine decides a win from, for this
+      -- player; absent when they were not in the lineup.
+      left join lateral (
+        select c.*
+        from public.match_result_contribution(m.id) c
+        where c.user_id = v_player
+      ) k on true
+      left join match_goals g
+        on g.match_id = m.id and g.user_id = v_player
+      where m.community_id = p_community_id
         and (m.status = 'completed' or m.end_at <= now())
         and public.statistics_period_key(m.start_at, p_period_type)
               = p_period_key
-      -- Chronological, because the clamp makes the order matter.
+        and (
+          k.user_id is not null
+          or g.user_id is not null
+          or res.mvp_user_id = v_player
+        )
+      -- Chronological, because the clamp makes the order matter -- and the
+      -- same order, with the same tie-break, the Global rebase replays in.
       order by m.start_at, m.id
     loop
       v_matches := v_matches + 1;
 
       -- PARTICIPATION, then the outcome, then the goals, then the MVP --
-      -- `0078`'s order, clamped after each.
-      v_rating := least(10.000, greatest(0.000, v_rating + 0.005));
-      v_rating := least(10.000, greatest(0.000, v_rating + case
-        when r.won  = 1 then 0.100
-        when r.lost = 1 then -0.100
-        else 0.010
-      end));
+      -- `0078`'s order, clamped after each, and each paid to exactly who
+      -- `0078` pays it to.
+      if r.played then
+        v_rating := least(10.000, greatest(0.000, v_rating + 0.005));
+        v_rating := least(10.000, greatest(0.000, v_rating + case
+          when r.won  = 1 then 0.100
+          when r.lost = 1 then -0.100
+          else 0.010
+        end));
+      end if;
       if r.scored > 0 then
         v_rating := least(10.000, greatest(0.000,
           v_rating + least(0.070, 0.010 * r.scored)));
       end if;
-      if r.mvp = 1 then
+      if r.is_mvp then
         v_rating := least(10.000, greatest(0.000, v_rating + 0.020));
       end if;
     end loop;
@@ -158,8 +197,10 @@ comment on function public.community_scoped_rating(uuid, text, text) is
   'correction cannot leave it stale. It is not the Global Rating and is not '
   'derived from it: users.overall_rating and rating_history are untouched by '
   'this function. Only players with at least one match in the scope have a '
-  'row, which is what excludes a member who has not played -- see migration '
-  '0081.';
+  'row, which is what excludes a member with no evidence in the scope. The '
+  'population is everybody apply_match_rating_effects would pay -- the lineup, '
+  'every scorer and the best player -- so the same evidence produces the same '
+  'rating on both sides. See migrations 0081 and 0082.';
 
 revoke execute on function public.community_scoped_rating(uuid, text, text)
   from anon, public;
