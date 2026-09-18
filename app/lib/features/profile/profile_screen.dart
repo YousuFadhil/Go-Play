@@ -498,17 +498,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       children: [
                         _CareerGrid(statistics: view.statistics),
-                        if (view.statistics.matchesPlayed == 0)
-                          FootNote(
-                            l10n.statNoMatchesYet,
-                            textAlign: TextAlign.center,
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                              kPageMargin,
-                              Gap.md,
-                              kPageMargin,
-                              0,
-                            ),
-                          ),
+                        // **No explanatory footnote under the figures, and
+                        // none at the foot of the page.** The approved
+                        // composition is the record itself; what the counters
+                        // mean, and what a player with no matches yet is
+                        // looking at, is said on the Player Statistics screen,
+                        // which is where somebody asking the question goes.
+                        //
                         // The approved order, and the reason it is this one:
                         // the career above is what a player has done in
                         // total, Recent Form is what they are doing now, and
@@ -536,16 +532,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onLogin: () => _push(const LoginScreen()),
                             onRegister: () => _push(const RegisterScreen()),
                           ),
-                        FootNote(
-                          l10n.statCareerNote,
-                          textAlign: TextAlign.center,
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                            kPageMargin,
-                            Layout.sectionAbove,
-                            kPageMargin,
-                            0,
-                          ),
-                        ),
                       ],
                     ),
                   ),
