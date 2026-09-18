@@ -1,8 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../../core/time_format.dart';
 import '../auth/auth_models.dart';
 import '../sharing/share_card_palette.dart';
+import 'current_user.dart';
 import 'player_identity.dart';
 import 'player_record_models.dart';
 
@@ -21,8 +25,13 @@ class PlayerProfileCardData {
     required this.matchesPlayed,
     required this.goals,
     required this.mvpCount,
+    required this.wins,
+    required this.draws,
+    required this.losses,
     this.avatarUrl,
     this.form = RecentForm.empty,
+    this.highlight,
+    this.publicUrl,
   });
 
   final String fullName;
@@ -32,7 +41,7 @@ class PlayerProfileCardData {
   final String? avatarUrl;
 
   /// Where they play. One position and not two: this is an identity card, and
-  /// a secondary position is a detail of team generation rather than of who
+  /// the second position is a detail of team generation rather than of who
   /// somebody is.
   final PlayerPosition primaryPosition;
 
@@ -40,28 +49,40 @@ class PlayerProfileCardData {
   /// the Player Statistics card carries.
   final double rating;
 
-  /// **Three indicators, and there is no fourth.** The approved brief asks for
-  /// "only a small number of high-value football indicators", which is what
-  /// keeps this card from becoming the Player Statistics card with a different
-  /// background: that one shows six counters for a chosen period, this one
-  /// shows who a player is and the three career figures a stranger would
-  /// actually read.
+  /// The career, exactly as the profile's own grid states it. **No figure here
+  /// is computed for the card** — every one of them is already on the screen
+  /// the card was asked for from, which is what keeps "what you can see is what
+  /// you can send" true in both directions.
   final int matchesPlayed;
   final int goals;
   final int mvpCount;
+  final int wins;
+  final int draws;
+  final int losses;
 
   /// The last five results, newest first. Empty for a player who has played
   /// none, and an empty form draws no strip rather than five grey placeholders.
   final RecentForm form;
+
+  /// The one achievement worth showing, or null. Null draws no block, for the
+  /// reason the screen draws no section.
+  final RecentHighlight? highlight;
+
+  /// The public address this card is about — the same link the share message
+  /// carries. Printed at the foot so a picture that has been forwarded past the
+  /// message still says where the profile is.
+  final String? publicUrl;
 }
 
 /// The Player Profile share card: who a player is, as a picture.
 ///
-/// **An identity card, not a statistics card.** The hierarchy runs face →
-/// name → position → rating, and the figures sit beneath it as support. The
-/// Player Statistics card leads with a period and gives six counters equal
-/// weight; the two are different pictures of the same player on purpose, and
-/// neither is a variant of the other.
+/// **An identity card, not a statistics card.** The hierarchy is the approved
+/// one: the product's mark, then the player — face, name, position and the
+/// three career figures that describe them — then the rating beside the
+/// win/loss/draw record, then Recent Form, then the one Recent Highlight, and
+/// the public address at the foot. The Player Statistics card leads with a
+/// period and gives six counters equal weight; the two are different pictures
+/// of the same player on purpose, and neither is a variant of the other.
 ///
 /// Laid out in the engine's design units on the 1080×1920 surface
 /// `ShareCardSurface` fixes, so the same player produces the same picture on
@@ -75,7 +96,7 @@ class PlayerProfileShareCard extends StatelessWidget {
 
   /// The page margin, in design units. The statistics card's, so two cards
   /// from the same product have the same edge.
-  static const _margin = 88.0;
+  static const _margin = 72.0;
 
   @override
   Widget build(BuildContext context) {
@@ -91,25 +112,18 @@ class PlayerProfileShareCard extends StatelessWidget {
         children: [
           const Positioned.fill(child: _PitchMarkings()),
           Padding(
-            padding: const EdgeInsets.fromLTRB(_margin, 96, _margin, 84),
+            padding: const EdgeInsets.fromLTRB(_margin, 104, _margin, 96),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const _Masthead(),
+                // The panel sits a little below the middle of the frame rather
+                // than under the mark: the empty space is the pitch, and a card
+                // pinned to the top reads as a page that failed to fill.
+                const Spacer(flex: 2),
+                _Panel(data: data),
                 const Spacer(flex: 3),
-                _Identity(data: data),
-                const Spacer(flex: 2),
-                _Rating(rating: data.rating),
-                const Spacer(flex: 2),
-                // Drawn only when there is form to draw. A player with no
-                // completed matches gets a card about who they are, which is
-                // still a complete card — an empty strip would be the one thing
-                // on it that says nothing.
-                if (data.form.isNotEmpty) ...[
-                  _FormStrip(form: data.form),
-                  const Spacer(flex: 2),
-                ],
-                _Indicators(data: data),
-                const Spacer(flex: 4),
-                const _Wordmark(),
+                if (data.publicUrl != null) _Address(url: data.publicUrl!),
               ],
             ),
           ),
@@ -119,7 +133,100 @@ class PlayerProfileShareCard extends StatelessWidget {
   }
 }
 
-/// The player: their face, their name, and where they play.
+/// The product's mark, and what kind of card this is.
+class _Masthead extends StatelessWidget {
+  const _Masthead();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Row(
+      children: [
+        Container(
+          width: 76,
+          height: 76,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: ShareCardPalette.ink,
+          ),
+          child: const Icon(
+            Icons.sports_soccer,
+            size: 50,
+            color: ShareCardPalette.pitch,
+          ),
+        ),
+        const SizedBox(width: 20),
+        // Left to right in both languages: it is a name, and the product is
+        // called Go Play in Arabic too.
+        Text(
+          l10n.appName,
+          textDirection: TextDirection.ltr,
+          style: const TextStyle(
+            color: ShareCardPalette.ink,
+            fontSize: 48,
+            height: 1,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          l10n.playerProfileTitle,
+          style: const TextStyle(
+            color: ShareCardPalette.inkMuted,
+            fontSize: 30,
+            height: 1,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The card's one panel: everything about the player, inside a single frame.
+class _Panel extends StatelessWidget {
+  const _Panel({required this.data});
+
+  final PlayerProfileCardData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(56),
+      decoration: BoxDecoration(
+        color: ShareCardPalette.ink.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(44),
+        border: Border.all(
+          color: ShareCardPalette.accent.withValues(alpha: 0.28),
+          width: 3,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Identity(data: data),
+          const SizedBox(height: 60),
+          _Record(data: data),
+          if (data.form.isNotEmpty) ...[
+            const SizedBox(height: 60),
+            _FormStrip(form: data.form),
+          ],
+          if (data.highlight != null) ...[
+            const SizedBox(height: 60),
+            _Highlight(highlight: data.highlight!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The player: their face, their name, where they play, and their career on
+/// one line.
 class _Identity extends StatelessWidget {
   const _Identity({required this.data});
 
@@ -129,104 +236,186 @@ class _Identity extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: ShareCardPalette.accent,
-          ),
-          child: Theme(
-            // Pinned, so the same player produces the same picture whatever
-            // the reader's own theme is. See [ShareCardPalette.avatarSeed].
-            data: Theme.of(context).copyWith(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: ShareCardPalette.avatarSeed,
-                brightness: Brightness.light,
+        _CardAvatar(
+          avatarUrl: data.avatarUrl,
+          fullName: data.fullName,
+          size: 210,
+        ),
+        const SizedBox(width: 40),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Scaled down rather than clipped: a long name is still that
+              // player's name, and a card that cut it off would be worse than
+              // one where it reads slightly smaller.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  data.fullName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: ShareCardPalette.ink,
+                    fontSize: 66,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                    letterSpacing: -1,
+                  ),
+                ),
               ),
-            ),
-            child: PlayerAvatar(
-              avatarUrl: data.avatarUrl,
-              fullName: data.fullName,
-              radius: 176,
-            ),
+              const SizedBox(height: 12),
+              Text(
+                positionLabel(l10n, data.primaryPosition),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: ShareCardPalette.inkMuted,
+                  fontSize: 38,
+                  height: 1.2,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  [
+                    '${data.matchesPlayed} ${l10n.shareCardStatMatches}',
+                    '${data.goals} ${l10n.shareCardStatGoals}',
+                    '${data.mvpCount} ${l10n.shareCardStatMvp}',
+                  ].join('   |   '),
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: ShareCardPalette.inkMuted.withValues(alpha: 0.85),
+                    fontSize: 32,
+                    height: 1.2,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 44),
-        // Scaled down rather than clipped: a long name is still that player's
-        // name, and a card that cut it off would be worse than one where it
-        // reads slightly smaller.
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            data.fullName,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: ShareCardPalette.ink,
-              fontSize: 80,
-              fontWeight: FontWeight.w800,
-              height: 1.1,
-              letterSpacing: -1,
-            ),
-          ),
-        ),
-        const SizedBox(height: 28),
-        _Badge(
-          // "Position · Forward" rather than a bare "Forward": on a card that
-          // leaves the app the word alone does not say what it qualifies —
-          // the same reason the statistics card writes "Period · Weekly".
-          label: '${l10n.shareCardPositionLabel} · '
-              '${positionLabel(l10n, data.primaryPosition)}',
         ),
       ],
     );
   }
 }
 
-/// The position, or the period on the other card: a pill under the name.
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label});
+/// A face on a card: the picture, or the letters of a player who has not set
+/// one.
+///
+/// Its own widget rather than the app's avatar because the approved card draws
+/// a rounded square, and because a card must take no colour from the reader's
+/// theme — the initials sit on the card's own accent at a fixed strength.
+class _CardAvatar extends StatelessWidget {
+  const _CardAvatar({
+    required this.avatarUrl,
+    required this.fullName,
+    required this.size,
+  });
 
-  final String label;
+  final String? avatarUrl;
+  final String fullName;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
+    final url = avatarUrl;
+    final initials = initialsOf(fullName);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 16),
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: ShareCardPalette.accent.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(999),
+        color: ShareCardPalette.accent.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(size * 0.22),
         border: Border.all(
-          color: ShareCardPalette.accent.withValues(alpha: 0.55),
+          color: ShareCardPalette.accent.withValues(alpha: 0.5),
           width: 3,
         ),
       ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          label,
-          maxLines: 1,
-          style: const TextStyle(
-            color: ShareCardPalette.accent,
-            fontSize: 40,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: initials.isEmpty
+                ? Icon(
+                    Icons.person,
+                    size: size * 0.5,
+                    color: ShareCardPalette.ink,
+                  )
+                : Text(
+                    initials,
+                    style: TextStyle(
+                      color: ShareCardPalette.ink,
+                      fontSize: size * 0.34,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
           ),
-        ),
+          if (url != null)
+            Image.network(
+              url,
+              fit: BoxFit.cover,
+              // A picture that will not load leaves the letters showing, which
+              // is what an account without one looks like anyway — never a
+              // broken-image glyph on a card somebody is about to send.
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+        ],
       ),
     );
   }
 }
 
-/// The Global Rating, given the size it has in the product.
-class _Rating extends StatelessWidget {
-  const _Rating({required this.rating});
+/// The rating, and the record it came out of.
+class _Record extends StatelessWidget {
+  const _Record({required this.data});
+
+  final PlayerProfileCardData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _RatingDial(rating: data.rating)),
+        Expanded(
+          child: _Figure(value: data.wins, label: l10n.shareCardStatWins),
+        ),
+        Expanded(
+          child: _Figure(value: data.losses, label: l10n.shareCardStatLosses),
+        ),
+        Expanded(
+          child: _Figure(value: data.draws, label: l10n.shareCardStatDraws),
+        ),
+      ],
+    );
+  }
+}
+
+/// The Global Rating, in the ring the approved card gives it.
+///
+/// The arc is the rating against the scale it is stated on — `OP-1`'s 0 to 10 —
+/// so the ring says the same thing as the number inside it rather than a
+/// second, prettier one.
+class _RatingDial extends StatelessWidget {
+  const _RatingDial({required this.rating});
 
   final double rating;
+
+  static const _max = 10.0;
 
   @override
   Widget build(BuildContext context) {
@@ -235,29 +424,41 @@ class _Rating extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          // One decimal place, which is `OP-1`'s presentation rule and what
-          // every other surface shows. Left-to-right whatever the card's
-          // direction: a number is a number in both languages.
-          rating.toStringAsFixed(1),
-          textDirection: TextDirection.ltr,
-          style: const TextStyle(
-            color: ShareCardPalette.ink,
-            fontSize: 196,
-            fontWeight: FontWeight.w900,
-            height: 1,
-            letterSpacing: -6,
+        SizedBox(
+          width: 148,
+          height: 148,
+          child: CustomPaint(
+            painter: _DialPainter(rating / _max),
+            child: Center(
+              child: Text(
+                // One decimal place, which is `OP-1`'s presentation rule and
+                // what every other surface shows. Left-to-right whatever the
+                // card's direction: a number is a number in both languages.
+                rating.toStringAsFixed(1),
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(
+                  color: ShareCardPalette.ink,
+                  fontSize: 52,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
+                ),
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          l10n.statCurrentRating.toUpperCase(),
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: ShareCardPalette.inkMuted,
-            fontSize: 34,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 6,
+        const SizedBox(height: 14),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            l10n.statCurrentRating,
+            maxLines: 1,
+            style: const TextStyle(
+              color: ShareCardPalette.inkMuted,
+              fontSize: 30,
+              height: 1.2,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],
@@ -265,7 +466,95 @@ class _Rating extends StatelessWidget {
   }
 }
 
-/// The last five results, newest first.
+class _DialPainter extends CustomPainter {
+  _DialPainter(this.fraction);
+
+  /// How much of the ring is filled, clamped so a rating outside the scale
+  /// cannot draw more than a circle.
+  final double fraction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 10.0;
+    final rect = Offset.zero & size;
+    final circle = rect.deflate(stroke / 2);
+
+    canvas.drawArc(
+      circle,
+      0,
+      math.pi * 2,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = ShareCardPalette.ink.withValues(alpha: 0.18),
+    );
+    canvas.drawArc(
+      circle,
+      -math.pi / 2,
+      math.pi * 2 * fraction.clamp(0.0, 1.0),
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..color = ShareCardPalette.accent,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _DialPainter oldDelegate) =>
+      oldDelegate.fraction != fraction;
+}
+
+/// One figure and what it counts.
+class _Figure extends StatelessWidget {
+  const _Figure({required this.value, required this.label});
+
+  final int value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 148,
+          child: Center(
+            child: Text(
+              '$value',
+              textDirection: TextDirection.ltr,
+              style: const TextStyle(
+                color: ShareCardPalette.ink,
+                fontSize: 64,
+                height: 1,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -1,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: const TextStyle(
+              color: ShareCardPalette.inkMuted,
+              fontSize: 30,
+              height: 1.2,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The last results, newest first.
 ///
 /// **Newest first is the reading direction, not the list order.** The entries
 /// arrive newest first and are drawn in that order into a `Row`, which lays
@@ -282,26 +571,25 @@ class _FormStrip extends StatelessWidget {
     final l10n = context.l10n;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          l10n.shareCardFormLabel.toUpperCase(),
+          l10n.shareCardFormLabel,
           style: const TextStyle(
-            color: ShareCardPalette.inkMuted,
-            fontSize: 30,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 5,
+            color: ShareCardPalette.ink,
+            fontSize: 36,
+            height: 1.2,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 22),
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            for (final entry in form.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 9),
-                child: _FormBadge(outcome: entry.outcome),
-              ),
+            for (final entry in form.entries) ...[
+              if (entry != form.entries.first) const SizedBox(width: 22),
+              _FormBadge(outcome: entry.outcome),
+            ],
           ],
         ),
       ],
@@ -340,8 +628,8 @@ class _FormBadge extends StatelessWidget {
     };
 
     return Container(
-      width: 96,
-      height: 96,
+      width: 88,
+      height: 88,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -360,7 +648,7 @@ class _FormBadge extends StatelessWidget {
           maxLines: 1,
           style: TextStyle(
             color: ink,
-            fontSize: 44,
+            fontSize: 40,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -369,122 +657,138 @@ class _FormBadge extends StatelessWidget {
   }
 }
 
-/// The three career figures, side by side.
-class _Indicators extends StatelessWidget {
-  const _Indicators({required this.data});
+/// The one achievement worth putting on a card, when there is one.
+class _Highlight extends StatelessWidget {
+  const _Highlight({required this.highlight});
 
-  final PlayerProfileCardData data;
+  final RecentHighlight highlight;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
+    final (icon, title) = switch (highlight.kind) {
+      HighlightKind.mvp => (Icons.star, l10n.highlightMvpTitle),
+      HighlightKind.teamOfPeriod => (
+          Icons.emoji_events,
+          switch (highlight.period) {
+            HighlightPeriod.week => l10n.teamOfPeriodWeekHeading,
+            HighlightPeriod.month => l10n.teamOfPeriodMonthHeading,
+            null => l10n.highlightTeamOfPeriodTitle,
+          },
+        ),
+    };
+    final community = highlight.communityName;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const _Rule(),
-        const SizedBox(height: 28),
+        Text(
+          l10n.recentHighlightTitle,
+          style: const TextStyle(
+            color: ShareCardPalette.ink,
+            fontSize: 36,
+            height: 1.2,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 22),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _Indicator(
-                value: data.matchesPlayed,
-                label: l10n.shareCardStatMatches,
+            Container(
+              width: 106,
+              height: 106,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: ShareCardPalette.award,
+                borderRadius: BorderRadius.circular(24),
               ),
+              child: Icon(icon, size: 56, color: ShareCardPalette.onAward),
             ),
+            const SizedBox(width: 26),
             Expanded(
-              child: _Indicator(
-                value: data.goals,
-                label: l10n.shareCardStatGoals,
-              ),
-            ),
-            Expanded(
-              child: _Indicator(
-                value: data.mvpCount,
-                label: l10n.shareCardStatMvp,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        color: ShareCardPalette.ink,
+                        fontSize: 40,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    formatAwardDay(context, highlight.occurredAt),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: ShareCardPalette.inkMuted,
+                      fontSize: 32,
+                      height: 1.25,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (community != null && community.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      community,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: ShareCardPalette.inkMuted.withValues(
+                          alpha: 0.8,
+                        ),
+                        fontSize: 30,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 28),
-        const _Rule(),
       ],
     );
   }
 }
 
-/// One figure and what it counts.
-class _Indicator extends StatelessWidget {
-  const _Indicator({required this.value, required this.label});
+/// Where the profile lives, at the foot of the card.
+///
+/// The address itself and nothing standing for it: there is no public-link QR
+/// behaviour in the product, and a code that decodes to nothing would be a
+/// picture of a feature rather than a feature.
+class _Address extends StatelessWidget {
+  const _Address({required this.url});
 
-  final int value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$value',
-          textDirection: TextDirection.ltr,
-          style: const TextStyle(
-            color: ShareCardPalette.ink,
-            fontSize: 88,
-            fontWeight: FontWeight.w800,
-            height: 1,
-            letterSpacing: -2,
-          ),
-        ),
-        const SizedBox(height: 10),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            label.toUpperCase(),
-            maxLines: 1,
-            style: const TextStyle(
-              color: ShareCardPalette.inkMuted,
-              fontSize: 32,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 4,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// A hairline separating the figures from everything else.
-class _Rule extends StatelessWidget {
-  const _Rule();
-
-  @override
-  Widget build(BuildContext context) => Container(
-        height: 2,
-        color: ShareCardPalette.inkMuted.withValues(alpha: 0.18),
-      );
-}
-
-/// The Go Play name, as the card's mark. The statistics card's, at the same
-/// size and in the same place, because it is the same product signing the same
-/// kind of picture.
-class _Wordmark extends StatelessWidget {
-  const _Wordmark();
+  final String url;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      context.l10n.appName.toUpperCase(),
-      // Left to right in both languages: it is a name, and the product is
-      // called Go Play in Arabic too.
-      textDirection: TextDirection.ltr,
-      style: const TextStyle(
-        color: ShareCardPalette.inkMuted,
-        fontSize: 30,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 10,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.center,
+      child: Text(
+        // Left to right in both languages: a URL has one direction.
+        url,
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+        style: const TextStyle(
+          color: ShareCardPalette.inkMuted,
+          fontSize: 32,
+          height: 1.2,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

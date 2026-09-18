@@ -29,6 +29,16 @@ abstract final class ShareCardPalette {
   /// wordmark at the foot.
   static const inkMuted = Color(0xB3FFFFFF);
 
+  /// The award mark behind a trophy, and nothing else on a card.
+  ///
+  /// The product's own warn hue and its ink (`GoColors.warn`,
+  /// `GoColors.onWarnContainer`), restated here for the reason every other
+  /// value on this class is: a card must not read a colour off the reader's
+  /// theme. It is the one amber the product has, and a Recent Highlight is
+  /// drawn on it on screen as well as on a card.
+  static const award = Color(0xFFC9A227);
+  static const onAward = Color(0xFF3A2C05);
+
   /// The seed a card pins its `ColorScheme` to before drawing anything that
   /// takes colours from one — an avatar's fallback disc, for instance.
   ///

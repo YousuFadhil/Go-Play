@@ -637,6 +637,11 @@
   "recentFormWinShort": "W",
   "recentFormDrawShort": "D",
   "recentFormLossShort": "L",
+  "recentFormViewAll": "View all",
+  "viewAsPublicAction": "View as public",
+  "publicProfileGuestPrompt": "Sign in to join communities, play matches and build a record of your own.",
+  "publicMatchLineupTitle": "Line-up",
+  "publicMatchGuestPrompt": "Sign in to join a community and play in matches like this one.",
 
   "recentHighlightTitle": "Recent highlight",
   "highlightMvpTitle": "Player of the match",

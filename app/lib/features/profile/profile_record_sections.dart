@@ -3,8 +3,80 @@ import 'package:flutter/material.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../../core/time_format.dart';
 import '../../core/tokens.dart';
 import 'player_record_models.dart';
+
+/// A section's own title, on the page ground rather than inside a card.
+///
+/// The approved design puts "Recent Form" and "Recent Highlight" above what
+/// they name, at the page margin, with an optional action closing the line —
+/// so the heading belongs to the page and the card belongs to the content.
+class ProfileSectionHeading extends StatelessWidget {
+  const ProfileSectionHeading(
+    this.text, {
+    super.key,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String text;
+
+  /// The link that closes the line — "View all" on Recent Form.
+  ///
+  /// **Drawn only when there is somewhere for it to go.** It is given a
+  /// destination on the player's own record and left null everywhere else: a
+  /// visitor has no statistics screen to open, and a link that opens nothing is
+  /// worse than no link.
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        kPageMargin,
+        Layout.sectionAbove,
+        kPageMargin,
+        Layout.sectionBelow,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+          if (actionLabel != null && onAction != null)
+            GestureDetector(
+              onTap: onAction,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(start: Gap.sm),
+                child: Text(
+                  actionLabel!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                    color: GoColors.primary,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 /// The last five results, and what they add up to.
 ///
@@ -13,78 +85,106 @@ import 'player_record_models.dart';
 /// nothing here sorts, which is what stops the screen from having a second
 /// opinion about which match is the most recent.
 ///
-/// The three figures beneath are counted from the same five entries, so the
-/// summary cannot describe a different window than the badges above it.
+/// The row lays itself out from the ambient direction, so the most recent match
+/// is on the left in English and on the right in Arabic without this widget
+/// naming either language.
 class RecentFormSection extends StatelessWidget {
-  const RecentFormSection({super.key, required this.form});
+  const RecentFormSection({super.key, required this.form, this.onViewAll});
 
   final RecentForm form;
+
+  /// Where "View all" goes, on the one reading of the profile that has an
+  /// answer. Null draws no link — see [ProfileSectionHeading.actionLabel].
+  final VoidCallback? onViewAll;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return SectionCard(
-      // The default padding is vertical only, because the cards that use it
-      // are lists of `ListTile`s that bring their own inset. This one draws
-      // its own content, so it supplies the inset itself.
-      padding: const EdgeInsets.all(Gap.lg),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeading(l10n.recentFormTitle),
-        const SizedBox(height: Gap.md),
+        ProfileSectionHeading(
+          l10n.recentFormTitle,
+          actionLabel: onViewAll == null ? null : l10n.recentFormViewAll,
+          onAction: onViewAll,
+        ),
         if (form.isEmpty)
-          Text(
-            l10n.recentFormEmpty,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          SectionCard(
+            margin: const EdgeInsets.symmetric(horizontal: kPageMargin),
+            padding: const EdgeInsets.all(Gap.lg),
+            children: [
+              Text(
+                l10n.recentFormEmpty,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: GoColors.onSurfaceVariant,
+                ),
+              ),
+            ],
           )
         else ...[
-          Row(
-            children: [
-              for (final entry in form.entries)
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(end: Gap.sm),
-                  child: _FormBadge(outcome: entry.outcome),
-                ),
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: kPageMargin),
+            child: Row(
+              children: [
+                for (final entry in form.entries) ...[
+                  if (entry != form.entries.first)
+                    const SizedBox(width: Gap.sm),
+                  Expanded(child: _FormTile(outcome: entry.outcome)),
+                ],
+                // Five slots whatever the window holds, so four results are
+                // four badges at the same width as five rather than four wide
+                // ones. The count is already said in words underneath.
+                for (var i = form.entries.length; i < 5; i++) ...[
+                  const SizedBox(width: Gap.sm),
+                  const Expanded(child: SizedBox.shrink()),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: Gap.md),
-          Row(
-            children: [
-              // The short labels, not the career card's: "Matches played"
-              // appears above this section describing a different window, and
-              // one screen saying it twice about two windows would be one
-              // label too many.
-              Expanded(
-                child: _Figure(
-                  value: form.matches,
-                  label: l10n.shareCardStatMatches,
+          // What the window adds up to, and the count-safe line the Product
+          // Owner asked for in place of a fixed "LAST 5". The three figures
+          // are counted from the same entries the badges are drawn from, so
+          // the summary cannot describe a different window than the row above
+          // it; the sentence says how many matches that window actually holds,
+          // which a heading cannot.
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              kPageMargin,
+              Gap.md,
+              kPageMargin,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  [
+                    '${form.matches} ${l10n.shareCardStatMatches}',
+                    '${form.goals} ${l10n.shareCardStatGoals}',
+                    '${form.wins} ${l10n.shareCardStatWins}',
+                  ].join('  ·  '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                    color: GoColors.onSurface,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _Figure(
-                  value: form.goals,
-                  label: l10n.shareCardStatGoals,
+                const SizedBox(height: 3),
+                Text(
+                  l10n.recentFormNote(form.matches),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    height: 1.4,
+                    color: GoColors.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _Figure(
-                  value: form.wins,
-                  label: l10n.shareCardStatWins,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Gap.sm),
-          Text(
-            l10n.recentFormNote(form.matches),
-            style: TextStyle(
-              fontSize: 11,
-              height: 1.5,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ],
             ),
           ),
         ],
@@ -93,21 +193,20 @@ class RecentFormSection extends StatelessWidget {
   }
 }
 
-/// One result, as a letter in a disc.
+/// One result, as a letter in a disc on a card of its own.
 ///
 /// The letter is localized and the colour is not the only thing carrying the
-/// meaning — a reader who cannot tell the green from the grey still reads W, D
+/// meaning — a reader who cannot tell the green from the red still reads W, D
 /// or L. `Semantics` gives the full word to a screen reader, which a single
 /// letter would not.
-class _FormBadge extends StatelessWidget {
-  const _FormBadge({required this.outcome});
+class _FormTile extends StatelessWidget {
+  const _FormTile({required this.outcome});
 
   final MatchOutcome outcome;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
 
     final (short, full) = switch (outcome) {
       MatchOutcome.win => (l10n.recentFormWinShort, l10n.recentFormWin),
@@ -116,73 +215,39 @@ class _FormBadge extends StatelessWidget {
     };
     final (background, ink) = switch (outcome) {
       MatchOutcome.win => (GoColors.bgHero, Colors.white),
-      MatchOutcome.draw => (scheme.surfaceContainerHighest, scheme.onSurface),
-      MatchOutcome.loss => (
-          scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-          scheme.onSurfaceVariant,
+      MatchOutcome.draw => (
+          GoColors.surfaceContainerHighest,
+          GoColors.onSurface
         ),
+      MatchOutcome.loss => (GoColors.error, GoColors.onError),
     };
 
     return Semantics(
       label: full,
       child: Container(
-        width: 34,
-        height: 34,
+        height: 62,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: background,
-          shape: BoxShape.circle,
+          color: GoColors.surfaceCard,
+          borderRadius: BorderRadius.circular(Radii.sm),
+          border: Border.all(color: GoColors.hairline),
         ),
-        child: Text(
-          short,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: ink,
+        child: Container(
+          width: 30,
+          height: 30,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+          child: Text(
+            short,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1,
+              fontWeight: FontWeight.w800,
+              color: ink,
+            ),
           ),
         ),
       ),
-    );
-  }
-}
-
-/// One figure of the recent-window summary.
-class _Figure extends StatelessWidget {
-  const _Figure({required this.value, required this.label});
-
-  final int value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$value',
-          textDirection: TextDirection.ltr,
-          style: const TextStyle(
-            fontSize: 20,
-            height: 1,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11,
-            height: 1.2,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -202,86 +267,93 @@ class RecentHighlightSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
 
     final (icon, title) = switch (highlight.kind) {
       HighlightKind.mvp => (Icons.star, l10n.highlightMvpTitle),
       HighlightKind.teamOfPeriod => (
           Icons.emoji_events,
-          l10n.highlightTeamOfPeriodTitle,
+          switch (highlight.period) {
+            HighlightPeriod.week => l10n.teamOfPeriodWeekHeading,
+            HighlightPeriod.month => l10n.teamOfPeriodMonthHeading,
+            // A stored award always carries its period; null would be a build
+            // older than the row, and the general title still says what it is.
+            null => l10n.highlightTeamOfPeriodTitle,
+          },
         ),
     };
     final community = highlight.communityName;
 
-    return SectionCard(
-      padding: const EdgeInsets.all(Gap.lg),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeading(l10n.recentHighlightTitle),
-        const SizedBox(height: Gap.md),
-        Row(
+        ProfileSectionHeading(l10n.recentHighlightTitle),
+        SectionCard(
+          margin: const EdgeInsets.symmetric(horizontal: kPageMargin),
+          padding: const EdgeInsets.all(Gap.md),
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: GoColors.bgHero,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 22, color: Colors.white),
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      height: 1.25,
-                      fontWeight: FontWeight.w700,
-                    ),
+            Row(
+              children: [
+                // The award mark: the product's own warn hue, which is the one
+                // amber in the palette and already what a trophy is drawn on.
+                Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: GoColors.warnContainer,
+                    borderRadius: BorderRadius.circular(Radii.sm),
                   ),
-                  if (community != null && community.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      l10n.highlightInCommunity(community),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.onSurfaceVariant,
+                  child: Icon(icon, size: 24, color: GoColors.onWarnContainer),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          height: 1.25,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
+                      const SizedBox(height: 3),
+                      Text(
+                        formatAwardDay(context, highlight.occurredAt),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          height: 1.3,
+                          fontWeight: FontWeight.w600,
+                          color: GoColors.primary,
+                        ),
+                      ),
+                      if (community != null && community.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          community,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            height: 1.3,
+                            color: GoColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ],
     );
   }
-}
-
-/// A section's own title, at the weight the profile's cards already use.
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          height: 1,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
-        ),
-      );
 }

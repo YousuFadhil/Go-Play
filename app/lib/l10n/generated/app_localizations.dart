@@ -2720,6 +2720,36 @@ abstract class AppLocalizations {
   /// **'L'**
   String get recentFormLossShort;
 
+  /// No description provided for @recentFormViewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View all'**
+  String get recentFormViewAll;
+
+  /// No description provided for @viewAsPublicAction.
+  ///
+  /// In en, this message translates to:
+  /// **'View as public'**
+  String get viewAsPublicAction;
+
+  /// No description provided for @publicProfileGuestPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to join communities, play matches and build a record of your own.'**
+  String get publicProfileGuestPrompt;
+
+  /// No description provided for @publicMatchLineupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Line-up'**
+  String get publicMatchLineupTitle;
+
+  /// No description provided for @publicMatchGuestPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to join a community and play in matches like this one.'**
+  String get publicMatchGuestPrompt;
+
   /// No description provided for @recentHighlightTitle.
   ///
   /// In en, this message translates to:

@@ -73,6 +73,8 @@ void main() {
     String fullName = 'Noor Al Kindi',
     String? avatarUrl,
     RecentForm form = RecentForm.empty,
+    RecentHighlight? highlight,
+    String? publicUrl = 'https://go-play-staging.pages.dev/#/player/$userId',
   }) =>
       PlayerProfileCardData(
         fullName: fullName,
@@ -82,7 +84,12 @@ void main() {
         matchesPlayed: 24,
         goals: 11,
         mvpCount: 3,
+        wins: 14,
+        draws: 4,
+        losses: 6,
         form: form,
+        highlight: highlight,
+        publicUrl: publicUrl,
       );
 
   // --- the card itself --------------------------------------------------------
@@ -117,25 +124,64 @@ void main() {
       await pumpCard(tester, cardOf());
 
       expect(find.text('Noor Al Kindi'), findsOneWidget);
-      expect(find.text('Position · Midfielder'), findsOneWidget);
+      expect(find.text('Midfielder'), findsOneWidget);
       expect(find.text('7.4'), findsOneWidget);
-      expect(find.text('GO PLAY'), findsOneWidget);
+      expect(find.text('Go Play'), findsOneWidget);
+      expect(find.text('Player profile'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('carries three indicators and not the statistics card\'s six',
+    testWidgets(
+        'states the career on one line and the record beside the '
+        'rating', (tester) async {
+      await pumpCard(tester, cardOf());
+
+      // The approved composition: the three career figures support the name,
+      // and the record is what the rating is read against.
+      expect(
+        find.text('24 Matches   |   11 Goals   |   3 MVP'),
+        findsOneWidget,
+      );
+      expect(find.text('Current rating'), findsOneWidget);
+      for (final label in ['Wins', 'Losses', 'Draws']) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+      expect(find.text('14'), findsOneWidget);
+      expect(find.text('6'), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
+    });
+
+    testWidgets('carries the public address it is about, and no code for it',
         (tester) async {
       await pumpCard(tester, cardOf());
 
-      expect(find.text('MATCHES'), findsOneWidget);
-      expect(find.text('GOALS'), findsOneWidget);
-      expect(find.text('MVP'), findsOneWidget);
-      // The three the other card adds. This one is an identity card; showing
-      // all six would make it the Player Statistics card with a different
-      // background.
-      expect(find.text('WINS'), findsNothing);
-      expect(find.text('DRAWS'), findsNothing);
-      expect(find.text('LOSSES'), findsNothing);
+      // The link itself. There is no public-link QR behaviour in the product,
+      // so a code on the card would stand for a promise nothing keeps.
+      expect(
+        find.text('https://go-play-staging.pages.dev/#/player/$userId'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a highlight is on the card exactly when the profile has one',
+        (tester) async {
+      await pumpCard(tester, cardOf());
+      expect(find.text('Recent highlight'), findsNothing);
+
+      await pumpCard(
+        tester,
+        cardOf(
+          highlight: RecentHighlight(
+            kind: HighlightKind.teamOfPeriod,
+            period: HighlightPeriod.week,
+            occurredAt: DateTime.utc(2026, 9, 13, 20),
+            communityName: 'Al Amerat FC',
+          ),
+        ),
+      );
+      expect(find.text('Recent highlight'), findsOneWidget);
+      expect(find.text('Team of the Week'), findsOneWidget);
+      expect(find.text('Al Amerat FC'), findsOneWidget);
     });
 
     testWidgets('shows no date of birth, because it is handed none',
@@ -176,7 +222,7 @@ void main() {
         cardOf(form: formOf([MatchOutcome.win, MatchOutcome.loss])),
       );
 
-      expect(find.text('RECENT FORM'), findsOneWidget);
+      expect(find.text('Recent form'), findsOneWidget);
       expect(find.text('W'), findsOneWidget);
       expect(find.text('L'), findsOneWidget);
 
@@ -190,7 +236,7 @@ void main() {
         (tester) async {
       await pumpCard(tester, cardOf());
 
-      expect(find.text('RECENT FORM'), findsNothing);
+      expect(find.text('Recent form'), findsNothing);
       expect(find.text('W'), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -224,11 +270,11 @@ void main() {
       );
 
       expect(find.text('نور الكندي'), findsOneWidget);
-      expect(find.text('المركز · وسط'), findsOneWidget);
+      expect(find.text('وسط'), findsOneWidget);
       // The rating is a number and reads left to right in both languages.
       expect(find.text('7.4'), findsOneWidget);
       // The mark is a name, not a sentence: Go Play in Arabic too.
-      expect(find.text('GO PLAY'), findsOneWidget);
+      expect(find.text('Go Play'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -315,7 +361,17 @@ void main() {
         ),
       );
 
-      expect(find.byTooltip('Share my profile'), findsOneWidget);
+      expect(
+        find.widgetWithText(FilledButton, 'Share my profile'),
+        findsOneWidget,
+      );
+      // The approved own-profile page: the share is a button under the record,
+      // and the bar carries the account's own actions instead.
+      expect(find.byTooltip('Share my profile'), findsNothing);
+      expect(
+        find.widgetWithText(FilledButton, 'View as public'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('another visible player can be shared too', (tester) async {
@@ -374,7 +430,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byTooltip('Share my profile'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Share my profile'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Share'));
       await tester.pumpAndSettle();
@@ -490,9 +546,8 @@ void main() {
       double topOf(Finder finder) => tester.getTopLeft(finder).dy;
 
       expect(
-        // The career snapshot's own label, which the recent window
-        // deliberately does not repeat.
-        topOf(find.text('Matches played')),
+        // The career grid's first figure.
+        topOf(find.text('Matches')),
         lessThan(topOf(find.text('Recent form'))),
       );
       expect(
@@ -501,7 +556,7 @@ void main() {
       );
       expect(
         topOf(find.text('Recent highlight')),
-        lessThan(topOf(find.text('My statistics'))),
+        lessThan(topOf(find.widgetWithText(FilledButton, 'Share my profile'))),
       );
     });
 
@@ -547,10 +602,12 @@ void main() {
       expect(inForm(find.text('W')), findsNWidgets(3));
       expect(inForm(find.text('D')), findsOneWidget);
       expect(inForm(find.text('L')), findsOneWidget);
-      // The summary counts the same five the badges draw.
-      expect(inForm(find.text('5')), findsOneWidget);
-      expect(inForm(find.text('4')), findsOneWidget);
-      expect(inForm(find.text('3')), findsOneWidget);
+      // The summary counts the same five the badges draw: five matches, four
+      // goals, three wins.
+      expect(
+        inForm(find.text('5 Matches  ·  4 Goals  ·  3 Wins')),
+        findsOneWidget,
+      );
       expect(find.textContaining('last 5 completed matches'), findsOneWidget);
     });
   });

@@ -59,19 +59,6 @@ class DiscoverRepository {
     );
   }
 
-  /// The upcoming reading of a public match, which is all the provisional
-  /// public match page draws today.
-  ///
-  /// **A completed match answers null here, deliberately and temporarily.** The
-  /// data for it is available through [fetchMatchDetail]; how a played match
-  /// is *presented* to a visitor is awaiting an approved mockup, and this keeps
-  /// the page from inventing that presentation in the meantime.
-  Future<PublicMatch?> fetchMatch(String matchId) async =>
-      switch (await _adapter.fetchMatchDetail(matchId)) {
-        PublicUpcomingMatch(:final match) => match,
-        _ => null,
-      };
-
   /// One community and what it has scheduled — the guest's community details.
   Future<PublicCommunityDetails> fetchCommunityDetails(
     String communityId,

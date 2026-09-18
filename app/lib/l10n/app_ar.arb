@@ -553,6 +553,11 @@
   "recentFormWinShort": "ف",
   "recentFormDrawShort": "ت",
   "recentFormLossShort": "خ",
+  "recentFormViewAll": "عرض الكل",
+  "viewAsPublicAction": "عرض كملف عام",
+  "publicProfileGuestPrompt": "سجّل الدخول للانضمام إلى المجتمعات واللعب في المباريات وبناء سجلك الخاص.",
+  "publicMatchLineupTitle": "التشكيلة",
+  "publicMatchGuestPrompt": "سجّل الدخول للانضمام إلى مجتمع واللعب في مباريات مثل هذه.",
 
   "recentHighlightTitle": "أبرز إنجاز",
   "highlightMvpTitle": "أفضل لاعب في المباراة",

@@ -322,11 +322,28 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
           // invitation itself has already been captured in initState.
           onGenerateRoute: (_) =>
               MaterialPageRoute(builder: (_) => const AuthGate()),
+          onGenerateInitialRoutes: initialRoutesFor,
         );
       },
     );
   }
 }
+
+/// What a cold start opens, whatever path it started on: one page.
+///
+/// **The fix for a deep link being read three times.** Navigator's default
+/// expansion of an initial route builds one route per path segment -- `/`,
+/// `/player`, `/player/<id>` for a shared profile -- so a single link produced
+/// three [AuthGate]s, three profile screens and three identical reads of the
+/// same public record. The app has one entry point and takes the link from
+/// [PendingPublicLink] rather than from the route name, so one route is not a
+/// simplification: it is the whole truth about what a cold start opens.
+///
+/// Named, rather than a closure on the `MaterialApp`, so the rule can be
+/// asserted directly.
+List<Route<dynamic>> initialRoutesFor(String initialRoute) => [
+      MaterialPageRoute(builder: (_) => const AuthGate()),
+    ];
 
 /// Decides what the app opens on: a pending invitation outranks both, because
 /// someone who tapped an invitation asked for that and nothing else.

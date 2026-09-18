@@ -1543,6 +1543,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recentFormLossShort => 'L';
 
   @override
+  String get recentFormViewAll => 'View all';
+
+  @override
+  String get viewAsPublicAction => 'View as public';
+
+  @override
+  String get publicProfileGuestPrompt =>
+      'Sign in to join communities, play matches and build a record of your own.';
+
+  @override
+  String get publicMatchLineupTitle => 'Line-up';
+
+  @override
+  String get publicMatchGuestPrompt =>
+      'Sign in to join a community and play in matches like this one.';
+
+  @override
   String get recentHighlightTitle => 'Recent highlight';
 
   @override

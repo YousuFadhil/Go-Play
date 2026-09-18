@@ -295,11 +295,17 @@ void main() {
       expect(discover.lineupReads, isEmpty);
     });
 
-    test('the provisional page still reads only the upcoming shape', () async {
-      // Until the public result page is approved, `fetchMatch` answers null for
-      // a played match rather than letting the page improvise a presentation.
+    test('a played match arrives as the completed shape, with its lineup',
+        () async {
+      // The approved public result page reads this: the provisional
+      // upcoming-only reader is gone, so there is no longer a way for a played
+      // match to arrive looking like an unplayed one.
       final discover = _FakeDiscoverAdapter(completed: played());
-      expect(await DiscoverRepository(discover).fetchMatch(match), isNull);
+
+      final detail = await DiscoverRepository(discover).fetchMatchDetail(match);
+
+      expect(detail, isA<PublicCompletedMatch>());
+      expect(discover.lineupReads, [match]);
     });
   });
 

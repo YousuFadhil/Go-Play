@@ -138,7 +138,9 @@ void main() {
       expect(profiles.requestedUserId, 'u2');
       expect(find.byType(ClubHero), findsOneWidget);
       expect(find.byType(ClubSheet), findsOneWidget);
-      expect(find.text('Player profile'), findsOneWidget);
+      // The approved hero says who the player is rather than what the screen
+      // is called: the name is the heading, and the bar carries the actions.
+      expect(find.text('Player profile'), findsNothing);
       expect(find.text('Noor Al Kindi'), findsOneWidget);
       expect(find.text('Midfielder'), findsOneWidget);
       expect(find.text('6.4'), findsOneWidget);
@@ -290,19 +292,19 @@ void main() {
         size: const Size(480, 900),
       );
 
-      expect(find.text('Profile'), findsOneWidget);
       expect(find.text('Salim Al Harthy'), findsOneWidget);
       expect(find.text('34 years old'), findsOneWidget);
       expect(find.byTooltip('Edit profile'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
 
-      // Scrolled to, because Package 5 put Recent Form between the career
-      // counters and the account's own controls — on a 480-point screen the
-      // account block is now below the fold, and a `ListView` does not build
-      // what it is not showing. What is asserted is unchanged: the controls
-      // are on the player's own record and reachable.
-      await tester.scrollUntilVisible(find.text('Settings'), 200);
+      // The account's own actions are behind the approved design's overflow
+      // rather than listed under the record. What is asserted is unchanged:
+      // the controls are on the player's own record and reachable — which is
+      // the second place the Product Owner asked logout to be.
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
       expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Log out'), findsOneWidget);
     });
   });
 
@@ -314,6 +316,11 @@ void main() {
         userId: null,
       );
 
+      // Two ways in, both on the player's own record and both leading to the
+      // same screen: the link that closes Recent Form, and the account menu.
+      expect(find.text('View all'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
       expect(
         find.widgetWithText(ListTile, 'My statistics'),
         findsOneWidget,
@@ -346,7 +353,7 @@ void main() {
       await tester.pumpAndSettle();
       observer.pushed.clear();
 
-      await tester.tap(find.widgetWithText(ListTile, 'My statistics'));
+      await tester.tap(find.text('View all'));
 
       // The route is read rather than built: the screen makes the production
       // repositories when nobody injects any, and this suite has no data
@@ -369,7 +376,11 @@ void main() {
         profiles: FakeProfileAdapter(player: viewOf()),
       );
 
-      expect(find.widgetWithText(ListTile, 'My statistics'), findsNothing);
+      // No link, and no account menu to reach the screen through either:
+      // both would lead to the signed-in player's own record, which is not
+      // the player on this page.
+      expect(find.text('View all'), findsNothing);
+      expect(find.byIcon(Icons.more_horiz), findsNothing);
     });
   });
 
@@ -678,7 +689,7 @@ void main() {
     testWidgets('the profile keeps its own action either way', (tester) async {
       // Route awareness decides the back affordance and nothing else.
       await pumpAsRoot(tester);
-      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      expect(find.byTooltip('Edit profile'), findsOneWidget);
     });
   });
 }

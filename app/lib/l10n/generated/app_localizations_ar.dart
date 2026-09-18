@@ -1527,6 +1527,23 @@ class AppLocalizationsAr extends AppLocalizations {
   String get recentFormLossShort => 'خ';
 
   @override
+  String get recentFormViewAll => 'عرض الكل';
+
+  @override
+  String get viewAsPublicAction => 'عرض كملف عام';
+
+  @override
+  String get publicProfileGuestPrompt =>
+      'سجّل الدخول للانضمام إلى المجتمعات واللعب في المباريات وبناء سجلك الخاص.';
+
+  @override
+  String get publicMatchLineupTitle => 'التشكيلة';
+
+  @override
+  String get publicMatchGuestPrompt =>
+      'سجّل الدخول للانضمام إلى مجتمع واللعب في مباريات مثل هذه.';
+
+  @override
   String get recentHighlightTitle => 'أبرز إنجاز';
 
   @override
