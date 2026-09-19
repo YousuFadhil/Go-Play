@@ -32,6 +32,7 @@ class ResultCardData {
     this.endAt,
     this.communityName,
     this.communityLogoUrl,
+    this.location,
     this.teamAScore,
     this.teamBScore,
     this.mvpName,
@@ -53,6 +54,14 @@ class ResultCardData {
 
   /// Whose football this is, or null on a page that has already said so.
   final String? communityName;
+
+  /// Where it was played, where the read carries one.
+  ///
+  /// **Both contracts already have this and the card used to drop it.** A
+  /// result without a ground is the one detail a reader scanning a feed of
+  /// them actually uses to place the match, and `public_recent_results`
+  /// publishes it exactly as the member's read does.
+  final String? location;
 
   /// The community's picture where the read model carries one. The public
   /// results contract does; the authenticated feed does not, and falls back to
@@ -163,16 +172,51 @@ class ResultCard extends StatelessWidget {
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              data.endAt == null
-                                  ? formatDayShort(context, data.startAt)
-                                  : formatDayAndTimeRange(
-                                      context, data.startAt, data.endAt!),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
+                            // When, and where. One line, because two
+                            // would push the score off a 320px phone -- and
+                            // the ground ellipsizes first, since the date is
+                            // the shorter and the less forgiving of the two.
+                            Row(
+                              children: [
+                                // Flexible, not fixed: a date range and a
+                                // long ground together are wider than a
+                                // 320px card, and whichever is asked to be
+                                // rigid is the one that pushes.
+                                Flexible(
+                                  child: Text(
+                                    data.endAt == null
+                                        ? formatDayShort(context, data.startAt)
+                                        : formatDayAndTimeRange(
+                                            context, data.startAt, data.endAt!),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                if (data.location != null &&
+                                    data.location!.trim().isNotEmpty) ...[
+                                  Text(
+                                    '  \u00b7  ',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  Flexible(
+                                    child: Text(
+                                      data.location!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),

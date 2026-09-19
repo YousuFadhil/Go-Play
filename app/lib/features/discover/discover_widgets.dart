@@ -1184,6 +1184,9 @@ class PublicResultCard extends StatelessWidget {
             : result.communityName,
         communityName: result.communityName,
         communityLogoUrl: result.communityLogoUrl,
+        // The public contract publishes the ground; the adapter used to drop
+        // it on the floor.
+        location: result.location,
         startAt: result.startAt,
         teamAScore: result.teamAScore,
         teamBScore: result.teamBScore,
