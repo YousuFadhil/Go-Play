@@ -390,7 +390,111 @@ void main() {
           isNot(contains('delete from team_of_period_snapshots')));
       expect(rollbackStatements,
           isNot(contains('delete from team_of_period_awards')));
+      expect(
+          rollbackStatements, isNot(contains('update team_of_period_awards')));
       expect(rollbackStatements, isNot(contains('drop table')));
+    });
+  });
+
+  group('the rollback refuses once a Sunday-to-Saturday week is awarded', () {
+    test('it raises a stable token', () {
+      expect(
+        rollbackStatements,
+        contains(
+            "raise exception 'ROLLBACK_BLOCKED_TEAM_OF_PERIOD_SNAPSHOTS_EXIST'"),
+      );
+    });
+
+    test('and the guard is the first executable operation in the file', () {
+      // **Zero changes when blocked.** A guard that ran after the first
+      // `create or replace` would leave the database half rolled back.
+      final guard = rollbackStatements.indexOf(r'do $guard$');
+      final firstWrite =
+          rollbackStatements.indexOf('create or replace function');
+
+      expect(guard, isNot(-1));
+      expect(guard, lessThan(firstWrite));
+      // Nothing executable precedes it.
+      expect(rollbackStatements.substring(0, guard).trim(), isEmpty);
+    });
+
+    test('it blocks on bounds and key together, not on existence', () {
+      // The collision this exists for: `0084` names Sunday 2026-09-06 to
+      // Sunday 2026-09-13 `2026-W37`, and the ISO contract names Monday
+      // 2026-09-07 to Monday 2026-09-14 the *same* key. An award stored under
+      // the first would be matched by a query asking for the second, and a
+      // profile would show a Team of the Week for a period it is not about.
+      // So compatibility is the full triple, not the key alone.
+      expect(rollbackStatements, contains("where s.period_type = 'weekly'"));
+      expect(rollbackStatements,
+          contains('from public.current_statistics_week_at(s.period_start) w'));
+      expect(rollbackStatements,
+          contains('where w.period_start = s.period_start'));
+      expect(rollbackStatements, contains('and w.period_end   = s.period_end'));
+      expect(rollbackStatements, contains('and w.period_key   = s.period_key'));
+      expect(rollbackStatements, contains('not exists ('));
+    });
+
+    test('and an empty snapshot table is not blocked', () {
+      // `count(*) > 0` over a `not exists` filter: with no rows at all the
+      // count is zero and the file proceeds, which is the state it has only
+      // ever been run in.
+      expect(rollbackStatements, contains('if v_blocked > 0 then'));
+      expect(
+          rollbackStatements, contains('select count(*), min(s.period_key)'));
+    });
+
+    test('monthly snapshots are deliberately not consulted', () {
+      // 0084 did not change monthly behaviour, so a stored month means the
+      // same period before and after.
+      final guardBody = rollbackStatements.substring(
+        rollbackStatements.indexOf(r'do $guard$'),
+        rollbackStatements.indexOf(r'$guard$;'),
+      );
+      expect(guardBody, isNot(contains("'monthly'")));
+    });
+
+    test('the misleading claim is gone from the file', () {
+      // The earlier draft asserted a stored award "simply will not match",
+      // which is exactly what the key collision disproves.
+      // The sentence itself is gone; the phrase survives only inside the
+      // paragraph that quotes it in order to correct it.
+      expect(rollback, isNot(contains('asks for ISO weeks again')));
+      expect(rollback, contains('**That was wrong**'));
+    });
+  });
+
+  group('a period key must name the period it produces', () {
+    test('the shape check is not the only check', () {
+      final body = statements.substring(
+        statements.indexOf(
+            'create or replace function public.team_of_period_week_of_key'),
+      );
+      final upTo = body.substring(0, body.indexOf(r'$$;'));
+
+      // Shape first...
+      expect(upTo, contains(r"p_period_key !~ '^\d{4}-W\d{2}$'"));
+      // ...then the round trip, because `to_timestamp` rolls an impossible
+      // week forward silently rather than refusing it: 2026-W00 lands in
+      // January and 2026-W99 in November 2027.
+      expect(
+        upTo,
+        contains('if public.statistics_period_key(\n'
+            "       (v_sunday + interval '6 days') at time zone v_zone, "
+            "'weekly')\n"
+            '     is distinct from p_period_key then'),
+      );
+      // Both failures use the one token.
+      expect(
+        RegExp("raise exception 'INVALID_PERIOD_KEY'").allMatches(upTo).length,
+        2,
+      );
+    });
+
+    test('and the external format is unchanged', () {
+      // Still YYYY-W##, still derived through the one key function.
+      expect(statements, contains(r"'^\d{4}-W\d{2}$'"));
+      expect(statements, isNot(contains('YYYY-"W"WW')));
     });
   });
 

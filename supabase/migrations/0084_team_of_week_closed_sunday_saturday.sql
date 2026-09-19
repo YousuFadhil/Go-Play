@@ -148,6 +148,19 @@ begin
   v_sunday := to_timestamp(p_period_key, 'IYYY-"W"IW')::timestamp
                 - interval '1 day';
 
+  -- **The shape is not the check.** `to_timestamp` does not refuse an
+  -- impossible week: it rolls it forward silently, so `2026-W00` lands in
+  -- January and `2026-W99` lands in November 2027. A key that does not name
+  -- the period it was derived from is not a Team of Period key, whatever it
+  -- looks like -- so the answer is re-derived from the Saturday that closes
+  -- the period it produced and required to match exactly. Genuine 53-week
+  -- years survive this, because for them it does match.
+  if public.statistics_period_key(
+       (v_sunday + interval '6 days') at time zone v_zone, 'weekly')
+     is distinct from p_period_key then
+    raise exception 'INVALID_PERIOD_KEY';
+  end if;
+
   return query
   select
     'weekly'::text,

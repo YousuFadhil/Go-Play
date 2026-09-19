@@ -9,11 +9,70 @@
 -- `create or replace`, which is the only way a forward-only migration history
 -- can be undone.
 --
+-- ## IT REFUSES ONCE A SUNDAY-TO-SATURDAY WEEK HAS BEEN AWARDED
+--
+-- An earlier draft of this file said a weekly snapshot written under `0084`
+-- "simply will not match" the restored ISO query. **That was wrong**, and it is
+-- the one way this rollback could have corrupted the product silently. The two
+-- contracts can produce the *same key for different weeks*:
+--
+--     0084:  Sunday 2026-09-06 .. Sunday 2026-09-13   key 2026-W37
+--     0077:  Monday 2026-09-07 .. Monday 2026-09-14   key 2026-W37
+--
+-- `player_recent_achievements` joins stored awards on `(period_type,
+-- period_key)` alone, so after a rollback that Sunday-to-Saturday award would
+-- match an ISO week it is not about, and a profile would show a Team of the
+-- Week for a period the award never described.
+--
+-- So the first thing this file does is look, and refuse. It changes nothing
+-- when it refuses, deletes no snapshot and mutates no award: reversing an
+-- award that has already been made is a product decision, not something a
+-- rollback script may take. With no such snapshot -- which is the state today,
+-- and the only state `0084` has ever been run in -- it proceeds normally.
+--
 -- Monthly behaviour is not mentioned anywhere below because `0084` did not
 -- change it: it delegated to `last_completed_statistics_period('monthly')`
 -- before and after, and still does.
 --
 -- Run the whole file in one transaction.
+
+-- ============================================================================
+-- 0) The guard -- before anything is written
+-- ============================================================================
+-- A weekly snapshot is compatible with the pre-`0084` contract only if its
+-- stored bounds and key are exactly what `current_statistics_week_at` says
+-- about its own start. A Sunday-to-Saturday award is not, and is what blocks
+-- this file.
+--
+-- Monthly snapshots are never consulted: `0084` did not change monthly
+-- behaviour, so a stored month means the same period before and after.
+do $guard$
+declare
+  v_blocked int;
+  v_first text;
+begin
+  select count(*), min(s.period_key)
+    into v_blocked, v_first
+  from team_of_period_snapshots s
+  where s.period_type = 'weekly'
+    and not exists (
+      select 1
+      from public.current_statistics_week_at(s.period_start) w
+      where w.period_start = s.period_start
+        and w.period_end   = s.period_end
+        and w.period_key   = s.period_key
+    );
+
+  if v_blocked > 0 then
+    raise exception 'ROLLBACK_BLOCKED_TEAM_OF_PERIOD_SNAPSHOTS_EXIST'
+      using detail = format(
+        '%s weekly snapshot(s) describe a Sunday-to-Saturday period that the '
+        'pre-0084 ISO contract cannot name (first: %s). Nothing was changed.',
+        v_blocked, v_first),
+        hint = 'Retire those awards deliberately before rolling 0084 back.';
+  end if;
+end;
+$guard$;
 
 -- ============================================================================
 -- 1) The award period: back to the running ISO week (0077)
@@ -394,9 +453,8 @@ drop function if exists public.last_completed_team_of_period_week();
 drop function if exists public.team_of_period_week_of_key(text);
 drop function if exists public.team_of_period_week_at(timestamptz);
 
--- Stored snapshots are NOT touched. A weekly snapshot written under `0084` is
--- keyed by its Saturday and describes a Sunday-to-Saturday period; after this
--- rollback the achievement query asks for ISO weeks again and simply will not
--- match it. The row is evidence of an award that was made and is left alone --
+-- Stored snapshots are NOT touched, and nothing above could reach one: the
+-- guard at the top refuses the whole file the moment a Sunday-to-Saturday
+-- weekly snapshot exists. A snapshot is evidence of an award that was made;
 -- retiring one is a separate, deliberate act, exactly as it is for the rating
 -- archive.
