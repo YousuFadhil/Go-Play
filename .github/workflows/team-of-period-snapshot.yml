@@ -1,84 +1,85 @@
-# Stores the Team of Period of the period that has just closed.
-#
-# MANUAL ONLY during Package 5 validation. There is deliberately no `schedule:`
-# trigger: GitHub runs scheduled workflows only from the default branch, and the
-# Product Owner has not approved putting a scheduler on `main`.
-#
-# When to dispatch (Asia/Muscat, approved timing):
-#   weekly  -- just after Sunday closes, around Monday 00:05
-#   monthly -- just after the month closes, around the 1st 00:05
-# The job always stores the LAST CLOSED period, so dispatching late is fine and
-# dispatching twice is harmless: a stored period answers SNAPSHOT_ALREADY_FINAL,
-# which the job treats as success.
-#
-# Default is a dry run, which prints the teams it would store and writes
-# nothing. Choose `write` to store them.
-#
-# The Supabase project behind this is the live one shared by staging and
-# production (Product Owner decision, Package 5). A `write` stores final awards
-# in live data. It needs the environment secret SUPABASE_SERVICE_ROLE_KEY,
-# which is used here and nowhere else -- never in a web build.
-
-name: Team of Period snapshot
-
-on:
-  workflow_dispatch:
-    inputs:
-      period:
-        description: Which closed period to store
-        required: true
-        type: choice
-        options: [weekly, monthly]
-      mode:
-        description: dry-run prints the teams; write stores them (final)
-        required: true
-        type: choice
-        options: [dry-run, write]
-        default: dry-run
-
-# One run at a time, so two dispatches cannot race for the same period.
-concurrency:
-  group: team-of-period-snapshot
-  cancel-in-progress: false
-
-jobs:
-  snapshot:
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - name: Check out the selector being run
-        uses: actions/checkout@v4
-
-      - name: Require the service-role configuration
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          test -n "$SUPABASE_URL"              || { echo "::error::secret SUPABASE_URL is not set"; exit 1; }
-          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::secret SUPABASE_SERVICE_ROLE_KEY is not set"; exit 1; }
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: 3.44.7
-
-      - name: Fetch dependencies
-        working-directory: app
-        run: flutter pub get
-
-      # Plain Dart: the selector, the mapper and the snapshot builder import no
-      # Flutter, so the award is decided by the same code the app runs.
-      - name: Run the snapshot job
-        working-directory: app
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          PERIOD: ${{ inputs.period }}
-          MODE: ${{ inputs.mode }}
-        run: |
-          if [ "$MODE" = "write" ]; then
-            dart run tool/snapshot_team_of_period.dart --period "$PERIOD" --write
-          else
-            dart run tool/snapshot_team_of_period.dart --period "$PERIOD"
-          fi
+# Stores the Team of Period of the period that has just closed.
+#
+# MANUAL ONLY during Package 5 validation. There is deliberately no `schedule:`
+# trigger: GitHub runs scheduled workflows only from the default branch, and the
+# Product Owner has not approved putting a scheduler on `main`.
+#
+# When to dispatch (Asia/Muscat, approved timing):
+#   weekly  -- just after Saturday ends, around Sunday 00:05
+#              (the award week is Sunday to Saturday -- see DD-19)
+#   monthly -- just after the month closes, around the 1st 00:05
+# The job always stores the LAST CLOSED period, so dispatching late is fine and
+# dispatching twice is harmless: a stored period answers SNAPSHOT_ALREADY_FINAL,
+# which the job treats as success.
+#
+# Default is a dry run, which prints the teams it would store and writes
+# nothing. Choose `write` to store them.
+#
+# The Supabase project behind this is the live one shared by staging and
+# production (Product Owner decision, Package 5). A `write` stores final awards
+# in live data. It needs the environment secret SUPABASE_SERVICE_ROLE_KEY,
+# which is used here and nowhere else -- never in a web build.
+
+name: Team of Period snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      period:
+        description: Which closed period to store
+        required: true
+        type: choice
+        options: [weekly, monthly]
+      mode:
+        description: dry-run prints the teams; write stores them (final)
+        required: true
+        type: choice
+        options: [dry-run, write]
+        default: dry-run
+
+# One run at a time, so two dispatches cannot race for the same period.
+concurrency:
+  group: team-of-period-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Check out the selector being run
+        uses: actions/checkout@v4
+
+      - name: Require the service-role configuration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SUPABASE_URL"              || { echo "::error::secret SUPABASE_URL is not set"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::secret SUPABASE_SERVICE_ROLE_KEY is not set"; exit 1; }
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.7
+
+      - name: Fetch dependencies
+        working-directory: app
+        run: flutter pub get
+
+      # Plain Dart: the selector, the mapper and the snapshot builder import no
+      # Flutter, so the award is decided by the same code the app runs.
+      - name: Run the snapshot job
+        working-directory: app
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PERIOD: ${{ inputs.period }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          if [ "$MODE" = "write" ]; then
+            dart run tool/snapshot_team_of_period.dart --period "$PERIOD" --write
+          else
+            dart run tool/snapshot_team_of_period.dart --period "$PERIOD"
+          fi

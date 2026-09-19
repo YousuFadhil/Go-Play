@@ -14,7 +14,14 @@ import 'package:btge/btge.dart';
 /// There is no `allTime` here for the same reason: an all-time XI is not a
 /// period, and the read model has no such window.
 enum TeamOfPeriodKind {
-  /// The current ISO week, Monday to Sunday, in Asia/Muscat.
+  /// The last fully closed football week, Sunday to Saturday, in Asia/Muscat.
+  ///
+  /// **Not the ISO week and not the running one** (`DD-19`, migration `0084`).
+  /// The week begins Sunday 00:00 and ends when the next Sunday begins, so
+  /// Saturday is its last day; the award is always about the week that has
+  /// already closed, because an XI that changes every time a result is
+  /// recorded is not an award. General weekly statistics keep their ISO
+  /// Monday-to-Sunday buckets -- this is the award period alone.
   weekly,
 
   /// The last completed calendar month, in Asia/Muscat.
