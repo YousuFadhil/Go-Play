@@ -43,7 +43,11 @@ PublicMatch publicMatchFromRow(Map<String, dynamic> row) => PublicMatch(
 /// only returns matches whose result was recorded, so this is a guard against a
 /// shape nobody should be able to produce rather than a case with a
 /// presentation.
-PublicResult publicResultFromRow(Map<String, dynamic> row) => PublicResult(
+PublicResult publicResultFromRow(
+  Map<String, dynamic> row, {
+  required String? Function(String? path) avatarUrl,
+}) =>
+    PublicResult(
       matchId: row['match_id'] as String,
       communityId: row['community_id'] as String,
       communityName: row['community_name'] as String? ?? '',
@@ -54,6 +58,7 @@ PublicResult publicResultFromRow(Map<String, dynamic> row) => PublicResult(
       teamAScore: row['team_a_score'] as int? ?? 0,
       teamBScore: row['team_b_score'] as int? ?? 0,
       mvpDisplayName: row['mvp_display_name'] as String?,
+      mvpAvatarUrl: avatarUrl(row['mvp_avatar_path'] as String?),
     );
 
 /// Reads a `public_match_detail` row, or null when it names a state this build

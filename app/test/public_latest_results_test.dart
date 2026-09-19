@@ -101,8 +101,11 @@ void main() {
       expect(find.byType(PublicResultCard), findsNothing);
     });
 
-    testWidgets('the newest is shown and the rest are one tap away',
+    testWidgets('the newest three are shown and the rest are one tap away',
         (tester) async {
+      // The approved presentation, and the reason it changed: a section headed
+      // "what has just been played" showing a single card under it read as
+      // though the rest had failed to arrive.
       await pumpDiscover(
         tester,
         _Discover(results: [
@@ -110,11 +113,45 @@ void main() {
         ]),
       );
 
-      expect(find.byType(PublicResultCard), findsOneWidget);
+      expect(find.byType(PublicResultCard), findsNWidgets(3));
+      expect(find.text('View all results'), findsOneWidget);
+
+      await tester
+          .tap(find.byKey(const Key('discoverPublicPreviousResultsToggle')));
+      await tester.pumpAndSettle();
+
+      // Every result already in memory, and no second read to get them.
+      expect(find.byType(PublicResultCard), findsNWidgets(5));
+      expect(find.text('Show fewer'), findsOneWidget);
+    });
+
+    testWidgets('three or fewer is the whole list, with no control at all',
+        (tester) async {
+      await pumpDiscover(
+        tester,
+        _Discover(results: [for (var i = 1; i <= 3; i++) result('m$i')]),
+      );
+
+      expect(find.byType(PublicResultCard), findsNWidgets(3));
+      // A disclosure that reveals nothing is noise.
+      expect(find.text('View all results'), findsNothing);
+    });
+
+    testWidgets('expanding, then collapsing again', (tester) async {
+      await pumpDiscover(
+        tester,
+        _Discover(results: [for (var i = 1; i <= 5; i++) result('m$i')]),
+      );
+
       await tester
           .tap(find.byKey(const Key('discoverPublicPreviousResultsToggle')));
       await tester.pumpAndSettle();
       expect(find.byType(PublicResultCard), findsNWidgets(5));
+
+      await tester
+          .tap(find.byKey(const Key('discoverPublicPreviousResultsToggle')));
+      await tester.pumpAndSettle();
+      expect(find.byType(PublicResultCard), findsNWidgets(3));
     });
 
     testWidgets('tapping one opens the public completed match, with no prompt',

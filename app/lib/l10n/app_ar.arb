@@ -507,6 +507,8 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "hidePreviousResults": "إخفاء النتائج السابقة",
+  "viewAllResults": "عرض كل النتائج",
+  "showFewerResults": "عرض أقل",
   "shareCardStatGoals": "الأهداف",
   "shareCardStatMvp": "أفضل لاعب",
   "shareMyStatisticsAction": "مشاركة إحصائياتي",

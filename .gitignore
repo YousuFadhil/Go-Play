@@ -14,3 +14,7 @@ Thumbs.db
 .claude/settings.local.json
 packages/btge/.dart_tool/
 packages/btge/pubspec.lock
+
+# Python bytecode from the validation tooling under supabase/tool/.
+__pycache__/
+*.pyc

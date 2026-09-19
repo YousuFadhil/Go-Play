@@ -159,6 +159,7 @@ class PublicResult {
     this.title,
     this.location,
     this.mvpDisplayName,
+    this.mvpAvatarUrl,
   });
 
   final String matchId;
@@ -176,6 +177,12 @@ class PublicResult {
 
   /// The best player's name, where the result named one. Never an id.
   final String? mvpDisplayName;
+
+  /// Their picture, resolved from the `mvp_avatar_path` the public contract
+  /// already publishes (migration `0081`). A path is storage knowledge; the
+  /// adapter turns it into an address, exactly as it does for the lineup on a
+  /// public match page.
+  final String? mvpAvatarUrl;
 
   bool get isDraw => teamAScore == teamBScore;
 

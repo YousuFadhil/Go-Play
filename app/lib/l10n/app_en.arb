@@ -591,6 +591,8 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "hidePreviousResults": "Hide previous results",
+  "viewAllResults": "View all results",
+  "showFewerResults": "Show fewer",
   "shareCardStatGoals": "Goals",
   "shareCardStatMvp": "MVP",
   "shareMyStatisticsAction": "Share my statistics",

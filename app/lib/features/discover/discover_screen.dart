@@ -20,6 +20,7 @@ import '../football/football_match_screen.dart';
 import '../football/football_models.dart';
 import '../football/football_repository.dart';
 import '../football/football_result_card.dart';
+import '../results/result_card.dart';
 import '../matches/match_details_screen.dart';
 import 'discover_models.dart';
 import 'discover_repository.dart';
@@ -505,9 +506,14 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           message: l10n.latestResultsEmpty,
         )
       else
-        _PublicResultsList(
+        ResultsList<PublicResult>(
           results: overview.results,
-          onOpen: _openPublicResult,
+          identityOf: (result) => result.matchId,
+          toggleKey: const Key('discoverPublicPreviousResultsToggle'),
+          itemBuilder: (context, result) => PublicResultCard(
+            result: result,
+            onOpen: () => _openPublicResult(result),
+          ),
         ),
     ];
   }
@@ -656,210 +662,18 @@ class _FootballFeed extends StatelessWidget {
                 message: l10n.latestResultsEmpty,
               )
             else
-              _ResultsList(results: results, onOpen: onOpen),
+              ResultsList<CompletedMatch>(
+                results: results,
+                identityOf: (match) => match.matchId,
+                toggleKey: const Key('discoverPreviousResultsToggle'),
+                itemBuilder: (context, match) => FootballResultCard(
+                  match: match,
+                  onOpen: () => onOpen(match),
+                ),
+              ),
           ],
         );
       },
-    );
-  }
-}
-
-/// The results themselves: the newest one, and the rest behind a disclosure.
-///
-/// **Only the newest is shown at first.** Five results is a wall of scores
-/// under a section a reader came to for "what has just been played"; the one
-/// that just happened is the answer, and the four before it are context they
-/// can ask for. Asking is one tap and costs nothing — the whole list is already
-/// in memory, fetched by the read this widget was handed.
-///
-/// Stateful for that reason and no other: the flag lives here because it
-/// describes this widget on this screen. Nothing about it is worth a repository
-/// call, a route argument or app-level state, and it deliberately does not
-/// survive leaving Discover.
-class _ResultsList extends StatefulWidget {
-  const _ResultsList({required this.results, required this.onOpen});
-
-  /// Newest first, exactly as the repository returned them. Never re-ordered
-  /// here.
-  final List<CompletedMatch> results;
-  final void Function(CompletedMatch) onOpen;
-
-  @override
-  State<_ResultsList> createState() => _ResultsListState();
-}
-
-class _ResultsListState extends State<_ResultsList> {
-  bool _expanded = false;
-
-  @override
-  void didUpdateWidget(covariant _ResultsList oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // A pull-to-refresh can replace the feed under an expansion that described
-    // the previous one. Collapsing is the honest reset: "four more" that now
-    // means a different four would be a presentation of something the reader
-    // never asked to see.
-    if (_expanded && _feedChanged(oldWidget.results, widget.results)) {
-      _expanded = false;
-    }
-  }
-
-  /// Whether these are still the same results, in the same order.
-  ///
-  /// The feed's identity is its ordered sequence of match ids, and the whole
-  /// sequence has to be compared. Checking only the length and the newest id
-  /// missed the case that matters most: a refresh that replaces one of the
-  /// *hidden* results leaves both of those unchanged, so an expansion opened
-  /// over `[m1, m2, m3, m4, m5]` would stay open over `[m1, m8, m3, m4, m5]` —
-  /// still showing four previous results, but not the four it was opened for.
-  ///
-  /// Ids only. A score corrected or an MVP renamed on the same matches, in the
-  /// same order, is the same feed better described — collapsing there would
-  /// close the list under a reader for no reason they could see.
-  ///
-  /// **On this screen it is defence rather than the acting rule.** Discover's
-  /// refresh is `setState(_load)`, which puts the page back through `loading`,
-  /// and the `AnimatedSwitcher` above keys its subtree on that state — so the
-  /// whole section is disposed and rebuilt, and this widget's state goes with
-  /// it, before `didUpdateWidget` could be consulted. The expansion is
-  /// therefore already reset by a refresh whatever this returns.
-  ///
-  /// It is kept because it is what makes *this widget* correct on its own: a
-  /// caller that updates it in place — a parent that keeps the subtree alive,
-  /// or any future reuse of it — gets the right answer without having to know
-  /// about the switcher above.
-  static bool _feedChanged(
-    List<CompletedMatch> before,
-    List<CompletedMatch> now,
-  ) {
-    if (before.length != now.length) return true;
-    for (var i = 0; i < now.length; i++) {
-      if (now[i].matchId != before[i].matchId) return true;
-    }
-    return false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final results = widget.results;
-    // Everything behind the newest. Zero when there is only one result, and
-    // then there is no control at all — a disclosure that reveals nothing is
-    // noise.
-    final hidden = results.length - 1;
-    final visible = _expanded ? results : results.take(1);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final match in visible)
-          FootballResultCard(
-            match: match,
-            onOpen: () => widget.onOpen(match),
-          ),
-        if (hidden > 0)
-          Padding(
-            padding:
-                const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.sm),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                key: const Key('discoverPreviousResultsToggle'),
-                // Local state only: no read, no reload, no repository. The
-                // matches are the ones already handed to this widget.
-                onPressed: () => setState(() => _expanded = !_expanded),
-                icon: Icon(
-                  _expanded ? Icons.expand_less : Icons.expand_more,
-                  size: IconSize.action,
-                ),
-                label: Text(
-                  _expanded
-                      ? l10n.hidePreviousResults
-                      : l10n.showPreviousResults(hidden),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// The public results themselves: the newest, and the rest behind a disclosure.
-///
-/// The same shape the signed-in feed uses, over the public rows — one result is
-/// the answer to "what has just been played" and the four before it are context
-/// a reader can ask for. The expansion is local state and nothing else: the
-/// whole list is already in memory, fetched with the overview.
-class _PublicResultsList extends StatefulWidget {
-  const _PublicResultsList({required this.results, required this.onOpen});
-
-  /// Newest first, exactly as the repository returned them. Never re-ordered
-  /// here.
-  final List<PublicResult> results;
-  final void Function(PublicResult) onOpen;
-
-  @override
-  State<_PublicResultsList> createState() => _PublicResultsListState();
-}
-
-class _PublicResultsListState extends State<_PublicResultsList> {
-  bool _expanded = false;
-
-  @override
-  void didUpdateWidget(covariant _PublicResultsList oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // A refresh that replaced the feed did not expand it: "four more" that now
-    // means a different four would be showing something nobody asked for.
-    final before = oldWidget.results.map((r) => r.matchId).toList();
-    final now = widget.results.map((r) => r.matchId).toList();
-    if (_expanded && !_sameFeed(before, now)) _expanded = false;
-  }
-
-  static bool _sameFeed(List<String> before, List<String> now) {
-    if (before.length != now.length) return false;
-    for (var i = 0; i < now.length; i++) {
-      if (now[i] != before[i]) return false;
-    }
-    return true;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final results = widget.results;
-    final hidden = results.length - 1;
-    final visible = _expanded ? results : results.take(1);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final result in visible)
-          PublicResultCard(
-            result: result,
-            onOpen: () => widget.onOpen(result),
-          ),
-        if (hidden > 0)
-          Padding(
-            padding:
-                const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.sm),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                key: const Key('discoverPublicPreviousResultsToggle'),
-                onPressed: () => setState(() => _expanded = !_expanded),
-                icon: Icon(
-                  _expanded ? Icons.expand_less : Icons.expand_more,
-                  size: IconSize.action,
-                ),
-                label: Text(
-                  _expanded
-                      ? l10n.hidePreviousResults
-                      : l10n.showPreviousResults(hidden),
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

@@ -232,11 +232,9 @@ void main() {
         ],
       );
 
-      // Only the newest is shown until the reader asks for the rest (Cycle
-      // B2); the order under that disclosure is what this test owns.
-      await tester.tap(find.byKey(const Key('discoverPreviousResultsToggle')));
-      await tester.pumpAndSettle();
-
+      // Two results are both inside the approved three, so there is nothing
+      // to open; the order they are drawn in is what this test owns.
+      //
       // The repository preserves the order the read model returns, which is
       // most recent first; the screen must not re-sort it.
       expect(tester.getTopLeft(find.text('Newer')).dy,
@@ -1211,34 +1209,36 @@ void main() {
       expect(toggle(), findsNothing);
     });
 
-    testWidgets('two results show the newest and offer the other',
-        (tester) async {
+    testWidgets('two results are both shown, with no control', (tester) async {
+      // The approved section is the newest three. Two is the whole of it, and
+      // a disclosure over nothing is noise.
       await pumpDiscover(tester, signedIn: true, results: feed(2));
 
       expect(find.text('Result 1'), findsOneWidget);
-      expect(find.text('Result 2'), findsNothing);
-      expect(find.text('Show previous results (1)'), findsOneWidget);
-
-      await tester.tap(toggle());
-      await tester.pumpAndSettle();
       expect(find.text('Result 2'), findsOneWidget);
-      expect(find.text('Hide previous results'), findsOneWidget);
-
-      await tester.tap(toggle());
-      await tester.pumpAndSettle();
-      expect(find.text('Result 2'), findsNothing);
-      expect(find.text('Show previous results (1)'), findsOneWidget);
+      expect(toggle(), findsNothing);
     });
 
-    testWidgets('five results count the four behind the newest',
+    testWidgets('three results are the whole section', (tester) async {
+      await pumpDiscover(tester, signedIn: true, results: feed(3));
+
+      for (final shown in ['Result 1', 'Result 2', 'Result 3']) {
+        expect(find.text(shown), findsOneWidget);
+      }
+      expect(toggle(), findsNothing);
+    });
+
+    testWidgets('five results show three and offer all of them',
         (tester) async {
       await pumpDiscover(tester, signedIn: true, results: feed(5));
 
-      expect(find.text('Result 1'), findsOneWidget);
-      for (final hidden in ['Result 2', 'Result 3', 'Result 4', 'Result 5']) {
+      for (final shown in ['Result 1', 'Result 2', 'Result 3']) {
+        expect(find.text(shown), findsOneWidget);
+      }
+      for (final hidden in ['Result 4', 'Result 5']) {
         expect(find.text(hidden), findsNothing);
       }
-      expect(find.text('Show previous results (4)'), findsOneWidget);
+      expect(find.text('View all results'), findsOneWidget);
 
       await tester.tap(toggle());
       await tester.pumpAndSettle();
@@ -1255,6 +1255,7 @@ void main() {
       await tester.tap(toggle());
       await tester.pumpAndSettle();
       expect(find.text('Result 1'), findsOneWidget);
+      expect(find.text('Result 3'), findsOneWidget);
       expect(find.text('Result 5'), findsNothing);
     });
 
@@ -1284,7 +1285,7 @@ void main() {
       // cannot see.
       //
       // Note what this does and does not prove. On this screen the expansion is
-      // reset twice over: `_ResultsList.didUpdateWidget` compares the ordered
+      // reset twice over: `ResultsList.didUpdateWidget` compares the ordered
       // ids, and the screen's own `AnimatedSwitcher` keys on load state, so a
       // refresh passes through `loading` and disposes the subtree before that
       // comparison is ever consulted. What is pinned here is the behaviour the
@@ -1297,16 +1298,17 @@ void main() {
 
       await tester.tap(toggle());
       await tester.pumpAndSettle();
-      expect(find.text('Result 2'), findsOneWidget);
-      expect(find.text('Hide previous results'), findsOneWidget);
+      expect(find.text('Result 5'), findsOneWidget);
+      expect(find.text('Show fewer'), findsOneWidget);
 
-      // Same length, same newest match, one hidden result replaced.
+      // Same length, same newest match, one *hidden* result replaced -- the
+      // case a length-and-newest comparison cannot see.
       ports.football.results = [
         completed('p1', title: 'Result 1', start: DateTime(2026, 8, 29)),
-        completed('p8', title: 'Result 8', start: DateTime(2026, 8, 24)),
+        completed('p2', title: 'Result 2', start: DateTime(2026, 8, 28)),
         completed('p3', title: 'Result 3', start: DateTime(2026, 8, 27)),
         completed('p4', title: 'Result 4', start: DateTime(2026, 8, 26)),
-        completed('p5', title: 'Result 5', start: DateTime(2026, 8, 25)),
+        completed('p8', title: 'Result 8', start: DateTime(2026, 8, 24)),
       ];
 
       await pullToRefresh(tester);
@@ -1314,9 +1316,9 @@ void main() {
       // Collapsed again, and honest about what is behind the control.
       expect(find.text('Result 1'), findsOneWidget);
       expect(find.text('Result 8'), findsNothing);
-      expect(find.text('Result 2'), findsNothing);
-      expect(find.text('Show previous results (4)'), findsOneWidget);
-      expect(find.text('Hide previous results'), findsNothing);
+      expect(find.text('Result 5'), findsNothing);
+      expect(find.text('View all results'), findsOneWidget);
+      expect(find.text('Show fewer'), findsNothing);
     });
 
     testWidgets('a refresh is one read, and toggling is still none',
@@ -1372,16 +1374,18 @@ void main() {
       await pumpDiscover(
         tester,
         signedIn: true,
-        results: feed(3),
+        results: feed(5),
         joined: const ['c1'],
         observers: [observer],
       );
 
+      // Behind the control until it is opened, and a real card once it is.
+      expect(find.text('Result 4'), findsNothing);
       await tester.tap(toggle());
       await tester.pumpAndSettle();
       observer.pushes.clear();
 
-      await tester.tap(find.text('Result 3'));
+      await tester.tap(find.text('Result 4'));
       await tester.pumpAndSettle();
 
       expect(observer.pushes, isNotEmpty);

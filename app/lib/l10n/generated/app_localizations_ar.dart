@@ -1436,6 +1436,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get hidePreviousResults => 'إخفاء النتائج السابقة';
 
   @override
+  String get viewAllResults => 'عرض كل النتائج';
+
+  @override
+  String get showFewerResults => 'عرض أقل';
+
+  @override
   String get shareCardStatGoals => 'الأهداف';
 
   @override

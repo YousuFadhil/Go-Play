@@ -2564,6 +2564,18 @@ abstract class AppLocalizations {
   /// **'Hide previous results'**
   String get hidePreviousResults;
 
+  /// No description provided for @viewAllResults.
+  ///
+  /// In en, this message translates to:
+  /// **'View all results'**
+  String get viewAllResults;
+
+  /// No description provided for @showFewerResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Show fewer'**
+  String get showFewerResults;
+
   /// No description provided for @shareCardStatGoals.
   ///
   /// In en, this message translates to:

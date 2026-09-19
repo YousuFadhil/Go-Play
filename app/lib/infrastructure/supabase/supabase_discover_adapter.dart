@@ -76,7 +76,7 @@ class SupabaseDiscoverAdapter implements DiscoverAdapter {
 
           return [
             for (final row in rows.cast<Map<String, dynamic>>())
-              publicResultFromRow(row),
+              publicResultFromRow(row, avatarUrl: _avatar),
           ];
         },
         operation: 'rpc public_recent_results',
