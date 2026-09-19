@@ -138,6 +138,38 @@ void main() {
           statements, contains('before update on public.user_rating_archive'));
     });
 
+    test('and nothing may remove one either', () {
+      // A row changed in place and a row that is gone are the same failure:
+      // the rebase silently stops being reversible. Both archives refuse the
+      // deletion, and the two refusals are told apart by their error.
+      expect(statements, contains('RATING_ARCHIVE_UNDELETABLE'));
+      expect(statements,
+          contains('before delete on public.rating_history_archive'));
+      expect(
+          statements, contains('before delete on public.user_rating_archive'));
+      expect(statements,
+          contains('create or replace function public.reject_rating_archive_delete()'));
+    });
+
+    test('and the rollback only ever reads the archive', () {
+      // Which is why refusing the delete costs it nothing: restoring is a
+      // read of the archive and a write of the operational tables.
+      expect(rollbackStatements, isNot(contains('delete from rating_history_archive')));
+      expect(rollbackStatements, isNot(contains('delete from user_rating_archive')));
+      expect(rollbackStatements, isNot(contains('update rating_history_archive')));
+      expect(rollbackStatements, isNot(contains('update user_rating_archive')));
+      // And no new grant was handed out to make any of that reachable.
+      expect(statements, isNot(contains('grant all')));
+      for (final table in [
+        'rating_rebase_runs',
+        'rating_history_archive',
+        'user_rating_archive',
+      ]) {
+        expect(statements, isNot(contains('grant select on public.$table')),
+            reason: table);
+      }
+    });
+
     test('and no client can read any of it', () {
       for (final table in [
         'rating_rebase_runs',
@@ -181,6 +213,8 @@ void main() {
         'rebuilt_history_rows',
         'completed_at',
         'rolled_back_at',
+        'rolled_back_partial_at',
+        'rollback_skipped_rows',
       ]) {
         expect(statements, contains(column), reason: column);
       }
@@ -256,7 +290,7 @@ void main() {
       expect(executed, isNot(contains('delete from user_rating_archive')));
     });
 
-    test('and it counts what it could not restore rather than failing', () {
+    test('and it still knows which rows it could not restore', () {
       // A user or a match deleted after the rebase cannot have history
       // restored against it -- `rating_history` has foreign keys to both.
       expect(rollbackStatements, contains('skipped_history_rows'));
@@ -383,4 +417,152 @@ void main() {
       expect(reversal, isNot(contains('rating_history_archive')));
     });
   });
+
+  group('the rebase does not race a writer', () {
+    test('it locks the whole evidence set, and locks it first', () {
+      final lock = statements.indexOf('lock table');
+      final guard = statements.indexOf("raise exception 'REBASE_ALREADY_COMPLETED'");
+      final archive = statements.indexOf('insert into rating_history_archive');
+
+      expect(lock, isNot(-1));
+      // Before the first guard, and so before the first row of evidence is
+      // read: an archive taken under a moving result set would describe a
+      // history that never existed.
+      expect(lock, lessThan(guard));
+      expect(lock, lessThan(archive));
+
+      for (final table in [
+        'public.match_goals',
+        'public.match_results',
+        'public.match_team_assignments',
+        'public.matches',
+        'public.rating_history',
+        'public.users',
+      ]) {
+        expect(statements.substring(lock, archive), contains(table),
+            reason: table);
+      }
+    });
+
+    test('in the narrowest mode that stops a writer', () {
+      // `share row exclusive` conflicts with `row exclusive` -- what every
+      // insert, update and delete takes -- and with nothing a reader takes.
+      expect(statements, contains('in share row exclusive mode'));
+      // The two modes that would also block reading the app's own pages.
+      expect(statements, isNot(contains('in access exclusive mode')));
+      expect(statements, isNot(contains('in exclusive mode')));
+      expect(statements, isNot(contains('lock table public.rating_history in')));
+    });
+
+    test('and it never waits unboundedly for them', () {
+      expect(statements, contains("set local lock_timeout = '15s'"));
+      // Set before the lock is asked for, or it bounds nothing.
+      expect(statements.indexOf('set local lock_timeout'),
+          lessThan(statements.indexOf('lock table')));
+    });
+
+    test('the rollback takes the same locks the same way', () {
+      // It rewrites the same tables, so it carries the same hazard.
+      expect(rollbackStatements, contains("set local lock_timeout = '15s'"));
+      expect(rollbackStatements, contains('in share row exclusive mode'));
+      expect(rollbackStatements.indexOf('lock table'),
+          lessThan(rollbackStatements.indexOf('delete from rating_history;')));
+    });
+
+    test('and both take them in one order, so they cannot deadlock', () {
+      String order(String text) {
+        final start = text.indexOf('lock table');
+        final end = text.indexOf('in share row exclusive mode', start);
+        return text.substring(start, end);
+      }
+
+      // Alphabetical, and identical in both files.
+      expect(order(statements), order(rollbackStatements));
+      final names = RegExp(r'public\.(\w+)')
+          .allMatches(order(statements))
+          .map((m) => m.group(1)!)
+          .toList();
+      expect(names, names.toList()..sort());
+    });
+  });
+
+  group('the rollback restores everything, or nothing', () {
+    test('an unrestorable row refuses the ordinary rollback', () {
+      expect(rollbackStatements,
+          contains("raise exception 'REBASE_ROLLBACK_INCOMPLETE'"));
+    });
+
+    test('and it refuses before it has written anything', () {
+      // The whole point: a refusal leaves the rebased state intact rather than
+      // half of each.
+      final counted =
+          rollbackStatements.indexOf('into v_skipped, v_missing_users');
+      final refusal =
+          rollbackStatements.indexOf("raise exception 'REBASE_ROLLBACK_INCOMPLETE'");
+      final firstWrite = rollbackStatements.indexOf('delete from rating_history;');
+
+      expect(counted, isNot(-1));
+      expect(counted, lessThan(refusal));
+      expect(refusal, lessThan(firstWrite));
+    });
+
+    test('partial recovery is opt-in, never the default', () {
+      expect(rollbackStatements, contains('p_allow_partial boolean default false'));
+      expect(rollbackStatements, contains('if v_partial and not p_allow_partial then'));
+      // Every grant and revoke moved to the new signature with it.
+      expect(rollbackStatements,
+          contains('public.rollback_rating_rebase(text, boolean)'));
+      expect(rollbackStatements,
+          isNot(contains('public.rollback_rating_rebase(text)')));
+    });
+
+    test('and a partial recovery is never recorded as a rollback', () {
+      // `rolled_back_at` is what every other reader trusts -- including the
+      // rebase's own one-time guard. A partial restoration gets its own
+      // column, so nothing downstream can mistake the two.
+      expect(rollbackStatements, contains('set rolled_back_partial_at = now()'));
+      expect(rollbackStatements, contains('set rolled_back_at = now()'));
+      expect(
+        rollbackStatements.indexOf('set rolled_back_partial_at = now()'),
+        lessThan(rollbackStatements.indexOf('set rolled_back_at = now()')),
+        reason: 'the partial branch is the `if`, the complete one the `else`',
+      );
+      // And a run already undone either way cannot be undone again.
+      expect(rollbackStatements,
+          contains('v_run.rolled_back_partial_at is not null'));
+    });
+
+    test('the counts it reports name every kind of loss', () {
+      for (final column in [
+        'skipped_history_rows',
+        'skipped_user_rows',
+        'missing_users',
+        'missing_matches',
+        'partial boolean',
+      ]) {
+        expect(rollbackStatements, contains(column), reason: column);
+      }
+    });
+
+    test('and the refusals that were already there still are', () {
+      for (final refusal in [
+        'REBASE_NOT_FOUND',
+        'REBASE_NOT_COMPLETED',
+        'REBASE_ALREADY_ROLLED_BACK',
+        'REBASE_ARCHIVE_MISSING',
+      ]) {
+        expect(rollbackStatements, contains("raise exception '$refusal'"),
+            reason: refusal);
+      }
+      for (final refusal in [
+        'REBASE_ALREADY_COMPLETED',
+        'REBASE_IN_PROGRESS',
+        'REBASE_ARCHIVE_ALREADY_PRESENT',
+      ]) {
+        expect(statements, contains("raise exception '$refusal'"),
+            reason: refusal);
+      }
+    });
+  });
+
 }

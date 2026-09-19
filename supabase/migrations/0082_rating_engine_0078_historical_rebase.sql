@@ -41,7 +41,16 @@
 -- `supabase/rollback/0082_rating_engine_0078_historical_rebase_rollback.sql`
 -- restores the archived history row for row -- ids, entry numbers, deltas and
 -- `reverses_id` links -- and the archived rating of every user. The archive is
--- never dropped by a rollback; it is the evidence the rollback is made of.
+-- never dropped by a rollback; it is the evidence the rollback is made of. It
+-- refuses by default unless every archived row can be restored, so a partial
+-- restoration is never mistaken for a completed one.
+--
+-- ## WHAT MAKES IT SAFE TO RUN ON A LIVE DATABASE
+--
+-- The rebase takes a transaction-level lock on every table its evidence is read
+-- from before it reads any of it, so no result can be recorded, corrected or
+-- purged while the replay is in flight. Reads are unaffected: the app keeps
+-- serving throughout. See section 3.
 --
 -- Append-only. Nothing in `0022`-`0081` is edited.
 
@@ -61,7 +70,12 @@ create table if not exists public.rating_rebase_runs (
   archived_history_rows int not null default 0,
   archived_user_rows int not null default 0,
   replayed_matches int not null default 0,
-  rebuilt_history_rows int not null default 0
+  rebuilt_history_rows int not null default 0,
+  -- A rollback that could not restore everything is not a rollback, and is
+  -- recorded here rather than in `rolled_back_at` -- so a run never claims to
+  -- have been undone while part of its evidence is still missing.
+  rolled_back_partial_at timestamptz,
+  rollback_skipped_rows int not null default 0
 );
 
 comment on table public.rating_rebase_runs is
@@ -127,15 +141,31 @@ comment on table public.user_rating_archive is
 alter table public.user_rating_archive enable row level security;
 revoke all on public.user_rating_archive from anon, authenticated, public;
 
--- Nothing may edit archived evidence. Deletion is left possible so that an
--- archive can be retired deliberately once a rebase is accepted; changing a
--- row in place is what must never happen.
+-- **Nothing may edit or remove archived evidence.** The archive is the only
+-- thing a rollback can be made of, so a row changed in place and a row that is
+-- gone are the same failure: the rebase quietly becomes irreversible. Both are
+-- refused at the database, for every caller including `service_role`, and the
+-- two refusals carry different errors so an operator knows which was attempted.
+--
+-- This does not seal an archive forever. Retiring one is a deliberate act that
+-- drops its guard first -- see the foot of the rollback file -- which is the
+-- property wanted: removing evidence has to be something somebody decided to
+-- do, never something a stray statement did.
 create or replace function public.reject_rating_archive_update()
 returns trigger
 language plpgsql
 as $$
 begin
   raise exception 'RATING_ARCHIVE_IMMUTABLE';
+end;
+$$;
+
+create or replace function public.reject_rating_archive_delete()
+returns trigger
+language plpgsql
+as $$
+begin
+  raise exception 'RATING_ARCHIVE_UNDELETABLE';
 end;
 $$;
 
@@ -146,12 +176,26 @@ create trigger rating_history_archive_immutable
   for each row
   execute function public.reject_rating_archive_update();
 
+drop trigger if exists rating_history_archive_undeletable
+  on public.rating_history_archive;
+create trigger rating_history_archive_undeletable
+  before delete on public.rating_history_archive
+  for each row
+  execute function public.reject_rating_archive_delete();
+
 drop trigger if exists user_rating_archive_immutable
   on public.user_rating_archive;
 create trigger user_rating_archive_immutable
   before update on public.user_rating_archive
   for each row
   execute function public.reject_rating_archive_update();
+
+drop trigger if exists user_rating_archive_undeletable
+  on public.user_rating_archive;
+create trigger user_rating_archive_undeletable
+  before delete on public.user_rating_archive
+  for each row
+  execute function public.reject_rating_archive_delete();
 
 -- ============================================================================
 -- 3) The rebase itself
@@ -188,6 +232,41 @@ declare
   v_replayed int := 0;
   v_rebuilt int;
 begin
+  -- **Nothing may write the evidence while it is being replayed.** The rebase
+  -- reads every recorded result and rebuilds every rating from it; a result
+  -- recorded, corrected or purged in the middle of that would be counted twice
+  -- or not at all, and the archive taken at the start would no longer describe
+  -- the history a rollback puts back. So the whole evidence set is locked for
+  -- the transaction, before a single archive row is read.
+  --
+  -- `share row exclusive` is the narrowest mode that does it: it conflicts with
+  -- `row exclusive`, which every `insert`, `update` and `delete` takes, and
+  -- with nothing a reader takes. **The app keeps reading throughout** --
+  -- profiles, statistics and public results are all served while this runs.
+  --
+  -- The order is alphabetical and fixed. Anything else that ever needs several
+  -- of these tables should take them the same way; two transactions taking the
+  -- same tables in the same order cannot deadlock over them.
+  --
+  -- And the wait is bounded. A rebase is a planned act performed on a quiet
+  -- database: if it cannot have the tables in fifteen seconds, football is
+  -- being written right now and the honest outcome is to fail. The timeout
+  -- raises `lock_not_available`, which aborts the transaction -- so a refused
+  -- lock leaves the ratings, the history and the archive exactly as they were.
+  -- (`set local` is reverted when the function returns, because the function
+  -- carries a `set` clause of its own; the locks it took are not, and are held
+  -- to the end of the transaction, which is the part that matters.)
+  set local lock_timeout = '15s';
+
+  lock table
+    public.match_goals,
+    public.match_results,
+    public.match_team_assignments,
+    public.matches,
+    public.rating_history,
+    public.users
+    in share row exclusive mode;
+
   -- **One-time, provably.** A completed run under this version means the
   -- operational history is already the rebuilt one; archiving it again would
   -- record a rebased history as though it were the legacy evidence, and that
@@ -278,8 +357,10 @@ comment on function public.rebase_ratings_to_0078(text) is
   'every Global Rating, clears the operational history, resets every rating to '
   '5.000 and replays every recorded result oldest first through '
   'apply_match_rating_effects -- migration 0078 itself, not a copy of it. '
-  'Refuses to run twice. service_role only; no client may call it -- see '
-  'migration 0082.';
+  'Locks the whole evidence set against writers for the transaction before it '
+  'reads any of it, with a bounded lock_timeout, and leaves every reader '
+  'unblocked. Refuses to run twice. service_role only; no client may call it '
+  '-- see migration 0082.';
 
 revoke execute on function public.rebase_ratings_to_0078(text)
   from anon, authenticated, public;
