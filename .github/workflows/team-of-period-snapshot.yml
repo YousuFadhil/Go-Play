@@ -5,7 +5,8 @@
 # Product Owner has not approved putting a scheduler on `main`.
 #
 # When to dispatch (Asia/Muscat, approved timing):
-#   weekly  -- just after Sunday closes, around Monday 00:05
+#   weekly  -- just after Saturday ends, around Sunday 00:05
+#              (the award week is Sunday to Saturday -- see DD-19)
 #   monthly -- just after the month closes, around the 1st 00:05
 # The job always stores the LAST CLOSED period, so dispatching late is fine and
 # dispatching twice is harmless: a stored period answers SNAPSHOT_ALREADY_FINAL,

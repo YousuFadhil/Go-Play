@@ -10,8 +10,10 @@
 // making it explicit is the one safety this script can add on top of the
 // database's own (service-role only, closed period only, final once written).
 //
-// Timing (approved): weekly just after Sunday closes, ~Monday 00:05
-// Asia/Muscat; monthly ~1st 00:05. Run manually during Package 5 validation.
+// Timing (approved, `DD-19`): the Team of Period week runs Sunday to
+// Saturday, so it closes when Sunday begins -- weekly just after Saturday
+// ends, ~Sunday 00:05 Asia/Muscat; monthly ~1st 00:05. Run manually during
+// Package 5 validation.
 // It always stores the *last closed* period, so an early or repeated run is
 // harmless: a period already stored answers SNAPSHOT_ALREADY_FINAL.
 import 'dart:convert';
