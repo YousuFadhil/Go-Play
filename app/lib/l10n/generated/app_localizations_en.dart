@@ -1452,6 +1452,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hidePreviousResults => 'Hide previous results';
 
   @override
+  String get viewAllResults => 'View all results';
+
+  @override
+  String get showFewerResults => 'Show fewer';
+
+  @override
   String get shareCardStatGoals => 'Goals';
 
   @override

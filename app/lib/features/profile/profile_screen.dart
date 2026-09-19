@@ -480,6 +480,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                     ],
                   ),
+                  // **The face, and nothing else.** The approved Package 5
+                  // composition opens on the ground with the player on it and
+                  // hands the reader over to the white sheet for who they
+                  // are: the name and the positions used to sit on the green
+                  // with the avatar, which put three levels of identity in
+                  // the hero and left the sheet starting on a grid of
+                  // figures.
                   identity: _HeroIdentity(
                     view: view,
                     onEdit: _isOwnProfile ? _openEdit : null,
@@ -499,6 +506,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Layout.listBottom,
                       ),
                       children: [
+                        // Who the player is, where the approved reference
+                        // puts it: the first thing on the white sheet, under
+                        // the face on the ground above it.
+                        _SheetIdentity(view: view),
                         _CareerGrid(statistics: view.statistics),
                         // **No explanatory footnote under the figures, and
                         // none at the foot of the page.** The approved
@@ -713,34 +724,59 @@ class _HeroIdentity extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: Gap.md),
-        // Two lines at most and then ellipsized: a long name shortens rather
-        // than pushing the chips off the hero.
-        Text(
-          view.fullName,
-          maxLines: 2,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 22,
-            height: 1.2,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: Gap.md),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: Gap.sm,
-          runSpacing: Gap.sm - 2,
-          children: [
-            _PositionChip(position: view.primaryPosition),
-            if (view.secondaryPosition != null)
-              _PositionChip(position: view.secondaryPosition!),
-          ],
-        ),
+        const SizedBox(height: Gap.sm),
       ],
+    );
+  }
+}
+
+/// Who the player is, on the white sheet the hero hands over to.
+///
+/// **The identity transition the approved reference specifies.** The ground
+/// carries the face; the sheet opens with the name under it and the positions
+/// under that, and only then does the record start. Centred, because the face
+/// above it is, and because a name centred under a portrait is what the
+/// reference draws.
+class _SheetIdentity extends StatelessWidget {
+  const _SheetIdentity({required this.view});
+
+  final _ProfileView view;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Two lines at most and then ellipsized: a long Arabic or English
+          // name shortens rather than pushing the chips off the page.
+          Text(
+            view.fullName,
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 22,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.6,
+              color: GoColors.onSurface,
+            ),
+          ),
+          const SizedBox(height: Gap.md),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: Gap.sm,
+            runSpacing: Gap.sm - 2,
+            children: [
+              _PositionChip(position: view.primaryPosition),
+              if (view.secondaryPosition != null)
+                _PositionChip(position: view.secondaryPosition!),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -762,7 +798,11 @@ class _PositionChip extends StatelessWidget {
       );
 }
 
-/// A white pill on the hero: the chips sit on the green and read off it.
+/// A tinted pill on the sheet: the chips sit on white and read off it.
+///
+/// It was a white pill when the positions were on the green hero. On the
+/// sheet white on white is not a chip, so it takes the same light tint every
+/// other inert marker in the product uses.
 class _HeroChip extends StatelessWidget {
   const _HeroChip({required this.label, this.code});
 
@@ -780,7 +820,7 @@ class _HeroChip extends StatelessWidget {
           5,
         ),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: GoColors.rowTintLight,
           borderRadius: BorderRadius.circular(Radii.pill),
         ),
         child: Row(
@@ -790,7 +830,7 @@ class _HeroChip extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
-                  color: GoColors.rowTintLight,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(Radii.pill),
                 ),
                 child: Text(

@@ -339,9 +339,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(PublicCommunityScreen), findsOneWidget);
-      // What it shows is the community and what it has scheduled.
+      // What it shows is the community and what it has scheduled -- now on the
+      // same Club hero a member's view of the identical community opens with,
+      // so the figures are a value and a label rather than one sentence.
       expect(find.text('Muscat United'), findsWidgets);
-      expect(find.text('12 members'), findsOneWidget);
+      expect(find.byType(ClubHero), findsOneWidget);
+      expect(find.byType(ClubSheet), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ClubHero),
+          matching: find.text('12'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Friday night five-a-side'), findsOneWidget);
     });
 

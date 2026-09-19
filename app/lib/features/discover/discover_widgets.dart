@@ -8,7 +8,7 @@ import '../../core/tokens.dart';
 import '../matches/compact_match_card.dart';
 import '../profile/current_user.dart';
 import '../profile/profile_models.dart';
-import '../results/score_pair.dart';
+import '../results/result_card.dart';
 import 'discover_models.dart';
 import 'discover_repository.dart';
 
@@ -1145,12 +1145,18 @@ class DiscoverEmpty extends StatelessWidget {
 
 /// One completed result, as a visitor sees it.
 ///
-/// **The public counterpart of the football feed's card**, drawn in the same
-/// language and from the narrow public contract (`public_recent_results`,
-/// migration `0081`): whose community, which match, when, the score with each
-/// number bound to its team, and the best player's name where the result named
-/// one. No roster, no places, nothing a guest is not already allowed to open by
-/// id — tapping opens exactly that page.
+/// **This is now an adapter and not a composition.** It draws [ResultCard] —
+/// the one card this product draws a played match with — from the narrow public
+/// contract (`public_recent_results`, migration `0081`): whose community, which
+/// match, when, the score with each number bound to its team, and the best
+/// player where the result named one. The authenticated feed adapts its own
+/// read into the same card, which is what stopped a visitor and a member seeing
+/// the same football in two different shapes.
+///
+/// The contracts stay apart. [PublicResult] is the public read and is not
+/// mentioned inside [ResultCard]; nothing here reaches for an authenticated
+/// field. No roster, no places, nothing a guest is not already allowed to open
+/// by id — tapping opens exactly that page.
 class PublicResultCard extends StatelessWidget {
   const PublicResultCard({
     super.key,
@@ -1165,88 +1171,77 @@ class PublicResultCard extends StatelessWidget {
   /// False on a community's own page, where the name is already at the top.
   final bool showCommunityName;
 
+  /// The public result, as the shared card takes it.
+  ///
+  /// The contract publishes the community's picture and the best player's, so
+  /// both are drawn; it publishes no finish time, so the date line is the day
+  /// rather than a range invented from one end of it. A result with no title of
+  /// its own falls back to the community's name, which is what the reader would
+  /// otherwise be left without.
+  ResultCardData get data => ResultCardData(
+        title: result.title?.trim().isNotEmpty ?? false
+            ? result.title!
+            : result.communityName,
+        communityName: result.communityName,
+        communityLogoUrl: result.communityLogoUrl,
+        startAt: result.startAt,
+        teamAScore: result.teamAScore,
+        teamBScore: result.teamBScore,
+        mvpName: result.mvpDisplayName,
+        mvpAvatarUrl: result.mvpAvatarUrl,
+      );
+
+  @override
+  Widget build(BuildContext context) => ResultCard(
+        data: data,
+        onOpen: onOpen,
+        showCommunityName: showCommunityName,
+      );
+}
+
+/// A community's crest and name, as a hero identity row.
+///
+/// Promoted out of the football community screen when the public one was
+/// recomposed onto the same Club hero: the two pages are the same community
+/// seen by two audiences, and a second copy of this row is exactly how they
+/// would drift apart again.
+class CommunityIdentity extends StatelessWidget {
+  const CommunityIdentity({super.key, required this.community});
+
+  final PublicCommunity community;
+
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final mvp = result.mvpDisplayName;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kPageMargin,
-        vertical: Gap.xs + 2,
-      ),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onOpen,
-          child: Padding(
-            padding: const EdgeInsets.all(Gap.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            result.title ?? result.communityName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoType.cardTitle,
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            showCommunityName
-                                ? '${result.communityName} · '
-                                    '${formatDayShort(context, result.startAt)}'
-                                : formatDayShort(context, result.startAt),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: Gap.md),
-                    ScorePair(
-                      teamAScore: result.teamAScore,
-                      teamBScore: result.teamBScore,
-                    ),
-                  ],
+    return Row(
+      children: [
+        CommunityCrest(name: community.name, logoUrl: community.logoUrl),
+        const SizedBox(width: Gap.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                community.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
-                if (mvp != null && mvp.isNotEmpty) ...[
-                  const SizedBox(height: Gap.md),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.star,
-                        size: IconSize.meta,
-                        color: GoColors.warn,
-                      ),
-                      const SizedBox(width: Gap.sm - 2),
-                      Expanded(
-                        child: Text(
-                          '${l10n.mvpLabel}: $mvp',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: scheme.onSurfaceVariant),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
+              ),
+              if (community.description?.trim().isNotEmpty ?? false)
+                Text(
+                  community.description!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: Colors.white70),
+                ),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
