@@ -695,6 +695,24 @@ void main() {
 
 /// Answers from memory, with no session anywhere in sight.
 class _FakeDiscoverAdapter implements DiscoverAdapter {
+  @override
+  Future<List<PublicResult>> fetchRecentResults({
+    String? communityId,
+    int limit = 5,
+  }) async {
+    recentResultsRequests.add(communityId);
+    return [
+      for (final result in recentResults)
+        if (communityId == null || result.communityId == communityId) result,
+    ].take(limit).toList();
+  }
+
+  /// What the public results contract answers with.
+  List<PublicResult> recentResults = const [];
+
+  /// One entry per read, carrying the community it was scoped to (null for
+  /// Discover's list across every community).
+  final List<String?> recentResultsRequests = [];
   _FakeDiscoverAdapter({
     required this.communities,
     required this.matches,

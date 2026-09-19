@@ -94,6 +94,31 @@ class PlayerPeriodStatistics {
 /// Read from `v_community_members`, which inner-joins the roster to the
 /// profiles — so it is both the ratings and the **eligibility list**: exactly
 /// the people a board may rank, and nobody who has left.
+/// One player's **Community/Period Rating** — the rating scoped to a community
+/// and a statistics period, derived from the results played inside it.
+///
+/// **A different entity from the Global Rating, not a view of it.** It starts
+/// every player at 5.00 inside the scope and moves by migration `0078`'s
+/// values; `users.overall_rating` is neither read nor written to produce it
+/// (migration `0081`). A player with no match in the scope has no row at all,
+/// which is what keeps them off Highest Rated.
+class CommunityScopedRating {
+  const CommunityScopedRating({
+    required this.userId,
+    required this.rating,
+    required this.matchesPlayed,
+  });
+
+  final String userId;
+
+  /// Between 0.000 and 10.000, from a 5.000 baseline.
+  final double rating;
+
+  /// How many matches in this scope produced it. Always at least one — a row
+  /// exists only for a player the scope has football for.
+  final int matchesPlayed;
+}
+
 class CommunityMemberRating {
   const CommunityMemberRating({
     required this.userId,

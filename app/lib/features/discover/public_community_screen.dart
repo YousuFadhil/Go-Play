@@ -8,6 +8,7 @@ import '../auth/auth_prompt.dart';
 import '../auth/auth_service.dart';
 import 'discover_repository.dart';
 import 'discover_widgets.dart';
+import 'public_match_screen.dart';
 
 /// A community, as a visitor sees it before signing in.
 ///
@@ -184,6 +185,35 @@ class _PublicCommunityScreenState extends State<PublicCommunityScreen> {
                       actionLabel: l10n.joinMatchButton,
                       onAction: () =>
                           _promptSignIn(l10n.authRequiredRegisterMatch),
+                    ),
+                // **The football that has already been played.** A community
+                // with nothing scheduled used to leave a visitor with a crest
+                // and an empty list; its results are public, were always
+                // openable by id, and are what the page is about the rest of
+                // the week.
+                DiscoverSectionHeader(
+                  title: l10n.latestResultsTitle,
+                  subtitle: l10n.latestResultsSubtitle,
+                ),
+                if (details.results.isEmpty)
+                  DiscoverEmpty(
+                    icon: Icons.sports_soccer,
+                    message: l10n.latestResultsEmpty,
+                  )
+                else
+                  for (final result in details.results)
+                    PublicResultCard(
+                      result: result,
+                      showCommunityName: false,
+                      onOpen: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PublicMatchScreen(
+                            matchId: result.matchId,
+                            repository: widget.repository,
+                            authService: widget.authService,
+                          ),
+                        ),
+                      ),
                     ),
               ],
             ),

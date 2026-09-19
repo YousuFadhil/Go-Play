@@ -473,6 +473,12 @@ PublicMatch _publicMatch() => PublicMatch(
     );
 
 class _FakeDiscoverAdapter implements DiscoverAdapter {
+  @override
+  Future<List<PublicResult>> fetchRecentResults({
+    String? communityId,
+    int limit = 5,
+  }) async =>
+      const [];
   _FakeDiscoverAdapter({this.match, this.completed, this.failure});
 
   final PublicMatch? match;

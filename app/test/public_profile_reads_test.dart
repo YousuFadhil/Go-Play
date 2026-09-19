@@ -289,6 +289,7 @@ class _PendingRecordAdapter implements PlayerRecordAdapter {
   Future<PublicPlayerRecord?> fetchPublicRecord(
     String userId, {
     int limit = 5,
+    int achievements = 5,
   }) =>
       _completer.future;
 
@@ -297,6 +298,9 @@ class _PendingRecordAdapter implements PlayerRecordAdapter {
       RecentForm.empty;
 
   @override
-  Future<List<RecentHighlight>> fetchRecentHighlights(String userId) async =>
+  Future<List<RecentHighlight>> fetchRecentAchievements(
+    String userId, {
+    int limit = 5,
+  }) async =>
       const [];
 }

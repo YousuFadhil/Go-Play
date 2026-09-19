@@ -57,14 +57,32 @@ RecentForm publicRecentFormFromRows(List<dynamic> rows) {
 /// `public_player_recent_highlight` returned — at most one of each kind.
 ///
 /// **Candidates, not the answer.** Which one a profile shows is
-/// [RecentHighlight.mostRecent]'s decision, and nothing here pre-empts it by
-/// dropping one.
+/// the reader's decision -- `player_recent_highlights` returns candidates and
+/// the caller picks -- and nothing here pre-empts it by dropping one.
 ///
 /// Each row names its own kind, so a kind added to the contract later arrives
 /// named rather than assumed; one this build does not know is skipped, for the
 /// same reason an unknown outcome is no badge. A row with no date is skipped
 /// too: it cannot take part in "the most recent wins", and a rule that cannot
 /// be applied is better answered with no candidate than with an arbitrary one.
+/// The rows `player_recent_achievements` / `public_player_recent_achievements`
+/// returned (migration `0081`), in the order they arrived.
+///
+/// **Nothing is chosen, sorted or filtered here.** The database decided which
+/// achievements are eligible and in what order — latest MVP, then every award
+/// of the last closed week and month — and re-sorting on the client would be a
+/// second opinion about it. A row this build cannot name is skipped, for the
+/// reason an unknown outcome is no badge.
+List<RecentHighlight> achievementsFromRows(List<dynamic> rows) => [
+      for (final row in rows.cast<Map<String, dynamic>>())
+        if (_highlightFromRow({
+          ...row,
+          'highlight_type': row['achievement_type'] ?? row['highlight_type'],
+        })
+            case final achievement?)
+          achievement,
+    ];
+
 List<RecentHighlight> highlightCandidatesFromRows(List<dynamic> rows) => [
       for (final row in rows.cast<Map<String, dynamic>>())
         if (_highlightFromRow(row) case final highlight?) highlight,

@@ -117,13 +117,16 @@ class PlayerProfileShareCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const _Masthead(),
-                const SizedBox(height: 56),
-                // The panel takes the room the card has, and distributes it
-                // between the four blocks inside it. A 9:16 picture whose
-                // content stops halfway down reads as a page that failed to
-                // fill; the approved card is dense from the mark to the foot.
-                Expanded(child: _Panel(data: data)),
-                const SizedBox(height: 48),
+                // **The panel is sized by what the player has, and centred in
+                // what is left.** A card for a player with no achievement and
+                // no form holds two blocks instead of four; stretching those
+                // two over the whole frame put a hand's width of nothing
+                // between them. The room the content does not need is split
+                // above and below it instead, so every card is balanced and
+                // none of them is padded out with something to fill a gap.
+                const Spacer(),
+                _Panel(data: data),
+                const Spacer(),
                 if (data.publicUrl != null) _Address(url: data.publicUrl!),
               ],
             ),
@@ -193,6 +196,9 @@ class _Panel extends StatelessWidget {
 
   final PlayerProfileCardData data;
 
+  /// Between two blocks inside the panel.
+  static const _blockGap = 72.0;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -207,14 +213,22 @@ class _Panel extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        // Spaced rather than stacked: the blocks are the same four whatever a
-        // player has, and the room between them is what the card has left.
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // As tall as its blocks, with one gap between them: the distance
+        // between the identity and the record is the same on every card,
+        // whether or not the player has form and an achievement to follow it.
+        mainAxisSize: MainAxisSize.min,
         children: [
           _Identity(data: data),
+          const SizedBox(height: _blockGap),
           _Record(data: data),
-          if (data.form.isNotEmpty) _FormStrip(form: data.form),
-          if (data.highlight != null) _Highlight(highlight: data.highlight!),
+          if (data.form.isNotEmpty) ...[
+            const SizedBox(height: _blockGap),
+            _FormStrip(form: data.form),
+          ],
+          if (data.highlight != null) ...[
+            const SizedBox(height: _blockGap),
+            _Highlight(highlight: data.highlight!),
+          ],
         ],
       ),
     );

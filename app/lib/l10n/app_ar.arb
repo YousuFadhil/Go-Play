@@ -482,7 +482,7 @@
   "leaderboardMostWins": "الأكثر فوزاً",
   "leaderboardWinsValue": "{count, plural, zero{لا انتصارات} one{انتصار واحد} two{انتصاران} few{{count} انتصارات} many{{count} انتصاراً} other{{count} انتصار}}",
   "leaderboardsEmpty": "لا توجد لوحات صدارة بعد. بمجرّد تسجيل نتيجة مباراة، سيظهر هنا من يتصدّر المجتمع.",
-  "leaderboardRatingNote": "يعتمد ترتيب «الأعلى تقييماً» على التقييم العام للاعب في كل المجتمعات.",
+  "leaderboardRatingNote": "لوحات التقييم ترتّب بتقييم اللاعب داخل هذا المجتمع في الفترة المختارة، بدءاً من 5.00.",
 
   "shareCardTitle": "بطاقة المشاركة",
   "shareCardShareAction": "مشاركة",
@@ -560,6 +560,7 @@
   "publicMatchGuestPrompt": "سجّل الدخول للانضمام إلى مجتمع واللعب في مباريات مثل هذه.",
 
   "recentHighlightTitle": "أبرز إنجاز",
+  "recentAchievementsTitle": "أبرز الإنجازات",
   "highlightWeekNumber": "الأسبوع {week}",
   "@highlightWeekNumber": {
     "placeholders": { "week": { "type": "int" } }

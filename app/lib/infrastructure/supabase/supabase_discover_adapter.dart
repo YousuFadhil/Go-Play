@@ -58,6 +58,31 @@ class SupabaseDiscoverAdapter implements DiscoverAdapter {
   /// (migration `0079`). No rows means the match is not publicly visible — see
   /// the port.
   @override
+  Future<List<PublicResult>> fetchRecentResults({
+    String? communityId,
+    int limit = 5,
+  }) =>
+      guarded(
+        () async {
+          // Two functions rather than one with a nullable argument: the
+          // community-scoped one is what a community page is allowed to ask,
+          // and keeping them apart is what makes each one's grant reviewable.
+          final rows = await (communityId == null
+              ? _client.rpc('public_recent_results', params: {'p_limit': limit})
+              : _client.rpc(
+                  'public_community_recent_results',
+                  params: {'p_community_id': communityId, 'p_limit': limit},
+                )) as List<dynamic>;
+
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              publicResultFromRow(row),
+          ];
+        },
+        operation: 'rpc public_recent_results',
+      );
+
+  @override
   Future<PublicMatchDetail?> fetchMatchDetail(String matchId) =>
       guarded(() async {
         final rows = await _client.rpc(

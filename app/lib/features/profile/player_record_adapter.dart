@@ -32,12 +32,26 @@ abstract interface class PlayerRecordAdapter {
   ///
   /// Null is an ordinary answer: most players have no MVP, and a profile
   /// without one simply has no highlight from this source.
-  Future<List<RecentHighlight>> fetchRecentHighlights(String userId);
+  /// The achievements a profile shows, newest first, at most [limit].
+  ///
+  /// **The database chooses them, not the client** (`player_recent_achievements`,
+  /// migration `0081`): the player's latest MVP, and every Team of Period award
+  /// they hold for the last *closed* week and the last closed month — one row
+  /// per community they were selected in. An older period is never substituted
+  /// for one they were not selected in, and no selection is recomputed here.
+  Future<List<RecentHighlight>> fetchRecentAchievements(
+    String userId, {
+    int limit = 5,
+  });
 
   /// The same player's record as a visitor with no session sees it.
   ///
   /// What comes back is narrower by construction rather than by this layer
   /// leaving fields out: the public contracts carry no match id, no community
   /// id and no kick-off time, so there is nothing here to withhold.
-  Future<PublicPlayerRecord?> fetchPublicRecord(String userId, {int limit});
+  Future<PublicPlayerRecord?> fetchPublicRecord(
+    String userId, {
+    int limit,
+    int achievements,
+  });
 }

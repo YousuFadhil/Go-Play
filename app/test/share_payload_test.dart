@@ -158,10 +158,11 @@ void main() {
     test('each surface classifies its own card', () {
       // The engine cannot tell a profile from a lineup by looking at the
       // picture, so the kind is carried down from the screen that composed it.
+      // The Player Statistics screen is deliberately absent: a player shares
+      // themselves from their Profile and from nowhere else, so that screen
+      // composes no card and classifies none.
       const sites = {
         'features/profile/profile_screen.dart': 'ShareType.playerProfile',
-        'features/statistics/player_statistics_screen.dart':
-            'ShareType.playerStatistics',
         'features/statistics/community_statistics_tab.dart':
             'ShareType.community',
         'features/statistics/team_of_period_screen.dart': 'ShareType.community',
@@ -174,6 +175,12 @@ void main() {
         expect(source, contains('source: ShareSource.'), reason: path);
         expect(source, contains('message: ShareMessage('), reason: path);
       });
+
+      // One player-share entry point, and this is what keeps it one.
+      final statistics =
+          read('features/statistics/player_statistics_screen.dart');
+      expect(statistics, isNot(contains('presentShareCard')));
+      expect(statistics, isNot(contains('ShareType.playerStatistics')));
     });
 
     test('a share is still only recorded when the sheet was not dismissed', () {

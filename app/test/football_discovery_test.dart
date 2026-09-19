@@ -21,6 +21,7 @@ import 'package:go_play/features/football/football_community_screen.dart';
 import 'package:go_play/features/football/football_match_screen.dart';
 import 'package:go_play/features/football/football_models.dart';
 import 'package:go_play/features/football/football_repository.dart';
+import 'package:go_play/features/results/score_pair.dart';
 import 'package:go_play/features/matches/match_details_screen.dart';
 import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/results/match_result_card.dart';
@@ -102,8 +103,8 @@ void main() {
         communityName: communityName,
         location: 'Al Amerat',
         startAt: start ?? DateTime(2026, 8, 20, 18),
-        endAt: (start ?? DateTime(2026, 8, 20, 18))
-            .add(const Duration(hours: 2)),
+        endAt:
+            (start ?? DateTime(2026, 8, 20, 18)).add(const Duration(hours: 2)),
         isHistorical: false,
         hasResult: hasResult,
         title: title,
@@ -147,19 +148,20 @@ void main() {
       results: results,
       failure: footballFailure,
     );
-    final communitiesPort =
-        _JoinedAdapter(joined, failure: membershipFailure);
+    final communitiesPort = _JoinedAdapter(joined, failure: membershipFailure);
 
-    await tester.pumpWidget(wrap(DiscoverScreen(
-      repository: DiscoverRepository(_FakeDiscoverAdapter(
-        communities: communities,
-        matches: matches,
-        failure: publicFailure,
-      )),
-      authService: AuthService(_StubAuth(signedIn: signedIn)),
-      footballRepository: FootballRepository(football),
-      communityRepository: CommunityRepository(communitiesPort),
-    ), observers: observers));
+    await tester.pumpWidget(wrap(
+        DiscoverScreen(
+          repository: DiscoverRepository(_FakeDiscoverAdapter(
+            communities: communities,
+            matches: matches,
+            failure: publicFailure,
+          )),
+          authService: AuthService(_StubAuth(signedIn: signedIn)),
+          footballRepository: FootballRepository(football),
+          communityRepository: CommunityRepository(communitiesPort),
+        ),
+        observers: observers));
     await tester.pumpAndSettle();
     return (football: football, communities: communitiesPort);
   }
@@ -193,8 +195,10 @@ void main() {
 
       expect(find.text('Upcoming matches'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
-      expect(find.text('Latest results'), findsNothing,
-          reason: 'the football section belongs to signed-in readers');
+      // A guest now gets Latest Results too -- from the public contract
+      // (`public_recent_results`, migration `0081`), not from the
+      // authenticated football history the assertions above pin shut.
+      expect(find.text('Latest results'), findsOneWidget);
     });
   });
 
@@ -243,7 +247,12 @@ void main() {
       await pumpDiscover(tester,
           signedIn: true, results: [completed('p1', a: 3, b: 2)]);
 
-      expect(find.text('3 - 2'), findsOneWidget);
+      // Each number is drawn under its own team's name: "3 - 2" alone does
+      // not say which side scored which, and on an Arabic page it reads as
+      // though it might be the other way round.
+      expect(find.byType(ScorePair), findsOneWidget);
+      expect(find.text('3'), findsWidgets);
+      expect(find.text('2'), findsWidgets);
       expect(find.text('Result pending'), findsNothing);
     });
 
@@ -397,7 +406,8 @@ void main() {
       expect(pushed, isA<PublicCommunityScreen>());
     });
 
-    testWidgets('a signed-in non-member actually lands on the football '
+    testWidgets(
+        'a signed-in non-member actually lands on the football '
         'community screen', (tester) async {
       final pushed = await tapAndCapture(
         tester,
@@ -429,7 +439,6 @@ void main() {
       expect(routes.lastPushedWidget(tester), isA<FootballMatchScreen>());
     });
   });
-
 
   // ==========================================================================
   // The defect this correction exists for: membership and football history are
@@ -541,12 +550,14 @@ void main() {
         lineup: lineup,
         roster: roster,
       );
-      await tester.pumpWidget(wrap(FootballMatchScreen(
-        matchId: match.matchId,
-        repository: FootballRepository(adapter),
-        renderer: renderer,
-        shareService: shareService,
-      ), observers: [routes]));
+      await tester.pumpWidget(wrap(
+          FootballMatchScreen(
+            matchId: match.matchId,
+            repository: FootballRepository(adapter),
+            renderer: renderer,
+            shareService: shareService,
+          ),
+          observers: [routes]));
       await tester.pumpAndSettle();
       return adapter;
     }
@@ -641,7 +652,8 @@ void main() {
       expect(find.text('Who played'), findsOneWidget);
       expect(find.text('Registered Player'), findsOneWidget);
       expect(find.byType(MatchStageSection), findsNothing,
-          reason: 'an empty pitch would report a saved lineup that is not there');
+          reason:
+              'an empty pitch would report a saved lineup that is not there');
       expect(find.byType(MatchStageBoard), findsNothing);
       expect(find.byType(PitchView), findsNothing);
       expect(find.textContaining('No lineup was saved'), findsOneWidget,
@@ -971,21 +983,23 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(wrap(FootballCommunityScreen(
-        communityId: 'c1',
-        discoverRepository: DiscoverRepository(_FakeDiscoverAdapter(
-          communities: [community('c1', 'Muscat United')],
-          matches: [upcoming('m1')],
-        )),
-        footballRepository: FootballRepository(_FakeFootballAdapter(
-          results: results,
-          players: players,
-          stats: stats,
-          failure: footballFailure,
-        )),
-        communityRepository:
-            CommunityRepository(_JoinedAdapter(const [], join: joinOutcome)),
-      ), observers: observers));
+      await tester.pumpWidget(wrap(
+          FootballCommunityScreen(
+            communityId: 'c1',
+            discoverRepository: DiscoverRepository(_FakeDiscoverAdapter(
+              communities: [community('c1', 'Muscat United')],
+              matches: [upcoming('m1')],
+            )),
+            footballRepository: FootballRepository(_FakeFootballAdapter(
+              results: results,
+              players: players,
+              stats: stats,
+              failure: footballFailure,
+            )),
+            communityRepository: CommunityRepository(
+                _JoinedAdapter(const [], join: joinOutcome)),
+          ),
+          observers: observers));
       await tester.pumpAndSettle();
     }
 
@@ -1013,7 +1027,7 @@ void main() {
       await pumpCommunity(tester, results: [completed('p1', a: 3, b: 2)]);
 
       expect(find.text('Recent results'), findsOneWidget);
-      expect(find.text('3 - 2'), findsOneWidget);
+      expect(find.byType(ScorePair), findsOneWidget);
     });
 
     testWidgets('never reveals a join code', (tester) async {
@@ -1110,7 +1124,8 @@ void main() {
         );
 
     test('rating descending leads', () {
-      final ranked = rankTopPlayers([p('low', rating: 5.0), p('high', rating: 7.0)]);
+      final ranked =
+          rankTopPlayers([p('low', rating: 5.0), p('high', rating: 7.0)]);
       expect(ranked.map((e) => e.displayName), ['high', 'low']);
     });
 
@@ -1173,16 +1188,18 @@ void main() {
     List<CompletedMatch> feed(int count) => [
           for (var i = 1; i <= count; i++)
             completed('p$i',
-                title: 'Result $i',
-                start: DateTime(2026, 8, 30 - i)),
+                title: 'Result $i', start: DateTime(2026, 8, 30 - i)),
         ];
 
-    testWidgets('nothing played yet keeps the empty state and offers no control',
+    testWidgets(
+        'nothing played yet keeps the empty state and offers no control',
         (tester) async {
       await pumpDiscover(tester, signedIn: true, results: const []);
 
-      expect(find.text('No results yet. Once a match is played it shows up '
-          'here.'), findsOneWidget);
+      expect(
+          find.text('No results yet. Once a match is played it shows up '
+              'here.'),
+          findsOneWidget);
       expect(toggle(), findsNothing);
     });
 
@@ -1347,8 +1364,7 @@ void main() {
       await tester.tap(find.text('Result 1'));
       await tester.pumpAndSettle();
 
-      expect(observer.pushes, isNotEmpty,
-          reason: 'the card still navigates');
+      expect(observer.pushes, isNotEmpty, reason: 'the card still navigates');
     });
 
     testWidgets('a revealed result opens from its card too', (tester) async {
@@ -1383,7 +1399,6 @@ void main() {
       expect(toggle(), findsNothing);
     });
   });
-
 }
 
 // ---------------------------------------------------------------------------
@@ -1559,6 +1574,24 @@ class _JoinedAdapter implements CommunityAdapter {
 }
 
 class _FakeDiscoverAdapter implements DiscoverAdapter {
+  @override
+  Future<List<PublicResult>> fetchRecentResults({
+    String? communityId,
+    int limit = 5,
+  }) async {
+    recentResultsRequests.add(communityId);
+    return [
+      for (final result in recentResults)
+        if (communityId == null || result.communityId == communityId) result,
+    ].take(limit).toList();
+  }
+
+  /// What the public results contract answers with.
+  List<PublicResult> recentResults = const [];
+
+  /// One entry per read, carrying the community it was scoped to (null for
+  /// Discover's list across every community).
+  final List<String?> recentResultsRequests = [];
   _FakeDiscoverAdapter({
     this.communities = const [],
     this.matches = const [],
@@ -1637,7 +1670,8 @@ class _StubAuth implements AuthAdapter {
       throw UnimplementedError();
 
   @override
-  Future<void> signIn({required String email, required String password}) async =>
+  Future<void> signIn(
+          {required String email, required String password}) async =>
       throw UnimplementedError();
 
   @override

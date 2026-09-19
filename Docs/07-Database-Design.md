@@ -65,7 +65,14 @@ From the Results / Rating phase (`0022`): `match_results`, `match_goals`,
   loss `−0.100`, goal `+0.010` capped at `+0.070` per player per match, and MVP
   `+0.020` — which is why three decimals, not two, are what the column has to
   hold. One decimal remains a *presentation* choice; round for the eye, never
-  for the record. Under `SL-3` this column is the **Global Rating** — Level 1.
+  for the record. **Every rating in the column is a `0078` rating:** on
+  2026-09-18 the Product Owner approved rebuilding the whole history from the
+  current final match evidence under those rules (`DD-18`, migration `0082`),
+  so the stored value is what the rules in force say the recorded football
+  produced rather than the residue of three successive rule sets. The
+  pre-rebase audit is kept in `rating_history_archive`, which no client can
+  read, and the operational `rating_history` after the rebase describes the
+  same evidence under one engine. Under `SL-3` this column is the **Global Rating** — Level 1.
   `users.date_of_birth` and
   `users.secondary_position` are nullable: existing players have neither, and
   the database must not invent what the engine is required to reject as missing.

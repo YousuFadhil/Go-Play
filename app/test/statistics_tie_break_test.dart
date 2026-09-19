@@ -200,8 +200,8 @@ void main() {
         },
       );
 
-      expect(orderOf(boardOf(all, LeaderboardKind.topScorer)),
-          ['u0', 'u1', 'u2'],
+      expect(
+          orderOf(boardOf(all, LeaderboardKind.topScorer)), ['u0', 'u1', 'u2'],
           reason: 'Ali before Sara by name; u0 before u1 by id');
     });
 
@@ -351,8 +351,8 @@ void main() {
 
       for (final period in StatisticsPeriod.values) {
         final all = await boards(roster, const [], recency, period: period);
-        expect(orderOf(boardOf(all, LeaderboardKind.highestRated)),
-            ['u2', 'u1'],
+        expect(
+            orderOf(boardOf(all, LeaderboardKind.highestRated)), ['u2', 'u1'],
             reason: 'unchanged in $period');
       }
     });
@@ -512,6 +512,25 @@ void main() {
 
 /// The statistics port, answering from memory and recording what it was asked.
 class _FakeStatisticsAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async {
+    // The period has football for every member, at the rating the roster
+    // carries: the boards this suite pins are about ordering and ranks, and
+    // the scoped rating is what they now order.
+    final roster = await fetchCommunityMemberRatings(communityId);
+    return [
+      for (final member in roster)
+        CommunityScopedRating(
+          userId: member.userId,
+          rating: member.rating,
+          matchesPlayed: 1,
+        ),
+    ];
+  }
+
   _FakeStatisticsAdapter({
     required this.members,
     required this.records,
@@ -585,5 +604,4 @@ class _FakeStatisticsAdapter implements StatisticsAdapter {
   Future<Map<String, TeamOfPeriodPlayerIdentity>>
       fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
           throw UnimplementedError('no Team of Period identities here');
-
 }

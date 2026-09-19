@@ -137,6 +137,52 @@ class PublicMatch {
 
 /// One match, as a `/match/{id}` link opens it for a visitor.
 ///
+/// One completed match in a public list of results.
+///
+/// **The completed shape `public_match_detail` already returns, as a row in a
+/// list** (`public_recent_results`, migration `0081`) — so a result a visitor
+/// could already open by id is one they can now also find. What is on it is
+/// what a result card shows: whose community, which match, when and where, the
+/// score, and the best player's display name. There is no lineup here, no
+/// registration, no places and no identifier for anybody: the roster of a
+/// completed match is [PublicCompletedMatch]'s, one read further in, and a
+/// Professional Guest is never named by one of these.
+class PublicResult {
+  const PublicResult({
+    required this.matchId,
+    required this.communityId,
+    required this.communityName,
+    required this.startAt,
+    required this.teamAScore,
+    required this.teamBScore,
+    this.communityLogoUrl,
+    this.title,
+    this.location,
+    this.mvpDisplayName,
+  });
+
+  final String matchId;
+  final String communityId;
+  final String communityName;
+  final String? communityLogoUrl;
+  final String? title;
+  final String? location;
+  final DateTime startAt;
+
+  /// Both scores, always: a match with no recorded result is not published as
+  /// a result at all.
+  final int teamAScore;
+  final int teamBScore;
+
+  /// The best player's name, where the result named one. Never an id.
+  final String? mvpDisplayName;
+
+  bool get isDraw => teamAScore == teamBScore;
+
+  /// Whether Team A won. Meaningless on a draw, which [isDraw] answers first.
+  bool get teamAWon => teamAScore > teamBScore;
+}
+
 /// **Two kinds, and the fields of one are not on the other.** An upcoming match
 /// has places and no score; a completed match has a score and a lineup and no
 /// places. A sealed pair makes that a fact about the type, so no screen can

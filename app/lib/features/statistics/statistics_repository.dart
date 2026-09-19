@@ -84,13 +84,18 @@ class StatisticsRepository {
   /// therefore ranks current members — and of those, only the ones the measure
   /// has actually happened to (see [_buildBoard]).
   ///
-  /// **Only the counters are period-scoped.** The roster read takes no period
-  /// because neither of the things it carries has one: membership is a fact
-  /// about now, and the rating is the Global Rating (`OP-1`), which has no
-  /// weekly form and is not invented one here. So Highest Rated reads the same
-  /// in every period — deliberately, and the footnote on the screen has always
-  /// said what that figure is. The four counted boards change completely, which
-  /// is the point.
+  /// **The roster read takes no period; everything it is ranked by does.**
+  /// Membership is a fact about now, so the roster is periodless — but the
+  /// rating each member is ranked by is no longer the Global Rating. Since
+  /// migration `0081` it is the **Community/Period Rating**: derived from the
+  /// matches played in this community inside this period, from a 5.00 baseline
+  /// and with the current engine's values. So Highest Rated changes with the
+  /// period exactly as the counted boards do, and a member the period has no
+  /// football for is not on it — they have no scoped rating at all, which the
+  /// board's own "a zero never takes a place" rule then excludes.
+  ///
+  /// The Global Rating is untouched by this and stays what every global surface
+  /// shows: the profile, the public profile, the share card and BTGE.
   Future<List<Leaderboard>> fetchLeaderboards(
     String communityId, [
     StatisticsPeriod period = StatisticsPeriod.allTime,
@@ -99,6 +104,7 @@ class StatisticsRepository {
       _adapter.fetchCommunityMemberRatings(communityId),
       _adapter.fetchCommunityPlayerStatistics(communityId, period),
       _adapter.fetchAchievementRecency(communityId, period),
+      _adapter.fetchCommunityScopedRatings(communityId, period),
     ]);
     final members = results[0] as List<CommunityMemberRating>;
     final recency = results[2] as Map<String, PlayerAchievementRecency>;
@@ -106,27 +112,12 @@ class StatisticsRepository {
       for (final row in results[1] as List<CommunityPlayerStatistics>)
         row.userId: row,
     };
+    final scoped = {
+      for (final row in results[3] as List<CommunityScopedRating>)
+        row.userId: row,
+    };
 
-    num measure(CommunityMemberRating member, LeaderboardKind kind) {
-      if (kind == LeaderboardKind.highestRated) return member.rating;
-      final row = counters[member.userId];
-      if (row == null) return 0;
-      return switch (kind) {
-        LeaderboardKind.topScorer => row.goals,
-        LeaderboardKind.mostMvp => row.mvpCount,
-        LeaderboardKind.mostActive => row.matchesPlayed,
-        LeaderboardKind.mostWins => row.wins,
-        LeaderboardKind.highestRated => 0,
-      };
-    }
-
-    final boards = <Leaderboard>[];
-    for (final kind in LeaderboardKind.values) {
-      final board =
-          _buildBoard(kind, members, recency, (m) => measure(m, kind));
-      if (board != null) boards.add(board);
-    }
-    return boards;
+    return _boardsOf(members, counters.values.toList(), recency, scoped);
   }
 
   /// The whole Statistics tab for [period]: the totals and the five boards.
@@ -152,19 +143,24 @@ class StatisticsRepository {
       _adapter.fetchCompletedMatches(communityId, period),
       _adapter.fetchAchievementRecency(communityId, period),
       // Periodless, exactly as it is in `fetchLeaderboards`: membership is a
-      // fact about now, and the rating it carries is the Global Rating, which
-      // has no weekly form.
+      // fact about now. What it is *ranked* by is period-scoped, and is read
+      // beside it.
       _adapter.fetchCommunityMemberRatings(communityId),
+      _adapter.fetchCommunityScopedRatings(communityId, period),
     ]);
     final players = results[0] as List<CommunityPlayerStatistics>;
     final completedMatches = results[1] as int;
     final recency = results[2] as Map<String, PlayerAchievementRecency>;
     final members = results[3] as List<CommunityMemberRating>;
+    final scoped = {
+      for (final row in results[4] as List<CommunityScopedRating>)
+        row.userId: row,
+    };
 
     return CommunityStatistics(
       dashboard: _dashboardOf(players, completedMatches, recency),
-      boards: _boardsOf(members, players, recency),
-      reverseBoards: _reverseBoardsOf(members, players, recency),
+      boards: _boardsOf(members, players, recency, scoped),
+      reverseBoards: _reverseBoardsOf(members, players, recency, scoped),
     );
   }
 
@@ -195,11 +191,18 @@ class StatisticsRepository {
     List<CommunityMemberRating> members,
     List<CommunityPlayerStatistics> players,
     Map<String, PlayerAchievementRecency> recency,
+    Map<String, CommunityScopedRating> scoped,
   ) {
     final counters = {for (final row in players) row.userId: row};
 
     num measure(CommunityMemberRating member, LeaderboardKind kind) {
-      if (kind == LeaderboardKind.highestRated) return member.rating;
+      // Highest Rated ranks the Community/Period Rating (migration `0081`),
+      // not `users.overall_rating`. A member with no football in the period
+      // has no scoped rating, measures zero and is left off the board by the
+      // same rule that keeps a player with no goals off Top Scorer.
+      if (kind == LeaderboardKind.highestRated) {
+        return scoped[member.userId]?.rating ?? 0;
+      }
       final row = counters[member.userId];
       if (row == null) return 0;
       return switch (kind) {
@@ -369,12 +372,13 @@ class StatisticsRepository {
   /// **The population is the current membership**, so a member with no counter
   /// row for a bounded period is a member who did nothing in it and measures as
   /// zero — which is the answer Least Active and Fewest Wins exist to give.
-  /// Lowest Rated reads the Global Rating, exactly as Highest Rated does, and
-  /// has no periodic form.
+  /// Lowest Rated reads the Community/Period Rating, exactly as Highest Rated
+  /// does, over exactly the players that rating exists for.
   static List<ReverseLeaderboard> _reverseBoardsOf(
     List<CommunityMemberRating> members,
     List<CommunityPlayerStatistics> players,
     Map<String, PlayerAchievementRecency> recency,
+    Map<String, CommunityScopedRating> scoped,
   ) {
     if (members.isEmpty) return const [];
     final counters = {for (final row in players) row.userId: row};
@@ -382,7 +386,10 @@ class StatisticsRepository {
     num measure(CommunityMemberRating member, ReverseLeaderboardKind kind) {
       final row = counters[member.userId];
       return switch (kind) {
-        ReverseLeaderboardKind.lowestRated => member.rating,
+        // The same rating Highest Rated ranks, read the other way: two boards
+        // of one measure cannot be two different measures.
+        ReverseLeaderboardKind.lowestRated =>
+          scoped[member.userId]?.rating ?? 0,
         ReverseLeaderboardKind.leastActive => row?.matchesPlayed ?? 0,
         ReverseLeaderboardKind.fewestWins => row?.wins ?? 0,
       };
@@ -397,14 +404,30 @@ class StatisticsRepository {
       };
     }
 
-    return [
+    final boards = [
       for (final kind in ReverseLeaderboardKind.values)
         _buildReverseBoard(
           kind,
-          members,
+          // Lowest Rated ranks only players the period has football for —
+          // the same population Highest Rated ranks, so a member who has not
+          // played is on neither board rather than at the bottom of one.
+          kind == ReverseLeaderboardKind.lowestRated
+              ? [
+                  for (final member in members)
+                    if (scoped.containsKey(member.userId)) member,
+                ]
+              : members,
           (m) => measure(m, kind),
           (id) => lastOf(id, kind),
         ),
+    ];
+    // A board with nobody left to rank is not a board. Only Lowest Rated can
+    // empty out -- its population is now the players the period has football
+    // for -- and an empty card would say a community has no lowest-rated
+    // player when what it has is no football this week.
+    return [
+      for (final board in boards)
+        if (board.entries.isNotEmpty) board,
     ];
   }
 

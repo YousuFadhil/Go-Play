@@ -229,6 +229,37 @@ void main() {
       expect(win.dx, lessThan(loss.dx));
     });
 
+    testWidgets('a card with no achievement keeps its rhythm, not a gap',
+        (tester) async {
+      // The panel is as tall as its blocks and centred in what is left, so the
+      // distance between two blocks is the same whether or not an achievement
+      // follows them -- the room a missing block would have taken is not spent
+      // on stretching the gaps.
+      double blockGap() =>
+          tester.getTopLeft(find.text('Recent form')).dy -
+          tester.getBottomLeft(find.text('Current rating')).dy;
+
+      await pumpCard(tester, cardOf(form: formOf([MatchOutcome.win])));
+      final withoutAchievement = blockGap();
+
+      await pumpCard(
+        tester,
+        cardOf(
+          form: formOf([MatchOutcome.win]),
+          highlight: RecentHighlight(
+            kind: HighlightKind.teamOfPeriod,
+            period: HighlightPeriod.week,
+            periodKey: '2026-W37',
+            occurredAt: DateTime.utc(2026, 9, 13, 20),
+            communityName: 'Al Amerat FC',
+          ),
+        ),
+      );
+
+      expect(blockGap(), closeTo(withoutAchievement, 0.5));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('a player with no form gets a card with no strip',
         (tester) async {
       await pumpCard(tester, cardOf());
@@ -517,7 +548,7 @@ void main() {
   });
 
   group('the profile\'s content order', () {
-    testWidgets('runs identity, career, form, highlight, statistics',
+    testWidgets('runs identity, career, form, achievements, actions',
         (tester) async {
       await pumpProfile(
         tester,
@@ -548,20 +579,51 @@ void main() {
       );
       expect(
         topOf(find.text('Recent form')),
-        lessThan(topOf(find.text('Recent highlight'))),
+        lessThan(topOf(find.text('Recent achievements'))),
       );
       expect(
-        topOf(find.text('Recent highlight')),
+        topOf(find.text('Recent achievements')),
         lessThan(topOf(find.widgetWithText(FilledButton, 'Share my profile'))),
       );
     });
 
-    testWidgets('a player with no highlight gets no section, not an empty one',
+    testWidgets(
+        'a player with no achievement gets no section, not an empty one',
         (tester) async {
       await pumpProfile(tester, records: FakePlayerRecordAdapter());
 
       expect(find.text('Recent form'), findsOneWidget);
-      expect(find.text('Recent highlight'), findsNothing);
+      expect(find.text('Recent achievements'), findsNothing);
+    });
+
+    testWidgets('every achievement the read returned is a card of its own',
+        (tester) async {
+      // Two communities selected the player in the same closed week: two
+      // cards, because one of them is not a substitute for the other.
+      RecentHighlight weekIn(String community) => RecentHighlight(
+            kind: HighlightKind.teamOfPeriod,
+            period: HighlightPeriod.week,
+            periodKey: '2026-W37',
+            occurredAt: DateTime.utc(2026, 9, 13, 19, 59, 59),
+            communityName: community,
+          );
+
+      await pumpProfile(
+        tester,
+        records: FakePlayerRecordAdapter(
+          mvp: RecentHighlight(
+            kind: HighlightKind.mvp,
+            occurredAt: DateTime(2026, 9, 15),
+            communityName: 'Al Amerat FC',
+          ),
+          teamOfPeriod: weekIn('Al Amerat FC'),
+          extraAchievements: [weekIn('Al Seeb Community')],
+        ),
+      );
+
+      expect(find.text('Recent achievements'), findsOneWidget);
+      expect(find.byType(AchievementCard), findsNWidgets(3));
+      expect(find.text('Al Seeb Community'), findsOneWidget);
     });
 
     testWidgets('an empty form says so rather than drawing five blanks',

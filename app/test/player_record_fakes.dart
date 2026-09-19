@@ -16,6 +16,7 @@ class FakePlayerRecordAdapter implements PlayerRecordAdapter {
     this.teamOfPeriod,
     this.publicRecord,
     this.thrown,
+    this.extraAchievements = const [],
   });
 
   RecentForm form;
@@ -23,6 +24,10 @@ class FakePlayerRecordAdapter implements PlayerRecordAdapter {
 
   /// The stored Team of Period award the database would return, if any.
   RecentHighlight? teamOfPeriod;
+
+  /// Anything else the achievements read should answer with, after the two
+  /// above — a second community's award in the same period, for instance.
+  List<RecentHighlight> extraAchievements;
   PublicPlayerRecord? publicRecord;
 
   /// What every read should throw instead of answering.
@@ -31,6 +36,7 @@ class FakePlayerRecordAdapter implements PlayerRecordAdapter {
   String? requestedUserId;
   String? requestedPublicUserId;
   int? requestedLimit;
+  int? requestedAchievementLimit;
   int reads = 0;
 
   @override
@@ -43,20 +49,32 @@ class FakePlayerRecordAdapter implements PlayerRecordAdapter {
   }
 
   @override
-  Future<List<RecentHighlight>> fetchRecentHighlights(String userId) async {
+  Future<List<RecentHighlight>> fetchRecentAchievements(
+    String userId, {
+    int limit = 5,
+  }) async {
     if (thrown != null) throw thrown!;
     requestedUserId = userId;
-    return [if (mvp != null) mvp!, if (teamOfPeriod != null) teamOfPeriod!];
+    requestedAchievementLimit = limit;
+    // Newest first, as the database returns them: the fake orders nothing, so
+    // a test that cares about order states it in what it hands over.
+    return [
+      if (mvp != null) mvp!,
+      if (teamOfPeriod != null) teamOfPeriod!,
+      ...extraAchievements,
+    ].take(limit).toList();
   }
 
   @override
   Future<PublicPlayerRecord?> fetchPublicRecord(
     String userId, {
     int limit = 5,
+    int achievements = 5,
   }) async {
     if (thrown != null) throw thrown!;
     requestedPublicUserId = userId;
     requestedLimit = limit;
+    requestedAchievementLimit = achievements;
     return publicRecord;
   }
 }
@@ -107,5 +125,10 @@ PublicPlayerRecord publicRecordOf(
   PlayerProfileView profile, {
   RecentForm form = RecentForm.empty,
   RecentHighlight? highlight,
+  List<RecentHighlight>? achievements,
 }) =>
-    PublicPlayerRecord(profile: profile, form: form, highlight: highlight);
+    PublicPlayerRecord(
+      profile: profile,
+      form: form,
+      achievements: achievements ?? [if (highlight != null) highlight],
+    );

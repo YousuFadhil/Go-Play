@@ -328,9 +328,10 @@ void main() {
         userId: null,
       );
 
-      // Two ways in, both on the player's own record and both leading to the
-      // same screen: the link that closes Recent Form, and the account menu.
-      expect(find.text('View all'), findsOneWidget);
+      // One way in, and only on the player's own record: the account menu.
+      // Recent Form no longer carries a link -- it is the last five results
+      // and there is no Match History to open.
+      expect(find.text('View all'), findsNothing);
       await tester.tap(find.byIcon(Icons.more_horiz));
       await tester.pumpAndSettle();
       expect(
@@ -364,7 +365,9 @@ void main() {
       await tester.pumpAndSettle();
       observer.pushed.clear();
 
-      await tester.tap(find.text('View all'));
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ListTile, 'My statistics'));
 
       // The route is read rather than built: the screen makes the production
       // repositories when nobody injects any, and this suite has no data
@@ -387,9 +390,8 @@ void main() {
         profiles: FakeProfileAdapter(player: viewOf()),
       );
 
-      // No link, and no account menu to reach the screen through either:
-      // both would lead to the signed-in player's own record, which is not
-      // the player on this page.
+      // No account menu to reach the screen through: it would lead to the
+      // signed-in player's own record, which is not the player on this page.
       expect(find.text('View all'), findsNothing);
       expect(find.byIcon(Icons.more_horiz), findsNothing);
     });

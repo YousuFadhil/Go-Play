@@ -2465,7 +2465,7 @@ abstract class AppLocalizations {
   /// No description provided for @leaderboardRatingNote.
   ///
   /// In en, this message translates to:
-  /// **'Highest rated ranks by the player\'s overall rating across every community.'**
+  /// **'Rating boards rank the player\'s rating in this community for the selected period, from a 5.00 start.'**
   String get leaderboardRatingNote;
 
   /// No description provided for @shareCardTitle.
@@ -2755,6 +2755,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recent highlight'**
   String get recentHighlightTitle;
+
+  /// No description provided for @recentAchievementsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent achievements'**
+  String get recentAchievementsTitle;
 
   /// The ISO week a Team of the Week award covers, from the stored period key.
   ///
