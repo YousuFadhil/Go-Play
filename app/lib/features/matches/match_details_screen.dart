@@ -696,15 +696,15 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         ];
 
         final football = loaded.football;
-        if (match.isCompleted && football != null) {
-          // **Football first for a played match.** A member opening their
-          // own community match used to get a roster list on a white
-          // sheet while a stranger got the pitch, so a member's own
-          // football looked like a different product from the public view
-          // of it. The stage is the primary presentation now, and what a
-          // member may *do* with the match follows it on its own sheet.
-          // Nothing about who may do what moved: `sections` is the same
-          // list, built from the same role.
+        if (match.isCompleted && football != null && !canManage) {
+          // **Football first for an ordinary community member.** A player
+          // opening a completed match comes to see the football, so the
+          // stored lineup is the primary presentation.
+          //
+          // Owners and admins deliberately stay task-first: they open the
+          // existing details/management composition below and reach the
+          // lineup only through the existing Teams action. No permission
+          // changes; only the default presentation differs by role.
           return Scaffold(
             backgroundColor: MatchStage.ground,
             appBar: matchStageAppBar(

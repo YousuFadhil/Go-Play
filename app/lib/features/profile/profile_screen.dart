@@ -45,8 +45,8 @@ import 'profile_repository.dart';
 ///
 /// The Package 5 direction gives it the approved composition: the identity
 /// centred in the hero, the career as one grid of figures, then Recent Form,
-/// then the one Recent Highlight, then what the reader can do — share it, see
-/// it as the public sees it, or, with no account, sign in.
+/// then the one Recent Highlight, then what the reader can do — share it or,
+/// with no account, sign in.
 ///
 /// **No [AppHeader] anywhere on it, and that is load-bearing rather than
 /// stylistic.** That bar always carries [CurrentUserMenu], which reads the
@@ -86,10 +86,6 @@ class ProfileScreen extends StatefulWidget {
   ///
   /// True reads the narrow public contracts; false reads the authenticated
   /// ones. Nothing falls back from one to the other.
-  ///
-  /// It is also what the player's own "View as public" opens, with their own
-  /// id: the preview is the public page itself, read through the public
-  /// contracts, rather than a guess at what it would contain.
   final bool asVisitor;
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
@@ -371,19 +367,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) _refresh();
   }
 
-  /// The player's own record, read the way a stranger reads it.
-  ///
-  /// The same screen with [ProfileScreen.asVisitor] set, so the preview is the
-  /// public page rather than a rehearsal of it: it calls the public contracts
-  /// and shows exactly what they return.
-  void _openPublicPreview(_ProfileView view) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProfileScreen(userId: view.userId, asVisitor: true),
-      ),
-    );
-  }
-
   void _openStatistics() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const PlayerStatisticsScreen()),
@@ -534,7 +517,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (_isOwnProfile)
                           _OwnerActions(
                             onShare: () => _share(view),
-                            onViewAsPublic: () => _openPublicPreview(view),
                           ),
                         if (widget.asVisitor)
                           _VisitorActions(
@@ -1042,10 +1024,9 @@ class _Cell extends StatelessWidget {
 
 /// What the owner of a record can do with it.
 class _OwnerActions extends StatelessWidget {
-  const _OwnerActions({required this.onShare, required this.onViewAsPublic});
+  const _OwnerActions({required this.onShare});
 
   final VoidCallback onShare;
-  final VoidCallback onViewAsPublic;
 
   @override
   Widget build(BuildContext context) {
@@ -1066,19 +1047,6 @@ class _OwnerActions extends StatelessWidget {
             icon: const Icon(Icons.ios_share, size: IconSize.action),
             label: Text(l10n.shareMyProfileAction),
             style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(kButtonHeight),
-            ),
-          ),
-          const SizedBox(height: Gap.md),
-          // Quieter than the share, because it is the rehearsal rather than
-          // the act: the same tint a row carries, with the page's own ink.
-          FilledButton.icon(
-            onPressed: onViewAsPublic,
-            icon: const Icon(Icons.open_in_new, size: IconSize.action),
-            label: Text(l10n.viewAsPublicAction),
-            style: FilledButton.styleFrom(
-              backgroundColor: GoColors.rowTintLight,
-              foregroundColor: GoColors.onSurface,
               minimumSize: const Size.fromHeight(kButtonHeight),
             ),
           ),

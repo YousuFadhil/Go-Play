@@ -317,6 +317,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Log out'), findsOneWidget);
+      expect(find.text('View as public'), findsNothing);
     });
   });
 
