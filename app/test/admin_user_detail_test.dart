@@ -451,8 +451,8 @@ void main() {
   });
 
   group('the analytics contract is unchanged', () {
-    test('there are still exactly ten events', () {
-      expect(ProductEvent.values.length, 10);
+    test('there are exactly eleven events', () {
+      expect(ProductEvent.values.length, 11);
     });
 
     test('an unknown wire name resolves to null rather than throwing', () {

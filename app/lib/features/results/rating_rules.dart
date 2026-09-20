@@ -15,9 +15,11 @@ import 'result_models.dart';
 ///
 /// What this is for is that the rule should be readable and testable in one
 /// place rather than only observable through a round trip. The constants below
-/// and the ones in migration `0035` are the same five numbers, and the
-/// integration suite records a real result and holds the database to what this
-/// predicts — so the copy is checked rather than merely intended.
+/// are the numbers migration `0078` applies — the migration currently in force
+/// — and `rating_engine_v2_test.dart` reads that file and holds this class to
+/// it, so the copy is checked rather than merely intended. The integration
+/// suite records a real result and holds the live database to the same
+/// prediction whenever the fixture accounts exist.
 class RatingRules {
   const RatingRules({
     required this.win,
@@ -53,21 +55,30 @@ class RatingRules {
   final double draw;
 }
 
-/// Rating Engine v2, the approved values (migration `0073`).
+/// The Rating Engine's current values — **migration `0078`, which is the
+/// authoritative definition in force.**
 ///
-/// A win still outweighs everything a loser can add: five goals and the
-/// MVP bring a loser to +0.055, while a winner who did nothing else earns
-/// +0.105. A draw is now worth something of its own, and turning up is
-/// worth +0.005 to everyone who played.
+/// `0073` introduced the v2 *shape* — three-decimal precision, a participation
+/// entry and a draw entry — and is the migration those structural facts still
+/// come from. `0078` then set what each reason is worth, and it is the one this
+/// class mirrors: a goal is `+0.010` (capped at `+0.070` per player per match)
+/// and the best player is `+0.020`. Nothing was backfilled, so a
+/// `rating_history` row written before `0078` keeps the value it was written
+/// with; those rows are history and the engine reverses them by their stored
+/// delta, never by recomputing one from here.
+///
+/// The team result dominates, and by more than it used to: a winner who did
+/// nothing else earns `+0.105`, while a loser who scored seven and was named
+/// best on the pitch still ends the match down, at `-0.005`.
 ///
 /// **Not the Period Form Score.** PFS v1 keeps its own frozen weights, with
 /// no participation and no draw bonus, and is untouched by this.
 const ratingRules = RatingRules(
   win: 0.10,
   loss: -0.10,
-  goal: 0.02,
-  goalCap: 0.10,
-  mvp: 0.05,
+  goal: 0.01,
+  goalCap: 0.07,
+  mvp: 0.02,
   participation: 0.005,
   draw: 0.01,
 );
@@ -153,9 +164,9 @@ List<RatingDelta> ratingDeltasFor(
   // is a refusal, and `validateResultInputs` has already made it one.
   //
   // One entry per scorer, carrying the whole of what their goals were worth —
-  // held at [RatingRules.goalCap], so a sixth goal is worth nothing more than a
-  // fifth. The cap is on the total, not on each goal: five goals reach it
-  // exactly, and everything beyond stops there.
+  // held at [RatingRules.goalCap]. The cap is on the total, not on each goal:
+  // under `0078` seven goals reach it exactly, and everything beyond stops
+  // there.
   for (final assignment in lineup) {
     final userId = assignment.userId;
     if (userId == null) continue;

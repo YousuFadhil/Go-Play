@@ -1396,7 +1396,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leaderboardRatingNote =>
-      'Highest rated ranks by the player\'s overall rating across every community.';
+      'Rating boards rank the player\'s rating in this community for the selected period, from a 5.00 start.';
 
   @override
   String get shareCardTitle => 'Share card';
@@ -1419,6 +1419,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareCardStatMatches => 'Matches';
+
+  @override
+  String get shareCardPositionLabel => 'Position';
 
   @override
   String get shareCardStatWins => 'Wins';
@@ -1449,6 +1452,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hidePreviousResults => 'Hide previous results';
 
   @override
+  String get viewAllResults => 'View all results';
+
+  @override
+  String get showFewerResults => 'Show fewer';
+
+  @override
   String get shareCardStatGoals => 'Goals';
 
   @override
@@ -1471,6 +1480,122 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareCardDownloaded => 'Image saved to your downloads.';
+
+  @override
+  String get sharePlayerProfileAction => 'Share profile';
+
+  @override
+  String get shareMyProfileAction => 'Share my profile';
+
+  @override
+  String get shareTextMyProfile => 'My player profile on Go Play.';
+
+  @override
+  String shareTextPlayerProfile(String name) {
+    return '$name — player profile on Go Play.';
+  }
+
+  @override
+  String get shareTextMyStatistics => 'My statistics on Go Play.';
+
+  @override
+  String shareTextCommunityStatistics(String community) {
+    return '$community — statistics on Go Play.';
+  }
+
+  @override
+  String shareTextTeamOfPeriod(String community) {
+    return '$community — Team of the Period on Go Play.';
+  }
+
+  @override
+  String shareTextMatchLineup(String match) {
+    return '$match — the lineup on Go Play.';
+  }
+
+  @override
+  String shareTextMatchResult(String match) {
+    return '$match — the result on Go Play.';
+  }
+
+  @override
+  String get recentFormTitle => 'Recent form';
+
+  @override
+  String recentFormNote(int count) {
+    return 'The player\'s last $count completed matches, most recent first.';
+  }
+
+  @override
+  String get recentFormEmpty =>
+      'No completed matches yet. Once a result is saved, the last five appear here.';
+
+  @override
+  String get recentFormWin => 'Win';
+
+  @override
+  String get recentFormDraw => 'Draw';
+
+  @override
+  String get recentFormLoss => 'Loss';
+
+  @override
+  String get recentFormWinShort => 'W';
+
+  @override
+  String get recentFormDrawShort => 'D';
+
+  @override
+  String get recentFormLossShort => 'L';
+
+  @override
+  String get recentFormViewAll => 'View all';
+
+  @override
+  String get viewAsPublicAction => 'View as public';
+
+  @override
+  String get publicProfileGuestPrompt =>
+      'Sign in to join communities, play matches and build a record of your own.';
+
+  @override
+  String get publicMatchLineupTitle => 'Line-up';
+
+  @override
+  String get publicMatchGuestPrompt =>
+      'Sign in to join a community and play in matches like this one.';
+
+  @override
+  String get recentHighlightTitle => 'Recent highlight';
+
+  @override
+  String get recentAchievementsTitle => 'Recent achievements';
+
+  @override
+  String highlightWeekNumber(int week) {
+    return 'Week $week';
+  }
+
+  @override
+  String get highlightMvpTitle => 'Player of the match';
+
+  @override
+  String get highlightTeamOfPeriodTitle => 'Team of the period';
+
+  @override
+  String highlightInCommunity(String community) {
+    return 'In $community';
+  }
+
+  @override
+  String get shareCardFormLabel => 'Recent form';
+
+  @override
+  String get publicContentUnavailableTitle => 'Not available';
+
+  @override
+  String get publicContentUnavailable =>
+      'This link is no longer available, or it points to something that needs an account.';
 
   @override
   String get matchResultScorersLabel => 'Scorers';
@@ -2133,6 +2258,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminEventShareUsed => 'Share used';
+
+  @override
+  String get adminEventPublicLinkOpened => 'Public link opened';
 
   @override
   String get adminDrilldownEmpty => 'No records for this metric.';

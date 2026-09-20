@@ -15,6 +15,7 @@ import '../results/match_result_card.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
 import '../sharing/share_card_flow.dart';
+import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import 'match_stage.dart';
@@ -354,6 +355,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// [_nameOf] is the screen's rule, applied once, and handed over rather than
   /// re-derived inside a card.
   Future<void> _shareLineup() async {
+    final l10n = context.l10n;
     final view = _shown;
     if (view == null || view.lineup.isEmpty) return;
 
@@ -401,6 +403,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
       // came from. Both are already on screen; nothing is fetched for them.
       matchId: widget.matchId,
       communityId: view.match.communityId,
+      message: ShareMessage(
+        text: l10n.shareTextMatchLineup(view.match.displayName),
+        url: PublicLink.format(PublicLinkKind.match, widget.matchId),
+      ),
+      shareType: ShareType.lineup,
+      source: ShareSource.teams,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );
@@ -934,9 +942,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
             if (view.canEditPlayed || guest)
               (
                 _PlayerAction.remove,
-                guest
-                    ? l10n.removeGuestButton
-                    : l10n.removePlayedPlayerAction,
+                guest ? l10n.removeGuestButton : l10n.removePlayedPlayerAction,
                 Icons.person_remove_alt_1,
               ),
           ])
@@ -1018,9 +1024,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(guest
-                ? l10n.removeGuestButton
-                : l10n.removePlayedPlayerAction),
+            child: Text(
+                guest ? l10n.removeGuestButton : l10n.removePlayedPlayerAction),
           ),
         ],
       ),

@@ -1,32 +1,16 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
-import 'package:go_play/features/auth/auth_models.dart';
-import 'package:go_play/features/profile/current_user.dart';
 import 'package:go_play/features/profile/player_identity.dart';
-import 'package:go_play/features/profile/profile_adapter.dart';
-import 'package:go_play/features/profile/profile_models.dart';
-import 'package:go_play/features/profile/profile_repository.dart';
-import 'package:go_play/features/results/result_adapter.dart';
-import 'package:go_play/features/results/result_models.dart';
-import 'package:go_play/features/results/result_repository.dart';
 import 'package:go_play/features/sharing/share_card_canvas.dart';
-import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/features/statistics/player_statistics_card.dart';
-import 'package:go_play/features/statistics/team_of_period_models.dart';
-import 'package:go_play/features/statistics/player_statistics_screen.dart';
-import 'package:go_play/features/statistics/statistics_adapter.dart';
-import 'package:go_play/features/statistics/statistics_models.dart';
 import 'package:go_play/features/statistics/statistics_period.dart';
-import 'package:go_play/features/statistics/statistics_repository.dart';
 
 /// The Player Statistics share card: the first real template on the engine.
 ///
@@ -631,228 +615,12 @@ void main() {
 
   // --- the screen's Share action ----------------------------------------------
 
-  group('sharing from the Player Statistics screen', () {
-    const played = PlayerStatistics(
-      userId: 'u1',
-      matchesPlayed: 9,
-      wins: 5,
-      losses: 3,
-      draws: 1,
-      goals: 12,
-      mvpCount: 2,
-      currentRating: 7.42,
-    );
-
-    const profile = PlayerProfile(
-      fullName: 'Salim Al Harthy',
-      phone: '+96890123456',
-      primaryPosition: PlayerPosition.mid,
-      avatarUrl: 'https://example.test/salim.jpg',
-    );
-
-    Future<CapturingRenderer> pumpScreen(
-      WidgetTester tester, {
-      PlayerProfile? loaded = profile,
-      Map<StatisticsPeriod, List<CommunityPlayerStatistics>> periods = const {},
-      Completer<void>? gate,
-    }) async {
-      tester.view.physicalSize = const Size(900, 1600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-
-      CurrentUser.instance.useRepository(
-        ProfileRepository(_StaticProfileAdapter(loaded)),
-      );
-      addTearDown(() => CurrentUser.instance.useRepository(null));
-      if (loaded != null) await CurrentUser.instance.ensureLoaded();
-
-      final renderer = CapturingRenderer();
-      await tester.pumpWidget(MaterialApp(
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: PlayerStatisticsScreen(
-          userId: 'u1',
-          repository: ResultRepository(_StaticResultAdapter(played)),
-          statistics: StatisticsRepository(_PeriodAdapter(periods, gate: gate)),
-          renderer: renderer,
-          shareService: FakeShareService(),
-        ),
-      ));
-      await tester.pumpAndSettle();
-      return renderer;
-    }
-
-    /// Builds whatever template the screen handed the engine, so a test can
-    /// read the card the reader would have seen.
-    Future<void> pumpTemplate(
-      WidgetTester tester,
-      CapturingRenderer renderer,
-    ) async {
-      // Torn down first. Pumping another `MaterialApp` would *update* the one
-      // already mounted, which keeps its Navigator and therefore the preview
-      // route sitting on top -- and everything under an opaque route is
-      // offstage, where `find.byType` does not look.
-      await tester.pumpWidget(const SizedBox.shrink());
-
-      await tester.pumpWidget(MaterialApp(
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Align(
-          alignment: Alignment.topLeft,
-          child: ShareCardSurface(child: Builder(builder: renderer.captured!)),
-        ),
-      ));
-      await tester.pump();
-    }
-
-    testWidgets('the screen offers a Share action', (tester) async {
-      await pumpScreen(tester);
-
-      expect(find.byTooltip('Share my statistics'), findsOneWidget);
-      // And the period selector is not duplicated by it.
-      expect(find.text('Weekly'), findsOneWidget);
-    });
-
-    testWidgets('Share hands the engine a Player Statistics card',
-        (tester) async {
-      final renderer = await pumpScreen(tester);
-
-      await tester.tap(find.byTooltip('Share my statistics'));
-      await tester.pumpAndSettle();
-
-      // The existing engine did the composing and the existing preview opened.
-      expect(renderer.renders, 1);
-      expect(renderer.captured, isNotNull);
-      expect(find.byType(ShareCardPreviewScreen), findsOneWidget);
-    });
-
-    testWidgets('the card carries the figures and the player on screen',
-        (tester) async {
-      final renderer = await pumpScreen(tester);
-      await tester.tap(find.byTooltip('Share my statistics'));
-      await tester.pumpAndSettle();
-
-      await pumpTemplate(tester, renderer);
-
-      final card = tester
-          .widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
-      expect(card.data.period, StatisticsPeriod.allTime);
-      expect(card.data.matchesPlayed, 9);
-      expect(card.data.wins, 5);
-      expect(card.data.goals, 12);
-      expect(card.data.mvpCount, 2);
-      expect(card.data.rating, 7.42);
-      // The identity comes from the session's held profile, not from a second
-      // read of its own.
-      expect(card.data.fullName, 'Salim Al Harthy');
-      expect(card.data.avatarUrl, 'https://example.test/salim.jpg');
-    });
-
-    testWidgets('the card is the period the reader selected', (tester) async {
-      // The whole point of the entry point: no second period selector.
-      final renderer = await pumpScreen(tester, periods: {
-        StatisticsPeriod.weekly: [
-          _record(played: 3, wins: 1, goals: 4, mvp: 1),
-        ],
-      });
-
-      await tester.tap(find.text('Weekly'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Share my statistics'));
-      await tester.pumpAndSettle();
-
-      await pumpTemplate(tester, renderer);
-
-      final card = tester
-          .widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
-      expect(card.data.period, StatisticsPeriod.weekly);
-      expect(card.data.matchesPlayed, 3);
-      expect(card.data.wins, 1);
-      expect(card.data.goals, 4);
-      expect(card.data.mvpCount, 1);
-      // The rating is still the career's, because it has no weekly form.
-      expect(card.data.rating, 7.42);
-    });
-
-    testWidgets('a month shares the month', (tester) async {
-      final renderer = await pumpScreen(tester, periods: {
-        StatisticsPeriod.monthly: [
-          _record(played: 8, wins: 6, goals: 11, mvp: 3),
-        ],
-      });
-
-      await tester.tap(find.text('Monthly'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Share my statistics'));
-      await tester.pumpAndSettle();
-
-      await pumpTemplate(tester, renderer);
-
-      final card = tester
-          .widget<PlayerStatisticsCard>(find.byType(PlayerStatisticsCard));
-      expect(card.data.period, StatisticsPeriod.monthly);
-      expect(card.data.matchesPlayed, 8);
-      expect(card.data.goals, 11);
-    });
-
-    testWidgets('Share is offered only once there are figures to share',
-        (tester) async {
-      // Nothing is on screen while a period loads, so there is no card to make.
-      final gate = Completer<void>();
-      final renderer = await pumpScreen(tester, gate: gate, periods: {
-        StatisticsPeriod.weekly: [_record(played: 3)],
-      });
-      // By icon, not by tooltip: `find.byTooltip` matches the tooltip widget
-      // itself, which is not the button whose enabled state is the question.
-      IconButton shareButton() => tester
-          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.ios_share));
-
-      expect(shareButton().onPressed, isNotNull);
-
-      await tester.tap(find.text('Weekly'));
-      await tester.pump();
-      expect(shareButton().onPressed, isNull,
-          reason: 'the week has not arrived yet');
-
-      gate.complete();
-      await tester.pumpAndSettle();
-      expect(shareButton().onPressed, isNotNull);
-      expect(renderer.renders, 0);
-    });
-
-    testWidgets('a player whose profile is not loaded cannot be pictured',
-        (tester) async {
-      // The card needs a name and a face. Without them it would be a card of
-      // figures belonging to nobody.
-      await pumpScreen(tester, loaded: null);
-
-      expect(
-        tester
-            .widget<IconButton>(
-                find.widgetWithIcon(IconButton, Icons.ios_share))
-            .onPressed,
-        isNull,
-      );
-    });
-  });
+  // **The Player Statistics screen no longer shares.** A player shares
+  // themselves from their Profile, which composes the unified Player Profile
+  // card; the group that used to exercise this screen's own share action went
+  // with the action. What is below still tests the card itself, which the
+  // engine can still be handed.
 }
-
-CommunityPlayerStatistics _record({
-  int played = 0,
-  int wins = 0,
-  int goals = 0,
-  int mvp = 0,
-}) =>
-    CommunityPlayerStatistics(
-      userId: 'u1',
-      fullName: null,
-      matchesPlayed: played,
-      wins: wins,
-      losses: 0,
-      draws: 0,
-      goals: goals,
-      mvpCount: mvp,
-    );
 
 /// The Share Card Engine's renderer port, keeping the template it was given.
 ///
@@ -896,157 +664,12 @@ class FakeShareService implements ShareService {
   final List<ShareCardImage> shared = [];
 
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async {
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async {
     shared.add(image);
     return ShareOutcome.shared;
   }
-}
-
-/// The career source, answering one player from memory.
-class _StaticResultAdapter implements ResultAdapter {
-  _StaticResultAdapter(this.statistics);
-
-  final PlayerStatistics statistics;
-
-  @override
-  Future<PlayerStatistics> fetchStatistics(String userId) async => statistics;
-
-  @override
-  Future<void> recordResult({
-    required String matchId,
-    required int teamAScore,
-    required int teamBScore,
-    required String? mvpUserId,
-    required List<GoalTally> goals,
-  }) =>
-      throw UnimplementedError('the statistics screen records nothing');
-
-  @override
-  Future<MatchResult?> fetchResult(String matchId) =>
-      throw UnimplementedError('the statistics screen reads no match');
-
-  @override
-  Future<List<RatingChange>> fetchRatingHistory(String matchId) =>
-      throw UnimplementedError('the statistics screen reads no audit');
-}
-
-/// One player's period records, answered from memory.
-///
-/// Behind a real [StatisticsRepository], so the screen exercises the
-/// repository's own summing across communities rather than a stub of it — the
-/// figures on the card are the ones the product's reasoning produced.
-class _PeriodAdapter implements StatisticsAdapter {
-  _PeriodAdapter(this.periods, {this.gate});
-
-  final Map<StatisticsPeriod, List<CommunityPlayerStatistics>> periods;
-
-  /// Held open to keep a period read pending while a test looks at the screen
-  /// mid-load. Without it a fake answers on the next microtask and the loading
-  /// window never exists to be observed.
-  final Completer<void>? gate;
-
-  @override
-  Future<List<CommunityPlayerStatistics>> fetchPlayerPeriodStatistics(
-    String userId,
-    StatisticsPeriod period,
-  ) async {
-    if (gate != null) await gate!.future;
-    return periods[period] ?? const [];
-  }
-
-  @override
-  Future<List<CommunityPlayerStatistics>> fetchCommunityPlayerStatistics(
-    String communityId,
-    StatisticsPeriod period,
-  ) =>
-      throw UnimplementedError('the player screen reads no community counters');
-
-  @override
-  Future<int> fetchCompletedMatches(
-    String communityId,
-    StatisticsPeriod period,
-  ) =>
-      throw UnimplementedError('the player screen reads no match totals');
-
-  @override
-  Future<List<CommunityMemberRating>> fetchCommunityMemberRatings(
-    String communityId,
-  ) =>
-      throw UnimplementedError('the player screen reads no roster');
-
-  @override
-  Future<Map<String, PlayerAchievementRecency>> fetchAchievementRecency(
-    String communityId,
-    StatisticsPeriod period,
-  ) async =>
-      const {};
-
-  // Team of Period is a separate read path with its own period vocabulary
-  // (migration 0070). Nothing in this suite reaches it.
-  @override
-  Future<TeamOfPeriodWindow> fetchTeamOfPeriodWindow(
-    String communityId,
-    TeamOfPeriodKind kind,
-  ) =>
-      throw UnimplementedError('no Team of Period read here');
-
-  @override
-  Future<List<TeamOfPeriodCandidate>> fetchTeamOfPeriodCandidates(
-    String communityId,
-    TeamOfPeriodKind kind,
-  ) =>
-      throw UnimplementedError('no Team of Period read here');
-
-  @override
-  Future<Map<String, TeamOfPeriodPlayerIdentity>>
-      fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
-          throw UnimplementedError('no Team of Period identities here');
-
-}
-
-/// The session profile source.
-class _StaticProfileAdapter implements ProfileAdapter {
-  _StaticProfileAdapter(this.profile);
-
-  final PlayerProfile? profile;
-
-  @override
-  Future<PlayerProfile> fetchMyProfile() async {
-    final loaded = profile;
-    if (loaded == null) throw const NetworkFailure();
-    return loaded;
-  }
-
-  @override
-  Future<PlayerProfileView> fetchPlayerProfile(String userId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateMyPrivacy(ProfilePrivacy privacy) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateMyProfile({
-    required DateTime dateOfBirth,
-    required PlayerPosition primaryPosition,
-    required PlayerPosition? secondaryPosition,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateMyAccount({
-    required String fullName,
-    required String phone,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<String> uploadMyAvatar({
-    required Uint8List bytes,
-    required String fileExtension,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> removeMyAvatar() => throw UnimplementedError();
 }

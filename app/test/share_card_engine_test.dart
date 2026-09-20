@@ -861,7 +861,11 @@ class FakeShareService implements ShareService {
   int attempts = 0;
 
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async {
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async {
     attempts++;
     origins.add(origin);
     if (failure != null) throw failure!;

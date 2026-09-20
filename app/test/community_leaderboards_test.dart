@@ -629,7 +629,10 @@ void main() {
         FakeLeaderboardAdapter(members: roster, records: records),
       );
 
-      expect(find.textContaining('across every community'), findsOneWidget);
+      // The note now explains the Community/Period Rating, which is what the
+      // board ranks since migration `0081`.
+      expect(find.textContaining('in this community'), findsOneWidget);
+      expect(find.textContaining('across every community'), findsNothing);
     });
 
     testWidgets('the rating note is absent when the rating board is hidden',
@@ -950,6 +953,45 @@ void main() {
 
 /// The statistics port, answering a roster and its counters from memory.
 class FakeLeaderboardAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async {
+    scopedRatingPeriods.add(period);
+    // **Default: the period has football for every member**, at the rating the
+    // roster carries. That keeps every board this suite already pinned meaning
+    // what it meant -- the ranking, the ties and the ranks are unchanged -- and
+    // a test about the scoped rating itself says so by setting [scopedRatings].
+    final overrides = scopedRatings;
+    if (overrides != null) {
+      return [
+        for (final entry in overrides.entries)
+          CommunityScopedRating(
+            userId: entry.key,
+            rating: entry.value.$1,
+            matchesPlayed: entry.value.$2,
+          ),
+      ];
+    }
+    return [
+      for (final member in members)
+        CommunityScopedRating(
+          userId: member.userId,
+          rating: member.rating,
+          matchesPlayed: 1,
+        ),
+    ];
+  }
+
+  /// The Community/Period Rating each player has, as (rating, matches). Null
+  /// means "every member, at the roster's rating"; a map means exactly these
+  /// players, and anybody absent from it has not played in the period.
+  Map<String, (double, int)>? scopedRatings;
+
+  /// Every period the scoped ratings were asked for, so a test can show the
+  /// boards follow the selector.
+  final List<StatisticsPeriod> scopedRatingPeriods = [];
   FakeLeaderboardAdapter({
     required this.members,
     required this.records,

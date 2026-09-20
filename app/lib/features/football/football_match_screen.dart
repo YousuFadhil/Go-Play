@@ -9,6 +9,7 @@ import '../analytics/analytics_service.dart';
 import '../profile/player_identity.dart';
 import '../results/match_result_card.dart';
 import '../sharing/share_card_flow.dart';
+import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import '../teams/match_stage.dart';
@@ -16,6 +17,7 @@ import '../teams/match_stage_board.dart';
 import 'completed_match_presentation.dart';
 import 'football_models.dart';
 import 'football_repository.dart';
+import 'member_match_stage.dart';
 
 /// A completed match, as anybody signed in may read it.
 ///
@@ -154,6 +156,7 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
   /// [CompletedMatchPresentation.of] when the match loaded, and the names are
   /// the ones the pitch is already showing.
   Future<void> _shareResult() async {
+    final l10n = context.l10n;
     final view = _shown;
     if (view == null || !view.presentation.hasLineup) return;
 
@@ -185,6 +188,12 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
       // Already loaded and already on screen; nothing is read for these.
       matchId: widget.matchId,
       communityId: match.communityId,
+      message: ShareMessage(
+        text: l10n.shareTextMatchResult(match.displayName),
+        url: PublicLink.format(PublicLinkKind.match, widget.matchId),
+      ),
+      shareType: ShareType.result,
+      source: ShareSource.matchResult,
       renderer: widget.renderer,
       shareService: widget.shareService,
     );
@@ -242,33 +251,21 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
 
   /// The match, drawn the way the product draws a match.
   List<Widget> _board(AppLocalizations l10n, _MatchView view) {
-    final match = view.detail.match;
-    final presentation = view.presentation;
-
     return [
-      MatchStageBoard(
-        lineup: presentation.lineup,
-        players: presentation.players,
-        nameOf: presentation.nameOf,
-        hasNaturalGoalkeeper: presentation.hasNaturalGoalkeeper,
-        communityName: match.communityName,
-        matchTitle: match.displayName,
-        playedAt: match.startAt,
-        teamAScore: match.teamAScore,
-        teamBScore: match.teamBScore,
-        goalsOf: presentation.goalsOf,
-        isMvpOf: presentation.isMvpOf,
+      // [MemberMatchStage] is the one member adaptation of a completed match,
+      // shared with the community route so a member's own football and a
+      // stranger's view of it are the same drawing. It carries the match
+      // facts itself.
+      MemberMatchStage(
+        detail: view.detail,
+        presentation: view.presentation,
         // The public-football identity rule, and the whole of what tapping a
         // player does on this route. A registered player opens their hardened
         // football profile; a Professional Guest has no account and opens
-        // nothing. There is no management sheet to reach instead — this screen
-        // has none, for any reader.
-        onTapPlayer: (assignment) {
-          final userId = assignment.userId;
-          if (userId != null) openPlayerProfile(context, userId);
-        },
+        // nothing. There is no management sheet to reach instead -- this
+        // screen has none, for any reader.
+        onTapPlayer: (userId) => openPlayerProfile(context, userId),
       ),
-      ..._matchFacts(l10n, view),
     ];
   }
 

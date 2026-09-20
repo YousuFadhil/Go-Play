@@ -20,10 +20,13 @@ import '../football/football_match_screen.dart';
 import '../football/football_models.dart';
 import '../football/football_repository.dart';
 import '../football/football_result_card.dart';
+import '../results/result_card.dart';
 import '../matches/match_details_screen.dart';
 import 'discover_models.dart';
 import 'discover_repository.dart';
+import 'discover_tabs.dart';
 import 'discover_widgets.dart';
+import 'public_match_screen.dart';
 import 'public_community_screen.dart';
 
 /// What the app opens on, for everybody.
@@ -118,7 +121,8 @@ class DiscoverScreen extends StatefulWidget {
   State<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
-class _DiscoverScreenState extends State<DiscoverScreen> {
+class _DiscoverScreenState extends State<DiscoverScreen>
+    with SingleTickerProviderStateMixin {
   late final DiscoverRepository _repository =
       widget.repository ?? DiscoverRepository();
   late final AuthService _auth = widget.authService ?? AuthService();
@@ -149,10 +153,26 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   /// What has just been played. Null for a guest.
   Future<_LatestResults>? _resultsFuture;
 
+  /// Which of the three tabs is showing.
+  ///
+  /// **State of this screen, and of nothing else.** It is not a route
+  /// argument, not app state and not persisted: every fresh Discover opens on
+  /// Upcoming Matches, which is the approved default. It deliberately survives
+  /// a pull-to-refresh, because [_load] replaces the futures and never touches
+  /// this -- a reader who pulls down on Latest Results is asking for newer
+  /// results, not to be sent back to the fixtures.
+  late final TabController _tabs = TabController(length: 3, vsync: this);
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   bool get _signedIn => _auth.isSignedIn;
@@ -358,70 +378,56 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           ),
           Expanded(
             child: ClubSheet(
-              child: RefreshIndicator(
-                onRefresh: () async => _refresh(),
-                child: FutureBuilder<DiscoverOverview>(
-                  future: _future,
-                  builder: (context, snapshot) {
-                    final loading =
-                        snapshot.connectionState != ConnectionState.done;
-                    final overview = snapshot.hasError ? null : snapshot.data;
+              child: Column(
+                children: [
+                  // **One shell, both readers.** The tabs are outside every
+                  // auth branch below them: a guest and a member get the same
+                  // three, in the same place, in the same order. What a
+                  // session changes is what the cards inside can do.
+                  DiscoverTabs(
+                    controller: _tabs,
+                    labels: [
+                      l10n.upcomingMatchesTitle,
+                      l10n.latestResultsTitle,
+                      l10n.communitiesTitle,
+                    ],
+                  ),
+                  Expanded(
+                    child: FutureBuilder<DiscoverOverview>(
+                      future: _future,
+                      builder: (context, snapshot) {
+                        final loading =
+                            snapshot.connectionState != ConnectionState.done;
+                        final overview =
+                            snapshot.hasError ? null : snapshot.data;
 
-                    return ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsetsDirectional.only(
-                        bottom: Layout.listBottom,
-                      ),
-                      children: [
-                        // One switcher for all three states, so arriving content
-                        // fades in over the placeholders rather than replacing them
-                        // in a single frame. 180ms: long enough to read as a
-                        // transition, short enough that nobody waits for it.
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          child: KeyedSubtree(
-                            key: ValueKey(
-                              loading
-                                  ? 'loading'
-                                  : (overview == null ? 'failed' : 'loaded'),
+                        return TabBarView(
+                          controller: _tabs,
+                          children: [
+                            _tab(
+                              key: const Key('discoverTabUpcoming'),
+                              loading: loading,
+                              overview: overview,
+                              children: (o) => _matchesSection(l10n, o),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (loading)
-                                  const _DiscoverSkeleton()
-                                else if (overview == null)
-                                  _LoadFailed(onRetry: _refresh)
-                                else ...[
-                                  ..._matchesSection(l10n, overview),
-                                  // Latest Results sits between Upcoming and
-                                  // Communities, and only for a signed-in
-                                  // reader. Its own builder, so a football
-                                  // read that fails takes this section down
-                                  // and nothing else: the public content above
-                                  // and below it has already arrived and must
-                                  // not disappear because authenticated
-                                  // history did not.
-                                  if (_resultsFuture != null)
-                                    _FootballFeed(
-                                      future: _resultsFuture!,
-                                      onOpen: _openCompletedMatch,
-                                    ),
-                                  ..._communitiesSection(l10n, overview),
-                                ],
-                              ],
+                            _tab(
+                              key: const Key('discoverTabResults'),
+                              loading: loading,
+                              overview: overview,
+                              children: (o) => _resultsSection(l10n, o),
                             ),
-                          ),
-                        ),
-                        DiscoverCta(
-                          signedIn: _signedIn,
-                          onCreateAccount: _openRegister,
-                          onCreateCommunity: _createCommunity,
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                            _tab(
+                              key: const Key('discoverTabCommunities'),
+                              loading: loading,
+                              overview: overview,
+                              children: (o) => _communitiesSection(l10n, o),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -430,15 +436,84 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     );
   }
 
+  /// One tab's page: its own scroll view, its own pull-to-refresh.
+  ///
+  /// The loading and failed states live inside the tab rather than over the
+  /// whole sheet, so the control above stays put and a reader can still move
+  /// between tabs while the read is in flight.
+  Widget _tab({
+    required Key key,
+    required bool loading,
+    required DiscoverOverview? overview,
+    required List<Widget> Function(DiscoverOverview) children,
+  }) {
+    return RefreshIndicator(
+      key: key,
+      onRefresh: () async => _refresh(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsetsDirectional.only(bottom: Layout.listBottom),
+        children: [
+          // One switcher, so arriving content fades in over the placeholders
+          // rather than replacing them in a single frame. 180ms: long enough
+          // to read as a transition, short enough that nobody waits for it.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: KeyedSubtree(
+              key: ValueKey(
+                loading ? 'loading' : (overview == null ? 'failed' : 'loaded'),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (loading)
+                    const _DiscoverSkeleton()
+                  else if (overview == null)
+                    _LoadFailed(onRetry: _refresh)
+                  else
+                    ...children(overview),
+                ],
+              ),
+            ),
+          ),
+          // **No closing call to action.** One per tab is the same panel
+          // three times over, and every one of them was a screen of scrolling
+          // away from the football the tab exists for. Creating an account and
+          // creating a community are both on the hero, where a reader who
+          // wants either is already looking.
+        ],
+      ),
+    );
+  }
+
+  /// Latest Results, whoever is reading.
+  ///
+  /// A guest gets the public contract, which publishes only matches that have
+  /// a recorded result. A member gets their own football read, which does not
+  /// -- so it is filtered here, in `_FootballFeed`, for the reason the section
+  /// exists: a completed match whose result nobody has entered yet is a
+  /// completed match, and it is not a Latest Result. A section with two
+  /// meanings depending on who is looking at it is the defect this removes.
+  List<Widget> _resultsSection(
+    AppLocalizations l10n,
+    DiscoverOverview overview,
+  ) {
+    if (_resultsFuture != null) {
+      return [
+        _FootballFeed(
+          future: _resultsFuture!,
+          onOpen: _openCompletedMatch,
+        ),
+      ];
+    }
+    return _publicResultsSection(l10n, overview);
+  }
+
   List<Widget> _matchesSection(
     AppLocalizations l10n,
     DiscoverOverview overview,
   ) {
     return [
-      DiscoverSectionHeader(
-        title: l10n.upcomingMatchesTitle,
-        subtitle: l10n.discoverMatchesSubtitle,
-      ),
       if (overview.matches.isEmpty)
         DiscoverEmpty(
           icon: Icons.event_outlined,
@@ -473,15 +548,56 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     ];
   }
 
+  /// Latest Results, as a visitor sees them.
+  ///
+  /// Between Upcoming Matches and Communities, which is where the signed-in
+  /// feed sits — so the page has one order for both readers. With nothing
+  /// scheduled above it, this becomes the first football on the page rather
+  /// than leaving a guest with an empty screen.
+  List<Widget> _publicResultsSection(
+    AppLocalizations l10n,
+    DiscoverOverview overview,
+  ) {
+    return [
+      if (overview.results.isEmpty)
+        // Nothing played yet is a football state, not a fault.
+        DiscoverEmpty(
+          icon: Icons.sports_soccer,
+          message: l10n.latestResultsEmpty,
+        )
+      else
+        ResultsList<PublicResult>(
+          results: overview.results,
+          identityOf: (result) => result.matchId,
+          toggleKey: const Key('discoverPublicPreviousResultsToggle'),
+          itemBuilder: (context, result) => PublicResultCard(
+            result: result,
+            onOpen: () => _openPublicResult(result),
+          ),
+        ),
+    ];
+  }
+
+  /// The public page for a completed match — the one a shared `/match/{id}`
+  /// link opens, and the only thing a guest is offered here.
+  Future<void> _openPublicResult(PublicResult result) =>
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          // The same repository this screen was built with, so one flow reads
+          // through one port -- and a test can hand both ends a fake.
+          builder: (_) => PublicMatchScreen(
+            matchId: result.matchId,
+            repository: widget.repository,
+            authService: widget.authService,
+          ),
+        ),
+      );
+
   List<Widget> _communitiesSection(
     AppLocalizations l10n,
     DiscoverOverview overview,
   ) {
     return [
-      DiscoverSectionHeader(
-        title: l10n.communitiesTitle,
-        subtitle: l10n.discoverCommunitiesSubtitle,
-      ),
       if (overview.communities.isEmpty)
         DiscoverEmpty(
           icon: Icons.groups_outlined,
@@ -551,50 +667,42 @@ class _FootballFeed extends StatelessWidget {
     return FutureBuilder<_LatestResults>(
       future: future,
       builder: (context, snapshot) {
-        final header = DiscoverSectionHeader(
-          title: l10n.latestResultsTitle,
-          subtitle: l10n.latestResultsSubtitle,
-        );
-
         if (snapshot.connectionState != ConnectionState.done) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              header,
-              const SkeletonFade(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: kPageMargin),
-                  child: Column(
-                    children: [
-                      MatchCardSkeleton(),
-                      SizedBox(height: Gap.md),
-                      MatchCardSkeleton(),
-                    ],
-                  ),
-                ),
+          return const SkeletonFade(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: kPageMargin),
+              child: Column(
+                children: [
+                  MatchCardSkeleton(),
+                  SizedBox(height: Gap.md),
+                  MatchCardSkeleton(),
+                ],
               ),
-            ],
+            ),
           );
         }
 
         if (snapshot.hasError || !snapshot.hasData || snapshot.data!.failed) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              header,
-              DiscoverEmpty(
-                icon: Icons.cloud_off_outlined,
-                message: l10n.latestResultsFailed,
-              ),
-            ],
+          return DiscoverEmpty(
+            icon: Icons.cloud_off_outlined,
+            message: l10n.latestResultsFailed,
           );
         }
 
-        final results = snapshot.data!.matches;
+        // **Result-bearing only.** A member's football read returns every
+        // completed match, including one whose result nobody has written up
+        // yet; the public contract returns only matches that have one. A
+        // section called Latest Results must not mean two different things
+        // depending on who is reading it, so the member's side is narrowed to
+        // the public side's meaning. Nothing is fetched to do it -- the flag
+        // is already on the row.
+        final results = [
+          for (final match in snapshot.data!.matches)
+            if (match.hasResult) match,
+        ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            header,
             if (results.isEmpty)
               // Nothing played yet is a football state, not a fault.
               DiscoverEmpty(
@@ -602,130 +710,18 @@ class _FootballFeed extends StatelessWidget {
                 message: l10n.latestResultsEmpty,
               )
             else
-              _ResultsList(results: results, onOpen: onOpen),
+              ResultsList<CompletedMatch>(
+                results: results,
+                identityOf: (match) => match.matchId,
+                toggleKey: const Key('discoverPreviousResultsToggle'),
+                itemBuilder: (context, match) => FootballResultCard(
+                  match: match,
+                  onOpen: () => onOpen(match),
+                ),
+              ),
           ],
         );
       },
-    );
-  }
-}
-
-/// The results themselves: the newest one, and the rest behind a disclosure.
-///
-/// **Only the newest is shown at first.** Five results is a wall of scores
-/// under a section a reader came to for "what has just been played"; the one
-/// that just happened is the answer, and the four before it are context they
-/// can ask for. Asking is one tap and costs nothing — the whole list is already
-/// in memory, fetched by the read this widget was handed.
-///
-/// Stateful for that reason and no other: the flag lives here because it
-/// describes this widget on this screen. Nothing about it is worth a repository
-/// call, a route argument or app-level state, and it deliberately does not
-/// survive leaving Discover.
-class _ResultsList extends StatefulWidget {
-  const _ResultsList({required this.results, required this.onOpen});
-
-  /// Newest first, exactly as the repository returned them. Never re-ordered
-  /// here.
-  final List<CompletedMatch> results;
-  final void Function(CompletedMatch) onOpen;
-
-  @override
-  State<_ResultsList> createState() => _ResultsListState();
-}
-
-class _ResultsListState extends State<_ResultsList> {
-  bool _expanded = false;
-
-  @override
-  void didUpdateWidget(covariant _ResultsList oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // A pull-to-refresh can replace the feed under an expansion that described
-    // the previous one. Collapsing is the honest reset: "four more" that now
-    // means a different four would be a presentation of something the reader
-    // never asked to see.
-    if (_expanded && _feedChanged(oldWidget.results, widget.results)) {
-      _expanded = false;
-    }
-  }
-
-  /// Whether these are still the same results, in the same order.
-  ///
-  /// The feed's identity is its ordered sequence of match ids, and the whole
-  /// sequence has to be compared. Checking only the length and the newest id
-  /// missed the case that matters most: a refresh that replaces one of the
-  /// *hidden* results leaves both of those unchanged, so an expansion opened
-  /// over `[m1, m2, m3, m4, m5]` would stay open over `[m1, m8, m3, m4, m5]` —
-  /// still showing four previous results, but not the four it was opened for.
-  ///
-  /// Ids only. A score corrected or an MVP renamed on the same matches, in the
-  /// same order, is the same feed better described — collapsing there would
-  /// close the list under a reader for no reason they could see.
-  ///
-  /// **On this screen it is defence rather than the acting rule.** Discover's
-  /// refresh is `setState(_load)`, which puts the page back through `loading`,
-  /// and the `AnimatedSwitcher` above keys its subtree on that state — so the
-  /// whole section is disposed and rebuilt, and this widget's state goes with
-  /// it, before `didUpdateWidget` could be consulted. The expansion is
-  /// therefore already reset by a refresh whatever this returns.
-  ///
-  /// It is kept because it is what makes *this widget* correct on its own: a
-  /// caller that updates it in place — a parent that keeps the subtree alive,
-  /// or any future reuse of it — gets the right answer without having to know
-  /// about the switcher above.
-  static bool _feedChanged(
-    List<CompletedMatch> before,
-    List<CompletedMatch> now,
-  ) {
-    if (before.length != now.length) return true;
-    for (var i = 0; i < now.length; i++) {
-      if (now[i].matchId != before[i].matchId) return true;
-    }
-    return false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final results = widget.results;
-    // Everything behind the newest. Zero when there is only one result, and
-    // then there is no control at all — a disclosure that reveals nothing is
-    // noise.
-    final hidden = results.length - 1;
-    final visible = _expanded ? results : results.take(1);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final match in visible)
-          FootballResultCard(
-            match: match,
-            onOpen: () => widget.onOpen(match),
-          ),
-        if (hidden > 0)
-          Padding(
-            padding:
-                const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.sm),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                key: const Key('discoverPreviousResultsToggle'),
-                // Local state only: no read, no reload, no repository. The
-                // matches are the ones already handed to this widget.
-                onPressed: () => setState(() => _expanded = !_expanded),
-                icon: Icon(
-                  _expanded ? Icons.expand_less : Icons.expand_more,
-                  size: IconSize.action,
-                ),
-                label: Text(
-                  _expanded
-                      ? l10n.hidePreviousResults
-                      : l10n.showPreviousResults(hidden),
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

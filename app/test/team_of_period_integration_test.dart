@@ -330,7 +330,8 @@ void main() {
     /// Only the two Team of Period reads. The rest of this class legitimately
     /// sends `p_period_key` -- that is `community_statistics_recency`, which
     /// asks about the running period and has to name it.
-    final teamOfPeriod = source.substring(source.indexOf('fetchTeamOfPeriodWindow'));
+    final teamOfPeriod =
+        source.substring(source.indexOf('fetchTeamOfPeriodWindow'));
 
     test('both send the community and the period type, and nothing else', () {
       expect(teamOfPeriod, contains("'p_community_id': communityId"));
@@ -499,7 +500,8 @@ void main() {
       );
     });
 
-    test('a qualifying count that moved between the reads is refused', () async {
+    test('a qualifying count that moved between the reads is refused',
+        () async {
       // Same week, and still not one snapshot: a historical match entered
       // between the two calls changes the denominator every participation rate
       // on those candidate rows was taken over.
@@ -549,6 +551,12 @@ void main() {
 /// elsewhere in this suite do. Only the two Team of Period reads are
 /// implemented; nothing here reaches the rest of the port.
 class _FakeStatisticsAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async =>
+      const [];
   _FakeStatisticsAdapter({
     required this.window,
     required this.candidates,

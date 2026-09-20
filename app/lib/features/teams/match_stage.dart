@@ -559,7 +559,9 @@ class _ScoreStrip extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(15 * sx),
           child: Row(
-            textDirection: TextDirection.ltr,
+            // Share cards use one physical convention in every locale:
+            // Team A is pinned to the RIGHT and Team B to the LEFT.
+            textDirection: TextDirection.rtl,
             children: [
               Expanded(
                 child: _StripSide(
@@ -688,7 +690,8 @@ class _StripScore extends StatelessWidget {
         );
 
     return Row(
-      textDirection: TextDirection.ltr,
+      // Keep each score under the same fixed physical side as its team label.
+      textDirection: TextDirection.rtl,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         numeral(scoreA, winner == TeamId.a),

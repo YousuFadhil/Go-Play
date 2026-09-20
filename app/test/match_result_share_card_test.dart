@@ -744,6 +744,47 @@ void main() {
   });
 
   group('what the card says at the top', () {
+    for (final locale in [const Locale('en'), const Locale('ar')]) {
+      testWidgets(
+          'pins Team A right and Team B left in ${locale.languageCode}',
+          (tester) async {
+        await pumpCard(
+          tester,
+          cardData(teamAScore: 3, teamBScore: 1),
+          locale: locale,
+        );
+
+        final strip = find.byKey(const ValueKey('result-strip'));
+        final teamALabel = find.descendant(
+          of: strip,
+          matching: find.text(
+            locale.languageCode == 'ar' ? 'الفريق أ' : 'Team A',
+          ),
+        );
+        final teamBLabel = find.descendant(
+          of: strip,
+          matching: find.text(
+            locale.languageCode == 'ar' ? 'الفريق ب' : 'Team B',
+          ),
+        );
+        final scoreA = find.descendant(of: strip, matching: find.text('3'));
+        final scoreB = find.descendant(of: strip, matching: find.text('1'));
+
+        expect(teamALabel, findsOneWidget);
+        expect(teamBLabel, findsOneWidget);
+        expect(scoreA, findsOneWidget);
+        expect(scoreB, findsOneWidget);
+        expect(
+          tester.getCenter(teamALabel).dx,
+          greaterThan(tester.getCenter(teamBLabel).dx),
+        );
+        expect(
+          tester.getCenter(scoreA).dx,
+          greaterThan(tester.getCenter(scoreB).dx),
+        );
+      });
+    }
+
     testWidgets('the score, the community and the date', (tester) async {
       await pumpCard(tester, cardData(teamAScore: 3, teamBScore: 1));
 
@@ -1327,7 +1368,11 @@ class _FakeShareService implements ShareService {
   final List<ShareCardImage> shared = [];
 
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async {
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async {
     shared.add(image);
     return ShareOutcome.shared;
   }
@@ -1337,7 +1382,11 @@ class _FakeShareService implements ShareService {
 /// one the download exists for.
 class _FailingShareService implements ShareService {
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async =>
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async =>
       throw const InfrastructureFailure();
 }
 

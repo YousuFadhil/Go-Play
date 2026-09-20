@@ -170,7 +170,8 @@ void main() {
 
   bool shareEnabled(WidgetTester tester) =>
       tester
-          .widget<IconButton>(find.byKey(const ValueKey('team-of-period-share')))
+          .widget<IconButton>(
+              find.byKey(const ValueKey('team-of-period-share')))
           .onPressed !=
       null;
 
@@ -217,7 +218,8 @@ void main() {
         ),
       );
 
-      expect(find.byKey(const ValueKey('team-of-period-share')), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('team-of-period-share')), findsOneWidget);
       expect(shareEnabled(tester), isTrue);
     });
 
@@ -228,8 +230,7 @@ void main() {
         tester,
         adapter: _FakeAdapter(
           window: windowOf(kind: TeamOfPeriodKind.monthly, from: from, to: to),
-          candidates:
-              squad(kind: TeamOfPeriodKind.monthly, from: from, to: to),
+          candidates: squad(kind: TeamOfPeriodKind.monthly, from: from, to: to),
           identities: namesFor(['gk1', 'd1', 'd2', 'm1', 'f1']),
         ),
       );
@@ -414,7 +415,9 @@ void main() {
       );
       expect([for (final p in card.data.players) p.userId],
           ['gk1', 'd1', 'd2', 'm1', 'f1']);
-      expect([for (final p in card.data.players) p.assignedPosition], [
+      expect([
+        for (final p in card.data.players) p.assignedPosition
+      ], [
         Position.gk,
         Position.def,
         Position.def,
@@ -534,8 +537,7 @@ void main() {
         renderer: renderer,
         adapter: _FakeAdapter(
           window: windowOf(kind: TeamOfPeriodKind.monthly, from: from, to: to),
-          candidates:
-              squad(kind: TeamOfPeriodKind.monthly, from: from, to: to),
+          candidates: squad(kind: TeamOfPeriodKind.monthly, from: from, to: to),
           identities: namesFor(['gk1', 'd1', 'd2', 'm1', 'f1']),
         ),
       );
@@ -584,7 +586,8 @@ void main() {
       await compose(tester);
 
       expect(find.byType(PitchView), findsOneWidget);
-      expect(find.byKey(const ValueKey('team-of-period-pitch')), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('team-of-period-pitch')), findsOneWidget);
       expect(find.text('Team A'), findsNothing);
       expect(find.text('Team B'), findsNothing);
     });
@@ -910,11 +913,21 @@ const _pixel = <int>[
 
 class _FakeShareService implements ShareService {
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async =>
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async =>
       ShareOutcome.shared;
 }
 
 class _FakeAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async =>
+      const [];
   _FakeAdapter({
     required this.window,
     required this.candidates,

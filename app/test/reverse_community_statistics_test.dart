@@ -360,6 +360,25 @@ void main() {
 }
 
 class _FakeAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async {
+    // The period has football for every member, at the rating the roster
+    // carries: the boards this suite pins are about ordering and ranks, and
+    // the scoped rating is what they now order.
+    final roster = await fetchCommunityMemberRatings(communityId);
+    return [
+      for (final member in roster)
+        CommunityScopedRating(
+          userId: member.userId,
+          rating: member.rating,
+          matchesPlayed: 1,
+        ),
+    ];
+  }
+
   _FakeAdapter({
     required this.members,
     required this.counters,

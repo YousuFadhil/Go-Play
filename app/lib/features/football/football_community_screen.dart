@@ -8,7 +8,6 @@ import '../../core/tokens.dart';
 import '../communities/community_repository.dart';
 import '../communities/community_details_screen.dart';
 import '../communities/join_community_flow.dart';
-import '../discover/discover_models.dart';
 import '../discover/discover_repository.dart';
 import '../discover/discover_widgets.dart';
 import '../profile/player_identity.dart';
@@ -190,7 +189,7 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
                     title: l10n.communityTitle,
                     onBack: () => Navigator.of(context).maybePop(),
                   ),
-                  identity: _Identity(community: community),
+                  identity: CommunityIdentity(community: community),
                   counts: Row(
                     children: [
                       Flexible(
@@ -363,48 +362,6 @@ List<CommunityPlayerStats> rankTopPlayers(
   return ranked.take(take).toList();
 }
 
-class _Identity extends StatelessWidget {
-  const _Identity({required this.community});
-
-  final PublicCommunity community;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        CommunityCrest(name: community.name, logoUrl: community.logoUrl),
-        const SizedBox(width: Gap.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                community.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (community.description?.trim().isNotEmpty ?? false)
-                Text(
-                  community.description!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.white70),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// The community's football record: the four figures Cycle 2 publishes.
 class _RecordRow extends StatelessWidget {
   const _RecordRow({required this.stats});
 

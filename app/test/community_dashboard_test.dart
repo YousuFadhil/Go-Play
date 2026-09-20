@@ -287,6 +287,41 @@ void main() {
 /// periods, and default to empty — a period nobody stocked is a period nothing
 /// happened in, which is exactly what the database returns for one.
 class FakeStatisticsAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async {
+    scopedRatingPeriods.add(period);
+    // **Default: the period has football for every member**, at the rating the
+    // roster carries. That keeps every board this suite already pinned meaning
+    // what it meant -- the ranking, the ties and the ranks are unchanged -- and
+    // a test about the scoped rating itself says so by setting [scopedRatings].
+    final overrides = scopedRatings;
+    if (overrides != null) {
+      return [
+        for (final entry in overrides.entries)
+          CommunityScopedRating(
+            userId: entry.key,
+            rating: entry.value.$1,
+            matchesPlayed: entry.value.$2,
+          ),
+      ];
+    }
+    // The Dashboard reads no roster and ranks no rating, so there is nothing
+    // to derive a default from: a test that wants scoped ratings supplies
+    // them.
+    return const [];
+  }
+
+  /// The Community/Period Rating each player has, as (rating, matches). Null
+  /// means "every member, at the roster's rating"; a map means exactly these
+  /// players, and anybody absent from it has not played in the period.
+  Map<String, (double, int)>? scopedRatings;
+
+  /// Every period the scoped ratings were asked for, so a test can show the
+  /// boards follow the selector.
+  final List<StatisticsPeriod> scopedRatingPeriods = [];
   FakeStatisticsAdapter({
     required this.players,
     required this.completedMatches,
@@ -398,5 +433,4 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
   Future<Map<String, TeamOfPeriodPlayerIdentity>>
       fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
           throw UnimplementedError('no Team of Period identities here');
-
 }

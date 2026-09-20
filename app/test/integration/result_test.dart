@@ -398,12 +398,12 @@ void main() {
     test('the winners gain 0.10 and the losers are charged 0.10', () async {
       await record(owner, teamA: 1, teamB: 0, mvp: player, goals: {owner: 1});
 
-      // Everyone +0.005 for playing, then
-      // owner: win 0.10 + goal 0.02   admin: win 0.10
-      // player: loss -0.10 + mvp 0.05  player2: loss -0.10
-      expect(await gainOf(owner), closeTo(0.125, 0.001));
+      // Everyone +0.005 for playing, then (migration 0078)
+      // owner: win 0.10 + goal 0.01   admin: win 0.10
+      // player: loss -0.10 + mvp 0.02  player2: loss -0.10
+      expect(await gainOf(owner), closeTo(0.115, 0.001));
       expect(await gainOf(admin), closeTo(0.105, 0.001));
-      expect(await gainOf(player), closeTo(-0.045, 0.001));
+      expect(await gainOf(player), closeTo(-0.075, 0.001));
       expect(await gainOf(player2), closeTo(-0.095, 0.001));
     });
 
@@ -412,10 +412,10 @@ void main() {
           teamA: 1, teamB: 1, mvp: owner, goals: {owner: 1, player: 1});
 
       // Everyone: participation 0.005 + draw 0.010; on top of that
-      // owner: goal 0.02 + mvp 0.05; player: goal 0.02.
-      expect(await gainOf(owner), closeTo(0.085, 0.001));
+      // owner: goal 0.01 + mvp 0.02; player: goal 0.01.
+      expect(await gainOf(owner), closeTo(0.045, 0.001));
       expect(await gainOf(admin), closeTo(0.015, 0.001));
-      expect(await gainOf(player), closeTo(0.035, 0.001));
+      expect(await gainOf(player), closeTo(0.025, 0.001));
       expect(await gainOf(player2), closeTo(0.015, 0.001));
     });
 
@@ -424,21 +424,22 @@ void main() {
       await record(owner, teamA: 0, teamB: 0, mvp: player2);
 
       expect(await gainOf(owner), closeTo(0.015, 0.001));
-      expect(await gainOf(player2), closeTo(0.065, 0.001));
+      // participation 0.005 + draw 0.010 + mvp 0.020.
+      expect(await gainOf(player2), closeTo(0.035, 0.001));
     });
 
-    test('several goals by one player are worth 0.02 each', () async {
+    test('several goals by one player are worth 0.01 each', () async {
       await record(owner, teamA: 3, teamB: 0, mvp: player, goals: {owner: 3});
 
-      // participation 0.005 + win 0.10 + three goals 0.06.
-      expect(await gainOf(owner), closeTo(0.165, 0.001));
+      // participation 0.005 + win 0.10 + three goals 0.03.
+      expect(await gainOf(owner), closeTo(0.135, 0.001));
     });
 
-    test('a scorer past the fifth goal gains no more than the cap', () async {
-      await record(owner, teamA: 6, teamB: 0, mvp: player, goals: {owner: 6});
+    test('a scorer past the seventh goal gains no more than the cap', () async {
+      await record(owner, teamA: 9, teamB: 0, mvp: player, goals: {owner: 9});
 
-      // participation 0.005 + win 0.10 + goals capped at 0.10.
-      expect(await gainOf(owner), closeTo(0.205, 0.001));
+      // participation 0.005 + win 0.10 + goals capped at 0.07.
+      expect(await gainOf(owner), closeTo(0.175, 0.001));
     });
 
     test('the losing top scorer with the MVP stays below a plain winner',
@@ -448,7 +449,8 @@ void main() {
       await record(owner,
           teamA: 6, teamB: 5, mvp: player, goals: {owner: 6, player: 5});
 
-      expect(await gainOf(player), closeTo(0.055, 0.001));
+      // participation 0.005, loss -0.100, five goals 0.050, mvp 0.020.
+      expect(await gainOf(player), closeTo(-0.025, 0.001));
       expect(await gainOf(admin), closeTo(0.105, 0.001));
       expect(await gainOf(player), lessThan(await gainOf(admin)));
     });
@@ -536,8 +538,8 @@ void main() {
 
       // Participation (+0.005) and the draw (+0.010) are applied first.
       expect(mvp.ratingBefore, closeTo(5.015, 0.001));
-      expect(mvp.ratingAfter, closeTo(5.065, 0.001));
-      expect(mvp.delta, closeTo(0.05, 0.001));
+      expect(mvp.ratingAfter, closeTo(5.035, 0.001));
+      expect(mvp.delta, closeTo(0.02, 0.001));
       expect(mvp.reversesId, isNull);
     });
   });
@@ -559,8 +561,8 @@ void main() {
       expect(mine.draws, 0);
       expect(mine.goals, 1);
       expect(mine.mvpCount, 1);
-      // participation 0.005 + win 0.10 + goal 0.02 + mvp 0.05.
-      expect(mine.currentRating, closeTo(baseline[owner.id]! + 0.175, 0.001));
+      // participation 0.005 + win 0.10 + goal 0.01 + mvp 0.02.
+      expect(mine.currentRating, closeTo(baseline[owner.id]! + 0.135, 0.001));
 
       final theirs = await statisticsOf(player);
       expect(theirs.matchesPlayed, 1);
@@ -597,8 +599,8 @@ void main() {
 
     test('the ratings end where the new result alone would put them', () async {
       await record(owner, teamA: 3, teamB: 0, mvp: owner, goals: {owner: 3});
-      // 3-0 with a hat-trick and the MVP: 0.005 + 0.10 + 0.06 + 0.05.
-      expect(await gainOf(owner), closeTo(0.215, 0.001));
+      // 3-0 with a hat-trick and the MVP: 0.005 + 0.10 + 0.03 + 0.02.
+      expect(await gainOf(owner), closeTo(0.155, 0.001));
 
       await record(owner, teamA: 0, teamB: 1, mvp: player, goals: {player: 1});
       // Every change the 3-0 made is given back, and the 0-1 applied in its
@@ -607,7 +609,8 @@ void main() {
       // all three. Neither carries anything over from the result that was
       // replaced.
       expect(await gainOf(owner), closeTo(-0.095, 0.001));
-      expect(await gainOf(player), closeTo(0.175, 0.001));
+      // participation 0.005 + win 0.10 + goal 0.01 + mvp 0.02.
+      expect(await gainOf(player), closeTo(0.135, 0.001));
     });
 
     test('the counters end where the new result alone would put them',
@@ -720,8 +723,8 @@ void main() {
       // Without this a deleted match would leave the ratings it produced
       // standing, credited to something that no longer exists.
       await record(owner, teamA: 2, teamB: 0, mvp: owner, goals: {owner: 2});
-      // participation 0.005 + win 0.10 + two goals 0.04 + mvp 0.05.
-      expect(await gainOf(owner), closeTo(0.195, 0.001));
+      // participation 0.005 + win 0.10 + two goals 0.02 + mvp 0.02.
+      expect(await gainOf(owner), closeTo(0.145, 0.001));
 
       await owner.client.rpc('delete_match', params: {'p_match_id': matchId});
 

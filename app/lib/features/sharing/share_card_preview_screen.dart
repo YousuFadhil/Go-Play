@@ -27,6 +27,9 @@ class ShareCardPreviewScreen extends StatefulWidget {
     required this.image,
     this.matchId,
     this.communityId,
+    this.message,
+    this.shareType,
+    this.source,
     this.shareService,
     this.downloader,
   });
@@ -42,6 +45,18 @@ class ShareCardPreviewScreen extends StatefulWidget {
   /// populate them and the screen does not otherwise know they exist.
   final String? matchId;
   final String? communityId;
+
+  /// The words and the public link that leave with the picture, composed by
+  /// the feature that asked for the card. Null is an image-only share, which is
+  /// what every card was before Package 5.
+  final ShareMessage? message;
+
+  /// What kind of card this is, and which screen it was raised from — the two
+  /// structured fields a completed share is recorded with (migration `0079`).
+  /// Null on a caller that has not been told to classify itself, and null is
+  /// recorded as null rather than guessed at.
+  final ShareType? shareType;
+  final String? source;
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final ShareService? shareService;
@@ -91,7 +106,11 @@ class _ShareCardPreviewScreenState extends State<ShareCardPreviewScreen> {
     final origin = _shareOrigin();
     setState(() => _sharing = true);
     try {
-      final outcome = await _share.shareImage(widget.image, origin: origin);
+      final outcome = await _share.shareImage(
+        widget.image,
+        origin: origin,
+        message: widget.message,
+      );
       // Every outcome is silent. Sharing succeeded, or the reader closed the
       // sheet themselves — neither is news, and a confirmation of something
       // the reader just watched happen is noise.
@@ -112,6 +131,12 @@ class _ShareCardPreviewScreenState extends State<ShareCardPreviewScreen> {
           ProductEvent.shareUsed,
           matchId: widget.matchId,
           communityId: widget.communityId,
+          // What was shared and where from. Carried down from the screen that
+          // composed the card rather than inferred here: this screen is handed
+          // a picture and could not tell a profile from a lineup by looking at
+          // it.
+          shareType: widget.shareType,
+          source: widget.source,
         );
       }
     } on Failure catch (failure) {

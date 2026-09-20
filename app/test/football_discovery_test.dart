@@ -15,12 +15,15 @@ import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
 import 'package:go_play/features/discover/discover_screen.dart';
+import 'package:go_play/features/discover/discover_tabs.dart';
+import 'package:go_play/features/football/football_result_card.dart';
 import 'package:go_play/features/discover/public_community_screen.dart';
 import 'package:go_play/features/football/football_adapter.dart';
 import 'package:go_play/features/football/football_community_screen.dart';
 import 'package:go_play/features/football/football_match_screen.dart';
 import 'package:go_play/features/football/football_models.dart';
 import 'package:go_play/features/football/football_repository.dart';
+import 'package:go_play/features/results/score_pair.dart';
 import 'package:go_play/features/matches/match_details_screen.dart';
 import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/results/match_result_card.dart';
@@ -102,8 +105,8 @@ void main() {
         communityName: communityName,
         location: 'Al Amerat',
         startAt: start ?? DateTime(2026, 8, 20, 18),
-        endAt: (start ?? DateTime(2026, 8, 20, 18))
-            .add(const Duration(hours: 2)),
+        endAt:
+            (start ?? DateTime(2026, 8, 20, 18)).add(const Duration(hours: 2)),
         isHistorical: false,
         hasResult: hasResult,
         title: title,
@@ -124,6 +127,35 @@ void main() {
         navigatorObservers: observers,
         home: home,
       );
+
+  /// Discover opens on Upcoming Matches; Latest Results is the second tab.
+  ///
+  /// By position rather than by label, so the helper is the same in either
+  /// language, and scrolled into view first because the bar is deliberately
+  /// scrollable on a narrow phone.
+  Future<void> openTab(WidgetTester tester, int index) async {
+    final tab = find
+        .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+        .at(index);
+    await tester.ensureVisible(tab);
+    await tester.pumpAndSettle();
+    await tester.tap(tab);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> openUpcoming(WidgetTester tester) => openTab(tester, 0);
+
+  Future<void> openCommunities(WidgetTester tester) => openTab(tester, 2);
+
+  Future<void> openResults(WidgetTester tester) async {
+    final tab = find
+        .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+        .at(1);
+    await tester.ensureVisible(tab);
+    await tester.pumpAndSettle();
+    await tester.tap(tab);
+    await tester.pumpAndSettle();
+  }
 
   Future<({_FakeFootballAdapter football, _JoinedAdapter communities})>
       pumpDiscover(
@@ -147,19 +179,20 @@ void main() {
       results: results,
       failure: footballFailure,
     );
-    final communitiesPort =
-        _JoinedAdapter(joined, failure: membershipFailure);
+    final communitiesPort = _JoinedAdapter(joined, failure: membershipFailure);
 
-    await tester.pumpWidget(wrap(DiscoverScreen(
-      repository: DiscoverRepository(_FakeDiscoverAdapter(
-        communities: communities,
-        matches: matches,
-        failure: publicFailure,
-      )),
-      authService: AuthService(_StubAuth(signedIn: signedIn)),
-      footballRepository: FootballRepository(football),
-      communityRepository: CommunityRepository(communitiesPort),
-    ), observers: observers));
+    await tester.pumpWidget(wrap(
+        DiscoverScreen(
+          repository: DiscoverRepository(_FakeDiscoverAdapter(
+            communities: communities,
+            matches: matches,
+            failure: publicFailure,
+          )),
+          authService: AuthService(_StubAuth(signedIn: signedIn)),
+          footballRepository: FootballRepository(football),
+          communityRepository: CommunityRepository(communitiesPort),
+        ),
+        observers: observers));
     await tester.pumpAndSettle();
     return (football: football, communities: communitiesPort);
   }
@@ -175,6 +208,7 @@ void main() {
         communities: [community('c1', 'Muscat United')],
         results: [completed('p1')],
       );
+      await openResults(tester);
 
       expect(ports.football.completedCalls, 0,
           reason: 'Cycle 2 granted football history to authenticated only; a '
@@ -190,11 +224,14 @@ void main() {
         matches: [upcoming('m1')],
         communities: [community('c1', 'Muscat United')],
       );
+      await openResults(tester);
 
       expect(find.text('Upcoming matches'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
-      expect(find.text('Latest results'), findsNothing,
-          reason: 'the football section belongs to signed-in readers');
+      // A guest now gets Latest Results too -- from the public contract
+      // (`public_recent_results`, migration `0081`), not from the
+      // authenticated football history the assertions above pin shut.
+      expect(find.text('Latest results'), findsOneWidget);
     });
   });
 
@@ -208,14 +245,25 @@ void main() {
         communities: [community('c1', 'Muscat United')],
         results: [completed('p1')],
       );
-
+      // The approved Discover is three tabs in this order, not three
+      // sections stacked down one page.
+      final tabs = find
+          .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab));
+      expect(tabs, findsNWidgets(3));
+      expect(find.text('Upcoming matches'), findsOneWidget);
       expect(find.text('Latest results'), findsOneWidget);
+      expect(find.text('Communities'), findsOneWidget);
 
-      final upcomingY = tester.getTopLeft(find.text('Upcoming matches')).dy;
-      final resultsY = tester.getTopLeft(find.text('Latest results')).dy;
-      final communitiesY = tester.getTopLeft(find.text('Communities')).dy;
-      expect(upcomingY, lessThan(resultsY));
-      expect(resultsY, lessThan(communitiesY));
+      final upcomingX = tester.getTopLeft(tabs.at(0)).dx;
+      final resultsX = tester.getTopLeft(tabs.at(1)).dx;
+      final communitiesX = tester.getTopLeft(tabs.at(2)).dx;
+      expect(upcomingX, lessThan(resultsX));
+      expect(resultsX, lessThan(communitiesX));
+
+      // And only the selected tab's football is on screen.
+      expect(find.byType(FootballResultCard), findsNothing);
+      await openResults(tester);
+      expect(find.byType(FootballResultCard), findsOneWidget);
     });
 
     testWidgets('newest first', (tester) async {
@@ -227,12 +275,11 @@ void main() {
           completed('old', title: 'Older', start: DateTime(2026, 8, 10)),
         ],
       );
+      await openResults(tester);
 
-      // Only the newest is shown until the reader asks for the rest (Cycle
-      // B2); the order under that disclosure is what this test owns.
-      await tester.tap(find.byKey(const Key('discoverPreviousResultsToggle')));
-      await tester.pumpAndSettle();
-
+      // Two results are both inside the approved three, so there is nothing
+      // to open; the order they are drawn in is what this test owns.
+      //
       // The repository preserves the order the read model returns, which is
       // most recent first; the screen must not re-sort it.
       expect(tester.getTopLeft(find.text('Newer')).dy,
@@ -242,25 +289,56 @@ void main() {
     testWidgets('a recorded match shows its score', (tester) async {
       await pumpDiscover(tester,
           signedIn: true, results: [completed('p1', a: 3, b: 2)]);
+      await openResults(tester);
 
-      expect(find.text('3 - 2'), findsOneWidget);
+      // Each number is drawn under its own team's name: "3 - 2" alone does
+      // not say which side scored which, and on an Arabic page it reads as
+      // though it might be the other way round.
+      expect(find.byType(ScorePair), findsOneWidget);
+      expect(find.text('3'), findsWidgets);
+      expect(find.text('2'), findsWidgets);
       expect(find.text('Result pending'), findsNothing);
     });
 
-    testWidgets('an unrecorded match says so instead of showing 0-0',
+    testWidgets('a match with no recorded result is not a Latest Result',
         (tester) async {
       await pumpDiscover(tester,
           signedIn: true, results: [completed('p1', hasResult: false)]);
+      await openResults(tester);
 
-      expect(find.text('Result pending'), findsOneWidget);
+      // **The approved narrowing.** A member's football read returns every
+      // completed match; the public contract returns only those with a
+      // recorded result. A section called Latest Results must not mean two
+      // different things depending on who is reading it, so a match nobody
+      // has written up yet is left out of this tab entirely -- it is a
+      // completed match, and it is not yet a result.
+      expect(find.byType(FootballResultCard), findsNothing);
+      expect(find.text('Result pending'), findsNothing);
       expect(find.text('0 - 0'), findsNothing,
           reason: '0-0 is a result somebody recorded; this is not');
+      expect(
+        find.text('No results yet. Once a match is played it shows up here.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('and a recorded one beside it still is', (tester) async {
+      await pumpDiscover(tester, signedIn: true, results: [
+        completed('p1', title: 'Played', hasResult: true),
+        completed('p2', title: 'Not written up', hasResult: false),
+      ]);
+      await openResults(tester);
+
+      expect(find.text('Played'), findsOneWidget);
+      expect(find.text('Not written up'), findsNothing);
+      expect(find.byType(FootballResultCard), findsOneWidget);
     });
 
     testWidgets('an MVP is shown when one was named', (tester) async {
       await pumpDiscover(tester,
           signedIn: true,
           results: [completed('p1', mvp: player('u1', 'Salim Al Harthy'))]);
+      await openResults(tester);
 
       expect(find.text('Salim Al Harthy'), findsOneWidget);
       expect(find.text('MVP'), findsOneWidget);
@@ -271,6 +349,7 @@ void main() {
     // already holds -- would survive and the second case would assert nothing.
     testWidgets('and nothing is claimed when none was', (tester) async {
       await pumpDiscover(tester, signedIn: true, results: [completed('p2')]);
+      await openResults(tester);
 
       expect(find.text('MVP'), findsNothing);
     });
@@ -278,6 +357,7 @@ void main() {
     testWidgets('no completed matches is an empty state, not an error',
         (tester) async {
       await pumpDiscover(tester, signedIn: true, results: const []);
+      await openResults(tester);
 
       expect(find.text('Latest results'), findsOneWidget);
       expect(find.textContaining('No results yet'), findsOneWidget);
@@ -294,12 +374,17 @@ void main() {
         communities: [community('c1', 'Muscat United')],
         footballFailure: StateError('football offline'),
       );
+      await openResults(tester);
 
+      // The football half failed inside its own tab; the tabs and the public
+      // content behind them are untouched.
       expect(find.text('Upcoming matches'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
-      expect(find.text('Muscat United'), findsWidgets);
       expect(find.textContaining('Could not load recent football'),
           findsOneWidget);
+
+      await openCommunities(tester);
+      expect(find.text('Muscat United'), findsWidgets);
     });
   });
 
@@ -317,6 +402,9 @@ void main() {
       List<PublicCommunity> communities = const [],
       List<PublicMatch> matches = const [],
       List<String> joined = const [],
+      /// Which Discover tab the target lives on. Results by default, because
+      /// that is what most of this suite is about.
+      int tab = 1,
     }) async {
       final routes = _RouteRecorder();
       await pumpDiscover(
@@ -327,6 +415,7 @@ void main() {
         joined: joined,
         observers: [routes],
       );
+      await openTab(tester, tab);
 
       await tester.tap(target);
       await tester.idle();
@@ -390,6 +479,7 @@ void main() {
       final pushed = await tapAndCapture(
         tester,
         find.text('View community'),
+        tab: 2,
         signedIn: false,
         communities: [community('c1', 'Muscat United')],
       );
@@ -397,11 +487,13 @@ void main() {
       expect(pushed, isA<PublicCommunityScreen>());
     });
 
-    testWidgets('a signed-in non-member actually lands on the football '
+    testWidgets(
+        'a signed-in non-member actually lands on the football '
         'community screen', (tester) async {
       final pushed = await tapAndCapture(
         tester,
         find.text('View community'),
+        tab: 2,
         signedIn: true,
         communities: [community('c1', 'Muscat United')],
         joined: const [],
@@ -422,6 +514,7 @@ void main() {
         results: [completed('p1')],
         observers: [routes],
       );
+      await openResults(tester);
 
       await tester.tap(find.text('Friday night'));
       await tester.idle();
@@ -429,7 +522,6 @@ void main() {
       expect(routes.lastPushedWidget(tester), isA<FootballMatchScreen>());
     });
   });
-
 
   // ==========================================================================
   // The defect this correction exists for: membership and football history are
@@ -449,12 +541,14 @@ void main() {
         footballFailure: StateError('football offline'),
         observers: [routes],
       );
+      await openResults(tester);
 
       // The section reports its own failure...
       expect(find.textContaining('Could not load recent football'),
           findsOneWidget);
 
       // ...and the member is still routed to their own community.
+      await openCommunities(tester);
       await tester.tap(find.text('View community'));
       await tester.idle();
       expect(routes.lastPushedWidget(tester), isA<CommunityDetailsScreen>(),
@@ -472,7 +566,10 @@ void main() {
         footballFailure: StateError('football offline'),
         observers: [routes],
       );
+      await openResults(tester);
 
+      // The upcoming match lives on the first tab.
+      await openUpcoming(tester);
       await tester.tap(find.text('View match'));
       await tester.idle();
       expect(routes.lastPushedWidget(tester), isA<MatchDetailsScreen>(),
@@ -491,6 +588,7 @@ void main() {
         results: [completed('p1')],
         observers: [routes],
       );
+      await openResults(tester);
 
       // Discover survives it...
       expect(find.text('Communities'), findsWidgets);
@@ -498,6 +596,7 @@ void main() {
 
       // ...and falls back conservatively, sending nobody into a screen that
       // would refuse them.
+      await openCommunities(tester);
       await tester.tap(find.text('View community'));
       await tester.idle();
       expect(routes.lastPushedWidget(tester), isA<FootballCommunityScreen>());
@@ -510,6 +609,7 @@ void main() {
         joined: const ['c1'],
         footballFailure: StateError('football offline'),
       );
+      await openResults(tester);
 
       expect(ports.communities.myCommunitiesCalls, 1,
           reason: 'membership is read once per screen load, and its own read');
@@ -541,12 +641,14 @@ void main() {
         lineup: lineup,
         roster: roster,
       );
-      await tester.pumpWidget(wrap(FootballMatchScreen(
-        matchId: match.matchId,
-        repository: FootballRepository(adapter),
-        renderer: renderer,
-        shareService: shareService,
-      ), observers: [routes]));
+      await tester.pumpWidget(wrap(
+          FootballMatchScreen(
+            matchId: match.matchId,
+            repository: FootballRepository(adapter),
+            renderer: renderer,
+            shareService: shareService,
+          ),
+          observers: [routes]));
       await tester.pumpAndSettle();
       return adapter;
     }
@@ -641,7 +743,8 @@ void main() {
       expect(find.text('Who played'), findsOneWidget);
       expect(find.text('Registered Player'), findsOneWidget);
       expect(find.byType(MatchStageSection), findsNothing,
-          reason: 'an empty pitch would report a saved lineup that is not there');
+          reason:
+              'an empty pitch would report a saved lineup that is not there');
       expect(find.byType(MatchStageBoard), findsNothing);
       expect(find.byType(PitchView), findsNothing);
       expect(find.textContaining('No lineup was saved'), findsOneWidget,
@@ -971,21 +1074,23 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(wrap(FootballCommunityScreen(
-        communityId: 'c1',
-        discoverRepository: DiscoverRepository(_FakeDiscoverAdapter(
-          communities: [community('c1', 'Muscat United')],
-          matches: [upcoming('m1')],
-        )),
-        footballRepository: FootballRepository(_FakeFootballAdapter(
-          results: results,
-          players: players,
-          stats: stats,
-          failure: footballFailure,
-        )),
-        communityRepository:
-            CommunityRepository(_JoinedAdapter(const [], join: joinOutcome)),
-      ), observers: observers));
+      await tester.pumpWidget(wrap(
+          FootballCommunityScreen(
+            communityId: 'c1',
+            discoverRepository: DiscoverRepository(_FakeDiscoverAdapter(
+              communities: [community('c1', 'Muscat United')],
+              matches: [upcoming('m1')],
+            )),
+            footballRepository: FootballRepository(_FakeFootballAdapter(
+              results: results,
+              players: players,
+              stats: stats,
+              failure: footballFailure,
+            )),
+            communityRepository: CommunityRepository(
+                _JoinedAdapter(const [], join: joinOutcome)),
+          ),
+          observers: observers));
       await tester.pumpAndSettle();
     }
 
@@ -1013,7 +1118,7 @@ void main() {
       await pumpCommunity(tester, results: [completed('p1', a: 3, b: 2)]);
 
       expect(find.text('Recent results'), findsOneWidget);
-      expect(find.text('3 - 2'), findsOneWidget);
+      expect(find.byType(ScorePair), findsOneWidget);
     });
 
     testWidgets('never reveals a join code', (tester) async {
@@ -1110,7 +1215,8 @@ void main() {
         );
 
     test('rating descending leads', () {
-      final ranked = rankTopPlayers([p('low', rating: 5.0), p('high', rating: 7.0)]);
+      final ranked =
+          rankTopPlayers([p('low', rating: 5.0), p('high', rating: 7.0)]);
       expect(ranked.map((e) => e.displayName), ['high', 'low']);
     });
 
@@ -1173,55 +1279,64 @@ void main() {
     List<CompletedMatch> feed(int count) => [
           for (var i = 1; i <= count; i++)
             completed('p$i',
-                title: 'Result $i',
-                start: DateTime(2026, 8, 30 - i)),
+                title: 'Result $i', start: DateTime(2026, 8, 30 - i)),
         ];
 
-    testWidgets('nothing played yet keeps the empty state and offers no control',
+    testWidgets(
+        'nothing played yet keeps the empty state and offers no control',
         (tester) async {
       await pumpDiscover(tester, signedIn: true, results: const []);
+      await openResults(tester);
 
-      expect(find.text('No results yet. Once a match is played it shows up '
-          'here.'), findsOneWidget);
+      expect(
+          find.text('No results yet. Once a match is played it shows up '
+              'here.'),
+          findsOneWidget);
       expect(toggle(), findsNothing);
     });
 
     testWidgets('a single result shows alone, with no control', (tester) async {
       // A disclosure that reveals nothing is noise.
       await pumpDiscover(tester, signedIn: true, results: feed(1));
+      await openResults(tester);
 
       expect(find.text('Result 1'), findsOneWidget);
       expect(toggle(), findsNothing);
     });
 
-    testWidgets('two results show the newest and offer the other',
-        (tester) async {
+    testWidgets('two results are both shown, with no control', (tester) async {
+      // The approved section is the newest three. Two is the whole of it, and
+      // a disclosure over nothing is noise.
       await pumpDiscover(tester, signedIn: true, results: feed(2));
+      await openResults(tester);
 
       expect(find.text('Result 1'), findsOneWidget);
-      expect(find.text('Result 2'), findsNothing);
-      expect(find.text('Show previous results (1)'), findsOneWidget);
-
-      await tester.tap(toggle());
-      await tester.pumpAndSettle();
       expect(find.text('Result 2'), findsOneWidget);
-      expect(find.text('Hide previous results'), findsOneWidget);
-
-      await tester.tap(toggle());
-      await tester.pumpAndSettle();
-      expect(find.text('Result 2'), findsNothing);
-      expect(find.text('Show previous results (1)'), findsOneWidget);
+      expect(toggle(), findsNothing);
     });
 
-    testWidgets('five results count the four behind the newest',
+    testWidgets('three results are the whole section', (tester) async {
+      await pumpDiscover(tester, signedIn: true, results: feed(3));
+      await openResults(tester);
+
+      for (final shown in ['Result 1', 'Result 2', 'Result 3']) {
+        expect(find.text(shown), findsOneWidget);
+      }
+      expect(toggle(), findsNothing);
+    });
+
+    testWidgets('five results show three and offer all of them',
         (tester) async {
       await pumpDiscover(tester, signedIn: true, results: feed(5));
+      await openResults(tester);
 
-      expect(find.text('Result 1'), findsOneWidget);
-      for (final hidden in ['Result 2', 'Result 3', 'Result 4', 'Result 5']) {
+      for (final shown in ['Result 1', 'Result 2', 'Result 3']) {
+        expect(find.text(shown), findsOneWidget);
+      }
+      for (final hidden in ['Result 4', 'Result 5']) {
         expect(find.text(hidden), findsNothing);
       }
-      expect(find.text('Show previous results (4)'), findsOneWidget);
+      expect(find.text('View all results'), findsOneWidget);
 
       await tester.tap(toggle());
       await tester.pumpAndSettle();
@@ -1238,6 +1353,7 @@ void main() {
       await tester.tap(toggle());
       await tester.pumpAndSettle();
       expect(find.text('Result 1'), findsOneWidget);
+      expect(find.text('Result 3'), findsOneWidget);
       expect(find.text('Result 5'), findsNothing);
     });
 
@@ -1246,6 +1362,7 @@ void main() {
       // this section. Opening it is presentation, not a request.
       final ports =
           await pumpDiscover(tester, signedIn: true, results: feed(5));
+          await openResults(tester);
       final callsAfterLoad = ports.football.completedCalls;
       expect(callsAfterLoad, 1);
 
@@ -1267,7 +1384,7 @@ void main() {
       // cannot see.
       //
       // Note what this does and does not prove. On this screen the expansion is
-      // reset twice over: `_ResultsList.didUpdateWidget` compares the ordered
+      // reset twice over: `ResultsList.didUpdateWidget` compares the ordered
       // ids, and the screen's own `AnimatedSwitcher` keys on load state, so a
       // refresh passes through `loading` and disposes the subtree before that
       // comparison is ever consulted. What is pinned here is the behaviour the
@@ -1277,19 +1394,21 @@ void main() {
         signedIn: true,
         results: feed(5),
       );
+      await openResults(tester);
 
       await tester.tap(toggle());
       await tester.pumpAndSettle();
-      expect(find.text('Result 2'), findsOneWidget);
-      expect(find.text('Hide previous results'), findsOneWidget);
+      expect(find.text('Result 5'), findsOneWidget);
+      expect(find.text('Show fewer'), findsOneWidget);
 
-      // Same length, same newest match, one hidden result replaced.
+      // Same length, same newest match, one *hidden* result replaced -- the
+      // case a length-and-newest comparison cannot see.
       ports.football.results = [
         completed('p1', title: 'Result 1', start: DateTime(2026, 8, 29)),
-        completed('p8', title: 'Result 8', start: DateTime(2026, 8, 24)),
+        completed('p2', title: 'Result 2', start: DateTime(2026, 8, 28)),
         completed('p3', title: 'Result 3', start: DateTime(2026, 8, 27)),
         completed('p4', title: 'Result 4', start: DateTime(2026, 8, 26)),
-        completed('p5', title: 'Result 5', start: DateTime(2026, 8, 25)),
+        completed('p8', title: 'Result 8', start: DateTime(2026, 8, 24)),
       ];
 
       await pullToRefresh(tester);
@@ -1297,15 +1416,16 @@ void main() {
       // Collapsed again, and honest about what is behind the control.
       expect(find.text('Result 1'), findsOneWidget);
       expect(find.text('Result 8'), findsNothing);
-      expect(find.text('Result 2'), findsNothing);
-      expect(find.text('Show previous results (4)'), findsOneWidget);
-      expect(find.text('Hide previous results'), findsNothing);
+      expect(find.text('Result 5'), findsNothing);
+      expect(find.text('View all results'), findsOneWidget);
+      expect(find.text('Show fewer'), findsNothing);
     });
 
     testWidgets('a refresh is one read, and toggling is still none',
         (tester) async {
       final ports =
           await pumpDiscover(tester, signedIn: true, results: feed(5));
+          await openResults(tester);
       expect(ports.football.completedCalls, 1);
       expect(ports.football.lastLimit, 5);
 
@@ -1328,6 +1448,7 @@ void main() {
     testWidgets('the read is still capped at five', (tester) async {
       final ports =
           await pumpDiscover(tester, signedIn: true, results: feed(5));
+          await openResults(tester);
 
       expect(ports.football.lastLimit, 5,
           reason: 'Cycle B2 changed presentation, not the read');
@@ -1342,13 +1463,13 @@ void main() {
         joined: const ['c1'],
         observers: [observer],
       );
+      await openResults(tester);
       observer.pushes.clear();
 
       await tester.tap(find.text('Result 1'));
       await tester.pumpAndSettle();
 
-      expect(observer.pushes, isNotEmpty,
-          reason: 'the card still navigates');
+      expect(observer.pushes, isNotEmpty, reason: 'the card still navigates');
     });
 
     testWidgets('a revealed result opens from its card too', (tester) async {
@@ -1356,16 +1477,19 @@ void main() {
       await pumpDiscover(
         tester,
         signedIn: true,
-        results: feed(3),
+        results: feed(5),
         joined: const ['c1'],
         observers: [observer],
       );
+      await openResults(tester);
 
+      // Behind the control until it is opened, and a real card once it is.
+      expect(find.text('Result 4'), findsNothing);
       await tester.tap(toggle());
       await tester.pumpAndSettle();
       observer.pushes.clear();
 
-      await tester.tap(find.text('Result 3'));
+      await tester.tap(find.text('Result 4'));
       await tester.pumpAndSettle();
 
       expect(observer.pushes, isNotEmpty);
@@ -1378,12 +1502,12 @@ void main() {
         signedIn: true,
         footballFailure: StateError('offline'),
       );
+      await openResults(tester);
 
       expect(find.text('Could not load recent football.'), findsOneWidget);
       expect(toggle(), findsNothing);
     });
   });
-
 }
 
 // ---------------------------------------------------------------------------
@@ -1559,6 +1683,24 @@ class _JoinedAdapter implements CommunityAdapter {
 }
 
 class _FakeDiscoverAdapter implements DiscoverAdapter {
+  @override
+  Future<List<PublicResult>> fetchRecentResults({
+    String? communityId,
+    int limit = 5,
+  }) async {
+    recentResultsRequests.add(communityId);
+    return [
+      for (final result in recentResults)
+        if (communityId == null || result.communityId == communityId) result,
+    ].take(limit).toList();
+  }
+
+  /// What the public results contract answers with.
+  List<PublicResult> recentResults = const [];
+
+  /// One entry per read, carrying the community it was scoped to (null for
+  /// Discover's list across every community).
+  final List<String?> recentResultsRequests = [];
   _FakeDiscoverAdapter({
     this.communities = const [],
     this.matches = const [],
@@ -1581,6 +1723,21 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
     return communities.firstWhere((c) => c.id == communityId,
         orElse: () => communities.first);
   }
+
+  @override
+  Future<PublicMatchDetail?> fetchMatchDetail(String matchId) async {
+    if (failure != null) throw failure!;
+    for (final match in matches) {
+      if (match.id == matchId) return PublicUpcomingMatch(match: match);
+    }
+    // No row is how the public contract says "not publicly visible", and the
+    // fake says it the same way rather than throwing.
+    return null;
+  }
+
+  @override
+  Future<List<PublicLineupEntry>> fetchMatchLineup(String matchId) async =>
+      const [];
 
   @override
   Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId}) async {
@@ -1622,7 +1779,8 @@ class _StubAuth implements AuthAdapter {
       throw UnimplementedError();
 
   @override
-  Future<void> signIn({required String email, required String password}) async =>
+  Future<void> signIn(
+          {required String email, required String password}) async =>
       throw UnimplementedError();
 
   @override
@@ -1707,7 +1865,11 @@ class _StubContext implements BuildContext {
 
 class _Share implements ShareService {
   @override
-  Future<ShareOutcome> shareImage(ShareCardImage image, {Rect? origin}) async =>
+  Future<ShareOutcome> shareImage(
+    ShareCardImage image, {
+    Rect? origin,
+    ShareMessage? message,
+  }) async =>
       ShareOutcome.shared;
 }
 

@@ -119,9 +119,9 @@ void main() {
 
     testWidgets('the rating is shown to one decimal place (OP-1)',
         (tester) async {
-      // The stored scale is two decimals, because the engine moves a rating by
-      // 0.05 for a goal. The presentation rule is one, and the screen must not
-      // leak the second.
+      // The stored scale is three decimals (migration `0073`), because the
+      // engine moves a rating by as little as 0.005 (migration `0078`). The
+      // presentation rule is one, and the screen must not leak the rest.
       await pumpStatistics(tester, FakeResultAdapter(statistics: played));
 
       expect(find.text('7.4'), findsOneWidget);
@@ -265,8 +265,8 @@ void main() {
         records: {
           StatisticsPeriod.weekly: weekAcrossTwoCommunities,
           StatisticsPeriod.monthly: [
-            record('c1', played: 8, wins: 5, losses: 2, draws: 1, goals: 11,
-                mvp: 3),
+            record('c1',
+                played: 8, wins: 5, losses: 2, draws: 1, goals: 11, mvp: 3),
           ],
         },
       );
@@ -336,8 +336,7 @@ void main() {
     testWidgets('all three periods are offered, and it opens on All time',
         (tester) async {
       final periods = FakePlayerPeriodAdapter(records: const {});
-      await pumpPeriods(
-          tester, FakeResultAdapter(statistics: played), periods);
+      await pumpPeriods(tester, FakeResultAdapter(statistics: played), periods);
 
       expect(find.text('Weekly'), findsOneWidget);
       expect(find.text('Monthly'), findsOneWidget);
@@ -374,8 +373,7 @@ void main() {
       final periods = FakePlayerPeriodAdapter(
         records: {StatisticsPeriod.weekly: weekAcrossTwoCommunities},
       );
-      await pumpPeriods(
-          tester, FakeResultAdapter(statistics: played), periods);
+      await pumpPeriods(tester, FakeResultAdapter(statistics: played), periods);
 
       await tester.tap(find.text('Weekly'));
       await tester.pumpAndSettle();
@@ -412,7 +410,8 @@ void main() {
           find.textContaining('not a figure for this period'), findsOneWidget);
     });
 
-    testWidgets('a period the player sat out reads as zero, not as a new career',
+    testWidgets(
+        'a period the player sat out reads as zero, not as a new career',
         (tester) async {
       await pumpPeriods(
         tester,
@@ -426,7 +425,8 @@ void main() {
 
       expect(find.text('0'), findsNWidgets(6));
       expect(
-          find.textContaining('have not played a recorded match in this period'),
+          find.textContaining(
+              'have not played a recorded match in this period'),
           findsOneWidget);
       expect(find.textContaining('starting rating'), findsNothing,
           reason: 'their rating is nine matches old, not a starting one');
@@ -434,8 +434,7 @@ void main() {
 
     testWidgets('and back to All Time restores the career', (tester) async {
       final periods = FakePlayerPeriodAdapter(records: const {});
-      await pumpPeriods(
-          tester, FakeResultAdapter(statistics: played), periods);
+      await pumpPeriods(tester, FakeResultAdapter(statistics: played), periods);
 
       await tester.tap(find.text('Weekly'));
       await tester.pumpAndSettle();
@@ -501,6 +500,26 @@ void main() {
       expect(find.textContaining('بتوقيت عُمان'), findsOneWidget);
     });
   });
+
+  group('the Player Statistics screen shares nothing', () {
+    testWidgets('there is no share action, and the periods still work',
+        (tester) async {
+      await pumpStatistics(tester, FakeResultAdapter(statistics: played));
+
+      // A player shares themselves from their Profile. This screen is the
+      // period analysis and nothing else.
+      expect(find.byIcon(Icons.ios_share), findsNothing);
+      expect(find.byTooltip('Share my statistics'), findsNothing);
+
+      // And the selector it exists for is untouched: the three periods are
+      // still there, and what switching between them shows is pinned by the
+      // groups above.
+      expect(find.byType(StatisticsPeriodSelector), findsOneWidget);
+      for (final period in ['All time', 'Monthly', 'Weekly']) {
+        expect(find.text(period), findsOneWidget, reason: period);
+      }
+    });
+  });
 }
 
 /// The statistics port, answering one player's period records from memory.
@@ -509,6 +528,12 @@ void main() {
 /// for a period the player did not play in — it deletes a periodic record with
 /// nothing in it.
 class FakePlayerPeriodAdapter implements StatisticsAdapter {
+  @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) async =>
+      const [];
   FakePlayerPeriodAdapter({required this.records});
 
   final Map<StatisticsPeriod, List<CommunityPlayerStatistics>> records;
@@ -554,7 +579,6 @@ class FakePlayerPeriodAdapter implements StatisticsAdapter {
   ) async =>
       const {};
 
-
   // Team of Period is a separate read path with its own period vocabulary
   // (migration 0070). Nothing in this suite reaches it.
   @override
@@ -575,7 +599,6 @@ class FakePlayerPeriodAdapter implements StatisticsAdapter {
   Future<Map<String, TeamOfPeriodPlayerIdentity>>
       fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) =>
           throw UnimplementedError('no Team of Period identities here');
-
 }
 
 /// The result port, answering a career from memory and counting what it was

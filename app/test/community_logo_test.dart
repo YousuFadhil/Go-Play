@@ -600,8 +600,13 @@ class _RecordingAdapter implements CommunityAdapter {
 /// edit cannot quietly drop one. Runtime verification of the owner/admin matrix
 /// remains outstanding until the migration is applied somewhere.
 void _migrationChecks() {
-  final sql =
-      File('../supabase/migrations/0061_community_logo.sql').readAsStringSync();
+  // Normalised on the way in: Git checks this file out with CRLF endings on
+  // Windows and with LF on CI, and several assertions below span two lines --
+  // so without this the same migration passes on one machine and fails on the
+  // other. The assertions themselves are unchanged.
+  final sql = File('../supabase/migrations/0061_community_logo.sql')
+      .readAsStringSync()
+      .replaceAll('\r\n', '\n');
 
   group('what migration 0061 says (static review, not a runtime result)', () {
     test('it adds a nullable column and grants it', () {

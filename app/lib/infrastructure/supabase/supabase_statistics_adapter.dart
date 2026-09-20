@@ -148,6 +148,33 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
   /// which is exactly the population and the measure the Highest Rated board
   /// needs. Nothing was added to the database for it.
   @override
+  Future<List<CommunityScopedRating>> fetchCommunityScopedRatings(
+    String communityId,
+    StatisticsPeriod period,
+  ) =>
+      guarded(
+        () async {
+          // Both halves of the key, exactly as the counters are read: the
+          // function buckets on `statistics_period_key`, so All Time is the
+          // `overall` period rather than the absence of one.
+          final rows = await _client.rpc(
+            'community_scoped_rating',
+            params: {
+              'p_community_id': communityId,
+              'p_period_type': StatisticsPeriodWindow.periodType(period),
+              'p_period_key': StatisticsPeriodWindow.periodKey(period),
+            },
+          ) as List<dynamic>;
+
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              communityScopedRatingFromRow(row),
+          ];
+        },
+        operation: 'rpc community_scoped_rating',
+      );
+
+  @override
   Future<List<CommunityMemberRating>> fetchCommunityMemberRatings(
     String communityId,
   ) =>
@@ -301,7 +328,8 @@ class SupabaseStatisticsAdapter implements StatisticsAdapter {
       fetchTeamOfPeriodPlayerIdentities(Iterable<String> userIds) => guarded(
             () async {
               final ids = userIds.toSet().toList();
-              if (ids.isEmpty) return const <String, TeamOfPeriodPlayerIdentity>{};
+              if (ids.isEmpty)
+                return const <String, TeamOfPeriodPlayerIdentity>{};
 
               final rows = await _client
                   .from('users')

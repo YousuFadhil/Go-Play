@@ -1,5 +1,8 @@
 # Community Rating (`community_ratings`) — Table Engineering Specification
 
+> **Rating values — current source of truth.** The deltas in this document are migration `0078`'s, which is the Rating Engine definition in force (`DD-16`): participation `+0.005`, win `+0.100`, draw `+0.010`, loss `−0.100`, goal `+0.010` capped at `+0.070` per player per match, MVP `+0.020`. Earlier drafts of this document carried the pre-v2 values (`+0.05` per goal, `+0.20` MVP); those are history and are not to be revived. The Community/Period Rating uses these same values over a community-and-period scope, from a `5.00` baseline, and never touches the Global Rating (`DD-17`).
+
+
 | Field | Value |
 |---|---|
 | Version | 1.0 |
@@ -131,7 +134,8 @@ neither alone. That joint ownership is what `SL-4` requires and what §4.7 and
             │
             │  a result is recorded for a match in THIS community
             ▼
-  PROGRESSING ── +0.10 win / −0.10 loss / +0.05 per goal / +0.20 MVP
+  PROGRESSING ── +0.005 played / +0.100 win / +0.010 draw / −0.100 loss
+            │     +0.010 per goal (capped +0.070) / +0.020 MVP
             │     clamped to 0.00 … 10.00, every movement audited in E9
             │
             ├── result corrected ──▶ reversed by the APPLIED delta, then re-applied
@@ -177,16 +181,19 @@ community**, by the approved engine:
 
 | Event | Delta |
 |---|---|
-| The player's side won | `+0.10` |
-| The player's side lost | `−0.10` |
-| Goals credited | `+0.05` each |
-| Named MVP | `+0.20` |
+| The player took part | `+0.005` |
+| The player's side won | `+0.100` |
+| The match was drawn | `+0.010` |
+| The player's side lost | `−0.100` |
+| Goals credited | `+0.010` each, capped at `+0.070` per player per match |
+| Named MVP | `+0.020` |
 
 **Clamped to `0.00 … 10.00`**, and **every movement is recorded in the Community
 Rating History with the delta that was *applied*** — §4.4.
 
-**A drawn match moves nothing** for the outcome, exactly as at Level 1: the
-counters record a draw, the rating does not move for it.
+**A drawn match moves the rating by `+0.010`**, exactly as at Level 1 since
+migration `0073` gave the draw an entry of its own. The older text here — "a
+draw moves nothing" — described the pre-v2 engine and no longer holds.
 
 ### 2.4 Transition 3 — correction
 
@@ -347,9 +354,10 @@ specification's §14 readiness row contained until it was corrected on
 exactly.
 
 **Why the precision is not negotiable here either:** the engine moves a rating
-by `0.05` for a goal, which one decimal place cannot represent; and **rounding
-is not invertible**, so a rounded reversal leaves a rating the player never
-held.
+by as little as `0.005` for taking part (`0078`), which two decimal places
+cannot represent either — Level 1 was widened to `numeric(5,3)` by migration
+`0073` for exactly that reason, and this level follows it; and **rounding is not
+invertible**, so a rounded reversal leaves a rating the player never held.
 
 **The correction workflow is `RR-5`'s, applied to Level 2:**
 
