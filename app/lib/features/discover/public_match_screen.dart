@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/club_place.dart';
 import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
@@ -11,10 +10,11 @@ import '../auth/auth_prompt.dart';
 import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
-import '../profile/player_identity.dart';
-import '../profile/profile_record_sections.dart';
 import '../profile/profile_screen.dart';
+import '../teams/match_stage.dart';
+import '../teams/match_stage_board.dart';
 import 'discover_models.dart';
+import 'public_match_stage.dart';
 import 'discover_repository.dart';
 import 'discover_widgets.dart';
 
@@ -189,120 +189,58 @@ class _CompletedMatchPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final teamA = [
-      for (final e in match.lineup)
-        if (e.team == 'A') e
-    ];
-    final teamB = [
-      for (final e in match.lineup)
-        if (e.team == 'B') e
-    ];
 
+    // **The same surface a member gets.** A played match is a pitch, and the
+    // Match Stage is where this product draws one -- so the public route uses
+    // the stage's own ground, its own bar and its own board rather than a
+    // white sheet with two name lists on it. What differs is capability: there
+    // is no share action here, no management, and a name leads to a profile
+    // only where the database published one.
     return Scaffold(
-      backgroundColor: GoColors.bgHero,
-      body: Column(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: ClubHero(
-              // The same ground the Player Profile opens on, so a shared match
-              // and a shared player are visibly one product.
-              stadium: true,
-              bar: ClubHeroBar(
-                title: l10n.matchDetailsTitle,
-                onBack: Navigator.of(context).canPop()
-                    ? () => Navigator.of(context).pop()
-                    : null,
-              ),
-              identity: Row(
-                children: [
-                  CommunityCrest(
-                    name: match.communityName,
-                    logoUrl: match.communityLogoUrl,
-                    onHero: true,
-                  ),
-                  const SizedBox(width: Gap.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          match.title ?? match.communityName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 21,
-                            height: 1.2,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.7,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          match.communityName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.2,
-                            color: Colors.white.withValues(alpha: 0.75),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: ClubSheet(
-              child: RefreshIndicator(
-                onRefresh: () async => onRefresh(),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsetsDirectional.fromSTEB(
-                    0,
-                    Gap.lg,
-                    0,
-                    Gap.xxl,
-                  ),
-                  children: [
-                    _WhenAndWhere(match: match),
-                    _Scoreline(match: match),
-                    if (match.mvpDisplayName != null)
-                      _BestPlayer(
-                        name: match.mvpDisplayName!,
-                        avatarUrl: match.mvpAvatarUrl,
-                      ),
-                    if (match.lineup.isNotEmpty) ...[
-                      ProfileSectionHeading(l10n.publicMatchLineupTitle),
-                      _TeamSheet(
-                        title: l10n.teamAName,
-                        players: teamA,
-                        onOpenPlayer: onOpenPlayer,
-                      ),
-                      _TeamSheet(
-                        title: l10n.teamBName,
-                        players: teamB,
-                        onOpenPlayer: onOpenPlayer,
-                      ),
-                    ],
-                    _GuestActions(onLogin: onLogin, onRegister: onRegister),
-                  ],
+      backgroundColor: MatchStage.ground,
+      appBar: matchStageAppBar(
+        context,
+        key: const ValueKey('public-match-app-bar'),
+        title: l10n.matchDetailsTitle,
+      ),
+      body: MatchStageGround(
+        child: RefreshIndicator(
+          onRefresh: () async => onRefresh(),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 20),
+            children: [
+              if (match.lineup.isNotEmpty)
+                PublicMatchStage(match: match, onOpenPlayer: onOpenPlayer)
+              else ...[
+                // **No pitch without a lineup.** An empty one would report
+                // that nobody turned up, which is a different claim from "the
+                // teams were not published". The header still carries the
+                // match and its score.
+                const SizedBox(height: Gap.md),
+                MatchStageHeader(
+                  community: match.communityName,
+                  title: match.title ?? match.communityName,
+                  playedAt: match.startAt,
+                  teamAScore: match.teamAScore,
+                  teamBScore: match.teamBScore,
                 ),
-              ),
-            ),
+              ],
+              _WhenAndWhere(match: match),
+              _GuestActions(onLogin: onLogin, onRegister: onRegister),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 /// When it was played, and where.
+///
+/// Set in the stage's own muted ink so it belongs to the ground rather than to
+/// a document pasted onto it -- the same treatment the member's route gives
+/// the same two facts.
 class _WhenAndWhere extends StatelessWidget {
   const _WhenAndWhere({required this.match});
 
@@ -310,411 +248,55 @@ class _WhenAndWhere extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final location = match.location;
 
-    return SectionCard(
-      margin: const EdgeInsets.symmetric(horizontal: kPageMargin),
-      padding: const EdgeInsets.all(Gap.lg),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _MetaLine(
-          icon: Icons.event_outlined,
-          text: formatDayAndTimeRange(context, match.startAt, match.endAt),
+        _StageNote(
+          formatDayAndTimeRange(context, match.startAt, match.endAt),
+          padding: const EdgeInsets.fromLTRB(
+            kPageMargin,
+            Gap.md,
+            kPageMargin,
+            0,
+          ),
         ),
-        if (location != null && location.isNotEmpty) ...[
-          const SizedBox(height: Gap.sm),
-          _MetaLine(icon: Icons.place_outlined, text: location),
-        ],
-        const SizedBox(height: Gap.sm),
-        _MetaLine(
-          icon: Icons.check_circle_outline,
-          text: l10n.matchStatusCompleted,
-        ),
+        if (location != null && location.trim().isNotEmpty)
+          _StageNote(
+            location,
+            padding: const EdgeInsets.fromLTRB(
+              kPageMargin,
+              Gap.xs,
+              kPageMargin,
+              0,
+            ),
+          ),
       ],
     );
   }
 }
 
-class _MetaLine extends StatelessWidget {
-  const _MetaLine({required this.icon, required this.text});
+/// One line of quiet type on the ground.
+class _StageNote extends StatelessWidget {
+  const _StageNote(this.text, {required this.padding});
 
-  final IconData icon;
   final String text;
+  final EdgeInsets padding;
 
   @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Icon(icon, size: IconSize.meta, color: GoColors.onSurfaceVariant),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: Text(
-              text,
-              maxLines: 2,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.35,
-                color: GoColors.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      );
-}
-
-/// The result: two teams and what they scored.
-///
-/// A match that ended with nothing recorded says so, rather than showing a
-/// nil-nil that nobody played.
-class _Scoreline extends StatelessWidget {
-  const _Scoreline({required this.match});
-
-  final PublicCompletedMatch match;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    if (!match.hasResult ||
-        match.teamAScore == null ||
-        match.teamBScore == null) {
-      return SectionCard(
-        margin: const EdgeInsets.symmetric(horizontal: kPageMargin),
-        padding: const EdgeInsets.all(Gap.lg),
-        children: [
-          Text(
-            l10n.matchResultNotRecorded,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: GoColors.onSurfaceVariant,
-            ),
-          ),
-        ],
-      );
-    }
-
-    final a = match.teamAScore!;
-    final b = match.teamBScore!;
-    final outcome = a == b
-        ? l10n.matchResultDrawLabel
-        : '${l10n.matchResultWinnerLabel}: '
-            '${a > b ? l10n.teamAName : l10n.teamBName}';
-
-    return SectionCard(
-      margin: const EdgeInsets.symmetric(horizontal: kPageMargin),
-      padding: const EdgeInsets.all(Gap.lg),
-      children: [
-        Row(
-          children: [
-            Expanded(child: _TeamName(l10n.teamAName)),
-            // Each score sits beside its own team, so the pair mirrors with
-            // the names in Arabic rather than staying put while they swap. A
-            // single left-to-right string would put Team A's goals next to
-            // Team B on an Arabic page.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _Score('$a'),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Gap.sm),
-                    child: _Score('-'),
-                  ),
-                  _Score('$b'),
-                ],
-              ),
-            ),
-            Expanded(child: _TeamName(l10n.teamBName)),
-          ],
-        ),
-        const SizedBox(height: Gap.md),
-        Text(
-          outcome,
+  Widget build(BuildContext context) => Padding(
+        padding: padding,
+        child: Text(
+          text,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 12.5,
+          style: TextStyle(
+            fontSize: 13,
             height: 1.3,
-            fontWeight: FontWeight.w600,
-            color: GoColors.primary,
+            color: Colors.white.withValues(alpha: 0.72),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-/// One half of the result, at the size a score is read at.
-class _Score extends StatelessWidget {
-  const _Score(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-        text,
-        textDirection: TextDirection.ltr,
-        style: const TextStyle(
-          fontSize: 30,
-          height: 1,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -1,
         ),
       );
-}
-
-class _TeamName extends StatelessWidget {
-  const _TeamName(this.name);
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) => Text(
-        name,
-        textAlign: TextAlign.center,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 14,
-          height: 1.25,
-          fontWeight: FontWeight.w600,
-        ),
-      );
-}
-
-/// Who was named best player, when the result names one.
-class _BestPlayer extends StatelessWidget {
-  const _BestPlayer({required this.name, this.avatarUrl});
-
-  final String name;
-  final String? avatarUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return SectionCard(
-      margin: const EdgeInsetsDirectional.fromSTEB(
-        kPageMargin,
-        0,
-        kPageMargin,
-        Gap.sm,
-      ),
-      padding: const EdgeInsets.all(Gap.md),
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: GoColors.warnContainer,
-                borderRadius: BorderRadius.circular(Radii.sm),
-              ),
-              child: const Icon(
-                Icons.star,
-                size: 24,
-                color: GoColors.onWarnContainer,
-              ),
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    l10n.mvpLabel,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      height: 1.2,
-                      color: GoColors.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      height: 1.25,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PlayerAvatar(avatarUrl: avatarUrl, fullName: name, radius: 20),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// One team's sheet: who played, what they scored, and who was best.
-class _TeamSheet extends StatelessWidget {
-  const _TeamSheet({
-    required this.title,
-    required this.players,
-    required this.onOpenPlayer,
-  });
-
-  final String title;
-  final List<PublicLineupEntry> players;
-  final ValueChanged<String> onOpenPlayer;
-
-  @override
-  Widget build(BuildContext context) {
-    if (players.isEmpty) return const SizedBox.shrink();
-
-    return SectionCard(
-      margin: const EdgeInsetsDirectional.fromSTEB(
-        kPageMargin,
-        0,
-        kPageMargin,
-        Gap.md,
-      ),
-      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-      children: [
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(
-            Gap.lg,
-            Gap.sm,
-            Gap.lg,
-            Gap.sm,
-          ),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.2,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ),
-        for (final player in players)
-          _PlayerRow(player: player, onOpenPlayer: onOpenPlayer),
-      ],
-    );
-  }
-}
-
-/// One name on a team sheet.
-///
-/// **A name leads to a profile exactly when the database sent an id with it.**
-/// A Professional Guest never has one — they are not an account — and neither
-/// does a player whose public profile is unavailable, so the row is plain text
-/// rather than a link that would open a page saying no.
-class _PlayerRow extends StatelessWidget {
-  const _PlayerRow({required this.player, required this.onOpenPlayer});
-
-  final PublicLineupEntry player;
-  final ValueChanged<String> onOpenPlayer;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final playerId = player.playerId;
-    final position = player.assignedPosition;
-
-    final row = Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Gap.lg,
-        vertical: Gap.sm,
-      ),
-      child: Row(
-        children: [
-          PlayerAvatar(
-            avatarUrl: player.avatarUrl,
-            fullName: player.displayName,
-            isProfessionalGuest: player.isProfessionalGuest,
-            radius: 16,
-          ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  player.isProfessionalGuest
-                      ? l10n.professionalGuestName(player.displayName)
-                      : player.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.25,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (position != null && position.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    position,
-                    textDirection: TextDirection.ltr,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      height: 1.2,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.4,
-                      color: GoColors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (player.isMvp)
-            const Padding(
-              padding: EdgeInsetsDirectional.only(start: Gap.sm),
-              child: Icon(Icons.star, size: IconSize.row, color: GoColors.warn),
-            ),
-          if (player.goals > 0)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(start: Gap.sm),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.sports_soccer,
-                    size: IconSize.meta,
-                    color: GoColors.primaryMid,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${player.goals}',
-                    textDirection: TextDirection.ltr,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1.2,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (playerId != null)
-            const Padding(
-              padding: EdgeInsetsDirectional.only(start: Gap.xs),
-              child: Icon(
-                Icons.chevron_right,
-                size: IconSize.row,
-                color: GoColors.chevron,
-              ),
-            ),
-        ],
-      ),
-    );
-
-    if (playerId == null) return row;
-    return InkWell(onTap: () => onOpenPlayer(playerId), child: row);
-  }
 }
 
 /// What a reader with no account is offered at the foot of the page.
@@ -728,12 +310,20 @@ class _GuestActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(
+    // On a white panel, because the stage behind it is dark and an auth form
+    // painted straight onto the ground would be both unreadable and a
+    // degradation of the football it sits under.
+    return Container(
+      margin: const EdgeInsetsDirectional.fromSTEB(
         kPageMargin,
         Layout.sectionAbove,
         kPageMargin,
         0,
+      ),
+      padding: const EdgeInsets.all(Gap.lg),
+      decoration: BoxDecoration(
+        color: GoColors.surfaceSheet,
+        borderRadius: BorderRadius.circular(Radii.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

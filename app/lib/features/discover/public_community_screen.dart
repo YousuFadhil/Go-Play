@@ -128,6 +128,12 @@ class _PublicCommunityScreenState extends State<PublicCommunityScreen> {
               SafeArea(
                 bottom: false,
                 child: ClubHero(
+                  // **The same ground a player's record and a played match
+                  // open on.** A community is a place in this product, and
+                  // the public page is that place seen by somebody who is not
+                  // in it -- not a lighter version of it. Drawn, never
+                  // photographed: see [StadiumBackdrop].
+                  stadium: true,
                   bar: ClubHeroBar(
                     title: l10n.communityTitle,
                     onBack: Navigator.of(context).canPop()
@@ -137,7 +143,11 @@ class _PublicCommunityScreenState extends State<PublicCommunityScreen> {
                     // name, and mounting it would read `my_profile` on a page
                     // a guest is entitled to without one.
                   ),
-                  identity: CommunityIdentity(community: community),
+                  identity: CommunityIdentity(
+                    community: community,
+                    crestSize: 72,
+                    onHero: true,
+                  ),
                   counts: Row(
                     children: [
                       Flexible(

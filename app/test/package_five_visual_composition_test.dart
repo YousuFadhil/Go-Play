@@ -9,6 +9,7 @@ import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
 import 'package:go_play/features/discover/public_match_screen.dart';
+import 'package:go_play/features/teams/match_stage_board.dart';
 import 'package:go_play/features/profile/player_record_models.dart';
 import 'package:go_play/features/profile/player_record_repository.dart';
 import 'package:go_play/features/profile/profile_adapter.dart';
@@ -108,7 +109,7 @@ void main() {
       expect(find.byType(Image), findsNothing);
     });
 
-    testWidgets('a completed public match opens on the same ground',
+    testWidgets('a completed public match opens on the Match Stage ground',
         (tester) async {
       tester.view.physicalSize = const Size(412, 1400);
       tester.view.devicePixelRatio = 1;
@@ -126,8 +127,18 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.byType(StadiumBackdrop), findsOneWidget);
-      expect(find.text('Al Seeb Community'), findsOneWidget);
+      // **Stronger than the stadium hero it used to open on.** A played match
+      // is a pitch, and the Match Stage is where this product draws one -- so
+      // the public route now uses the stage's own ground, exactly as the
+      // member's route does, rather than a Club hero over a white sheet.
+      expect(find.byType(MatchStageGround), findsOneWidget);
+      expect(find.byType(StadiumBackdrop), findsNothing);
+      // The stage header carries the community as a rich-text span, beside
+      // the date, exactly as it does on the member's route.
+      expect(
+        find.textContaining('Al Seeb Community', findRichText: true),
+        findsOneWidget,
+      );
     });
 
     testWidgets('and carries no age pill', (tester) async {

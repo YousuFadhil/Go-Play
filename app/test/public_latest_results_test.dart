@@ -6,6 +6,7 @@ import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
 import 'package:go_play/features/discover/discover_screen.dart';
+import 'package:go_play/features/discover/discover_tabs.dart';
 import 'package:go_play/features/discover/discover_widgets.dart';
 import 'package:go_play/features/discover/public_community_screen.dart';
 import 'package:go_play/features/discover/public_match_screen.dart';
@@ -72,8 +73,9 @@ void main() {
   }
 
   group('a guest gets the results on Discover', () {
-    testWidgets('the section is there, between upcoming and communities',
-        (tester) async {
+    testWidgets('it is a tab, and the results are behind it', (tester) async {
+      // The approved Discover is three tabs, not three stacked sections: a
+      // guest opens on Upcoming and reaches results by asking for them.
       await pumpDiscover(
         tester,
         _Discover(
@@ -82,12 +84,12 @@ void main() {
         ),
       );
 
-      final matches = tester.getTopLeft(find.text('Upcoming matches')).dy;
-      final results = tester.getTopLeft(find.text('Latest results')).dy;
-      final communities = tester.getTopLeft(find.text('Communities')).dy;
+      expect(find.byType(DiscoverTabs), findsOneWidget);
+      expect(find.byType(PublicResultCard), findsNothing);
 
-      expect(matches, lessThan(results));
-      expect(results, lessThan(communities));
+      await tester.tap(find.text('Latest results'));
+      await tester.pumpAndSettle();
+
       expect(find.byType(PublicResultCard), findsOneWidget);
     });
 
@@ -97,8 +99,14 @@ void main() {
         _Discover(communities: [community('c1', 'Al Amerat FC')]),
       );
 
-      expect(find.text('Latest results'), findsOneWidget);
+      await tester.tap(find.text('Latest results'));
+      await tester.pumpAndSettle();
+
       expect(find.byType(PublicResultCard), findsNothing);
+      expect(
+        find.text('No results yet. Once a match is played it shows up here.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('the newest three are shown and the rest are one tap away',
@@ -112,6 +120,8 @@ void main() {
           for (var i = 1; i <= 5; i++) result('m$i'),
         ]),
       );
+      await tester.tap(find.text('Latest results'));
+      await tester.pumpAndSettle();
 
       expect(find.byType(PublicResultCard), findsNWidgets(3));
       expect(find.text('View all results'), findsOneWidget);
@@ -131,6 +141,8 @@ void main() {
         tester,
         _Discover(results: [for (var i = 1; i <= 3; i++) result('m$i')]),
       );
+      await tester.tap(find.text('Latest results'));
+      await tester.pumpAndSettle();
 
       expect(find.byType(PublicResultCard), findsNWidgets(3));
       // A disclosure that reveals nothing is noise.
@@ -142,6 +154,8 @@ void main() {
         tester,
         _Discover(results: [for (var i = 1; i <= 5; i++) result('m$i')]),
       );
+      await tester.tap(find.text('Latest results'));
+      await tester.pumpAndSettle();
 
       await tester
           .tap(find.byKey(const Key('discoverPublicPreviousResultsToggle')));
@@ -160,6 +174,8 @@ void main() {
         tester,
         _Discover(results: [result('m1')]),
       );
+      await tester.tap(find.text('Latest results'));
+      await tester.pumpAndSettle();
       routes.pushed.clear();
 
       await tester.tap(find.byType(PublicResultCard));

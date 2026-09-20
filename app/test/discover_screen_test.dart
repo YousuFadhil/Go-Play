@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/app_header.dart';
 import 'package:go_play/core/club_place.dart';
+import 'package:go_play/features/discover/discover_tabs.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/skeleton.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
@@ -74,6 +75,24 @@ void main() {
         openSlots: openSlots,
         title: title,
       );
+
+  /// Discover opens on Upcoming Matches; the communities are one tap away.
+  ///
+  /// Scrolled into view first, because at 320px the tab bar is deliberately
+  /// scrollable rather than shrinking its labels -- so the third tab may start
+  /// off screen, exactly as it does for a reader on a narrow phone.
+  Future<void> openCommunities(WidgetTester tester) async {
+    // By position, not by label: the Arabic build says `المجتمعات`, and a
+    // helper that only knows the English word would silently skip the RTL
+    // case this suite exists for.
+    final tab = find
+        .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+        .at(2);
+    await tester.ensureVisible(tab);
+    await tester.pumpAndSettle();
+    await tester.tap(tab);
+    await tester.pumpAndSettle();
+  }
 
   Future<void> pumpDiscover(
     WidgetTester tester, {
@@ -147,6 +166,10 @@ void main() {
 
       expect(find.byType(ClubHero), findsOneWidget);
       expect(find.byType(ClubSheet), findsOneWidget);
+      // The crest lives on a community card, which is now behind its own tab.
+      expect(find.byType(DiscoverTabs), findsOneWidget);
+      await tester.tap(find.text('Communities'));
+      await tester.pumpAndSettle();
       expect(find.byType(CommunityCrest), findsOneWidget);
     });
 
@@ -156,8 +179,10 @@ void main() {
 
       expect(find.text('Go Play'), findsOneWidget);
       expect(find.text('Football, with your people.'), findsOneWidget);
-      // Twice: once in the banner, once in the closing call to action.
-      expect(find.text('Create account'), findsNWidgets(2));
+      // Once. The closing call to action is gone: one per tab was the same
+      // panel three times over, a screen of scrolling from the football each
+      // tab exists for.
+      expect(find.text('Create account'), findsOneWidget);
       // Sprint 2 made the second way in a real button beside the first rather
       // than a sentence under it, which is what took a row out of the banner.
       expect(find.widgetWithText(OutlinedButton, 'Log in'), findsOneWidget);
@@ -204,6 +229,7 @@ void main() {
         community('c2', 'Seeb Strikers'),
         community('c3', 'Sohar FC'),
       ]);
+      await openCommunities(tester);
 
       expect(find.text('Muscat United'), findsWidgets);
       expect(find.text('Seeb Strikers'), findsOneWidget);
@@ -215,6 +241,7 @@ void main() {
       await pumpDiscover(tester, communities: [
         community('c1', 'Muscat United', members: 24, upcoming: 3),
       ]);
+      await openCommunities(tester);
 
       // The initials are the logo: there is no logo column, and this sprint
       // adds none.
@@ -228,8 +255,12 @@ void main() {
         (tester) async {
       await pumpDiscover(tester, communities: [], matches: []);
 
+      // Each empty state lives inside its own tab now, so each is asked for.
       expect(find.text('Nothing is scheduled just yet. Check back soon.'),
           findsOneWidget);
+      expect(find.text('Failed to load data.'), findsNothing);
+
+      await openCommunities(tester);
       expect(find.text('No communities yet. Be the first to start one.'),
           findsOneWidget);
       expect(find.text('Failed to load data.'), findsNothing);
@@ -239,9 +270,9 @@ void main() {
       await pumpDiscover(tester, failure: StateError('offline'));
 
       expect(find.text('Failed to load data.'), findsOneWidget);
-      // The banner and the closing ask survive: the product is describable
-      // without a working connection.
-      expect(find.text('Create account'), findsNWidgets(2));
+      // The banner survives: the product is describable without a working
+      // connection.
+      expect(find.text('Create account'), findsOneWidget);
     });
   });
 
@@ -259,6 +290,7 @@ void main() {
 
     testWidgets('joining a community asks for an account', (tester) async {
       await pumpDiscover(tester);
+      await openCommunities(tester);
 
       await tester.tap(find.text('Join'));
       await tester.pumpAndSettle();
@@ -267,14 +299,19 @@ void main() {
           findsOneWidget);
     });
 
-    testWidgets('creating a community asks for an account', (tester) async {
-      await pumpDiscover(tester);
+    testWidgets('a guest is not offered a community to create', (tester) async {
+      // **The closing call to action is gone**, and with it the guest's
+      // "create a community" ask. A guest cannot create one, and the hero
+      // offers the thing that would let them: an account. The prompt that
+      // used to say so lived on a panel repeated under every tab.
+      await pumpDiscover(tester, communities: []);
 
-      await tester.tap(find.text('Create community'));
-      await tester.pumpAndSettle();
+      expect(find.text('Create community'), findsNothing);
+      expect(find.text('Create account'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Log in'), findsOneWidget);
 
-      expect(find.text('Create an account to start your own community.'),
-          findsOneWidget);
+      await openCommunities(tester);
+      expect(find.text('Create community'), findsNothing);
     });
 
     testWidgets('the sheet leads to registration', (tester) async {
@@ -325,6 +362,7 @@ void main() {
       // browse, open, then decide, so the step in the middle is a button with
       // a name on it.
       await pumpDiscover(tester);
+      await openCommunities(tester);
 
       await tester.tap(find.widgetWithText(FilledButton, 'View community'));
       await tester.pumpAndSettle();
@@ -334,6 +372,7 @@ void main() {
 
     testWidgets('the card opens the public community page', (tester) async {
       await pumpDiscover(tester);
+      await openCommunities(tester);
 
       await tester.tap(find.text('Weekly six-a-side'));
       await tester.pumpAndSettle();
@@ -358,6 +397,7 @@ void main() {
     testWidgets('joining from that page still asks for an account',
         (tester) async {
       await pumpDiscover(tester);
+      await openCommunities(tester);
       await tester.tap(find.text('Weekly six-a-side'));
       await tester.pumpAndSettle();
 
@@ -401,9 +441,9 @@ void main() {
     testWidgets('both asks become the one a member can act on', (tester) async {
       await pumpDiscover(tester, signedIn: true);
 
-      // Banner and closing call to action.
-      expect(find.text('Create community'), findsNWidgets(2));
-      expect(find.text('Start something of your own'), findsOneWidget);
+      // The banner, and only the banner.
+      expect(find.text('Create community'), findsOneWidget);
+      expect(find.text('Start something of your own'), findsNothing);
     });
 
     testWidgets('the actions lead somewhere instead of asking for an account',
@@ -481,15 +521,18 @@ void main() {
 
       expect(find.text('Upcoming matches'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
-      // '1' would be the old match-section pill; '2' never applied here. The
-      // banner still reports the totals in words.
+      // '1' would be the old match-section pill; '2' never applied here.
       expect(find.text('1'), findsNothing);
-      expect(find.text('1 upcoming match'), findsOneWidget);
+      // And the banner no longer reports a total either.
+      expect(find.text('1 upcoming match'), findsNothing);
     });
   });
 
   group('the banner reports what is on the platform', () {
-    testWidgets('the live counts match the lists below it', (tester) async {
+    testWidgets('the hero claims no totals at all', (tester) async {
+      // **The count chips are gone.** They were a live pulse of how much
+      // football exists -- a statistic about the product rather than a way
+      // into it -- and they pushed the tabs down the screen.
       await pumpDiscover(
         tester,
         communities: [
@@ -499,9 +542,10 @@ void main() {
         matches: [match('m1'), match('m2'), match('m3')],
       );
 
-      expect(find.text('2 communities'), findsOneWidget);
-      // Once in the banner; the community cards carry their own counts.
-      expect(find.text('3 upcoming matches'), findsWidgets);
+      expect(find.text('2 communities'), findsNothing);
+      expect(find.text('3 upcoming matches'), findsNothing);
+      // What is under the headline is the way in.
+      expect(find.byType(DiscoverTabs), findsOneWidget);
     });
 
     testWidgets('nothing is claimed before the read comes back',
@@ -529,11 +573,14 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(tester.widget<Text>(find.text(communityName)).overflow,
-          TextOverflow.ellipsis);
       expect(tester.widget<Text>(find.text(matchTitle)).overflow,
           TextOverflow.ellipsis);
       expect(tester.widget<Text>(find.text(location)).overflow,
+          TextOverflow.ellipsis);
+
+      await openCommunities(tester);
+      expect(tester.takeException(), isNull);
+      expect(tester.widget<Text>(find.text(communityName)).overflow,
           TextOverflow.ellipsis);
     });
 
@@ -556,11 +603,18 @@ void main() {
         Directionality.of(tester.element(find.byType(ClubHero))),
         TextDirection.rtl,
       );
-      expect(tester.widget<Text>(find.text(communityName)).overflow,
-          TextOverflow.ellipsis);
       expect(tester.widget<Text>(find.text(matchTitle)).overflow,
           TextOverflow.ellipsis);
       expect(tester.widget<Text>(find.text(location)).overflow,
+          TextOverflow.ellipsis);
+
+      // The tab control itself has to survive 320px in Arabic, with every
+      // label whole -- it scrolls rather than shrinking them.
+      expect(find.byType(DiscoverTabs), findsOneWidget);
+
+      await openCommunities(tester);
+      expect(tester.takeException(), isNull);
+      expect(tester.widget<Text>(find.text(communityName)).overflow,
           TextOverflow.ellipsis);
     });
   });
@@ -598,10 +652,12 @@ void main() {
       );
 
       expect(columnsOf(tester, find.byType(CompactPublicMatchCard)), 2);
-      expect(columnsOf(tester, find.byType(CompactPublicCommunityCard)), 2);
       // Two, and never three: these are read at a glance, and a wide window
       // gets wider cards rather than more of them.
       expect(find.byType(CompactPublicMatchCard), findsNWidgets(3));
+
+      await openCommunities(tester);
+      expect(columnsOf(tester, find.byType(CompactPublicCommunityCard)), 2);
     });
 
     testWidgets('and give the column up on a narrow phone', (tester) async {
@@ -619,6 +675,8 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(columnsOf(tester, find.byType(CompactPublicMatchCard)), 1);
+
+      await openCommunities(tester);
       expect(columnsOf(tester, find.byType(CompactPublicCommunityCard)), 1);
     });
 
@@ -641,6 +699,7 @@ void main() {
         tester,
         communities: [community('c1', 'Muscat United')],
       );
+      await openCommunities(tester);
 
       expect(find.byType(CommunityCrest), findsWidgets);
       expect(find.byType(Image), findsNothing);
@@ -657,10 +716,11 @@ void main() {
         settle: false,
       );
 
-      expect(find.byType(CompactMatchGridSkeleton), findsOneWidget);
-      expect(find.byType(CompactCommunityGridSkeleton), findsOneWidget);
+      // The same skeleton stands in every tab while the one read is in
+      // flight, so the shape a reader sees first is the shape that arrives.
+      expect(find.byType(CompactMatchGridSkeleton), findsWidgets);
+      expect(find.byType(CompactCommunityGridSkeleton), findsWidgets);
       expect(columnsOf(tester, find.byType(CompactMatchCardSkeleton)), 2);
-      expect(columnsOf(tester, find.byType(CompactCommunityCardSkeleton)), 2);
       expect(tester.takeException(), isNull);
 
       // Let the held read finish so the test leaves no timer behind.

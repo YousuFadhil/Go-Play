@@ -69,6 +69,27 @@ void main() {
       expect(find.byType(CommunityCrest), findsWidgets);
     });
 
+    testWidgets('on the same ground a profile and a match open on',
+        (tester) async {
+      // A community is a place, and the public page is that place seen by
+      // somebody who is not in it -- not a lighter version of it.
+      await pump(tester, _Discover(results: [result('m1')]));
+
+      expect(find.byType(StadiumBackdrop), findsOneWidget);
+      // Drawn rather than fetched: no asset, no network, nothing to licence.
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('and the crest is given the room it carries the identity with',
+        (tester) async {
+      await pump(tester, _Discover(results: [result('m1')]));
+
+      final identity =
+          tester.widget<CommunityIdentity>(find.byType(CommunityIdentity));
+      expect(identity.crestSize, greaterThan(56));
+      expect(identity.onHero, isTrue);
+    });
+
     testWidgets('the figures are the public ones, on the hero', (tester) async {
       await pump(tester, _Discover(results: [result('m1')]));
 
@@ -164,6 +185,62 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(PublicResultCard), findsNWidgets(5));
     });
+  });
+
+  group('the upcoming card is readable on a narrow phone', () {
+    testWidgets('at 320 the seat badge steps out of the fixture row',
+        (tester) async {
+      // **Three things cannot share one tight row.** A date tile, the fixture
+      // and a seat badge each want their own width, and the fixture -- the
+      // only one a reader is looking for -- was the one that gave.
+      await pump(
+        tester,
+        _Discover(results: [result('m1')], longName: true),
+        size: const Size(320, 1400),
+      );
+
+      expect(tester.takeException(), isNull);
+      final card = find.byType(PublicMatchCard);
+      expect(card, findsOneWidget);
+
+      final title = find.descendant(
+        of: card,
+        matching: find.text('Friday night five-a-side'),
+      );
+      expect(title, findsOneWidget);
+      // The title keeps two lines and is not cut to nothing.
+      expect(tester.widget<Text>(title).maxLines, 2);
+    });
+
+    testWidgets('and at 412 it keeps the efficient one-row layout',
+        (tester) async {
+      await pump(
+        tester,
+        _Discover(results: [result('m1')]),
+        size: const Size(412, 1400),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(PublicMatchCard), findsOneWidget);
+    });
+
+    for (final width in [320.0, 412.0, 480.0]) {
+      for (final locale in [const Locale('en'), const Locale('ar')]) {
+        testWidgets(
+            'no overflow at ${width.toInt()}px in ${locale.languageCode}',
+            (tester) async {
+          await pump(
+            tester,
+            _Discover(results: [result('m1')], longName: true),
+            locale: locale,
+            size: Size(width, 1400),
+          );
+
+          expect(tester.takeException(), isNull);
+          expect(find.byType(PublicMatchCard), findsOneWidget);
+        });
+      }
+    }
   });
 
   group('it survives a narrow phone in both languages', () {

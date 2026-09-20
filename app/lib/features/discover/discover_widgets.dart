@@ -72,6 +72,12 @@ class DiscoverHero extends StatelessWidget {
       //
       // Still conditional on a session: a visitor has no identity to show, and
       // asking for one would be a read that cannot succeed.
+      // **The same ground the rest of the product opens on.** Discover is
+      // where somebody meets this product, and it was the one place still
+      // opening on a flat block while a community, a player's record and a
+      // played match all opened on football. Drawn, never photographed --
+      // see [StadiumBackdrop].
+      stadium: true,
       bar: ClubHeroBar(showCurrentUserMenu: signedIn),
       identity: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,7 +96,14 @@ class DiscoverHero extends StatelessWidget {
           ),
         ],
       ),
-      counts: overview == null ? null : _LivePulse(overview: overview!),
+      // **No count chips.** They were a live pulse of how much football
+      // exists, which is a statistic about the product rather than a way into
+      // it -- and they pushed the tabs down the screen. What is under the
+      // headline now is the way in.
+
+      // Secondary, and last: an account and a new community are things a
+      // reader may want *after* they have found football, so they sit under
+      // the headline and above nothing else.
       action: _HeroActions(
         signedIn: signedIn,
         onPrimaryAction: onPrimaryAction,
@@ -193,78 +206,6 @@ class _Headline extends StatelessWidget {
             ? l10n.discoverHeroTitle
             : l10n.discoverWelcomeBack(name));
       },
-    );
-  }
-}
-
-/// What is happening on the platform right now, in two numbers.
-///
-/// This is what makes the page feel alive on the first frame after it loads:
-/// the banner stops being a slogan and starts reporting. Both figures are the
-/// lists directly below it, so they cannot disagree with what the visitor is
-/// about to scroll through.
-class _LivePulse extends StatelessWidget {
-  const _LivePulse({required this.overview});
-
-  final DiscoverOverview overview;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
-
-    return Wrap(
-      spacing: Gap.sm,
-      runSpacing: Gap.xs,
-      children: [
-        _PulseChip(
-          icon: Icons.groups,
-          label: l10n.discoverCommunityCount(overview.communities.length),
-          foreground: scheme.onPrimary,
-        ),
-        _PulseChip(
-          icon: Icons.sports_soccer,
-          label: l10n.discoverUpcomingCount(overview.matches.length),
-          foreground: scheme.onPrimary,
-        ),
-      ],
-    );
-  }
-}
-
-class _PulseChip extends StatelessWidget {
-  const _PulseChip({
-    required this.icon,
-    required this.label,
-    required this.foreground,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color foreground;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 6),
-      decoration: BoxDecoration(
-        color: foreground.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: foreground),
-          const SizedBox(width: Gap.xs + 2),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -415,68 +356,87 @@ class PublicMatchCard extends StatelessWidget {
           onTap: onAction,
           child: Padding(
             padding: const EdgeInsets.all(Gap.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _DateTile(day: match.startAt),
-                    const SizedBox(width: Gap.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            match.displayName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          if (showCommunityName) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              match.communityName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: scheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: Gap.sm),
-                          _DetailLine(
-                            icon: Icons.schedule_outlined,
-                            text: formatTimeRange(
-                                context, match.startAt, match.endAt),
-                          ),
-                          const SizedBox(height: Gap.xs),
-                          _DetailLine(
-                            icon: Icons.place_outlined,
-                            text: match.location,
-                          ),
-                        ],
+            child: LayoutBuilder(builder: (context, constraints) {
+              // **Three things cannot share one tight row.** A date tile, the
+              // fixture and a seat badge each want their own width, and on a
+              // 320px phone the fixture -- the only one a reader is actually
+              // looking for -- was the one that gave, down to `Al Seeb Sp...`
+              // and `مقعدان متب...`. Below this width the badge drops to a row
+              // of its own under the fixture, where it has the whole line.
+              final tight = constraints.maxWidth < 300;
+
+              final identity = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    match.displayName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  if (showCommunityName) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      match.communityName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: Gap.sm),
-                    // Flexible, so that a narrow phone spends its width on the
-                    // fixture rather than on the seat count. The badge is the
-                    // secondary fact here; when the two cannot both have what
-                    // they want, it is the one that gives.
-                    Flexible(child: _SeatsBadge(match: match)),
                   ],
-                ),
-                const SizedBox(height: Gap.lg),
-                FilledButton.tonal(
-                  onPressed: onAction,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(44),
+                  const SizedBox(height: Gap.sm),
+                  _DetailLine(
+                    icon: Icons.schedule_outlined,
+                    text: formatTimeRange(context, match.startAt, match.endAt),
                   ),
-                  child: Text(actionLabel),
-                ),
-              ],
-            ),
+                  const SizedBox(height: Gap.xs),
+                  _DetailLine(
+                    icon: Icons.place_outlined,
+                    text: match.location,
+                  ),
+                ],
+              );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _DateTile(day: match.startAt),
+                      const SizedBox(width: Gap.md),
+                      Expanded(child: identity),
+                      if (!tight) ...[
+                        const SizedBox(width: Gap.sm),
+                        // Flexible, so that a narrow phone spends its width on
+                        // the fixture rather than on the seat count. The badge
+                        // is the secondary fact here; when the two cannot both
+                        // have what they want, it is the one that gives.
+                        Flexible(child: _SeatsBadge(match: match)),
+                      ],
+                    ],
+                  ),
+                  if (tight)
+                    Padding(
+                      padding: const EdgeInsets.only(top: Gap.sm),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: _SeatsBadge(match: match),
+                      ),
+                    ),
+                  const SizedBox(height: Gap.lg),
+                  FilledButton.tonal(
+                    onPressed: onAction,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(44),
+                    ),
+                    child: Text(actionLabel),
+                  ),
+                ],
+              );
+            }),
           ),
         ),
       ),
@@ -978,100 +938,6 @@ class _Count extends StatelessWidget {
   }
 }
 
-/// The closing ask, at the bottom of the page.
-///
-/// Deliberately the second time the same button appears rather than the first:
-/// somebody who has scrolled past the matches and the communities has seen what
-/// the platform is for, which is a better moment to ask than the top of the
-/// page. A member is asked for the other thing — nobody who is already signed in
-/// needs an account, but plenty of them have a regular game with no community
-/// behind it yet.
-class DiscoverCta extends StatelessWidget {
-  const DiscoverCta({
-    super.key,
-    required this.signedIn,
-    required this.onCreateAccount,
-    required this.onCreateCommunity,
-  });
-
-  final bool signedIn;
-  final VoidCallback onCreateAccount;
-  final VoidCallback onCreateCommunity;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        kPageMargin,
-        Gap.xxl,
-        kPageMargin,
-        Gap.xl,
-      ),
-      padding: const EdgeInsets.all(Gap.xl),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(Radii.lg),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(Gap.md),
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                signedIn ? Icons.groups : Icons.sports_soccer,
-                size: 26,
-                color: scheme.onPrimaryContainer,
-              ),
-            ),
-          ),
-          const SizedBox(height: Gap.md),
-          Text(
-            signedIn ? l10n.discoverCtaTitleSignedIn : l10n.discoverCtaTitle,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleLarge,
-          ),
-          const SizedBox(height: Gap.sm),
-          Text(
-            signedIn ? l10n.discoverCtaBodySignedIn : l10n.discoverCtaBody,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: Gap.lg),
-          if (!signedIn) ...[
-            FilledButton(
-              onPressed: onCreateAccount,
-              child: Text(l10n.registerButton),
-            ),
-            const SizedBox(height: Gap.sm),
-            OutlinedButton(
-              onPressed: onCreateCommunity,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(kButtonHeight),
-              ),
-              child: Text(l10n.createCommunityTitle),
-            ),
-          ] else
-            FilledButton(
-              onPressed: onCreateCommunity,
-              child: Text(l10n.createCommunityTitle),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 /// What a section says when it has nothing in it.
 ///
 /// Deliberately not styled like a failure. An empty section is the ordinary
@@ -1184,6 +1050,9 @@ class PublicResultCard extends StatelessWidget {
             : result.communityName,
         communityName: result.communityName,
         communityLogoUrl: result.communityLogoUrl,
+        // The public contract publishes the ground; the adapter used to drop
+        // it on the floor.
+        location: result.location,
         startAt: result.startAt,
         teamAScore: result.teamAScore,
         teamBScore: result.teamBScore,
@@ -1206,16 +1075,35 @@ class PublicResultCard extends StatelessWidget {
 /// seen by two audiences, and a second copy of this row is exactly how they
 /// would drift apart again.
 class CommunityIdentity extends StatelessWidget {
-  const CommunityIdentity({super.key, required this.community});
+  const CommunityIdentity({
+    super.key,
+    required this.community,
+    this.crestSize = 56,
+    this.onHero = false,
+  });
 
   final PublicCommunity community;
+
+  /// How large the mark is. The public page gives it more room, because the
+  /// crest is the whole of what identifies a community to somebody who has
+  /// never been in one.
+  final double crestSize;
+
+  /// The translucent treatment a crest takes when it sits on the ground
+  /// rather than on a flat block.
+  final bool onHero;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
       children: [
-        CommunityCrest(name: community.name, logoUrl: community.logoUrl),
+        CommunityCrest(
+          name: community.name,
+          logoUrl: community.logoUrl,
+          size: crestSize,
+          onHero: onHero,
+        ),
         const SizedBox(width: Gap.md),
         Expanded(
           child: Column(

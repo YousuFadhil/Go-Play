@@ -26,6 +26,21 @@ import 'package:go_play/features/auth/auth_service.dart';
 import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
+import 'package:go_play/features/communities/community_adapter.dart';
+import 'package:go_play/features/matches/match_adapter.dart';
+import 'package:go_play/features/matches/match_details_screen.dart';
+import 'package:go_play/features/matches/match_models.dart';
+import 'package:go_play/features/matches/match_service.dart';
+import 'package:go_play/features/members/member_adapter.dart';
+import 'package:go_play/features/members/member_repository.dart';
+import 'package:go_play/features/communities/community_models.dart';
+import 'package:go_play/features/communities/community_repository.dart';
+import 'package:go_play/features/discover/discover_screen.dart';
+import 'package:go_play/features/football/football_adapter.dart';
+import 'package:go_play/features/football/football_models.dart';
+import 'package:go_play/features/football/football_repository.dart';
+import 'package:go_play/features/discover/discover_tabs.dart';
+import 'package:go_play/features/discover/public_community_screen.dart';
 import 'package:go_play/features/discover/public_match_screen.dart';
 import 'package:go_play/features/profile/player_profile_share_card.dart';
 import 'package:go_play/features/profile/player_record_models.dart';
@@ -93,6 +108,54 @@ void main() {
           locale: locale,
           width: width,
           child: _publicMatch(),
+        );
+      });
+
+      // Discover, both readers, all three tabs: the surface the approved
+      // direction is really about.
+      for (final (signedIn, who) in [(false, 'guest'), (true, 'member')]) {
+        for (final (index, tab) in [
+          (0, 'upcoming'),
+          (1, 'results'),
+          (2, 'communities'),
+        ]) {
+          testWidgets('discover-$who-$tab $tag $width', (tester) async {
+            await _shoot(
+              tester,
+              'discover-$who-$tab-$tag-${width.toInt()}',
+              locale: locale,
+              width: width,
+              child: _discover(signedIn: signedIn),
+              openTab: index,
+            );
+          });
+        }
+      }
+
+      // A member's own completed match, and an administrator's: the route
+      // that used to be a roster list on a white sheet.
+      for (final (role, who) in [
+        (CommunityRole.player, 'member'),
+        (CommunityRole.admin, 'admin'),
+      ]) {
+        testWidgets('match-$who $tag $width', (tester) async {
+          await _shoot(
+            tester,
+            'match-$who-$tag-${width.toInt()}',
+            locale: locale,
+            width: width,
+            child: _memberMatch(role: role),
+          );
+        });
+      }
+
+      testWidgets('community-public $tag $width', (tester) async {
+        await _shoot(
+          tester,
+          'community-public-$tag-${width.toInt()}',
+          locale: locale,
+          width: width,
+          child: _publicCommunity(),
         );
       });
     }
@@ -288,6 +351,30 @@ Widget _publicProfile({
       )),
     );
 
+Widget _discover({required bool signedIn}) => DiscoverScreen(
+      repository: DiscoverRepository(_Discover(hasResult: true)),
+      authService: AuthService(_Auth(signedIn: signedIn)),
+      // A signed-in Discover reads its own football history and the reader's
+      // memberships. Supplied so the member shots show real results rather
+      // than the failure state the real ports would produce in a test.
+      footballRepository: signedIn ? FootballRepository(_Football()) : null,
+      communityRepository: signedIn ? CommunityRepository(_Joined()) : null,
+    );
+
+Widget _memberMatch({required CommunityRole role}) => MatchDetailsScreen(
+      matchId: 'm1',
+      matchService: MatchService(_Matches()),
+      memberRepository: MemberRepository(_Members(role)),
+      authService: AuthService(_Auth()),
+      footballRepository: FootballRepository(_Football()),
+    );
+
+Widget _publicCommunity() => PublicCommunityScreen(
+      communityId: 'c1',
+      repository: DiscoverRepository(_Discover(hasResult: true)),
+      authService: AuthService(_Auth()),
+    );
+
 Widget _publicMatch({bool hasResult = true}) => PublicMatchScreen(
       matchId: 'm1',
       repository: DiscoverRepository(_Discover(hasResult: hasResult)),
@@ -302,6 +389,10 @@ Future<void> _shoot(
   required Locale locale,
   required double width,
   required Widget child,
+
+  /// Which Discover tab to open before the shot, or null for screens that
+  /// have none.
+  int? openTab,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -323,6 +414,16 @@ Future<void> _shoot(
   await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 40)));
   await tester.pumpAndSettle();
 
+  if (openTab != null && openTab > 0) {
+    final tab = find
+        .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+        .at(openTab);
+    await tester.ensureVisible(tab);
+    await tester.pumpAndSettle();
+    await tester.tap(tab);
+    await tester.pumpAndSettle();
+  }
+
   await _save(tester, key, name);
 }
 
@@ -339,6 +440,15 @@ ThemeData _withFont(ThemeData theme) {
   return theme.copyWith(
     textTheme: theme.textTheme.apply(fontFamily: 'Segoe UI'),
     primaryTextTheme: theme.primaryTextTheme.apply(fontFamily: 'Segoe UI'),
+    // The bar captured its title style from the *unpatched* text theme when
+    // the theme was built, so patching `textTheme` alone left every app-bar
+    // title drawing as boxes -- an artefact of this harness, never of the app.
+    appBarTheme: theme.appBarTheme.copyWith(
+      titleTextStyle:
+          theme.appBarTheme.titleTextStyle?.copyWith(fontFamily: 'Segoe UI'),
+      toolbarTextStyle:
+          theme.appBarTheme.toolbarTextStyle?.copyWith(fontFamily: 'Segoe UI'),
+    ),
     // A button draws its label from its own theme rather than from the text
     // theme, so the family has to be said again here.
     filledButtonTheme:
@@ -565,12 +675,128 @@ class _Results implements ResultAdapter {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
-class _Auth implements AuthAdapter {
+/// One completed match, as the community route reads it.
+class _Matches implements MatchAdapter {
   @override
-  bool get isSignedIn => true;
+  Future<Match> fetchMatch(String matchId) async => Match(
+        id: 'm1',
+        communityId: 'c1',
+        communityName: 'Al Seeb Community',
+        title: 'Friday football',
+        location: 'Al Seeb Sports Complex',
+        startAt: DateTime.now().subtract(const Duration(days: 2)),
+        endAt: DateTime.now().subtract(const Duration(days: 2, hours: -2)),
+        startingPlayers: 10,
+        maxRegistration: 14,
+        status: MatchStatus.completed,
+        createdBy: 'someone-else',
+      );
 
   @override
-  String? get currentUserId => _userId;
+  Future<List<MatchRegistration>> fetchRegistrations(String matchId) async =>
+      const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+class _Members implements MemberAdapter {
+  _Members(this.role);
+
+  final CommunityRole role;
+
+  @override
+  Future<CommunityRole?> fetchMyRole(String communityId) async => role;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+/// A member's football history: three played matches with results.
+class _Football implements FootballAdapter {
+  @override
+  Future<List<CompletedMatch>> fetchCompletedMatches({
+    String? communityId,
+    int limit = 5,
+  }) async =>
+      [
+        for (var index = 0; index < 3; index++)
+          CompletedMatch(
+            matchId: 'f$index',
+            communityId: 'c1',
+            communityName: 'Al Seeb Community',
+            location: 'Al Seeb Sports Complex',
+            startAt: DateTime.utc(2026, 9, 11 - index, 15),
+            endAt: DateTime.utc(2026, 9, 11 - index, 17),
+            title: 'Friday football',
+            isHistorical: false,
+            hasResult: true,
+            teamAScore: 3,
+            teamBScore: 2,
+            mvp: const FootballParticipant(
+              type: ParticipantType.user,
+              displayName: 'Noor Al Kindi',
+              userId: _userId,
+              avatarUrl: _avatar,
+            ),
+          ),
+      ];
+
+  @override
+  Future<CompletedMatch> fetchCompletedMatch(String matchId) async =>
+      (await fetchCompletedMatches()).first;
+
+  @override
+  Future<List<MatchRosterEntry>> fetchMatchRoster(String matchId) async =>
+      const [];
+
+  @override
+  Future<List<LineupSlot>> fetchMatchLineup(String matchId) async => [
+        for (final (index, entry) in [
+          ('Salim Al Harthy', FootballTeam.a, 'GK'),
+          ('Noor Al Kindi', FootballTeam.a, 'MID'),
+          ('Yousef Al Balushi', FootballTeam.a, 'FWD'),
+          ('Ahmed Al Rashdi', FootballTeam.b, 'DEF'),
+          ('Khalid Al Amri', FootballTeam.b, 'MID'),
+        ].indexed)
+          LineupSlot(
+            matchId: matchId,
+            participant: FootballParticipant(
+              type: ParticipantType.user,
+              displayName: entry.$1,
+              userId: 'u$index',
+            ),
+            team: entry.$2,
+            assignedPosition: entry.$3,
+            goals: index == 1 ? 2 : 0,
+            isMvp: index == 1,
+            isOutOfPosition: false,
+          ),
+      ];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+/// The one community the reader is in.
+class _Joined implements CommunityAdapter {
+  @override
+  Future<List<Community>> fetchMyCommunities() async => const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+class _Auth implements AuthAdapter {
+  _Auth({this.signedIn = true});
+
+  final bool signedIn;
+
+  @override
+  bool get isSignedIn => signedIn;
+
+  @override
+  String? get currentUserId => signedIn ? _userId : null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
@@ -580,6 +806,71 @@ class _Discover implements DiscoverAdapter {
   _Discover({required this.hasResult});
 
   final bool hasResult;
+
+  static const _community = PublicCommunity(
+    id: 'c1',
+    name: 'Al Seeb Community',
+    description: 'Five-a-side every Friday evening at Al Seeb Sports Complex.',
+    memberCount: 24,
+    upcomingMatchCount: 3,
+  );
+
+  @override
+  Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId}) async =>
+      [
+        for (final (index, title) in [
+          'Friday five-a-side',
+          'Sunday seven-a-side',
+          'Midweek football',
+        ].indexed)
+          PublicMatch(
+            id: 'up$index',
+            communityId: 'c1',
+            communityName: _community.name,
+            title: title,
+            location: 'Al Seeb Sports Complex',
+            startAt: DateTime.utc(2026, 9, 25 + index, 15),
+            endAt: DateTime.utc(2026, 9, 25 + index, 17),
+            startingPlayers: 10,
+            openSlots: index,
+          ),
+      ];
+
+  @override
+  Future<List<PublicCommunity>> fetchCommunities() async => [
+        _community,
+        const PublicCommunity(
+          id: 'c2',
+          name: 'Muscat United',
+          memberCount: 18,
+          upcomingMatchCount: 1,
+        ),
+      ];
+
+  @override
+  Future<PublicCommunity> fetchCommunity(String communityId) async =>
+      _community;
+
+  @override
+  Future<List<PublicResult>> fetchRecentResults({
+    String? communityId,
+    int limit = 5,
+  }) async =>
+      [
+        for (var index = 0; index < 5; index++)
+          PublicResult(
+            matchId: 'r$index',
+            communityId: 'c1',
+            communityName: _community.name,
+            title: 'Friday football',
+            location: 'Al Seeb Sports Complex',
+            startAt: DateTime.utc(2026, 9, 11 - index, 15),
+            teamAScore: 3,
+            teamBScore: 2,
+            mvpDisplayName: 'Noor Al Kindi',
+            mvpAvatarUrl: _avatar,
+          ),
+      ];
 
   @override
   Future<PublicMatchDetail?> fetchMatchDetail(String matchId) async =>

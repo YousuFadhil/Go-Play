@@ -32,6 +32,7 @@ class ResultCardData {
     this.endAt,
     this.communityName,
     this.communityLogoUrl,
+    this.location,
     this.teamAScore,
     this.teamBScore,
     this.mvpName,
@@ -46,13 +47,27 @@ class ResultCardData {
 
   final DateTime startAt;
 
-  /// The finish, where the source knows it. The authenticated feed does and
-  /// draws a range; the public contract publishes only the start, and gets the
-  /// day on its own rather than a range invented from one end of it.
+  /// The finish, where the source knows it.
+  ///
+  /// **Not drawn in this card.** A member's read has it and the public
+  /// contract does not, and a card that showed a full `start → end` range to
+  /// one reader and a bare day to the other was the whole of the remaining
+  /// density difference between them: the range ate the line and the ground
+  /// never fitted. The compact feed shows the short date for both, and the
+  /// match screen owns the full range. It stays on the model because the model
+  /// is not a presentation decision.
   final DateTime? endAt;
 
   /// Whose football this is, or null on a page that has already said so.
   final String? communityName;
+
+  /// Where it was played, where the read carries one.
+  ///
+  /// **Both contracts already have this and the card used to drop it.** A
+  /// result without a ground is the one detail a reader scanning a feed of
+  /// them actually uses to place the match, and `public_recent_results`
+  /// publishes it exactly as the member's read does.
+  final String? location;
 
   /// The community's picture where the read model carries one. The public
   /// results contract does; the authenticated feed does not, and falls back to
@@ -155,19 +170,39 @@ class ResultCard extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                            // **Two lines, because the title is the match.**
+                            // On a 320px phone one line left `Friday foot...`
+                            // while there was vertical room to spare; the
+                            // card grows by a line instead of cutting the one
+                            // thing a reader is scanning for.
                             Text(
                               data.title,
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 2),
+                            // When, and where, as one string and one
+                            // ellipsis.
+                            //
+                            // **Two flexible halves was the wrong shape.**
+                            // They split the line evenly and truncated *both*
+                            // into nothing on a 320px Arabic phone --
+                            // `الجمع... · Al Se...` said neither when nor
+                            // where. As one string the date is drawn whole,
+                            // because it is short and bounded, and the ground
+                            // is what gives way: the approved priority, in
+                            // the order the reader needs it.
                             Text(
-                              data.endAt == null
-                                  ? formatDayShort(context, data.startAt)
-                                  : formatDayAndTimeRange(
-                                      context, data.startAt, data.endAt!),
+                              [
+                                // One compact date for both readers: see the
+                                // note on `endAt`.
+                                formatDayShort(context, data.startAt),
+                                if (data.location != null &&
+                                    data.location!.trim().isNotEmpty)
+                                  data.location!,
+                              ].join('  \u00b7  '),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodySmall?.copyWith(
@@ -179,8 +214,13 @@ class ResultCard extends StatelessWidget {
                       ),
                       const SizedBox(width: Gap.sm),
                       ConstrainedBox(
+                        // **The title outranks the scoreline.** At 0.46 the
+                        // score took almost half a 320px card and the match
+                        // was left as `Friday foo...`; the pair scales down
+                        // inside whatever it is given, so the identity keeps
+                        // the room and the score stays legible.
                         constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth * 0.46),
+                            maxWidth: constraints.maxWidth * 0.38),
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: AlignmentDirectional.centerEnd,

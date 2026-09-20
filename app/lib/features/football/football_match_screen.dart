@@ -17,6 +17,7 @@ import '../teams/match_stage_board.dart';
 import 'completed_match_presentation.dart';
 import 'football_models.dart';
 import 'football_repository.dart';
+import 'member_match_stage.dart';
 
 /// A completed match, as anybody signed in may read it.
 ///
@@ -250,33 +251,21 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
 
   /// The match, drawn the way the product draws a match.
   List<Widget> _board(AppLocalizations l10n, _MatchView view) {
-    final match = view.detail.match;
-    final presentation = view.presentation;
-
     return [
-      MatchStageBoard(
-        lineup: presentation.lineup,
-        players: presentation.players,
-        nameOf: presentation.nameOf,
-        hasNaturalGoalkeeper: presentation.hasNaturalGoalkeeper,
-        communityName: match.communityName,
-        matchTitle: match.displayName,
-        playedAt: match.startAt,
-        teamAScore: match.teamAScore,
-        teamBScore: match.teamBScore,
-        goalsOf: presentation.goalsOf,
-        isMvpOf: presentation.isMvpOf,
+      // [MemberMatchStage] is the one member adaptation of a completed match,
+      // shared with the community route so a member's own football and a
+      // stranger's view of it are the same drawing. It carries the match
+      // facts itself.
+      MemberMatchStage(
+        detail: view.detail,
+        presentation: view.presentation,
         // The public-football identity rule, and the whole of what tapping a
         // player does on this route. A registered player opens their hardened
         // football profile; a Professional Guest has no account and opens
-        // nothing. There is no management sheet to reach instead — this screen
-        // has none, for any reader.
-        onTapPlayer: (assignment) {
-          final userId = assignment.userId;
-          if (userId != null) openPlayerProfile(context, userId);
-        },
+        // nothing. There is no management sheet to reach instead -- this
+        // screen has none, for any reader.
+        onTapPlayer: (userId) => openPlayerProfile(context, userId),
       ),
-      ..._matchFacts(l10n, view),
     ];
   }
 

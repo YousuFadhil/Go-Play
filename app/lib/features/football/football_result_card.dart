@@ -44,6 +44,7 @@ class FootballResultCard extends StatelessWidget {
   ResultCardData get data => ResultCardData(
         title: match.displayName,
         communityName: match.communityName,
+        location: match.location,
         startAt: match.startAt,
         endAt: match.endAt,
         teamAScore: match.hasResult ? match.teamAScore : null,
