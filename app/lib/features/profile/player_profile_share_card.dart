@@ -83,8 +83,8 @@ class PlayerProfileCardData {
 /// three career figures that describe them — then the rating beside the
 /// win/loss/draw record, then Recent Form, then the same Recent Achievements
 /// the profile shows, and the public address at the foot. The Player Statistics
-/// card leads with a
-/// period and gives six counters equal weight; the two are different pictures
+/// card leads with a period and gives six counters equal weight; the two are
+/// different pictures
 /// of the same player on purpose, and neither is a variant of the other.
 ///
 /// Laid out in the engine's design units on the 1080×1920 surface
@@ -164,7 +164,7 @@ class _Masthead extends StatelessWidget {
             color: ShareCardPalette.pitch,
           ),
         ),
-        const SizedBox(width: 20),
+        const SizedBox(width: 18),
         // Left to right in both languages: it is a name, and the product is
         // called Go Play in Arabic too.
         Text(
@@ -720,9 +720,9 @@ class _Achievements extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         for (var i = 0; i < visible.length; i++) ...[
-          if (i > 0) const SizedBox(height: 14),
+          if (i > 0) const SizedBox(height: 10),
           _AchievementRow(achievement: visible[i]),
         ],
       ],
@@ -757,14 +757,14 @@ class _AchievementRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 74,
-          height: 74,
+          width: 64,
+          height: 64,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: ShareCardPalette.award,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: Icon(icon, size: 40, color: ShareCardPalette.onAward),
+          child: Icon(icon, size: 34, color: ShareCardPalette.onAward),
         ),
         const SizedBox(width: 20),
         Expanded(
@@ -778,33 +778,33 @@ class _AchievementRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: ShareCardPalette.ink,
-                  fontSize: 31,
-                  height: 1.15,
+                  fontSize: 28,
+                  height: 1.1,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 highlightPeriodLine(context, achievement),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: ShareCardPalette.inkMuted,
-                  fontSize: 24,
-                  height: 1.2,
+                  fontSize: 21,
+                  height: 1.15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               if (community != null && community.isNotEmpty) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   community,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: ShareCardPalette.inkMuted.withValues(alpha: 0.8),
-                    fontSize: 22,
-                    height: 1.2,
+                    fontSize: 20,
+                    height: 1.15,
                   ),
                 ),
               ],
