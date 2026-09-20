@@ -30,7 +30,7 @@ class PlayerProfileCardData {
     required this.losses,
     this.avatarUrl,
     this.form = RecentForm.empty,
-    this.highlight,
+    this.achievements = const [],
     this.publicUrl,
   });
 
@@ -64,9 +64,11 @@ class PlayerProfileCardData {
   /// none, and an empty form draws no strip rather than five grey placeholders.
   final RecentForm form;
 
-  /// The one achievement worth showing, or null. Null draws no block, for the
-  /// reason the screen draws no section.
-  final RecentHighlight? highlight;
+  /// The achievements already visible on the profile, newest first.
+  ///
+  /// The profile read is capped at five; the card defensively renders at most
+  /// five as well so "what you can see is what you can send" remains true.
+  final List<RecentHighlight> achievements;
 
   /// The public address this card is about — the same link the share message
   /// carries. Printed at the foot so a picture that has been forwarded past the
@@ -79,9 +81,10 @@ class PlayerProfileCardData {
 /// **An identity card, not a statistics card.** The hierarchy is the approved
 /// one: the product's mark, then the player — face, name, position and the
 /// three career figures that describe them — then the rating beside the
-/// win/loss/draw record, then Recent Form, then the one Recent Highlight, and
-/// the public address at the foot. The Player Statistics card leads with a
-/// period and gives six counters equal weight; the two are different pictures
+/// win/loss/draw record, then Recent Form, then the same Recent Achievements
+/// the profile shows, and the public address at the foot. The Player Statistics
+/// card leads with a period and gives six counters equal weight; the two are
+/// different pictures
 /// of the same player on purpose, and neither is a variant of the other.
 ///
 /// Laid out in the engine's design units on the 1080×1920 surface
@@ -161,7 +164,7 @@ class _Masthead extends StatelessWidget {
             color: ShareCardPalette.pitch,
           ),
         ),
-        const SizedBox(width: 20),
+        const SizedBox(width: 18),
         // Left to right in both languages: it is a name, and the product is
         // called Go Play in Arabic too.
         Text(
@@ -225,9 +228,9 @@ class _Panel extends StatelessWidget {
             const SizedBox(height: _blockGap),
             _FormStrip(form: data.form),
           ],
-          if (data.highlight != null) ...[
+          if (data.achievements.isNotEmpty) ...[
             const SizedBox(height: _blockGap),
-            _Highlight(highlight: data.highlight!),
+            _Achievements(achievements: data.achievements),
           ],
         ],
       ),
@@ -691,35 +694,25 @@ class _FormBadge extends StatelessWidget {
   }
 }
 
-/// The one achievement worth putting on a card, when there is one.
-class _Highlight extends StatelessWidget {
-  const _Highlight({required this.highlight});
+/// The same achievements the profile shows, in the same read order.
+///
+/// A share card keeps all of them rather than silently choosing one, but
+/// presents them as compact rows so the fixed 1080x1920 surface stays balanced.
+class _Achievements extends StatelessWidget {
+  const _Achievements({required this.achievements});
 
-  final RecentHighlight highlight;
+  final List<RecentHighlight> achievements;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    final (icon, title) = switch (highlight.kind) {
-      HighlightKind.mvp => (Icons.star, l10n.highlightMvpTitle),
-      HighlightKind.teamOfPeriod => (
-          Icons.emoji_events,
-          switch (highlight.period) {
-            HighlightPeriod.week => l10n.teamOfPeriodWeekHeading,
-            HighlightPeriod.month => l10n.teamOfPeriodMonthHeading,
-            null => l10n.highlightTeamOfPeriodTitle,
-          },
-        ),
-    };
-    final community = highlight.communityName;
+    final visible = achievements.take(5).toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          l10n.recentHighlightTitle,
+          context.l10n.recentAchievementsTitle,
           style: const TextStyle(
             color: ShareCardPalette.ink,
             fontSize: 36,
@@ -727,70 +720,96 @@ class _Highlight extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 22),
-        Row(
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: ShareCardPalette.award,
-                borderRadius: BorderRadius.circular(24),
+        const SizedBox(height: 16),
+        for (var i = 0; i < visible.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _AchievementRow(achievement: visible[i]),
+        ],
+      ],
+    );
+  }
+}
+
+/// One compact achievement row. It uses the same labels and ordering as the
+/// profile's achievement cards; only the density changes for the share image.
+class _AchievementRow extends StatelessWidget {
+  const _AchievementRow({required this.achievement});
+
+  final RecentHighlight achievement;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final (icon, title) = switch (achievement.kind) {
+      HighlightKind.mvp => (Icons.star, l10n.highlightMvpTitle),
+      HighlightKind.teamOfPeriod => (
+          Icons.emoji_events,
+          switch (achievement.period) {
+            HighlightPeriod.week => l10n.teamOfPeriodWeekHeading,
+            HighlightPeriod.month => l10n.teamOfPeriodMonthHeading,
+            null => l10n.highlightTeamOfPeriodTitle,
+          },
+        ),
+    };
+    final community = achievement.communityName;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: ShareCardPalette.award,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, size: 34, color: ShareCardPalette.onAward),
+        ),
+        const SizedBox(width: 20),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: ShareCardPalette.ink,
+                  fontSize: 28,
+                  height: 1.1,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              child: Icon(icon, size: 64, color: ShareCardPalette.onAward),
-            ),
-            const SizedBox(width: 26),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        color: ShareCardPalette.ink,
-                        fontSize: 44,
-                        height: 1.2,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    highlightPeriodLine(context, highlight),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: ShareCardPalette.inkMuted,
-                      fontSize: 32,
-                      height: 1.25,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (community != null && community.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      community,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: ShareCardPalette.inkMuted.withValues(
-                          alpha: 0.8,
-                        ),
-                        fontSize: 30,
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
-                ],
+              const SizedBox(height: 3),
+              Text(
+                highlightPeriodLine(context, achievement),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: ShareCardPalette.inkMuted,
+                  fontSize: 21,
+                  height: 1.15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+              if (community != null && community.isNotEmpty) ...[
+                const SizedBox(height: 1),
+                Text(
+                  community,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: ShareCardPalette.inkMuted.withValues(alpha: 0.8),
+                    fontSize: 20,
+                    height: 1.15,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ],
     );

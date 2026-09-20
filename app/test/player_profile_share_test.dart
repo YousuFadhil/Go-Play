@@ -70,7 +70,7 @@ void main() {
     String fullName = 'Noor Al Kindi',
     String? avatarUrl,
     RecentForm form = RecentForm.empty,
-    RecentHighlight? highlight,
+    List<RecentHighlight> achievements = const [],
     String? publicUrl = 'https://go-play-staging.pages.dev/#/player/$userId',
   }) =>
       PlayerProfileCardData(
@@ -85,7 +85,7 @@ void main() {
         draws: 4,
         losses: 6,
         form: form,
-        highlight: highlight,
+        achievements: achievements,
         publicUrl: publicUrl,
       );
 
@@ -160,25 +160,84 @@ void main() {
       );
     });
 
-    testWidgets('a highlight is on the card exactly when the profile has one',
+    testWidgets(
+        'every visible achievement is on the card in profile order',
         (tester) async {
       await pumpCard(tester, cardOf());
-      expect(find.text('Recent highlight'), findsNothing);
+      expect(find.text('Recent achievements'), findsNothing);
+
+      final week = RecentHighlight(
+        kind: HighlightKind.teamOfPeriod,
+        period: HighlightPeriod.week,
+        periodKey: '2026-W38',
+        occurredAt: DateTime.utc(2026, 9, 19, 19, 59, 59),
+        communityName: 'Al Shamal',
+      );
+      final mvp = RecentHighlight(
+        kind: HighlightKind.mvp,
+        occurredAt: DateTime.utc(2026, 9, 19, 13),
+        communityName: 'Al Shamal',
+      );
+      final month = RecentHighlight(
+        kind: HighlightKind.teamOfPeriod,
+        period: HighlightPeriod.month,
+        periodKey: '2026-08',
+        occurredAt: DateTime.utc(2026, 8, 31, 19, 59, 59),
+        communityName: 'Al Shamal',
+      );
+
+      await pumpCard(
+        tester,
+        cardOf(achievements: [week, mvp, month]),
+      );
+
+      expect(find.text('Recent achievements'), findsOneWidget);
+      expect(find.text('Team of the Week'), findsOneWidget);
+      expect(find.text('Player of the match'), findsOneWidget);
+      expect(find.text('Team of the Month'), findsOneWidget);
+
+      final weekY = tester.getTopLeft(find.text('Team of the Week')).dy;
+      final mvpY = tester.getTopLeft(find.text('Player of the match')).dy;
+      final monthY = tester.getTopLeft(find.text('Team of the Month')).dy;
+      expect(weekY, lessThan(mvpY));
+      expect(mvpY, lessThan(monthY));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('caps at five achievements without overflowing',
+        (tester) async {
+      final achievements = List.generate(
+        6,
+        (index) => RecentHighlight(
+          kind: index.isEven
+              ? HighlightKind.teamOfPeriod
+              : HighlightKind.mvp,
+          period: index.isEven ? HighlightPeriod.week : null,
+          periodKey: index.isEven ? '2026-W38' : null,
+          occurredAt: DateTime.utc(2026, 9, 19 - index),
+          communityName: 'Community ${index + 1}',
+        ),
+      );
 
       await pumpCard(
         tester,
         cardOf(
-          highlight: RecentHighlight(
-            kind: HighlightKind.teamOfPeriod,
-            period: HighlightPeriod.week,
-            occurredAt: DateTime.utc(2026, 9, 13, 20),
-            communityName: 'Al Amerat FC',
-          ),
+          form: formOf([
+            MatchOutcome.win,
+            MatchOutcome.draw,
+            MatchOutcome.win,
+            MatchOutcome.loss,
+            MatchOutcome.win,
+          ]),
+          achievements: achievements,
         ),
       );
-      expect(find.text('Recent highlight'), findsOneWidget);
-      expect(find.text('Team of the Week'), findsOneWidget);
-      expect(find.text('Al Amerat FC'), findsOneWidget);
+
+      for (var i = 1; i <= 5; i++) {
+        expect(find.text('Community $i'), findsOneWidget);
+      }
+      expect(find.text('Community 6'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('shows no date of birth, because it is handed none',
@@ -246,13 +305,15 @@ void main() {
         tester,
         cardOf(
           form: formOf([MatchOutcome.win]),
-          highlight: RecentHighlight(
-            kind: HighlightKind.teamOfPeriod,
-            period: HighlightPeriod.week,
-            periodKey: '2026-W37',
-            occurredAt: DateTime.utc(2026, 9, 13, 20),
-            communityName: 'Al Amerat FC',
-          ),
+          achievements: [
+            RecentHighlight(
+              kind: HighlightKind.teamOfPeriod,
+              period: HighlightPeriod.week,
+              periodKey: '2026-W37',
+              occurredAt: DateTime.utc(2026, 9, 13, 20),
+              communityName: 'Al Amerat FC',
+            ),
+          ],
         ),
       );
 

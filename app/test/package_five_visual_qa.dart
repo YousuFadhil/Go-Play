@@ -217,8 +217,19 @@ void main() {
         ('no-avatar', _card(fullName: name, avatarUrl: null)),
         (
           'no-form',
-          _card(fullName: name, form: RecentForm.empty, highlight: null)
+          _card(
+            fullName: name,
+            form: RecentForm.empty,
+            achievements: const [],
+          )
         ),
+        // The real case the multi-achievement correction exists for: a
+        // weekly Team of Period, an MVP and a monthly Team of Period, in the
+        // order the profile supplied them.
+        ('three-achievements', _card(fullName: name, achievements: _three())),
+        // And the product maximum, which is what the fixed surface has to
+        // hold without overflowing.
+        ('five-achievements', _card(fullName: name, achievements: _five())),
       ]) {
         await _shootCard(tester, 'card-$tag-$label',
             locale: locale, data: data);
@@ -262,6 +273,37 @@ RecentHighlight _highlight() => RecentHighlight(
       communityName: 'Al Seeb Community',
     );
 
+/// Weekly Team of Period, MVP, monthly Team of Period -- the mix a real
+/// player's profile is showing today, in database order.
+List<RecentHighlight> _three() => [
+      _highlight(),
+      _mvpHighlight(),
+      RecentHighlight(
+        kind: HighlightKind.teamOfPeriod,
+        period: HighlightPeriod.month,
+        periodKey: '2026-08',
+        occurredAt: DateTime.utc(2026, 8, 31, 19, 59, 59),
+        communityName: 'Al Seeb Community',
+      ),
+    ];
+
+/// The product maximum, across several communities.
+List<RecentHighlight> _five() => [
+      ..._three(),
+      RecentHighlight(
+        kind: HighlightKind.teamOfPeriod,
+        period: HighlightPeriod.week,
+        periodKey: '2026-W37',
+        occurredAt: DateTime.utc(2026, 9, 13, 19, 59, 58),
+        communityName: 'Muscat United',
+      ),
+      RecentHighlight(
+        kind: HighlightKind.mvp,
+        occurredAt: DateTime.utc(2026, 9, 4, 13),
+        communityName: 'Muscat United',
+      ),
+    ];
+
 RecentHighlight _mvpHighlight() => RecentHighlight(
       kind: HighlightKind.mvp,
       occurredAt: DateTime.utc(2026, 9, 11, 13),
@@ -272,7 +314,9 @@ PlayerProfileCardData _card({
   required String fullName,
   String? avatarUrl = _avatar,
   RecentForm? form,
-  RecentHighlight? highlight = const _KeepHighlight(),
+  /// Null means the ordinary one achievement; pass a list for anything else,
+  /// including `const []` for a card with none.
+  List<RecentHighlight>? achievements,
 }) =>
     PlayerProfileCardData(
       fullName: fullName,
@@ -286,7 +330,7 @@ PlayerProfileCardData _card({
       losses: 6,
       draws: 2,
       form: form ?? _form(),
-      highlight: highlight is _KeepHighlight ? _highlight() : highlight,
+      achievements: achievements ?? [_highlight()],
       publicUrl: 'https://go-play-staging.pages.dev/#/player/$_userId',
     );
 
