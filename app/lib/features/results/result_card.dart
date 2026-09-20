@@ -172,59 +172,45 @@ class ResultCard extends StatelessWidget {
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 2),
-                            // When, and where. One line, because two
-                            // would push the score off a 320px phone -- and
-                            // the ground ellipsizes first, since the date is
-                            // the shorter and the less forgiving of the two.
-                            Row(
-                              children: [
-                                // Flexible, not fixed: a date range and a
-                                // long ground together are wider than a
-                                // 320px card, and whichever is asked to be
-                                // rigid is the one that pushes.
-                                Flexible(
-                                  child: Text(
-                                    data.endAt == null
-                                        ? formatDayShort(context, data.startAt)
-                                        : formatDayAndTimeRange(
-                                            context, data.startAt, data.endAt!),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
+                            // When, and where, as one string and one
+                            // ellipsis.
+                            //
+                            // **Two flexible halves was the wrong shape.**
+                            // They split the line evenly and truncated *both*
+                            // into nothing on a 320px Arabic phone --
+                            // `الجمع... · Al Se...` said neither when nor
+                            // where. As one string the date is drawn whole,
+                            // because it is short and bounded, and the ground
+                            // is what gives way: the approved priority, in
+                            // the order the reader needs it.
+                            Text(
+                              [
+                                data.endAt == null
+                                    ? formatDayShort(context, data.startAt)
+                                    : formatDayAndTimeRange(
+                                        context, data.startAt, data.endAt!),
                                 if (data.location != null &&
-                                    data.location!.trim().isNotEmpty) ...[
-                                  Text(
-                                    '  \u00b7  ',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  Flexible(
-                                    child: Text(
-                                      data.location!,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
+                                    data.location!.trim().isNotEmpty)
+                                  data.location!,
+                              ].join('  \u00b7  '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: Gap.sm),
                       ConstrainedBox(
+                        // **The title outranks the scoreline.** At 0.46 the
+                        // score took almost half a 320px card and the match
+                        // was left as `Friday foo...`; the pair scales down
+                        // inside whatever it is given, so the identity keeps
+                        // the room and the score stays legible.
                         constraints: BoxConstraints(
-                            maxWidth: constraints.maxWidth * 0.46),
+                            maxWidth: constraints.maxWidth * 0.38),
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: AlignmentDirectional.centerEnd,

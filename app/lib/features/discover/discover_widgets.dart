@@ -1209,16 +1209,35 @@ class PublicResultCard extends StatelessWidget {
 /// seen by two audiences, and a second copy of this row is exactly how they
 /// would drift apart again.
 class CommunityIdentity extends StatelessWidget {
-  const CommunityIdentity({super.key, required this.community});
+  const CommunityIdentity({
+    super.key,
+    required this.community,
+    this.crestSize = 56,
+    this.onHero = false,
+  });
 
   final PublicCommunity community;
+
+  /// How large the mark is. The public page gives it more room, because the
+  /// crest is the whole of what identifies a community to somebody who has
+  /// never been in one.
+  final double crestSize;
+
+  /// The translucent treatment a crest takes when it sits on the ground
+  /// rather than on a flat block.
+  final bool onHero;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
       children: [
-        CommunityCrest(name: community.name, logoUrl: community.logoUrl),
+        CommunityCrest(
+          name: community.name,
+          logoUrl: community.logoUrl,
+          size: crestSize,
+          onHero: onHero,
+        ),
         const SizedBox(width: Gap.md),
         Expanded(
           child: Column(

@@ -69,6 +69,27 @@ void main() {
       expect(find.byType(CommunityCrest), findsWidgets);
     });
 
+    testWidgets('on the same ground a profile and a match open on',
+        (tester) async {
+      // A community is a place, and the public page is that place seen by
+      // somebody who is not in it -- not a lighter version of it.
+      await pump(tester, _Discover(results: [result('m1')]));
+
+      expect(find.byType(StadiumBackdrop), findsOneWidget);
+      // Drawn rather than fetched: no asset, no network, nothing to licence.
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('and the crest is given the room it carries the identity with',
+        (tester) async {
+      await pump(tester, _Discover(results: [result('m1')]));
+
+      final identity =
+          tester.widget<CommunityIdentity>(find.byType(CommunityIdentity));
+      expect(identity.crestSize, greaterThan(56));
+      expect(identity.onHero, isTrue);
+    });
+
     testWidgets('the figures are the public ones, on the hero', (tester) async {
       await pump(tester, _Discover(results: [result('m1')]));
 
