@@ -334,8 +334,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           draws: view.statistics.draws,
           losses: view.statistics.losses,
           form: view.form,
-          // The newest achievement, which is the one a card has room for.
-          highlight: view.achievements.isEmpty ? null : view.achievements.first,
+          // The share mirrors the profile: every achievement this reading was
+          // allowed to see, in the same database order, up to the existing
+          // five-item profile limit.
+          achievements: view.achievements,
           publicUrl: PublicLink.format(PublicLinkKind.player, view.userId),
         ),
       ),
