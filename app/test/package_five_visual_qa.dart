@@ -27,6 +27,12 @@ import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
 import 'package:go_play/features/communities/community_adapter.dart';
+import 'package:go_play/features/matches/match_adapter.dart';
+import 'package:go_play/features/matches/match_details_screen.dart';
+import 'package:go_play/features/matches/match_models.dart';
+import 'package:go_play/features/matches/match_service.dart';
+import 'package:go_play/features/members/member_adapter.dart';
+import 'package:go_play/features/members/member_repository.dart';
 import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/communities/community_repository.dart';
 import 'package:go_play/features/discover/discover_screen.dart';
@@ -124,6 +130,23 @@ void main() {
             );
           });
         }
+      }
+
+      // A member's own completed match, and an administrator's: the route
+      // that used to be a roster list on a white sheet.
+      for (final (role, who) in [
+        (CommunityRole.player, 'member'),
+        (CommunityRole.admin, 'admin'),
+      ]) {
+        testWidgets('match-$who $tag $width', (tester) async {
+          await _shoot(
+            tester,
+            'match-$who-$tag-${width.toInt()}',
+            locale: locale,
+            width: width,
+            child: _memberMatch(role: role),
+          );
+        });
       }
 
       testWidgets('community-public $tag $width', (tester) async {
@@ -338,6 +361,14 @@ Widget _discover({required bool signedIn}) => DiscoverScreen(
       communityRepository: signedIn ? CommunityRepository(_Joined()) : null,
     );
 
+Widget _memberMatch({required CommunityRole role}) => MatchDetailsScreen(
+      matchId: 'm1',
+      matchService: MatchService(_Matches()),
+      memberRepository: MemberRepository(_Members(role)),
+      authService: AuthService(_Auth()),
+      footballRepository: FootballRepository(_Football()),
+    );
+
 Widget _publicCommunity() => PublicCommunityScreen(
       communityId: 'c1',
       repository: DiscoverRepository(_Discover(hasResult: true)),
@@ -358,6 +389,7 @@ Future<void> _shoot(
   required Locale locale,
   required double width,
   required Widget child,
+
   /// Which Discover tab to open before the shot, or null for screens that
   /// have none.
   int? openTab,
@@ -643,6 +675,43 @@ class _Results implements ResultAdapter {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
+/// One completed match, as the community route reads it.
+class _Matches implements MatchAdapter {
+  @override
+  Future<Match> fetchMatch(String matchId) async => Match(
+        id: 'm1',
+        communityId: 'c1',
+        communityName: 'Al Seeb Community',
+        title: 'Friday football',
+        location: 'Al Seeb Sports Complex',
+        startAt: DateTime.now().subtract(const Duration(days: 2)),
+        endAt: DateTime.now().subtract(const Duration(days: 2, hours: -2)),
+        startingPlayers: 10,
+        maxRegistration: 14,
+        status: MatchStatus.completed,
+        createdBy: 'someone-else',
+      );
+
+  @override
+  Future<List<MatchRegistration>> fetchRegistrations(String matchId) async =>
+      const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+class _Members implements MemberAdapter {
+  _Members(this.role);
+
+  final CommunityRole role;
+
+  @override
+  Future<CommunityRole?> fetchMyRole(String communityId) async => role;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
 /// A member's football history: three played matches with results.
 class _Football implements FootballAdapter {
   @override
@@ -670,6 +739,38 @@ class _Football implements FootballAdapter {
               userId: _userId,
               avatarUrl: _avatar,
             ),
+          ),
+      ];
+
+  @override
+  Future<CompletedMatch> fetchCompletedMatch(String matchId) async =>
+      (await fetchCompletedMatches()).first;
+
+  @override
+  Future<List<MatchRosterEntry>> fetchMatchRoster(String matchId) async =>
+      const [];
+
+  @override
+  Future<List<LineupSlot>> fetchMatchLineup(String matchId) async => [
+        for (final (index, entry) in [
+          ('Salim Al Harthy', FootballTeam.a, 'GK'),
+          ('Noor Al Kindi', FootballTeam.a, 'MID'),
+          ('Yousef Al Balushi', FootballTeam.a, 'FWD'),
+          ('Ahmed Al Rashdi', FootballTeam.b, 'DEF'),
+          ('Khalid Al Amri', FootballTeam.b, 'MID'),
+        ].indexed)
+          LineupSlot(
+            matchId: matchId,
+            participant: FootballParticipant(
+              type: ParticipantType.user,
+              displayName: entry.$1,
+              userId: 'u$index',
+            ),
+            team: entry.$2,
+            assignedPosition: entry.$3,
+            goals: index == 1 ? 2 : 0,
+            isMvp: index == 1,
+            isOutOfPosition: false,
           ),
       ];
 

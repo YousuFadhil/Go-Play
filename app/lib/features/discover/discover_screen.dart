@@ -476,12 +476,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
               ),
             ),
           ),
-          // Always under the football, never over it.
-          DiscoverCta(
-            signedIn: _signedIn,
-            onCreateAccount: _openRegister,
-            onCreateCommunity: _createCommunity,
-          ),
+          // **No closing call to action.** One per tab is the same panel
+          // three times over, and every one of them was a screen of scrolling
+          // away from the football the tab exists for. Creating an account and
+          // creating a community are both on the hero, where a reader who
+          // wants either is already looking.
         ],
       ),
     );

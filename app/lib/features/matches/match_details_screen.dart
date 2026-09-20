@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_header.dart';
 import '../../core/club_place.dart';
+import '../football/completed_match_presentation.dart';
+import '../football/football_repository.dart';
+import '../football/member_match_stage.dart';
+import '../teams/match_stage.dart';
+import '../teams/match_stage_board.dart';
 import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/football_components.dart';
@@ -84,11 +89,28 @@ sealed class _MatchView {
 }
 
 class _MatchLoaded extends _MatchView {
-  const _MatchLoaded(this.match, this.registrations, this.myRole);
+  const _MatchLoaded(this.match, this.registrations, this.myRole,
+      {this.football});
 
   final Match match;
   final List<MatchRegistration> registrations;
   final CommunityRole? myRole;
+
+  /// The played football, for a match that has been played and written up.
+  ///
+  /// Null for an upcoming match, and null when the football read failed --
+  /// which leaves the screen exactly as it was rather than taking it down. It
+  /// is a *presentation* read: nothing on this screen depends on it for a
+  /// rule.
+  final _Football? football;
+}
+
+/// A completed match's football, loaded through the member's own port.
+class _Football {
+  const _Football(this.detail, this.presentation);
+
+  final CompletedMatchDetail detail;
+  final CompletedMatchPresentation presentation;
 }
 
 class _MembershipRequired extends _MatchView {
@@ -105,6 +127,7 @@ class MatchDetailsScreen extends StatefulWidget {
     this.memberRepository,
     this.communityRepository,
     this.authService,
+    this.footballRepository,
   });
 
   final String matchId;
@@ -114,6 +137,9 @@ class MatchDetailsScreen extends StatefulWidget {
   final MemberRepository? memberRepository;
   final CommunityRepository? communityRepository;
   final AuthService? authService;
+
+  /// Supplied only by tests, exactly as the other ports are.
+  final FootballRepository? footballRepository;
 
   @override
   State<MatchDetailsScreen> createState() => _MatchDetailsScreenState();
@@ -126,6 +152,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   late final CommunityRepository _communityRepository =
       widget.communityRepository ?? CommunityRepository();
   late final AuthService _authService = widget.authService ?? AuthService();
+  late final FootballRepository _football =
+      widget.footballRepository ?? FootballRepository();
   late Future<_MatchView> _dataFuture;
   bool _isActionLoading = false;
 
@@ -195,7 +223,25 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       match,
       results[0] as List<MatchRegistration>,
       results[1] as CommunityRole?,
+      football: await _loadFootball(match),
     );
+  }
+
+  /// The played football, for a match that has been played.
+  ///
+  /// **Presentation only, and it may fail.** This is the same authenticated
+  /// read `FootballMatchScreen` makes for the same match, so it adds no
+  /// permission and no database object; a failure returns null and the screen
+  /// falls back to the composition it has always had rather than reporting a
+  /// fault for something nobody asked for.
+  Future<_Football?> _loadFootball(Match match) async {
+    if (!match.isCompleted) return null;
+    try {
+      final detail = await _football.fetchMatchDetail(match.id);
+      return _Football(detail, CompletedMatchPresentation.of(detail));
+    } on Object {
+      return null;
+    }
   }
 
   /// Asks *why* the match did not load, but only when the answer could be
@@ -466,32 +512,241 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         }
 
         final loaded = view as _MatchLoaded;
-          final match = loaded.match;
-          final registrations = loaded.registrations;
-          final myRole = loaded.myRole;
-          final confirmed = [
-            for (final r in registrations)
-              if (r.status == RegistrationStatus.confirmed) r,
-          ];
-          final reserves = [
-            for (final r in registrations)
-              if (r.status == RegistrationStatus.reserve) r,
-          ];
-          // `userId` is null on a Professional Guest's seat, and so is
-          // `currentUserId` when nobody is signed in — comparing them without
-          // the guard would match a signed-out reader to a guest.
-          final myRegistration = registrations
-              .where((r) => r.userId != null && r.userId == currentUserId)
-              .firstOrNull;
-          // Management is a community role now, not a creator privilege
-          // (PD-07). The server enforces it; this only decides what is shown.
-          final canManage = myRole?.atLeast(CommunityRole.admin) ?? false;
-          // Registration is possible until kickoff or until the cap is hit.
-          final registrationClosed =
-              registrations.length >= match.maxRegistration;
-          final isOpen = match.isOpenForChanges;
-          // Starting places taken -> further sign-ups join the reserve.
-          final startingFull = confirmed.length >= match.startingPlayers;
+        final match = loaded.match;
+        final registrations = loaded.registrations;
+        final myRole = loaded.myRole;
+        final confirmed = [
+          for (final r in registrations)
+            if (r.status == RegistrationStatus.confirmed) r,
+        ];
+        final reserves = [
+          for (final r in registrations)
+            if (r.status == RegistrationStatus.reserve) r,
+        ];
+        // `userId` is null on a Professional Guest's seat, and so is
+        // `currentUserId` when nobody is signed in — comparing them without
+        // the guard would match a signed-out reader to a guest.
+        final myRegistration = registrations
+            .where((r) => r.userId != null && r.userId == currentUserId)
+            .firstOrNull;
+        // Management is a community role now, not a creator privilege
+        // (PD-07). The server enforces it; this only decides what is shown.
+        final canManage = myRole?.atLeast(CommunityRole.admin) ?? false;
+        // Registration is possible until kickoff or until the cap is hit.
+        final registrationClosed =
+            registrations.length >= match.maxRegistration;
+        final isOpen = match.isOpenForChanges;
+        // Starting places taken -> further sign-ups join the reserve.
+        final startingFull = confirmed.length >= match.startingPlayers;
+
+        // **The body, once.** Whether this match is played or still to
+        // come, a member gets the same sections: the same actions, the
+        // same roster, the same role checks. What changes is only what
+        // they are mounted under.
+        final sections = <Widget>[
+          // What this player's own position in the match is, and
+          // the one thing they can do about it. First, above the
+          // roster: it is the only actionable thing on the screen
+          // for most readers.
+          if (isOpen)
+            RegistrationStateView(
+              myRegistration: myRegistration,
+              registrationClosed: registrationClosed,
+              startingFull: startingFull,
+              busy: _isActionLoading,
+              onJoin: _join,
+              onWithdraw: _withdraw,
+              // Counts, not rules. Every one of these was already
+              // worked out above for the roster below; the capacity
+              // bar is a second reading of the same numbers rather
+              // than a second opinion about them.
+              confirmedCount: confirmed.length,
+              startingPlayers: match.startingPlayers,
+              reserveAllowance: match.maxRegistration - match.startingPlayers,
+              status: match.effectiveStatus,
+            ),
+
+          if ((match.description?.trim().isNotEmpty ?? false) ||
+              match.isLocked ||
+              match.isHistorical)
+            SectionCard(
+              children: [
+                if (match.description?.trim().isNotEmpty ?? false)
+                  ListTile(
+                    leading: const Icon(Icons.notes_outlined),
+                    title: Text(l10n.matchDescriptionLabel),
+                    subtitle: Text(match.description!),
+                  ),
+                // A match nobody could have joined says so.
+                // Without it a recorded fixture reads as an
+                // ordinary one whose roster nobody filled.
+                if (match.isHistorical)
+                  ListTile(
+                    leading: const Icon(Icons.history),
+                    title: Text(l10n.historicalMatchBadge),
+                    subtitle: Text(l10n.historicalMatchToggleNote),
+                  ),
+                if (match.isLocked)
+                  ListTile(
+                    leading: const Icon(Icons.lock_outline),
+                    title: Text(l10n.matchLockedNote),
+                  ),
+              ],
+            ),
+
+          SectionCard(
+            padding: EdgeInsets.zero,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.groups_2_outlined),
+                title: Text(l10n.teamsTitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _openTeams,
+              ),
+              if (canManage && match.isCompleted)
+                ListTile(
+                  leading: const Icon(Icons.scoreboard_outlined),
+                  title: Text(l10n.matchResultTitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _openResult,
+                ),
+              if (canManage)
+                ListTile(
+                  leading: const Icon(Icons.tune),
+                  title: Text(l10n.matchManagementTitle),
+                  subtitle: Text(l10n.matchManagementSubtitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _openManagement,
+                ),
+            ],
+          ),
+
+          // Whoever created this match used to manage it. Say
+          // where the controls went instead of leaving a blank
+          // space (PD-07).
+          if (!canManage && match.createdBy == currentUserId)
+            FootNote(
+              l10n.matchManageOrganizersOnly,
+              padding: const EdgeInsets.fromLTRB(
+                kPageMargin,
+                Gap.xs,
+                kPageMargin,
+                0,
+              ),
+            ),
+
+          SectionHeading(
+            title: l10n.startingPlayersLabel,
+            subtitle: '${confirmed.length}/${match.startingPlayers}',
+          ),
+          if (confirmed.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: kPageMargin,
+              ),
+              child: EmptyState(
+                icon: Icons.person_outline,
+                message: l10n.matchRosterEmpty,
+              ),
+            )
+          else
+            SectionCard(
+              padding: EdgeInsets.zero,
+              children: [
+                for (final registration in confirmed)
+                  _PlayerRow(
+                    name: participantLabel(l10n, registration),
+                    position: participantSubtitle(
+                      l10n,
+                      registration,
+                      (position) => _positionLabel(context, position),
+                    ),
+                    userId: registration.userId,
+                    avatarUrl: registration.avatarUrl,
+                    isProfessionalGuest: registration.isProfessionalGuest,
+                  ),
+              ],
+            ),
+
+          // Reserve queue, in promotion order.
+          if (reserves.isNotEmpty) ...[
+            SectionHeading(
+              title: l10n.reserveListTitle,
+              count: reserves.length,
+            ),
+            SectionCard(
+              padding: EdgeInsets.zero,
+              children: [
+                for (final (index, registration) in reserves.indexed)
+                  _PlayerRow(
+                    name: participantLabel(l10n, registration),
+                    position: participantSubtitle(
+                      l10n,
+                      registration,
+                      (position) => _positionLabel(context, position),
+                    ),
+                    userId: registration.userId,
+                    avatarUrl: registration.avatarUrl,
+                    queuePosition: index + 1,
+                    isProfessionalGuest: registration.isProfessionalGuest,
+                  ),
+              ],
+            ),
+          ],
+        ];
+
+        final football = loaded.football;
+        if (match.isCompleted && football != null) {
+          // **Football first for a played match.** A member opening their
+          // own community match used to get a roster list on a white
+          // sheet while a stranger got the pitch, so a member's own
+          // football looked like a different product from the public view
+          // of it. The stage is the primary presentation now, and what a
+          // member may *do* with the match follows it on its own sheet.
+          // Nothing about who may do what moved: `sections` is the same
+          // list, built from the same role.
+          return Scaffold(
+            backgroundColor: MatchStage.ground,
+            appBar: matchStageAppBar(
+              context,
+              key: const ValueKey('member-match-app-bar'),
+              title: l10n.matchDetailsTitle,
+            ),
+            body: MatchStageGround(
+              child: RefreshIndicator(
+                onRefresh: () async => _refresh(),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsetsDirectional.only(bottom: 20),
+                  children: [
+                    MemberMatchStage(
+                      detail: football.detail,
+                      presentation: football.presentation,
+                      onTapPlayer: (userId) =>
+                          openPlayerProfile(context, userId),
+                    ),
+                    const SizedBox(height: Gap.lg),
+                    ClubSheet(
+                      // A list, not a column: several of these sections
+                      // flex internally, and a Column inside a scroll
+                      // view has no height to give them. This is the same
+                      // per-child layout they have always been built in.
+                      child: ListView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(
+                          top: Gap.lg,
+                          bottom: Gap.lg,
+                        ),
+                        children: sections,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
 
         return Scaffold(
           // The sheet rides up over the same green ground as the hero. Keeping
@@ -518,163 +773,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: Gap.xxl),
                       children: [
-
-                        // What this player's own position in the match is, and
-                        // the one thing they can do about it. First, above the
-                        // roster: it is the only actionable thing on the screen
-                        // for most readers.
-                        if (isOpen)
-                          RegistrationStateView(
-                            myRegistration: myRegistration,
-                            registrationClosed: registrationClosed,
-                            startingFull: startingFull,
-                            busy: _isActionLoading,
-                            onJoin: _join,
-                            onWithdraw: _withdraw,
-                            // Counts, not rules. Every one of these was already
-                            // worked out above for the roster below; the capacity
-                            // bar is a second reading of the same numbers rather
-                            // than a second opinion about them.
-                            confirmedCount: confirmed.length,
-                            startingPlayers: match.startingPlayers,
-                            reserveAllowance:
-                                match.maxRegistration - match.startingPlayers,
-                            status: match.effectiveStatus,
-                          ),
-
-                        if ((match.description?.trim().isNotEmpty ?? false) ||
-                            match.isLocked ||
-                            match.isHistorical)
-                          SectionCard(
-                            children: [
-                              if (match.description?.trim().isNotEmpty ?? false)
-                                ListTile(
-                                  leading: const Icon(Icons.notes_outlined),
-                                  title: Text(l10n.matchDescriptionLabel),
-                                  subtitle: Text(match.description!),
-                                ),
-                              // A match nobody could have joined says so.
-                              // Without it a recorded fixture reads as an
-                              // ordinary one whose roster nobody filled.
-                              if (match.isHistorical)
-                                ListTile(
-                                  leading: const Icon(Icons.history),
-                                  title: Text(l10n.historicalMatchBadge),
-                                  subtitle:
-                                      Text(l10n.historicalMatchToggleNote),
-                                ),
-                              if (match.isLocked)
-                                ListTile(
-                                  leading: const Icon(Icons.lock_outline),
-                                  title: Text(l10n.matchLockedNote),
-                                ),
-                            ],
-                          ),
-
-                        SectionCard(
-                          padding: EdgeInsets.zero,
-                          children: [
-                            ListTile(
-                              leading: const Icon(Icons.groups_2_outlined),
-                              title: Text(l10n.teamsTitle),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: _openTeams,
-                            ),
-                            if (canManage && match.isCompleted)
-                              ListTile(
-                                leading: const Icon(Icons.scoreboard_outlined),
-                                title: Text(l10n.matchResultTitle),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: _openResult,
-                              ),
-                            if (canManage)
-                              ListTile(
-                                leading: const Icon(Icons.tune),
-                                title: Text(l10n.matchManagementTitle),
-                                subtitle: Text(l10n.matchManagementSubtitle),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: _openManagement,
-                              ),
-                          ],
-                        ),
-
-                        // Whoever created this match used to manage it. Say
-                        // where the controls went instead of leaving a blank
-                        // space (PD-07).
-                        if (!canManage && match.createdBy == currentUserId)
-                          FootNote(
-                            l10n.matchManageOrganizersOnly,
-                            padding: const EdgeInsets.fromLTRB(
-                              kPageMargin,
-                              Gap.xs,
-                              kPageMargin,
-                              0,
-                            ),
-                          ),
-
-                        SectionHeading(
-                          title: l10n.startingPlayersLabel,
-                          subtitle:
-                              '${confirmed.length}/${match.startingPlayers}',
-                        ),
-                        if (confirmed.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: kPageMargin,
-                            ),
-                            child: EmptyState(
-                              icon: Icons.person_outline,
-                              message: l10n.matchRosterEmpty,
-                            ),
-                          )
-                        else
-                          SectionCard(
-                            padding: EdgeInsets.zero,
-                            children: [
-                              for (final registration in confirmed)
-                                _PlayerRow(
-                                  name: participantLabel(l10n, registration),
-                                  position: participantSubtitle(
-                                    l10n,
-                                    registration,
-                                    (position) =>
-                                        _positionLabel(context, position),
-                                  ),
-                                  userId: registration.userId,
-                                  avatarUrl: registration.avatarUrl,
-                                  isProfessionalGuest:
-                                      registration.isProfessionalGuest,
-                                ),
-                            ],
-                          ),
-
-                        // Reserve queue, in promotion order.
-                        if (reserves.isNotEmpty) ...[
-                          SectionHeading(
-                            title: l10n.reserveListTitle,
-                            count: reserves.length,
-                          ),
-                          SectionCard(
-                            padding: EdgeInsets.zero,
-                            children: [
-                              for (final (index, registration) in reserves.indexed)
-                                _PlayerRow(
-                                  name: participantLabel(l10n, registration),
-                                  position: participantSubtitle(
-                                    l10n,
-                                    registration,
-                                    (position) =>
-                                        _positionLabel(context, position),
-                                  ),
-                                  userId: registration.userId,
-                                  avatarUrl: registration.avatarUrl,
-                                  queuePosition: index + 1,
-                                  isProfessionalGuest:
-                                      registration.isProfessionalGuest,
-                                ),
-                            ],
-                          ),
-                        ],
+                        ...sections,
                       ],
                     ),
                   ),
@@ -777,7 +876,8 @@ class _MatchHeroIdentity extends StatelessWidget {
 
 /// One concise fact on the dark Match Details hero.
 class _HeroFact extends StatelessWidget {
-  const _HeroFact({required this.icon, required this.label, required this.value});
+  const _HeroFact(
+      {required this.icon, required this.label, required this.value});
 
   final IconData icon;
   final String label;
@@ -790,7 +890,8 @@ class _HeroFact extends StatelessWidget {
       excludeSemantics: true,
       child: Row(
         children: [
-          Icon(icon, size: IconSize.chip, color: Colors.white.withValues(alpha: 0.7)),
+          Icon(icon,
+              size: IconSize.chip, color: Colors.white.withValues(alpha: 0.7)),
           const SizedBox(width: Gap.xs),
           Expanded(
             child: Text(

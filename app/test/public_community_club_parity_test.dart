@@ -187,6 +187,62 @@ void main() {
     });
   });
 
+  group('the upcoming card is readable on a narrow phone', () {
+    testWidgets('at 320 the seat badge steps out of the fixture row',
+        (tester) async {
+      // **Three things cannot share one tight row.** A date tile, the fixture
+      // and a seat badge each want their own width, and the fixture -- the
+      // only one a reader is looking for -- was the one that gave.
+      await pump(
+        tester,
+        _Discover(results: [result('m1')], longName: true),
+        size: const Size(320, 1400),
+      );
+
+      expect(tester.takeException(), isNull);
+      final card = find.byType(PublicMatchCard);
+      expect(card, findsOneWidget);
+
+      final title = find.descendant(
+        of: card,
+        matching: find.text('Friday night five-a-side'),
+      );
+      expect(title, findsOneWidget);
+      // The title keeps two lines and is not cut to nothing.
+      expect(tester.widget<Text>(title).maxLines, 2);
+    });
+
+    testWidgets('and at 412 it keeps the efficient one-row layout',
+        (tester) async {
+      await pump(
+        tester,
+        _Discover(results: [result('m1')]),
+        size: const Size(412, 1400),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(PublicMatchCard), findsOneWidget);
+    });
+
+    for (final width in [320.0, 412.0, 480.0]) {
+      for (final locale in [const Locale('en'), const Locale('ar')]) {
+        testWidgets(
+            'no overflow at ${width.toInt()}px in ${locale.languageCode}',
+            (tester) async {
+          await pump(
+            tester,
+            _Discover(results: [result('m1')], longName: true),
+            locale: locale,
+            size: Size(width, 1400),
+          );
+
+          expect(tester.takeException(), isNull);
+          expect(find.byType(PublicMatchCard), findsOneWidget);
+        });
+      }
+    }
+  });
+
   group('it survives a narrow phone in both languages', () {
     for (final width in [320.0, 412.0, 480.0]) {
       for (final locale in [const Locale('en'), const Locale('ar')]) {

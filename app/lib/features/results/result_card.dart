@@ -47,9 +47,15 @@ class ResultCardData {
 
   final DateTime startAt;
 
-  /// The finish, where the source knows it. The authenticated feed does and
-  /// draws a range; the public contract publishes only the start, and gets the
-  /// day on its own rather than a range invented from one end of it.
+  /// The finish, where the source knows it.
+  ///
+  /// **Not drawn in this card.** A member's read has it and the public
+  /// contract does not, and a card that showed a full `start → end` range to
+  /// one reader and a bare day to the other was the whole of the remaining
+  /// density difference between them: the range ate the line and the ground
+  /// never fitted. The compact feed shows the short date for both, and the
+  /// match screen owns the full range. It stays on the model because the model
+  /// is not a presentation decision.
   final DateTime? endAt;
 
   /// Whose football this is, or null on a page that has already said so.
@@ -164,9 +170,14 @@ class ResultCard extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                            // **Two lines, because the title is the match.**
+                            // On a 320px phone one line left `Friday foot...`
+                            // while there was vertical room to spare; the
+                            // card grows by a line instead of cutting the one
+                            // thing a reader is scanning for.
                             Text(
                               data.title,
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w700),
@@ -185,10 +196,9 @@ class ResultCard extends StatelessWidget {
                             // the order the reader needs it.
                             Text(
                               [
-                                data.endAt == null
-                                    ? formatDayShort(context, data.startAt)
-                                    : formatDayAndTimeRange(
-                                        context, data.startAt, data.endAt!),
+                                // One compact date for both readers: see the
+                                // note on `endAt`.
+                                formatDayShort(context, data.startAt),
                                 if (data.location != null &&
                                     data.location!.trim().isNotEmpty)
                                   data.location!,

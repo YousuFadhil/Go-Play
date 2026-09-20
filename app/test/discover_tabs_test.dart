@@ -191,6 +191,63 @@ void main() {
     });
   });
 
+  group('nothing is repeated under every tab', () {
+    testWidgets('no closing call to action, on any of the three',
+        (tester) async {
+      // **One per tab was the same panel three times over**, and every one of
+      // them was a screen of scrolling away from the football the tab exists
+      // for. Creating an account and creating a community are on the hero.
+      await pump(tester);
+
+      for (final index in [0, 1, 2]) {
+        await openTab(tester, index);
+        expect(find.text('Start something of your own'), findsNothing,
+            reason: 'tab $index');
+        expect(
+            find.text('Create a community and bring your regular game '
+                'together in one place.'),
+            findsNothing,
+            reason: 'tab $index');
+      }
+    });
+
+    testWidgets('and a member is asked to create a community exactly once',
+        (tester) async {
+      await pump(tester, signedIn: true);
+
+      for (final index in [0, 1, 2]) {
+        await openTab(tester, index);
+        expect(find.text('Create community'), findsOneWidget,
+            reason: 'tab $index: the hero, and only the hero');
+      }
+    });
+  });
+
+  group('the hero is football, not a scoreboard of totals', () {
+    testWidgets('it opens on the ground', (tester) async {
+      await pump(tester);
+
+      expect(find.byType(StadiumBackdrop), findsOneWidget);
+      // Drawn rather than fetched: no asset, no network, nothing to licence.
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('and claims no counts', (tester) async {
+      await pump(tester);
+
+      expect(find.textContaining('communities'), findsNothing);
+      expect(find.textContaining('upcoming matches'), findsNothing);
+    });
+
+    testWidgets('the same composition for both readers', (tester) async {
+      for (final signedIn in [false, true]) {
+        await pump(tester, signedIn: signedIn);
+        expect(find.byType(StadiumBackdrop), findsOneWidget);
+        expect(find.byType(ClubHero), findsOneWidget);
+      }
+    });
+  });
+
   group('a pull-to-refresh keeps the reader where they were', () {
     testWidgets('the selected tab is not reset', (tester) async {
       final adapter = await pump(tester);
