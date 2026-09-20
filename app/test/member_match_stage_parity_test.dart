@@ -199,7 +199,8 @@ void main() {
         'completed match', (tester) async {
       await pump(tester, completed: true, role: CommunityRole.admin);
 
-      expect(find.byType(MemberMatchStage), findsOneWidget);
+      expect(find.byType(MemberMatchStage), findsNothing);
+      expect(find.byType(ClubHero), findsOneWidget);
       expect(find.text('Match result'), findsOneWidget);
       expect(find.text('Match management'), findsOneWidget);
       expect(find.text('Teams'), findsOneWidget);
@@ -208,8 +209,11 @@ void main() {
     testWidgets('an owner does too', (tester) async {
       await pump(tester, completed: true, role: CommunityRole.owner);
 
+      expect(find.byType(MemberMatchStage), findsNothing);
+      expect(find.byType(ClubHero), findsOneWidget);
       expect(find.text('Match result'), findsOneWidget);
       expect(find.text('Match management'), findsOneWidget);
+      expect(find.text('Teams'), findsOneWidget);
     });
 
     testWidgets('and an ordinary player gains neither', (tester) async {
@@ -239,7 +243,7 @@ void main() {
           await pump(
             tester,
             completed: true,
-            role: CommunityRole.admin,
+            role: CommunityRole.player,
             locale: locale,
             size: Size(width, 2600),
           );
