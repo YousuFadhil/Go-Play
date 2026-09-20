@@ -395,9 +395,13 @@ void main() {
       // The approved own-profile page: the share is a button under the record,
       // and the bar carries the account's own actions instead.
       expect(find.byTooltip('Share my profile'), findsNothing);
+      // **And nothing else.** The owner's "View as public" preview is gone:
+      // sharing already produces the public link, so a second way to look at
+      // the same page was a rehearsal of an act the reader can simply perform.
+      // The public page itself is untouched -- see the visitor tests below.
       expect(
         find.widgetWithText(FilledButton, 'View as public'),
-        findsOneWidget,
+        findsNothing,
       );
     });
 
