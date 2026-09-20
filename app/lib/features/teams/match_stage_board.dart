@@ -153,6 +153,8 @@ class MatchStageBoard extends StatelessWidget {
     this.goalsOf,
     this.isMvpOf,
     this.onTapPlayer,
+    this.avatarUrlOf,
+    this.ratingOf,
   });
 
   /// The stored lineup, both sides. Split by [team] below rather than taken as
@@ -183,6 +185,18 @@ class MatchStageBoard extends StatelessWidget {
 
   final int Function(String participantId)? goalsOf;
   final bool Function(String participantId)? isMvpOf;
+
+  /// The face and the rating, for a caller whose read does not produce
+  /// [PlayerCoreInputs].
+  ///
+  /// **Added for the public route, and additive on purpose.** The public
+  /// completed-match contract publishes a name, a face, a position, goals and
+  /// the MVP -- but no profile object and no rating, because a rating is not
+  /// public. Both default to null, so the member's route is unchanged and
+  /// reads [players] exactly as before; a null [ratingOf] draws no rating
+  /// mark at all, which is the honest answer rather than an invented figure.
+  final String? Function(String participantId)? avatarUrlOf;
+  final double? Function(String participantId)? ratingOf;
 
   /// What tapping a player does, or null for a board nobody may touch. This is
   /// the one place the two callers legitimately differ, and it is a callback
@@ -268,6 +282,8 @@ class MatchStageBoard extends StatelessWidget {
           players: players,
           hasNaturalGoalkeeper: hasNaturalGoalkeeper,
           nameOf: nameOf,
+          avatarUrlOf: avatarUrlOf,
+          ratingOf: ratingOf,
           // Null before a result exists, which leaves every card exactly what
           // it was. The same pitch, drawn after the match, carries what each
           // player did on the player.
