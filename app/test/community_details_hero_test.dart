@@ -239,6 +239,29 @@ void main() {
       expect(find.text('Manage members'), findsOneWidget);
       expect(find.text('Share invitation'), findsNothing);
     });
+
+    testWidgets('community insights is offered only to organizers',
+        (tester) async {
+      for (final role in [CommunityRole.owner, CommunityRole.admin]) {
+        await pumpCommunity(tester, role: role);
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('communityInsightsAction')), findsOneWidget);
+        expect(find.text('Community insights'), findsOneWidget);
+
+        // Close before pumping the next role.
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
+      }
+
+      await pumpCommunity(tester, role: CommunityRole.player);
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('communityInsightsAction')), findsNothing);
+      expect(find.text('Community insights'), findsNothing);
+    });
   });
 
   group('destinations survive the redesign', () {
