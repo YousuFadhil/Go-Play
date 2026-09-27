@@ -809,6 +809,7 @@
   "adminMetricAppVersion": "إصدار التطبيق",
   "adminMetricMatchesPlayed": "المباريات الملعوبة",
   "adminMetricWithdrawals": "الانسحابات",
+  "adminMetricTrackedWithdrawals": "الانسحابات المتتبَّعة",
   "adminPlatformWeb": "الويب",
   "adminPlatformAndroid": "أندرويد",
   "adminEventSessionStarted": "بدء جلسة",
