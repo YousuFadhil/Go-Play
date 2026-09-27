@@ -924,7 +924,7 @@
       }
     }
   },
-  "adminAnalyticsNotice": "Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.",
+  "adminAnalyticsNotice": "Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.",
   "adminAuditTab": "Audit Log",
   "adminAuditEmpty": "Nothing has been recorded yet.",
   "adminAuditUnavailable": "No longer available",
