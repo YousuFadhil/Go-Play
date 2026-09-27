@@ -7,6 +7,8 @@ import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/results/result_adapter.dart';
 import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
+import 'package:go_play/features/statistics/player_intelligence_adapter.dart';
+import 'package:go_play/features/statistics/player_intelligence_repository.dart';
 import 'package:go_play/features/statistics/player_statistics_screen.dart';
 import 'package:go_play/features/statistics/team_of_period_models.dart';
 import 'package:go_play/features/statistics/statistics_adapter.dart';
@@ -59,6 +61,13 @@ void main() {
         // record to show is the caller's business, not this screen's.
         userId: 'u1',
         repository: ResultRepository(adapter),
+        intelligence: PlayerIntelligenceRepository(
+          FakePlayerIntelligenceAdapter(
+            trend: adapter.statistics.matchesPlayed == 0
+                ? const PlayerRatingTrend(matchesCount: 0, ratingDelta: 0)
+                : const PlayerRatingTrend(matchesCount: 5, ratingDelta: 0.135),
+          ),
+        ),
       ),
     ));
     if (settle) await tester.pumpAndSettle();
@@ -115,6 +124,17 @@ void main() {
       expect(find.text('12'), findsOneWidget);
       expect(find.text('Best player awards'), findsOneWidget);
       expect(find.text('2'), findsOneWidget);
+
+      // Derived from the same counters above — no stored duplicate values.
+      expect(find.text('Win rate'), findsOneWidget);
+      expect(find.text('55.6%'), findsOneWidget);
+      expect(find.text('Goals per match'), findsOneWidget);
+      expect(find.text('1.33'), findsOneWidget);
+
+      // Global recent rating direction belongs inside the rating card, not in
+      // Recent Form and not as a period counter.
+      expect(find.textContaining('+0.14'), findsOneWidget);
+      expect(find.textContaining('Recent rating change'), findsOneWidget);
     });
 
     testWidgets('the rating is shown to one decimal place (OP-1)',
@@ -141,6 +161,10 @@ void main() {
 
       expect(find.text('0'), findsNWidgets(6),
           reason: 'six counters, all of them genuinely zero');
+      expect(find.text('—'), findsNWidgets(2),
+          reason: 'rates are unavailable when no match was played');
+      expect(find.textContaining('Recent rating change'), findsNothing,
+          reason: 'there is no recent rating direction without a match');
       expect(
         find.textContaining('have not played a recorded match'),
         findsOneWidget,
@@ -195,6 +219,9 @@ void main() {
       expect(find.text('التقييم الحالي'), findsOneWidget);
       expect(find.text('المباريات المُلعوبة'), findsOneWidget);
       expect(find.text('الأهداف'), findsOneWidget);
+      expect(find.text('نسبة الفوز'), findsOneWidget);
+      expect(find.text('الأهداف لكل مباراة'), findsOneWidget);
+      expect(find.textContaining('تغيّر التقييم مؤخرًا'), findsOneWidget);
       expect(
         Directionality.of(tester.element(find.text('التقييم الحالي'))),
         TextDirection.rtl,
@@ -328,6 +355,16 @@ void main() {
           userId: 'u1',
           repository: ResultRepository(results),
           statistics: StatisticsRepository(periods),
+          intelligence: PlayerIntelligenceRepository(
+            FakePlayerIntelligenceAdapter(
+              trend: results.statistics.matchesPlayed == 0
+                  ? const PlayerRatingTrend(matchesCount: 0, ratingDelta: 0)
+                  : const PlayerRatingTrend(
+                      matchesCount: 5,
+                      ratingDelta: 0.135,
+                    ),
+            ),
+          ),
         ),
       ));
       await tester.pumpAndSettle();
@@ -384,6 +421,8 @@ void main() {
       expect(find.text('3'), findsOneWidget);
       expect(find.text('4'), findsOneWidget);
       expect(find.text('12'), findsNothing);
+      expect(find.text('33.3%'), findsOneWidget);
+      expect(find.text('1.33'), findsOneWidget);
     });
 
     testWidgets('the rating does not change with the period, and says so',
@@ -400,12 +439,15 @@ void main() {
       );
 
       expect(find.text('7.4'), findsOneWidget);
+      expect(find.textContaining('+0.14'), findsOneWidget);
       expect(find.textContaining('not a figure for this period'), findsNothing);
 
       await tester.tap(find.text('Weekly'));
       await tester.pumpAndSettle();
 
       expect(find.text('7.4'), findsOneWidget);
+      expect(find.textContaining('+0.14'), findsOneWidget,
+          reason: 'recent rating direction is global, like the rating itself');
       expect(
           find.textContaining('not a figure for this period'), findsOneWidget);
     });
@@ -644,4 +686,23 @@ class FakeResultAdapter implements ResultAdapter {
   @override
   Future<List<RatingChange>> fetchRatingHistory(String matchId) =>
       throw UnimplementedError('the statistics screen reads no audit');
+}
+
+
+/// Narrow fake for the one Player Intelligence aggregate.
+///
+/// It records the requested target so a future test can prove that opening a
+/// different player's statistics never silently reads the signed-in player's
+/// trend.
+class FakePlayerIntelligenceAdapter implements PlayerIntelligenceAdapter {
+  FakePlayerIntelligenceAdapter({required this.trend});
+
+  final PlayerRatingTrend trend;
+  final List<String> asked = [];
+
+  @override
+  Future<PlayerRatingTrend> fetchRatingTrend(String userId) async {
+    asked.add(userId);
+    return trend;
+  }
 }
