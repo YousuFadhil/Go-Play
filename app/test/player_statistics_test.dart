@@ -47,6 +47,7 @@ void main() {
     FakeResultAdapter adapter, {
     Locale locale = const Locale('en'),
     bool settle = true,
+    PlayerIntelligenceAdapter? intelligence,
   }) async {
     tester.view.physicalSize = const Size(900, 1600);
     tester.view.devicePixelRatio = 1;
@@ -62,11 +63,15 @@ void main() {
         userId: 'u1',
         repository: ResultRepository(adapter),
         intelligence: PlayerIntelligenceRepository(
-          FakePlayerIntelligenceAdapter(
-            trend: adapter.statistics.matchesPlayed == 0
-                ? const PlayerRatingTrend(matchesCount: 0, ratingDelta: 0)
-                : const PlayerRatingTrend(matchesCount: 5, ratingDelta: 0.135),
-          ),
+          intelligence ??
+              FakePlayerIntelligenceAdapter(
+                trend: adapter.statistics.matchesPlayed == 0
+                    ? const PlayerRatingTrend(matchesCount: 0, ratingDelta: 0)
+                    : const PlayerRatingTrend(
+                        matchesCount: 5,
+                        ratingDelta: 0.135,
+                      ),
+              ),
         ),
       ),
     ));
@@ -102,6 +107,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(adapter.reads, 2);
+    });
+
+    testWidgets('a trend read failure does not hide the existing statistics',
+        (tester) async {
+      await pumpStatistics(
+        tester,
+        FakeResultAdapter(statistics: played),
+        intelligence: FakePlayerIntelligenceAdapter(
+          trend: const PlayerRatingTrend(matchesCount: 5, ratingDelta: 0.1),
+          failure: const NetworkFailure(),
+        ),
+      );
+
+      expect(find.text('Current rating'), findsOneWidget);
+      expect(find.text('7.4'), findsOneWidget);
+      expect(find.text('Win rate'), findsOneWidget);
+      expect(find.textContaining('Recent rating change'), findsNothing);
+      expect(find.text('Failed to load data.'), findsNothing);
     });
   });
 
@@ -695,14 +718,19 @@ class FakeResultAdapter implements ResultAdapter {
 /// different player's statistics never silently reads the signed-in player's
 /// trend.
 class FakePlayerIntelligenceAdapter implements PlayerIntelligenceAdapter {
-  FakePlayerIntelligenceAdapter({required this.trend});
+  FakePlayerIntelligenceAdapter({
+    required this.trend,
+    this.failure,
+  });
 
   final PlayerRatingTrend trend;
+  final Failure? failure;
   final List<String> asked = [];
 
   @override
   Future<PlayerRatingTrend> fetchRatingTrend(String userId) async {
     asked.add(userId);
+    if (failure != null) throw failure!;
     return trend;
   }
 }
