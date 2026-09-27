@@ -907,6 +907,7 @@
   "adminMetricWeeklyRetention": "Weekly retention",
   "adminMetricMatches": "Matches",
   "adminMetricRegistrations": "Registrations",
+  "adminMetricTrackedRegistrations": "Tracked registrations",
   "adminMetricResults": "Results",
   "adminPeriod7d": "7 days",
   "adminPeriod30d": "30 days",
