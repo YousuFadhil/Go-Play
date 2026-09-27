@@ -62,8 +62,10 @@ AdminAnalyticsOverview adminAnalyticsOverviewFromRow(
       weeklyActiveCommunities: _adminCount(row['weekly_active_communities']),
       matches7d: _adminCount(row['matches_created_7d'] ?? row['matches_7d']),
       matches30d: _adminCount(row['matches_created_30d'] ?? row['matches_30d']),
-      registrations7d: _adminCount(\n          row['tracked_registrations_7d'] ?? row['registrations_7d']),
-      registrations30d: _adminCount(\n          row['tracked_registrations_30d'] ?? row['registrations_30d']),
+      registrations7d: _adminCount(
+          row['tracked_registrations_7d'] ?? row['registrations_7d']),
+      registrations30d: _adminCount(
+          row['tracked_registrations_30d'] ?? row['registrations_30d']),
       results7d: _adminCount(row['results_recorded_7d'] ?? row['results_7d']),
       results30d: _adminCount(row['results_recorded_30d'] ?? row['results_30d']),
       retentionPreviousWeekUsers:
