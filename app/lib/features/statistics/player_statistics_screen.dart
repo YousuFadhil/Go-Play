@@ -87,7 +87,7 @@ class _PlayerRecord {
 
   _PlayerRecord.career(
     PlayerStatistics career,
-    PlayerRatingTrend ratingTrend,
+    this.ratingTrend,
   )   : counters = PlayerPeriodStatistics(
           matchesPlayed: career.matchesPlayed,
           wins: career.wins,
@@ -96,8 +96,7 @@ class _PlayerRecord {
           goals: career.goals,
           mvpCount: career.mvpCount,
         ),
-        rating = career.currentRating,
-        ratingTrend = ratingTrend;
+        rating = career.currentRating;
 
   final PlayerPeriodStatistics counters;
   final double rating;
@@ -424,7 +423,6 @@ class RatingHeadline extends StatelessWidget {
   }
 }
 
-
 /// A derived decimal/percentage measure.
 ///
 /// Kept local to Player Statistics so the shared [StatCard] can stay honest:
@@ -495,19 +493,20 @@ class _RatingTrendLine extends StatelessWidget {
         : delta < 0
             ? Icons.trending_down
             : Icons.trending_flat;
-    final value = delta > 0
-        ? '+${delta.toStringAsFixed(2)}'
-        : delta.toStringAsFixed(2);
+    final value =
+        delta > 0 ? '+${delta.toStringAsFixed(2)}' : delta.toStringAsFixed(2);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 6),
-        Text(
-          '$value · ${context.l10n.statRatingTrend}',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        Flexible(
+          child: Text(
+            '$value · ${context.l10n.statRatingTrend}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ],

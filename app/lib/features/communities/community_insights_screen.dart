@@ -5,6 +5,7 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive_grid.dart';
 import '../../core/states.dart';
+import '../../core/tokens.dart';
 import 'community_insights_adapter.dart';
 import 'community_insights_repository.dart';
 
@@ -33,7 +34,8 @@ class CommunityInsightsScreen extends StatefulWidget {
 class _CommunityInsightsScreenState extends State<CommunityInsightsScreen> {
   late final CommunityInsightsRepository _repository =
       widget.repository ?? CommunityInsightsRepository();
-  late Future<CommunityInsights> _future = _repository.fetch(widget.communityId);
+  late Future<CommunityInsights> _future =
+      _repository.fetch(widget.communityId);
 
   Future<void> _refresh() async {
     final next = _repository.fetch(widget.communityId);
