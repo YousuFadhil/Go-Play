@@ -425,8 +425,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                   key: const Key('communityInsightsAction'),
                   leading: const Icon(Icons.insights_outlined),
                   title: Text(l10n.communityInsightsAction),
-                  onTap: () => Navigator.of(sheetContext)
-                      .pop(_CommunityAction.insights),
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_CommunityAction.insights),
                 ),
               if (isOwner)
                 ListTile(

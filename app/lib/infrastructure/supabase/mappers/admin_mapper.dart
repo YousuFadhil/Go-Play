@@ -67,7 +67,8 @@ AdminAnalyticsOverview adminAnalyticsOverviewFromRow(
       registrations30d: _adminCount(
           row['tracked_registrations_30d'] ?? row['registrations_30d']),
       results7d: _adminCount(row['results_recorded_7d'] ?? row['results_7d']),
-      results30d: _adminCount(row['results_recorded_30d'] ?? row['results_30d']),
+      results30d:
+          _adminCount(row['results_recorded_30d'] ?? row['results_30d']),
       retentionPreviousWeekUsers:
           _adminCount(row['retention_previous_week_users']),
       retentionReturningUsers: _adminCount(row['retention_returning_users']),

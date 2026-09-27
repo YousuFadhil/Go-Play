@@ -711,7 +711,6 @@ class FakeResultAdapter implements ResultAdapter {
       throw UnimplementedError('the statistics screen reads no audit');
 }
 
-
 /// Narrow fake for the one Player Intelligence aggregate.
 ///
 /// It records the requested target so a future test can prove that opening a

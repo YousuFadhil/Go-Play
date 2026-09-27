@@ -36,8 +36,8 @@ class AdminOverviewTab extends StatefulWidget {
 }
 
 class _AdminOverviewTabState extends State<AdminOverviewTab> {
-  late Future<AdminAnalyticsOverview> _future = widget.repository
-      .analyticsOverview();
+  late Future<AdminAnalyticsOverview> _future =
+      widget.repository.analyticsOverview();
 
   /// Opens the records behind one figure.
   ///
@@ -330,8 +330,7 @@ class _MetricGrid extends StatelessWidget {
           spacing: Layout.cardGap,
           runSpacing: Layout.cardGap,
           children: [
-            for (final child in children)
-              SizedBox(width: width, child: child),
+            for (final child in children) SizedBox(width: width, child: child),
           ],
         );
       },
