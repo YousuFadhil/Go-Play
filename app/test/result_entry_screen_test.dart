@@ -129,8 +129,7 @@ void main() {
                 registrations: registrations ?? fourSeats(),
                 gate: gate,
               )),
-              memberRepository:
-                  MemberRepository(FakeMemberAdapter(role: role)),
+              memberRepository: MemberRepository(FakeMemberAdapter(role: role)),
             ),
           ))
           .then((value) => onPopped?.call(value)),
@@ -157,7 +156,7 @@ void main() {
   Future<void> confirmParticipation(WidgetTester tester) async {
     final finder = find.byKey(const Key('participationConfirmation'));
     final tile = tester.widget<CheckboxListTile>(finder);
-    if (!tile.value) {
+    if (tile.value != true) {
       await tester.ensureVisible(finder);
       await tester.tap(finder);
       await tester.pumpAndSettle();
@@ -282,7 +281,8 @@ void main() {
     /// The `TextField` the `TextFormField` builds, which is where the
     /// decoration and the text style actually live.
     TextField fieldOf(WidgetTester tester, Key key) => tester.widget<TextField>(
-          find.descendant(of: find.byKey(key), matching: find.byType(TextField)),
+          find.descendant(
+              of: find.byKey(key), matching: find.byType(TextField)),
         );
 
     Color? fillOf(WidgetTester tester, Key key) {
@@ -393,7 +393,8 @@ void main() {
   });
 
   group('a player identity on the result form', () {
-    testWidgets('the face is a profile control and the MVP star is still the '
+    testWidgets(
+        'the face is a profile control and the MVP star is still the '
         'MVP star', (tester) async {
       final results = FakeResultAdapter();
       await pumpResult(tester, results: results);
@@ -402,7 +403,8 @@ void main() {
       // The identity moved into the title so the leading slot can stay the MVP
       // star and the trailing one the goal stepper. All three are on the row.
       expect(
-        tester.widget<PlayerIdentityTap>(find.byKey(const Key('identity_u1')))
+        tester
+            .widget<PlayerIdentityTap>(find.byKey(const Key('identity_u1')))
             .userId,
         'u1',
       );
@@ -629,6 +631,30 @@ void main() {
       expect(find.byType(ResultEntryScreen), findsOneWidget);
       expect(find.byType(SnackBar), findsOneWidget);
     });
+
+    testWidgets('the confirmation fits and works on a narrow screen',
+        (tester) async {
+      for (final locale in const [Locale('en'), Locale('ar')]) {
+        await pumpResult(
+          tester,
+          results: FakeResultAdapter(),
+          size: const Size(320, 800),
+          locale: locale,
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(saveButton(tester).onPressed, isNull);
+
+        await confirmParticipation(tester);
+
+        expect(saveButton(tester).onPressed, isNotNull,
+            reason: 'the long ${locale.languageCode} text must stay tappable');
+        expect(tester.takeException(), isNull);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
   });
 
   group('saving', () {
@@ -756,8 +782,8 @@ void main() {
       expect(results.lastTeamAScore, 2);
       expect(results.lastGoals, hasLength(2));
 
-      final guest = results.lastGoals!
-          .singleWhere((tally) => tally.isProfessionalGuest);
+      final guest =
+          results.lastGoals!.singleWhere((tally) => tally.isProfessionalGuest);
       expect(guest.professionalGuestId, 'guest-1');
       expect(guest.userId, isNull,
           reason: 'no invented user id stands in for a guest');
@@ -770,7 +796,8 @@ void main() {
 
       final recorded =
           results.lastGoals!.fold(0, (sum, tally) => sum + tally.goals);
-      expect(recorded, 2, reason: 'the invariant the guest goal exists to keep');
+      expect(recorded, 2,
+          reason: 'the invariant the guest goal exists to keep');
     });
 
     testWidgets('a guest and a player never share a draft entry',
@@ -823,8 +850,7 @@ void main() {
       expect(results.lastGoals, isEmpty);
     });
 
-    testWidgets('a refusal is shown in the organizer\'s words',
-        (tester) async {
+    testWidgets('a refusal is shown in the organizer\'s words', (tester) async {
       final results = FakeResultAdapter(
         thrown: const ValidationFailure(FailureReason.goalsDoNotMatchScore),
       );
@@ -878,10 +904,12 @@ void main() {
       expect(find.text('2 goals'), findsOneWidget);
       expect(find.text('1 goal'), findsOneWidget);
       expect(
-        tester.widget<Icon>(find.descendant(
-          of: find.byKey(const Key('mvp_u2')),
-          matching: find.byType(Icon),
-        )).icon,
+        tester
+            .widget<Icon>(find.descendant(
+              of: find.byKey(const Key('mvp_u2')),
+              matching: find.byType(Icon),
+            ))
+            .icon,
         Icons.star,
       );
     });
@@ -901,7 +929,8 @@ void main() {
     testWidgets('answering no leaves the recorded result alone',
         (tester) async {
       final results = recorded();
-      await pumpResult(tester, results: results);
+      final participation = FakeParticipationAdapter();
+      await pumpResult(tester, results: results, participation: participation);
       await tester.pumpAndSettle();
 
       await tapSave(tester);
@@ -909,11 +938,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(results.writes, 0);
+      expect(participation.confirmations, 0,
+          reason: 'a cancelled correction confirms nothing');
     });
 
     testWidgets('answering yes sends the corrected result', (tester) async {
       final results = recorded();
-      await pumpResult(tester, results: results);
+      final participation = FakeParticipationAdapter();
+      await pumpResult(tester, results: results, participation: participation);
       await tester.pumpAndSettle();
 
       // 2-1 to u1 and u3 becomes 1-1, scored by u1 and u3 once each.
@@ -924,6 +956,7 @@ void main() {
       await tester.tap(find.text('Save result').last);
       await tester.pumpAndSettle();
 
+      expect(participation.confirmations, 1);
       expect(results.writes, 1);
       expect(results.lastTeamAScore, 1);
       expect(results.lastTeamBScore, 1);
