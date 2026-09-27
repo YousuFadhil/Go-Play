@@ -1,6 +1,6 @@
 # Go Play Intelligence — Wave 2 Data Integrity Design
 
-**Status:** PROPOSED — design only, no Wave 2 migration applied  
+**Status:** IMPLEMENTED — database applied; Flutter validation pending  
 **Branch:** `intelligence/wave2-data-integrity`  
 **Base:** `develop` at `bc4ec45dcdff6ae02aa23adb427b91142a37540c`  
 **Database:** shared live Supabase project; Production data plane  
@@ -360,3 +360,57 @@ Because Staging and Production use the same Supabase project:
 
 No Wave 2 schema/code implementation starts until these three decisions are
 approved.
+
+
+---
+
+## 9. Implementation status — 2026-09-28
+
+Approved decisions 1–3 were implemented.
+
+### Database
+
+Migration `0088_wave2_data_integrity` is applied to the shared live Supabase
+project.
+
+Created:
+
+- `match_registration_events`
+- `community_membership_events`
+- `match_participation_state`
+- lifecycle capture triggers
+- lineup revision/implicit completed-correction confirmation trigger
+- `confirm_match_participation(uuid)`
+
+No historical backfill was executed.
+
+Immediately after applying 0088:
+
+- all pre-existing business-table row counts matched the pre-migration baseline;
+- registration events = 0;
+- membership events = 0;
+- participation state rows = 0;
+- community statistics reconciliation mismatches = 0.
+
+The event/state tables are RLS-enabled and direct `anon` /
+`authenticated` table privileges are revoked. Trigger functions are not
+client-executable. The explicit confirmation RPC is authenticated-only and
+performs its own account/community/role/completion/lineup checks.
+
+### Application branch
+
+Implemented on `intelligence/wave2-data-integrity`:
+
+- narrow Participation port/repository/Supabase adapter;
+- mandatory participation confirmation in Result Entry;
+- confirmation is recorded before the existing result write;
+- the result write remains unchanged;
+- confirmation failure prevents the result write;
+- AR/EN copy added;
+- focused widget coverage added;
+- static migration contract test added.
+
+Generated localization files, Flutter formatting/analyze/tests and release web
+build are still pending execution in the Flutter-capable validation environment.
+
+No merge to `develop` or `main` is permitted before those checks pass.
