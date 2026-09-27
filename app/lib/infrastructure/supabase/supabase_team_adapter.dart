@@ -92,17 +92,6 @@ class SupabaseTeamAdapter implements TeamAdapter {
         return [for (final row in rows) teamAssignmentFromRow(row)];
       });
 
-  @override
-  Future<void> confirmParticipation(String matchId) => guarded(
-        () async {
-          await _client.rpc(
-            'confirm_match_participation',
-            params: {'p_match_id': matchId},
-          );
-        },
-        operation: 'rpc confirm_match_participation',
-      );
-
   /// Replaces the stored lineup through `replace_match_lineup` (migration
   /// `0020`).
   ///
