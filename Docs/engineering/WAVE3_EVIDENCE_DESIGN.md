@@ -1,6 +1,6 @@
 # Go Play Intelligence — Wave 3 Evidence Design
 
-**Status:** PROPOSED — design only, no Wave 3 migration applied  
+**Status:** APPROVED — Product Owner approved decisions 1–5; implementation may proceed, no Wave 3 migration applied yet  
 **Branch:** `intelligence/wave3-evidence`  
 **Base:** `develop` at `93d9cd56c656d4945ae700bf4658e56c9e7e58a1`  
 **Database:** shared live Supabase project; Production data plane  
@@ -219,7 +219,7 @@ Characteristics:
   - `public_link_player`
   - `public_link_community`
   - `public_link_match`
-- may record existing `community_id` / `match_id` where already available;
+- does **not** persist the player/community/match target UUID for anonymous opens;
 - records no IP address, device id, user agent, fingerprint, cookie id, email,
   phone, name, or auth metadata.
 
@@ -244,6 +244,8 @@ The RPC:
 - requires `auth.uid()`;
 - validates that the acquisition row exists and is an anonymous
   `public_link_opened`;
+- verifies the authenticated account was created at or after that anonymous open,
+  so an older account logging in cannot manufacture a signup conversion;
 - inserts an authenticated `public_link_signup_completed` event carrying the same
   `acquisition_id`;
 - does not modify/back-date the anonymous open row;
@@ -371,30 +373,38 @@ Existing historical matches/generations remain without BTGE generation evidence.
 
 ---
 
-## 9. Product Owner decisions required before implementation
+## 9. Product Owner decisions — APPROVED
 
-1. **Anonymous scope**  
-   Approve limiting Wave 3 anonymous measurement to public shared links only,
+1. **Anonymous scope — APPROVED**  
+   Wave 3 anonymous measurement is limited to public shared links only,
    excluding general Discover browsing.
 
-2. **Privacy boundary**  
-   Approve same-running-session attribution only, with a server-generated random UUID
+2. **Privacy boundary — APPROVED**  
+   Same-running-session attribution only, with a server-generated random UUID
    kept in memory and no cookie/local-storage/device fingerprint.
 
-3. **Conversion definition**  
-   Approve counting only successful **new registrations** as acquisition conversion;
+3. **Conversion definition — APPROVED**  
+   Only successful **new registrations** count as acquisition conversion;
    login by an existing account resumes the link but is not a conversion.
 
-4. **Analytics storage**  
-   Approve extending the existing `product_events` table with nullable
+4. **Analytics storage — APPROVED**  
+   Extend the existing `product_events` table with nullable
    `acquisition_id` / controlled anonymous rows instead of creating a second analytics
    table.
 
-5. **Public-link continuity**  
-   Approve correcting the current auth transition so a visitor who registers or logs in
+5. **Public-link continuity — APPROVED**  
+   Correct the current auth transition so a visitor who registers or logs in
    from a public link returns to that same public target after authentication.
 
 BTGE evidence storage is an engineering implementation of the already-approved Wave 0
 BTGE Generation Evidence contract and introduces no new user-facing behavior.
 
-No Wave 3 migration or Flutter implementation starts until decisions 1–5 are approved.
+### Engineering decisions frozen for implementation
+
+- anonymous acquisition rows store link **kind**, not the target UUID;
+- the anonymous writer is intentionally narrow and may be callable by `anon`, while
+  direct table privileges remain revoked;
+- signup completion must be server-validated against the account creation time;
+- no historical backfill is allowed for BTGE runs or anonymous acquisition;
+- legacy `record_product_event` and legacy generated-lineup write contracts remain
+  available for older clients; Wave 3 adds new bounded contracts instead of replacing them.
