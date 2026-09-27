@@ -251,8 +251,8 @@ void main() {
       'Weekly active communities': AdminDrilldownMetric.weeklyActiveCommunities,
       'Matches · 7 days': AdminDrilldownMetric.matches7d,
       'Matches · 30 days': AdminDrilldownMetric.matches30d,
-      'Registrations · 7 days': AdminDrilldownMetric.registrations7d,
-      'Registrations · 30 days': AdminDrilldownMetric.registrations30d,
+      'Tracked registrations · 7 days': AdminDrilldownMetric.registrations7d,
+      'Tracked registrations · 30 days': AdminDrilldownMetric.registrations30d,
       'Results · 7 days': AdminDrilldownMetric.results7d,
       'Results · 30 days': AdminDrilldownMetric.results30d,
     };

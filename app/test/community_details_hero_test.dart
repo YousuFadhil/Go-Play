@@ -247,12 +247,13 @@ void main() {
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pumpAndSettle();
 
-        expect(find.byKey(const Key('communityInsightsAction')), findsOneWidget);
+        expect(
+            find.byKey(const Key('communityInsightsAction')), findsOneWidget);
         expect(find.text('Community insights'), findsOneWidget);
 
-        // Close before pumping the next role.
-        await tester.tapAt(const Offset(10, 10));
-        await tester.pumpAndSettle();
+        // Unmount before pumping the next role: re-pumping the same screen
+        // keeps its State, and with it the role loaded in initState.
+        await tester.pumpWidget(const SizedBox.shrink());
       }
 
       await pumpCommunity(tester, role: CommunityRole.player);
