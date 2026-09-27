@@ -773,6 +773,7 @@
   "adminMetricWeeklyRetention": "معدل العودة الأسبوعي",
   "adminMetricMatches": "المباريات",
   "adminMetricRegistrations": "التسجيلات",
+  "adminMetricTrackedRegistrations": "التسجيلات المتتبَّعة",
   "adminMetricResults": "النتائج",
   "adminPeriod7d": "٧ أيام",
   "adminPeriod30d": "٣٠ يوماً",
