@@ -263,9 +263,7 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
           body: ClubTaskBody(child: _form(l10n, view)),
           bottomNavigationBar: ClubActionBar(
             child: FilledButton(
-              onPressed: _busy ||
-                      !draft.isComplete ||
-                      !_participationConfirmed
+              onPressed: _busy || !draft.isComplete || !_participationConfirmed
                   ? null
                   : () => _save(view),
               style: FilledButton.styleFrom(

@@ -19,8 +19,7 @@ void main() {
   }
 
   String functionBody(String name) {
-    final start =
-        statements.indexOf('create or replace function public.$name');
+    final start = statements.indexOf('create or replace function public.$name');
     if (start < 0) throw StateError('$name is not created');
     final end = statements.indexOf('\n\$\$;', start);
     return statements.substring(start, end == -1 ? statements.length : end);
@@ -55,9 +54,18 @@ void main() {
 
     test('contains no historical data backfill', () {
       expect(statements, isNot(contains('generate_series')));
-      expect(statements, isNot(contains('insert into public.match_registration_events\nselect')));
-      expect(statements, isNot(contains('insert into public.community_membership_events\nselect')));
-      expect(statements, isNot(contains('insert into public.match_participation_state\nselect')));
+      expect(
+          statements,
+          isNot(contains(
+              'insert into public.match_registration_events\nselect')));
+      expect(
+          statements,
+          isNot(contains(
+              'insert into public.community_membership_events\nselect')));
+      expect(
+          statements,
+          isNot(contains(
+              'insert into public.match_participation_state\nselect')));
     });
   });
 
@@ -86,7 +94,8 @@ void main() {
         );
         expect(
           statements,
-          contains('revoke all on table public.$table from anon, authenticated;'),
+          contains(
+              'revoke all on table public.$table from anon, authenticated;'),
         );
       }
       expect(statements, isNot(contains('create policy')));
@@ -114,8 +123,7 @@ void main() {
 
     test('captures actor and completion context from the database', () {
       expect(body, contains('auth.uid()'));
-      expect(body,
-          contains("(m.status = 'completed' or m.end_at <= now())"));
+      expect(body, contains("(m.status = 'completed' or m.end_at <= now())"));
     });
   });
 
@@ -157,8 +165,7 @@ void main() {
       );
       expect(
         revision,
-        contains(
-            'public.match_participation_state.lineup_revision + 1'),
+        contains('public.match_participation_state.lineup_revision + 1'),
       );
     });
 
