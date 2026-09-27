@@ -40,13 +40,6 @@ abstract interface class TeamAdapter {
   /// The stored lineup of [matchId]; empty when none was saved.
   Future<List<TeamAssignment>> fetchLineup(String matchId);
 
-  /// Confirms that the current stored lineup is the factual participation
-  /// record of a completed match.
-  ///
-  /// This stores evidence only. It does not rewrite the lineup, result,
-  /// ratings, goals or statistics.
-  Future<void> confirmParticipation(String matchId);
-
   /// Replaces the stored lineup of [matchId] with [lineup].
   ///
   /// One path for both a generated and a manually adjusted lineup: `KB-017`
