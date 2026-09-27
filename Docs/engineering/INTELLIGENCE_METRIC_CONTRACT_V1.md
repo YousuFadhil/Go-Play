@@ -696,3 +696,88 @@ Implementation order:
 6. perform read-only smoke verification against live data.
 
 No Production merge is part of Wave 1 without a separate Product Owner decision.
+
+
+---
+
+## 15. Wave 1 Implementation Status — 2026-09-27
+
+### Database
+
+Applied to the shared live Supabase project as additive read-only contracts:
+
+- `0085_intelligence_wave1_read_models`
+  - `player_rating_trend_v1()`
+  - `community_insights_v1(uuid)`
+  - `admin_analytics_overview_v2()`
+- `0086_player_rating_trend_target_read`
+  - target-aware overload `player_rating_trend_v1(uuid)`
+- `0087_admin_analytics_drilldowns_v2`
+  - `admin_analytics_users_v2`
+  - `admin_analytics_communities_v2`
+  - `admin_analytics_matches_v2`
+  - `admin_analytics_registrations_v2`
+
+All are read-only. No business row was inserted, updated or deleted.
+
+Post-migration gates:
+
+- community statistics reconciliation mismatches: **0**
+- duplicate current memberships: **0**
+- duplicate account registrations per match: **0**
+- all captured business-table row counts remained equal to the Wave 0 baseline
+  at the verification point.
+
+All new RPCs explicitly deny `anon`. Organizer and System Admin functions
+also enforce their server-side role checks.
+
+### Staging application code
+
+Implemented on `intelligence/wave0-contracts` only:
+
+**Player Statistics**
+
+- Win Rate derived from the already-displayed counters;
+- Goals per Match derived from the already-displayed counters;
+- recent Rating Trend from the additive rating-history read;
+- no Recent Form duplication;
+- a Rating Trend read failure does not break the existing statistics screen.
+
+**Community**
+
+- new organizer-only Community Insights destination from the existing
+  community actions sheet;
+- no fourth community tab;
+- Active Members, Participation Rate, Match Frequency, Capacity Utilization
+  and Guest Dependency only;
+- provisional participation evidence is disclosed in the UI.
+
+**Platform Admin**
+
+- existing Overview moved to V2 read contracts on the work branch;
+- V2 drilldowns use the same calendar windows and historical-match eligibility
+  as their Overview figures;
+- incomplete registration/withdrawal telemetry is labelled **Tracked**, not
+  presented as authoritative total activity.
+
+### Static verification completed
+
+- both ARB files parse as valid JSON;
+- every new localization key exists exactly once in Arabic and English;
+- all modified Dart files passed delimiter/structure checks;
+- no missing localization reference was found in the modified Dart files.
+
+### Validation still required before integration
+
+The connected execution environment does not contain Flutter/Dart and the
+available GitHub connector has no action for starting a `workflow_dispatch`
+run. Therefore neither `flutter test` nor the manual Staging build has been
+executed from this session.
+
+Do **not** merge this branch to `develop` or `main` until:
+
+1. the focused Flutter tests pass;
+2. the existing Staging workflow builds this exact branch successfully;
+3. Staging UI smoke checks pass using read-only paths;
+4. the Product Owner approves integration.
+
