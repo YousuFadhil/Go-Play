@@ -40,12 +40,12 @@ class SupabaseAdminAdapter implements AdminAdapter {
   @override
   Future<AdminAnalyticsOverview> analyticsOverview() => guarded(
         () async {
-          final result = await _client.rpc('admin_analytics_overview');
+          final result = await _client.rpc('admin_analytics_overview_v2');
           final rows = (result as List<dynamic>).cast<Map<String, dynamic>>();
           if (rows.isEmpty) throw const InfrastructureFailure();
           return adminAnalyticsOverviewFromRow(rows.first);
         },
-        operation: 'rpc admin_analytics_overview',
+        operation: 'rpc admin_analytics_overview_v2',
       );
 
   @override
@@ -152,7 +152,7 @@ class SupabaseAdminAdapter implements AdminAdapter {
       guarded(
         () async {
           final rows = await _client.rpc(
-            'admin_analytics_users',
+            'admin_analytics_users_v2',
             params: {'p_metric': metric.wireName, 'p_offset': offset},
           ) as List<dynamic>;
           return [
@@ -160,7 +160,7 @@ class SupabaseAdminAdapter implements AdminAdapter {
               adminDrilldownUserFromRow(row),
           ];
         },
-        operation: 'rpc admin_analytics_users',
+        operation: 'rpc admin_analytics_users_v2',
       );
 
   @override
@@ -171,7 +171,7 @@ class SupabaseAdminAdapter implements AdminAdapter {
       guarded(
         () async {
           final rows = await _client.rpc(
-            'admin_analytics_communities',
+            'admin_analytics_communities_v2',
             params: {'p_metric': metric.wireName, 'p_offset': offset},
           ) as List<dynamic>;
           return [
@@ -179,7 +179,7 @@ class SupabaseAdminAdapter implements AdminAdapter {
               adminDrilldownCommunityFromRow(row),
           ];
         },
-        operation: 'rpc admin_analytics_communities',
+        operation: 'rpc admin_analytics_communities_v2',
       );
 
   @override
@@ -190,7 +190,7 @@ class SupabaseAdminAdapter implements AdminAdapter {
       guarded(
         () async {
           final rows = await _client.rpc(
-            'admin_analytics_matches',
+            'admin_analytics_matches_v2',
             params: {'p_metric': metric.wireName, 'p_offset': offset},
           ) as List<dynamic>;
           return [
@@ -198,7 +198,7 @@ class SupabaseAdminAdapter implements AdminAdapter {
               adminDrilldownMatchFromRow(row),
           ];
         },
-        operation: 'rpc admin_analytics_matches',
+        operation: 'rpc admin_analytics_matches_v2',
       );
 
   /// The one drill-down the database takes a window for rather than a metric
@@ -212,7 +212,7 @@ class SupabaseAdminAdapter implements AdminAdapter {
       guarded(
         () async {
           final rows = await _client.rpc(
-            'admin_analytics_registrations',
+            'admin_analytics_registrations_v2',
             params: {
               'p_period_days': metric.periodDays,
               'p_offset': offset,
@@ -223,7 +223,7 @@ class SupabaseAdminAdapter implements AdminAdapter {
               adminDrilldownRegistrationFromRow(row),
           ];
         },
-        operation: 'rpc admin_analytics_registrations',
+        operation: 'rpc admin_analytics_registrations_v2',
       );
 
   /// The two inspection reads. Each returns one row; the function raises
