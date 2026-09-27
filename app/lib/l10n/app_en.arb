@@ -944,6 +944,7 @@
   "adminMetricAppVersion": "App version",
   "adminMetricMatchesPlayed": "Matches played",
   "adminMetricWithdrawals": "Withdrawals",
+  "adminMetricTrackedWithdrawals": "Tracked withdrawals",
   "adminPlatformWeb": "Web",
   "adminPlatformAndroid": "Android",
   "adminEventSessionStarted": "Session started",
