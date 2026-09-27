@@ -21,6 +21,7 @@ import '../invitations/community_invitation_screen.dart';
 import '../members/member_management_screen.dart';
 import '../statistics/community_statistics_tab.dart';
 import '../statistics/statistics_repository.dart';
+import 'community_insights_screen.dart';
 import 'community_models.dart';
 import '../members/member_repository.dart';
 import 'community_repository.dart';
@@ -78,6 +79,7 @@ typedef _Data = (
 /// busy flag, the reload and the messenger — is what acts on it.
 enum _CommunityAction {
   invitation,
+  insights,
   joinPolicy,
   members,
   changeLogo,
@@ -353,6 +355,17 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     _refresh();
   }
 
+  Future<void> _openInsights(Community community) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CommunityInsightsScreen(
+          communityId: community.id,
+          communityName: community.name,
+        ),
+      ),
+    );
+  }
+
   /// The community's actions, in a sheet.
   ///
   /// They used to be three icons crowded into the app bar beside a scrolling
@@ -406,6 +419,14 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                   subtitle: Text(l10n.communityInvitationTitle),
                   onTap: () => Navigator.of(sheetContext)
                       .pop(_CommunityAction.invitation),
+                ),
+              if (isOrganizer)
+                ListTile(
+                  key: const Key('communityInsightsAction'),
+                  leading: const Icon(Icons.insights_outlined),
+                  title: Text(l10n.communityInsightsAction),
+                  onTap: () => Navigator.of(sheetContext)
+                      .pop(_CommunityAction.insights),
                 ),
               if (isOwner)
                 ListTile(
@@ -485,6 +506,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     switch (action) {
       case _CommunityAction.invitation:
         await _openInvitation(community, joinCode);
+      case _CommunityAction.insights:
+        await _openInsights(community);
       case _CommunityAction.joinPolicy:
         await _setJoinPolicy(
           codeRequired ? JoinPolicy.open : JoinPolicy.codeRequired,
