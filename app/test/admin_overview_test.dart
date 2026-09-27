@@ -225,10 +225,12 @@ void main() {
       expect(find.text('14'), findsOneWidget);
       expect(find.text('Matches · 30 days'), findsOneWidget);
       expect(find.text('51'), findsOneWidget);
-      expect(find.text('Registrations · 7 days'), findsOneWidget);
+      expect(find.text('Tracked registrations · 7 days'), findsOneWidget);
       expect(find.text('132'), findsOneWidget);
-      expect(find.text('Registrations · 30 days'), findsOneWidget);
+      expect(find.text('Tracked registrations · 30 days'), findsOneWidget);
       expect(find.text('470'), findsOneWidget);
+      expect(find.textContaining('Registrations ·'), findsNothing,
+          reason: 'telemetry coverage is partial and must be labelled tracked');
       expect(find.text('Results · 7 days'), findsOneWidget);
       expect(find.text('9'), findsOneWidget);
       expect(find.text('Results · 30 days'), findsOneWidget);

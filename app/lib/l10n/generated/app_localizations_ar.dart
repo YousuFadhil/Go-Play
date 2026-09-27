@@ -1317,6 +1317,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statCurrentRating => 'التقييم الحالي';
 
   @override
+  String get statWinRate => 'نسبة الفوز';
+
+  @override
+  String get statGoalsPerMatch => 'الأهداف لكل مباراة';
+
+  @override
+  String get statRatingTrend => 'تغيّر التقييم مؤخرًا';
+
+  @override
   String get statMatchesPlayed => 'المباريات المُلعوبة';
 
   @override
@@ -1614,7 +1623,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statPeriodRatingNote =>
-      'التقييم هو تقييمك الحالي في كل المجتمعات، وليس رقماً خاصاً بهذه الفترة.';
+      'التقييم وتغيّره الأخير عامّان عبر كل المجتمعات، وليسا رقمين خاصين بهذه الفترة.';
 
   @override
   String get statPeriodNoMatches =>
@@ -1950,6 +1959,37 @@ class AppLocalizationsAr extends AppLocalizations {
   String get communityActionsTitle => 'إجراءات المجتمع';
 
   @override
+  String get communityInsightsAction => 'رؤى المجتمع';
+
+  @override
+  String get communityInsightsTitle => 'رؤى المجتمع';
+
+  @override
+  String get communityInsightsPeriod => 'آخر 30 يومًا';
+
+  @override
+  String get communityInsightsActiveMembers => 'الأعضاء النشطون';
+
+  @override
+  String get communityInsightsParticipationRate => 'نسبة المشاركة';
+
+  @override
+  String get communityInsightsMatchFrequency => 'وتيرة المباريات';
+
+  @override
+  String get communityInsightsPerWeek => 'أسبوعيًا';
+
+  @override
+  String get communityInsightsCapacity => 'استغلال السعة';
+
+  @override
+  String get communityInsightsGuestDependency => 'الاعتماد على الضيوف';
+
+  @override
+  String get communityInsightsProvisionalNote =>
+      'تعتمد المشاركة واستغلال السعة والاعتماد على الضيوف حاليًا على التشكيلات المحفوظة بوصفها دليلًا على من لعب، وستصبح مؤكدة بالمشاركة عند إضافة تأكيد المشاركة.';
+
+  @override
   String get moreActionsLabel => 'إجراءات أخرى';
 
   @override
@@ -2130,6 +2170,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminMetricRegistrations => 'التسجيلات';
 
   @override
+  String get adminMetricTrackedRegistrations => 'التسجيلات المتتبَّعة';
+
+  @override
   String get adminMetricResults => 'النتائج';
 
   @override
@@ -2148,7 +2191,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminAnalyticsNotice =>
-      'تبدأ مؤشرات النشاط من هذا الإصدار. الجلسات والانسحابات السابقة لم تُسجَّل ولم تُختلق، لذلك تُحتسب من الصفر. أما الحسابات والمباريات والنتائج فبياناتها كاملة.';
+      'تبدأ مؤشرات النشاط من هذا الإصدار للجلسات والتسجيلات والانسحابات، ولم نختلق أحداثًا سابقة. وتبقى الحسابات وسجل كرة القدم المسجَّل من جداول العمل الأصلية، مع استبعاد المباريات التاريخية المستوردة من نوافذ نشاط نظرة المنتج.';
 
   @override
   String get adminAuditTab => 'سجل الإدارة';
@@ -2206,6 +2249,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminMetricWithdrawals => 'الانسحابات';
+
+  @override
+  String get adminMetricTrackedWithdrawals => 'الانسحابات المتتبَّعة';
 
   @override
   String get adminPlatformWeb => 'الويب';
