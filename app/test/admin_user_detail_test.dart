@@ -258,11 +258,11 @@ void main() {
 
       expect(find.text('Communities'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
-      expect(find.text('Registrations'), findsOneWidget);
+      expect(find.text('Tracked registrations'), findsOneWidget);
       expect(find.text('22'), findsOneWidget);
       expect(find.text('Matches played'), findsOneWidget);
       expect(find.text('41'), findsOneWidget);
-      expect(find.text('Withdrawals'), findsOneWidget);
+      expect(find.text('Tracked withdrawals'), findsOneWidget);
       expect(find.text('5'), findsOneWidget);
     });
 
