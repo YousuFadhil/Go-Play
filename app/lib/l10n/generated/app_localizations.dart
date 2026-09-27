@@ -2174,6 +2174,18 @@ abstract class AppLocalizations {
   /// **'Save result'**
   String get saveResultButton;
 
+  /// No description provided for @resultParticipationConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm that this lineup represents the players who actually participated in this match.'**
+  String get resultParticipationConfirmation;
+
+  /// No description provided for @resultParticipationConfirmationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Required before saving the result.'**
+  String get resultParticipationConfirmationHint;
+
   /// No description provided for @resultSaved.
   ///
   /// In en, this message translates to:

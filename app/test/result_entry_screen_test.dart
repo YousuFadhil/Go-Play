@@ -14,6 +14,8 @@ import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'package:go_play/features/results/participation_adapter.dart';
+import 'package:go_play/features/results/participation_repository.dart';
 import 'package:go_play/features/results/result_adapter.dart';
 import 'package:go_play/features/results/result_entry_screen.dart';
 import 'package:go_play/features/results/result_models.dart';
@@ -83,6 +85,7 @@ void main() {
     WidgetTester tester, {
     required FakeResultAdapter results,
     List<TeamAssignment>? lineup,
+    FakeParticipationAdapter? participation,
     List<MatchRegistration>? registrations,
     CommunityRole? role = CommunityRole.admin,
     Future<void>? gate,
@@ -116,6 +119,9 @@ void main() {
             builder: (_) => ResultEntryScreen(
               matchId: 'm1',
               resultRepository: ResultRepository(results),
+              participationRepository: ParticipationRepository(
+                participation ?? FakeParticipationAdapter(),
+              ),
               teamRepository:
                   TeamRepository(FakeTeamAdapter(lineup ?? storedLineup())),
               matchService: MatchService(FakeMatchAdapter(
@@ -123,8 +129,7 @@ void main() {
                 registrations: registrations ?? fourSeats(),
                 gate: gate,
               )),
-              memberRepository:
-                  MemberRepository(FakeMemberAdapter(role: role)),
+              memberRepository: MemberRepository(FakeMemberAdapter(role: role)),
             ),
           ))
           .then((value) => onPopped?.call(value)),
@@ -148,8 +153,19 @@ void main() {
     await tester.pump();
   }
 
+  Future<void> confirmParticipation(WidgetTester tester) async {
+    final finder = find.byKey(const Key('participationConfirmation'));
+    final tile = tester.widget<CheckboxListTile>(finder);
+    if (tile.value != true) {
+      await tester.ensureVisible(finder);
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+    }
+  }
+
   /// The save is pinned below the scrollable lineup.
   Future<void> tapSave(WidgetTester tester) async {
+    await confirmParticipation(tester);
     await tester.ensureVisible(find.text('Save result').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save result').first);
@@ -265,7 +281,8 @@ void main() {
     /// The `TextField` the `TextFormField` builds, which is where the
     /// decoration and the text style actually live.
     TextField fieldOf(WidgetTester tester, Key key) => tester.widget<TextField>(
-          find.descendant(of: find.byKey(key), matching: find.byType(TextField)),
+          find.descendant(
+              of: find.byKey(key), matching: find.byType(TextField)),
         );
 
     Color? fillOf(WidgetTester tester, Key key) {
@@ -376,7 +393,8 @@ void main() {
   });
 
   group('a player identity on the result form', () {
-    testWidgets('the face is a profile control and the MVP star is still the '
+    testWidgets(
+        'the face is a profile control and the MVP star is still the '
         'MVP star', (tester) async {
       final results = FakeResultAdapter();
       await pumpResult(tester, results: results);
@@ -385,7 +403,8 @@ void main() {
       // The identity moved into the title so the leading slot can stay the MVP
       // star and the trailing one the goal stepper. All three are on the row.
       expect(
-        tester.widget<PlayerIdentityTap>(find.byKey(const Key('identity_u1')))
+        tester
+            .widget<PlayerIdentityTap>(find.byKey(const Key('identity_u1')))
             .userId,
         'u1',
       );
@@ -397,7 +416,7 @@ void main() {
       await tester.pump();
       await tapGoal(tester, 'u1', 1);
       await enterScore(tester, 'teamAScore', '1');
-      await tester.pumpAndSettle();
+      await confirmParticipation(tester);
 
       expect(saveButton(tester).onPressed, isNotNull);
     });
@@ -455,6 +474,7 @@ void main() {
       await pumpResult(tester, results: results);
       await tester.pumpAndSettle();
 
+      await confirmParticipation(tester);
       await enterScore(tester, 'teamAScore', '2');
       await tester.tap(find.byKey(const Key('mvp_u1')));
       await tester.pump();
@@ -471,8 +491,17 @@ void main() {
       await pumpResult(tester, results: results);
       await tester.pumpAndSettle();
 
-      // 0-0 already adds up, and naming a best player is optional, so there is
-      // nothing left for the form to be waiting on.
+      // 0-0 already adds up and naming a best player is optional, but Wave 2
+      // requires the organizer to confirm who actually participated.
+      expect(saveButton(tester).onPressed, isNull);
+      expect(
+        find.text(
+          'I confirm that this lineup represents the players who actually participated in this match.',
+        ),
+        findsOneWidget,
+      );
+
+      await confirmParticipation(tester);
       expect(saveButton(tester).onPressed, isNotNull);
 
       await tapSave(tester);
@@ -563,12 +592,78 @@ void main() {
     });
   });
 
+  group('participation confirmation', () {
+    testWidgets('a successful save confirms the current lineup first',
+        (tester) async {
+      final results = FakeResultAdapter();
+      final participation = FakeParticipationAdapter();
+
+      await pumpResult(
+        tester,
+        results: results,
+        participation: participation,
+      );
+      await tester.pumpAndSettle();
+      await tapSave(tester);
+
+      expect(participation.confirmations, 1);
+      expect(participation.lastConfirmedMatchId, 'm1');
+      expect(results.writes, 1);
+    });
+
+    testWidgets('a refused participation confirmation sends no result',
+        (tester) async {
+      final results = FakeResultAdapter();
+      final participation = FakeParticipationAdapter(
+        failure: const AuthorizationFailure(),
+      );
+
+      await pumpResult(
+        tester,
+        results: results,
+        participation: participation,
+      );
+      await tester.pumpAndSettle();
+      await tapSave(tester);
+
+      expect(participation.confirmations, 0);
+      expect(results.writes, 0);
+      expect(find.byType(ResultEntryScreen), findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
+    });
+
+    testWidgets('the confirmation fits and works on a narrow screen',
+        (tester) async {
+      for (final locale in const [Locale('en'), Locale('ar')]) {
+        await pumpResult(
+          tester,
+          results: FakeResultAdapter(),
+          size: const Size(320, 800),
+          locale: locale,
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(saveButton(tester).onPressed, isNull);
+
+        await confirmParticipation(tester);
+
+        expect(saveButton(tester).onPressed, isNotNull,
+            reason: 'the long ${locale.languageCode} text must stay tappable');
+        expect(tester.takeException(), isNull);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+  });
+
   group('saving', () {
     testWidgets('a busy save prevents duplicate submissions', (tester) async {
       final gate = Completer<void>();
       final results = FakeResultAdapter(gate: gate.future);
       await pumpResult(tester, results: results);
       await tester.pumpAndSettle();
+      await confirmParticipation(tester);
 
       await tester.tap(find.text('Save result'));
       await tester.pump();
@@ -687,8 +782,8 @@ void main() {
       expect(results.lastTeamAScore, 2);
       expect(results.lastGoals, hasLength(2));
 
-      final guest = results.lastGoals!
-          .singleWhere((tally) => tally.isProfessionalGuest);
+      final guest =
+          results.lastGoals!.singleWhere((tally) => tally.isProfessionalGuest);
       expect(guest.professionalGuestId, 'guest-1');
       expect(guest.userId, isNull,
           reason: 'no invented user id stands in for a guest');
@@ -701,7 +796,8 @@ void main() {
 
       final recorded =
           results.lastGoals!.fold(0, (sum, tally) => sum + tally.goals);
-      expect(recorded, 2, reason: 'the invariant the guest goal exists to keep');
+      expect(recorded, 2,
+          reason: 'the invariant the guest goal exists to keep');
     });
 
     testWidgets('a guest and a player never share a draft entry',
@@ -754,8 +850,7 @@ void main() {
       expect(results.lastGoals, isEmpty);
     });
 
-    testWidgets('a refusal is shown in the organizer\'s words',
-        (tester) async {
+    testWidgets('a refusal is shown in the organizer\'s words', (tester) async {
       final results = FakeResultAdapter(
         thrown: const ValidationFailure(FailureReason.goalsDoNotMatchScore),
       );
@@ -809,10 +904,12 @@ void main() {
       expect(find.text('2 goals'), findsOneWidget);
       expect(find.text('1 goal'), findsOneWidget);
       expect(
-        tester.widget<Icon>(find.descendant(
-          of: find.byKey(const Key('mvp_u2')),
-          matching: find.byType(Icon),
-        )).icon,
+        tester
+            .widget<Icon>(find.descendant(
+              of: find.byKey(const Key('mvp_u2')),
+              matching: find.byType(Icon),
+            ))
+            .icon,
         Icons.star,
       );
     });
@@ -832,7 +929,8 @@ void main() {
     testWidgets('answering no leaves the recorded result alone',
         (tester) async {
       final results = recorded();
-      await pumpResult(tester, results: results);
+      final participation = FakeParticipationAdapter();
+      await pumpResult(tester, results: results, participation: participation);
       await tester.pumpAndSettle();
 
       await tapSave(tester);
@@ -840,11 +938,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(results.writes, 0);
+      expect(participation.confirmations, 0,
+          reason: 'a cancelled correction confirms nothing');
     });
 
     testWidgets('answering yes sends the corrected result', (tester) async {
       final results = recorded();
-      await pumpResult(tester, results: results);
+      final participation = FakeParticipationAdapter();
+      await pumpResult(tester, results: results, participation: participation);
       await tester.pumpAndSettle();
 
       // 2-1 to u1 and u3 becomes 1-1, scored by u1 and u3 once each.
@@ -855,6 +956,7 @@ void main() {
       await tester.tap(find.text('Save result').last);
       await tester.pumpAndSettle();
 
+      expect(participation.confirmations, 1);
       expect(results.writes, 1);
       expect(results.lastTeamAScore, 1);
       expect(results.lastTeamBScore, 1);
@@ -934,6 +1036,21 @@ class FakeResultAdapter implements ResultAdapter {
   @override
   Future<PlayerStatistics> fetchStatistics(String userId) async =>
       PlayerStatistics.none(userId, 5.0);
+}
+
+class FakeParticipationAdapter implements ParticipationAdapter {
+  FakeParticipationAdapter({this.failure});
+
+  final Failure? failure;
+  int confirmations = 0;
+  String? lastConfirmedMatchId;
+
+  @override
+  Future<void> confirm(String matchId) async {
+    if (failure != null) throw failure!;
+    confirmations++;
+    lastConfirmedMatchId = matchId;
+  }
 }
 
 /// Serves one stored lineup; nothing on this screen generates or writes one.

@@ -1177,6 +1177,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get saveResultButton => 'حفظ النتيجة';
 
   @override
+  String get resultParticipationConfirmation =>
+      'أؤكد أن هذه التشكيلة تمثل اللاعبين الذين شاركوا فعليًا في هذه المباراة.';
+
+  @override
+  String get resultParticipationConfirmationHint => 'مطلوب قبل حفظ النتيجة.';
+
+  @override
   String get resultSaved => 'تم حفظ نتيجة المباراة بنجاح';
 
   @override

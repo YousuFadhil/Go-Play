@@ -17,6 +17,7 @@ import '../members/member_repository.dart';
 import '../profile/player_identity.dart';
 import '../teams/team_models.dart';
 import '../teams/team_repository.dart';
+import 'participation_repository.dart';
 import 'result_models.dart';
 import 'result_repository.dart';
 
@@ -41,6 +42,7 @@ class ResultEntryScreen extends StatefulWidget {
     super.key,
     required this.matchId,
     this.resultRepository,
+    this.participationRepository,
     this.teamRepository,
     this.matchService,
     this.memberRepository,
@@ -52,6 +54,7 @@ class ResultEntryScreen extends StatefulWidget {
   /// Left null the screen builds the production ones, so nothing here knows what
   /// a data provider is.
   final ResultRepository? resultRepository;
+  final ParticipationRepository? participationRepository;
   final TeamRepository? teamRepository;
   final MatchService? matchService;
   final MemberRepository? memberRepository;
@@ -63,6 +66,8 @@ class ResultEntryScreen extends StatefulWidget {
 class _ResultEntryScreenState extends State<ResultEntryScreen> {
   late final ResultRepository _results =
       widget.resultRepository ?? ResultRepository();
+  late final ParticipationRepository _participation =
+      widget.participationRepository ?? ParticipationRepository();
   late final TeamRepository _teams = widget.teamRepository ?? TeamRepository();
   late final MatchService _matches = widget.matchService ?? MatchService();
   late final MemberRepository _members =
@@ -78,6 +83,14 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
   /// True from the moment a save is asked for until it has finished, so a second
   /// tap cannot start another one.
   bool _busy = false;
+
+  /// The organizer's explicit statement that the stored lineup is the factual
+  /// participation record of this completed match.
+  ///
+  /// It deliberately starts false every time this form opens. The database
+  /// keeps the durable evidence; this flag only controls whether this save may
+  /// proceed.
+  bool _participationConfirmed = false;
 
   @override
   void initState() {
@@ -127,6 +140,10 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
   /// to know which number to correct.
   String _saveError(AppLocalizations l10n, Failure failure) {
     if (failure is AuthorizationFailure) return l10n.errNotAuthorized;
+    if (failure is ConflictFailure &&
+        failure.reason == FailureReason.matchNotCompleted) {
+      return l10n.errMatchNotCompleted;
+    }
     if (failure is ValidationFailure) {
       return switch (failure.reason) {
         FailureReason.goalsDoNotMatchScore => l10n.errGoalsDoNotMatchScore,
@@ -157,6 +174,12 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
     final navigator = Navigator.of(context);
 
     try {
+      // Participation is a separate fact from the score. Confirm it first so a
+      // result can never be recorded by this UI without the organizer stating
+      // that the current lineup is who actually played. If the result is later
+      // refused, the confirmation remains valid for the unchanged lineup.
+      await _participation.confirm(widget.matchId);
+
       await _results.recordResult(
         matchId: widget.matchId,
         teamAScore: draft.teamAScore,
@@ -240,7 +263,9 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
           body: ClubTaskBody(child: _form(l10n, view)),
           bottomNavigationBar: ClubActionBar(
             child: FilledButton(
-              onPressed: _busy || !draft.isComplete ? null : () => _save(view),
+              onPressed: _busy || !draft.isComplete || !_participationConfirmed
+                  ? null
+                  : () => _save(view),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(Layout.buttonHeight),
               ),
@@ -284,6 +309,21 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        Card(
+          margin: const EdgeInsetsDirectional.only(bottom: Gap.md),
+          child: CheckboxListTile(
+            key: const Key('participationConfirmation'),
+            value: _participationConfirmed,
+            onChanged: _busy
+                ? null
+                : (value) => setState(
+                      () => _participationConfirmed = value ?? false,
+                    ),
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(l10n.resultParticipationConfirmation),
+            subtitle: Text(l10n.resultParticipationConfirmationHint),
           ),
         ),
         _scoreRow(l10n, draft),

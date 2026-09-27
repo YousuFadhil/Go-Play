@@ -487,6 +487,8 @@
   "errLineupNotChanged": "That change no longer applies to this lineup. It has been reloaded.",
   "matchResultTitle": "Match result",
   "saveResultButton": "Save result",
+  "resultParticipationConfirmation": "I confirm that this lineup represents the players who actually participated in this match.",
+  "resultParticipationConfirmationHint": "Required before saving the result.",
   "resultSaved": "Match result saved successfully",
   "resultOrganizersOnly": "Only the community owner and admins can record a match result.",
   "mvpLabel": "Best player",
