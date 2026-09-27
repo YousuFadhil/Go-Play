@@ -179,6 +179,14 @@ class TeamRepository {
   Future<List<TeamAssignment>> fetchLineup(String matchId) =>
       _adapter.fetchLineup(matchId);
 
+  /// Records an organizer's explicit confirmation that the current stored
+  /// lineup is the factual list of participants for this completed match.
+  ///
+  /// The database owns every guard and stores only the confirmation/revision
+  /// evidence. No second participant list is created.
+  Future<void> confirmParticipation(String matchId) =>
+      _adapter.confirmParticipation(matchId);
+
   /// Records [lineup] as the lineup of [matchId], replacing whatever was
   /// stored before.
   ///
