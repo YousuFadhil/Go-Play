@@ -1335,6 +1335,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statCurrentRating => 'Current rating';
 
   @override
+  String get statWinRate => 'Win rate';
+
+  @override
+  String get statGoalsPerMatch => 'Goals per match';
+
+  @override
+  String get statRatingTrend => 'Recent rating change';
+
+  @override
   String get statMatchesPlayed => 'Matches played';
 
   @override
@@ -1632,7 +1641,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statPeriodRatingNote =>
-      'The rating is your current rating across every community. It is not a figure for this period.';
+      'The rating and recent rating change are global across every community. They are not figures for this period.';
 
   @override
   String get statPeriodNoMatches =>
@@ -1965,6 +1974,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get communityActionsTitle => 'Community actions';
 
   @override
+  String get communityInsightsAction => 'Community insights';
+
+  @override
+  String get communityInsightsTitle => 'Community insights';
+
+  @override
+  String get communityInsightsPeriod => 'Last 30 days';
+
+  @override
+  String get communityInsightsActiveMembers => 'Active members';
+
+  @override
+  String get communityInsightsParticipationRate => 'Participation rate';
+
+  @override
+  String get communityInsightsMatchFrequency => 'Match frequency';
+
+  @override
+  String get communityInsightsPerWeek => 'per week';
+
+  @override
+  String get communityInsightsCapacity => 'Capacity utilization';
+
+  @override
+  String get communityInsightsGuestDependency => 'Guest dependency';
+
+  @override
+  String get communityInsightsProvisionalNote =>
+      'Participation, capacity and guest dependency currently use saved match line-ups as evidence of who played. They will become participation-confirmed once participation confirmation is introduced.';
+
+  @override
   String get moreActionsLabel => 'More actions';
 
   @override
@@ -2145,6 +2185,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminMetricRegistrations => 'Registrations';
 
   @override
+  String get adminMetricTrackedRegistrations => 'Tracked registrations';
+
+  @override
   String get adminMetricResults => 'Results';
 
   @override
@@ -2163,7 +2206,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminAnalyticsNotice =>
-      'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.';
+      'Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.';
 
   @override
   String get adminAuditTab => 'Audit Log';
@@ -2222,6 +2265,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminMetricWithdrawals => 'Withdrawals';
+
+  @override
+  String get adminMetricTrackedWithdrawals => 'Tracked withdrawals';
 
   @override
   String get adminPlatformWeb => 'Web';

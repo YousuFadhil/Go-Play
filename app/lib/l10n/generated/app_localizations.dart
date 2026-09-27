@@ -2366,6 +2366,24 @@ abstract class AppLocalizations {
   /// **'Current rating'**
   String get statCurrentRating;
 
+  /// No description provided for @statWinRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Win rate'**
+  String get statWinRate;
+
+  /// No description provided for @statGoalsPerMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals per match'**
+  String get statGoalsPerMatch;
+
+  /// No description provided for @statRatingTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent rating change'**
+  String get statRatingTrend;
+
   /// No description provided for @statMatchesPlayed.
   ///
   /// In en, this message translates to:
@@ -2879,7 +2897,7 @@ abstract class AppLocalizations {
   /// No description provided for @statPeriodRatingNote.
   ///
   /// In en, this message translates to:
-  /// **'The rating is your current rating across every community. It is not a figure for this period.'**
+  /// **'The rating and recent rating change are global across every community. They are not figures for this period.'**
   String get statPeriodRatingNote;
 
   /// No description provided for @statPeriodNoMatches.
@@ -3386,6 +3404,66 @@ abstract class AppLocalizations {
   /// **'Community actions'**
   String get communityActionsTitle;
 
+  /// No description provided for @communityInsightsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Community insights'**
+  String get communityInsightsAction;
+
+  /// No description provided for @communityInsightsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Community insights'**
+  String get communityInsightsTitle;
+
+  /// No description provided for @communityInsightsPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 30 days'**
+  String get communityInsightsPeriod;
+
+  /// No description provided for @communityInsightsActiveMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Active members'**
+  String get communityInsightsActiveMembers;
+
+  /// No description provided for @communityInsightsParticipationRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Participation rate'**
+  String get communityInsightsParticipationRate;
+
+  /// No description provided for @communityInsightsMatchFrequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Match frequency'**
+  String get communityInsightsMatchFrequency;
+
+  /// No description provided for @communityInsightsPerWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'per week'**
+  String get communityInsightsPerWeek;
+
+  /// No description provided for @communityInsightsCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Capacity utilization'**
+  String get communityInsightsCapacity;
+
+  /// No description provided for @communityInsightsGuestDependency.
+  ///
+  /// In en, this message translates to:
+  /// **'Guest dependency'**
+  String get communityInsightsGuestDependency;
+
+  /// No description provided for @communityInsightsProvisionalNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Participation, capacity and guest dependency currently use saved match line-ups as evidence of who played. They will become participation-confirmed once participation confirmation is introduced.'**
+  String get communityInsightsProvisionalNote;
+
   /// No description provided for @moreActionsLabel.
   ///
   /// In en, this message translates to:
@@ -3704,6 +3782,12 @@ abstract class AppLocalizations {
   /// **'Registrations'**
   String get adminMetricRegistrations;
 
+  /// No description provided for @adminMetricTrackedRegistrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracked registrations'**
+  String get adminMetricTrackedRegistrations;
+
   /// No description provided for @adminMetricResults.
   ///
   /// In en, this message translates to:
@@ -3737,7 +3821,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminAnalyticsNotice.
   ///
   /// In en, this message translates to:
-  /// **'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.'**
+  /// **'Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.'**
   String get adminAnalyticsNotice;
 
   /// No description provided for @adminAuditTab.
@@ -3853,6 +3937,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Withdrawals'**
   String get adminMetricWithdrawals;
+
+  /// No description provided for @adminMetricTrackedWithdrawals.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracked withdrawals'**
+  String get adminMetricTrackedWithdrawals;
 
   /// No description provided for @adminPlatformWeb.
   ///
