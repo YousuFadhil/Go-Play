@@ -420,6 +420,8 @@
   "errLineupNotChanged": "هذا التغيير لم يعد ينطبق على هذه التشكيلة. أُعيد تحميلها.",
   "matchResultTitle": "نتيجة المباراة",
   "saveResultButton": "حفظ النتيجة",
+  "resultParticipationConfirmation": "أؤكد أن هذه التشكيلة تمثل اللاعبين الذين شاركوا فعليًا في هذه المباراة.",
+  "resultParticipationConfirmationHint": "مطلوب قبل حفظ النتيجة.",
   "resultSaved": "تم حفظ نتيجة المباراة بنجاح",
   "resultOrganizersOnly": "تسجيل نتيجة المباراة متاح لمالك المجتمع والمشرفين فقط.",
   "mvpLabel": "أفضل لاعب",
