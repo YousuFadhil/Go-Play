@@ -14,6 +14,8 @@ import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'package:go_play/features/results/participation_adapter.dart';
+import 'package:go_play/features/results/participation_repository.dart';
 import 'package:go_play/features/results/result_adapter.dart';
 import 'package:go_play/features/results/result_entry_screen.dart';
 import 'package:go_play/features/results/result_models.dart';
@@ -83,7 +85,7 @@ void main() {
     WidgetTester tester, {
     required FakeResultAdapter results,
     List<TeamAssignment>? lineup,
-    FakeTeamAdapter? teams,
+    FakeParticipationAdapter? participation,
     List<MatchRegistration>? registrations,
     CommunityRole? role = CommunityRole.admin,
     Future<void>? gate,
@@ -117,9 +119,11 @@ void main() {
             builder: (_) => ResultEntryScreen(
               matchId: 'm1',
               resultRepository: ResultRepository(results),
-              teamRepository: TeamRepository(
-                teams ?? FakeTeamAdapter(lineup ?? storedLineup()),
+              participationRepository: ParticipationRepository(
+                participation ?? FakeParticipationAdapter(),
               ),
+              teamRepository:
+                  TeamRepository(FakeTeamAdapter(lineup ?? storedLineup())),
               matchService: MatchService(FakeMatchAdapter(
                 match: match,
                 registrations: registrations ?? fourSeats(),
@@ -590,29 +594,37 @@ void main() {
     testWidgets('a successful save confirms the current lineup first',
         (tester) async {
       final results = FakeResultAdapter();
-      final teams = FakeTeamAdapter(storedLineup());
+      final participation = FakeParticipationAdapter();
 
-      await pumpResult(tester, results: results, teams: teams);
+      await pumpResult(
+        tester,
+        results: results,
+        participation: participation,
+      );
       await tester.pumpAndSettle();
       await tapSave(tester);
 
-      expect(teams.confirmations, 1);
-      expect(teams.lastConfirmedMatchId, 'm1');
+      expect(participation.confirmations, 1);
+      expect(participation.lastConfirmedMatchId, 'm1');
       expect(results.writes, 1);
     });
 
     testWidgets('a refused participation confirmation sends no result',
         (tester) async {
       final results = FakeResultAdapter();
-      final teams = FakeTeamAdapter(
-        storedLineup(),
-        confirmationFailure: const AuthorizationFailure(),
+      final participation = FakeParticipationAdapter(
+        failure: const AuthorizationFailure(),
       );
 
-      await pumpResult(tester, results: results, teams: teams);
+      await pumpResult(
+        tester,
+        results: results,
+        participation: participation,
+      );
       await tester.pumpAndSettle();
       await tapSave(tester);
 
+      expect(participation.confirmations, 0);
       expect(results.writes, 0);
       expect(find.byType(ResultEntryScreen), findsOneWidget);
       expect(find.byType(SnackBar), findsOneWidget);
@@ -993,27 +1005,29 @@ class FakeResultAdapter implements ResultAdapter {
       PlayerStatistics.none(userId, 5.0);
 }
 
-/// Serves one stored lineup; nothing on this screen generates or writes one.
-class FakeTeamAdapter implements TeamAdapter {
-  FakeTeamAdapter(
-    this.lineup, {
-    this.confirmationFailure,
-  });
+class FakeParticipationAdapter implements ParticipationAdapter {
+  FakeParticipationAdapter({this.failure});
 
-  final List<TeamAssignment> lineup;
-  final Failure? confirmationFailure;
+  final Failure? failure;
   int confirmations = 0;
   String? lastConfirmedMatchId;
 
   @override
-  Future<List<TeamAssignment>> fetchLineup(String matchId) async => lineup;
-
-  @override
-  Future<void> confirmParticipation(String matchId) async {
-    if (confirmationFailure != null) throw confirmationFailure!;
+  Future<void> confirm(String matchId) async {
+    if (failure != null) throw failure!;
     confirmations++;
     lastConfirmedMatchId = matchId;
   }
+}
+
+/// Serves one stored lineup; nothing on this screen generates or writes one.
+class FakeTeamAdapter implements TeamAdapter {
+  FakeTeamAdapter(this.lineup);
+
+  final List<TeamAssignment> lineup;
+
+  @override
+  Future<List<TeamAssignment>> fetchLineup(String matchId) async => lineup;
 
   @override
   Future<void> saveLineup(
