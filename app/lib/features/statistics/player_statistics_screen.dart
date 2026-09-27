@@ -133,7 +133,14 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
     // counters may be period-bound. The independent reads start together so
     // adding intelligence does not serialise the screen.
     final careerFuture = _results.fetchStatistics(userId);
-    final trendFuture = _intelligence.fetchRatingTrend(userId);
+    // Intelligence must never make the existing statistics screen less
+    // reliable. If the additive trend read is unavailable, the core career and
+    // period counters still render and the trend line is simply absent.
+    final trendFuture = _intelligence.fetchRatingTrend(userId).then(
+          (value) => value,
+          onError: (_) =>
+              const PlayerRatingTrend(matchesCount: 0, ratingDelta: 0),
+        );
 
     if (!period.isBounded) {
       final results = await Future.wait([careerFuture, trendFuture]);
