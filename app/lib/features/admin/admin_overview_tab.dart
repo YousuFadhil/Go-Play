@@ -242,21 +242,21 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
                 ),
                 _MetricTile(
                   label:
-                      '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod7d}',
+                      '${l10n.adminMetricTrackedRegistrations} · ${l10n.adminPeriod7d}',
                   value: '${overview.registrations7d}',
                   onTap: () => _openDrilldown(
                     AdminDrilldownMetric.registrations7d,
-                    '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod7d}',
+                    '${l10n.adminMetricTrackedRegistrations} · ${l10n.adminPeriod7d}',
                     '${overview.registrations7d}',
                   ),
                 ),
                 _MetricTile(
                   label:
-                      '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod30d}',
+                      '${l10n.adminMetricTrackedRegistrations} · ${l10n.adminPeriod30d}',
                   value: '${overview.registrations30d}',
                   onTap: () => _openDrilldown(
                     AdminDrilldownMetric.registrations30d,
-                    '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod30d}',
+                    '${l10n.adminMetricTrackedRegistrations} · ${l10n.adminPeriod30d}',
                     '${overview.registrations30d}',
                   ),
                 ),
