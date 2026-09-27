@@ -440,7 +440,7 @@ void main() {
 
       expect(find.text('7.4'), findsOneWidget);
       expect(find.textContaining('+0.14'), findsOneWidget);
-      expect(find.textContaining('not a figure for this period'), findsNothing);
+      expect(find.textContaining('not figures for this period'), findsNothing);
 
       await tester.tap(find.text('Weekly'));
       await tester.pumpAndSettle();
@@ -449,7 +449,7 @@ void main() {
       expect(find.textContaining('+0.14'), findsOneWidget,
           reason: 'recent rating direction is global, like the rating itself');
       expect(
-          find.textContaining('not a figure for this period'), findsOneWidget);
+          find.textContaining('not figures for this period'), findsOneWidget);
     });
 
     testWidgets(
@@ -485,7 +485,7 @@ void main() {
 
       expect(find.text('9'), findsOneWidget);
       expect(find.textContaining('every community'), findsOneWidget);
-      expect(find.textContaining('not a figure for this period'), findsNothing);
+      expect(find.textContaining('not figures for this period'), findsNothing);
     });
 
     testWidgets('nothing on it becomes editable in a period', (tester) async {
