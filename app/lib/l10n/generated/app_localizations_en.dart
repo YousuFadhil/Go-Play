@@ -1201,6 +1201,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saveResultButton => 'Save result';
 
   @override
+  String get resultParticipationConfirmation =>
+      'I confirm that this lineup represents the players who actually participated in this match.';
+
+  @override
+  String get resultParticipationConfirmationHint =>
+      'Required before saving the result.';
+
+  @override
   String get resultSaved => 'Match result saved successfully';
 
   @override
