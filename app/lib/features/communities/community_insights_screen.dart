@@ -110,29 +110,29 @@ class _Body extends StatelessWidget {
           minCardWidth: GridCard.communityMinWidth,
           children: [
             _InsightCard(
-              icon: Icons.groups_2_outlined,
+              icon: Icons.people_outline,
               label: l10n.communityInsightsActiveMembers,
               value:
                   '${insights.activeMembers30d} / ${insights.eligibleMembers}',
             ),
             _InsightCard(
-              icon: Icons.donut_small_outlined,
+              icon: Icons.pie_chart_outline,
               label: l10n.communityInsightsParticipationRate,
               value: _percent(insights.participationRate30d),
             ),
             _InsightCard(
-              icon: Icons.event_repeat_outlined,
+              icon: Icons.repeat,
               label: l10n.communityInsightsMatchFrequency,
               value: insights.matchesPerWeek.toStringAsFixed(2),
               suffix: l10n.communityInsightsPerWeek,
             ),
             _InsightCard(
-              icon: Icons.stadium_outlined,
+              icon: Icons.event_seat_outlined,
               label: l10n.communityInsightsCapacity,
               value: _percent(insights.avgCapacityUtilization),
             ),
             _InsightCard(
-              icon: Icons.person_add_alt_outlined,
+              icon: Icons.person_add_alt_1_outlined,
               label: l10n.communityInsightsGuestDependency,
               value: _percent(insights.guestDependency),
             ),
