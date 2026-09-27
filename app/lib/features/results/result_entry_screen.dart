@@ -17,6 +17,7 @@ import '../members/member_repository.dart';
 import '../profile/player_identity.dart';
 import '../teams/team_models.dart';
 import '../teams/team_repository.dart';
+import 'participation_repository.dart';
 import 'result_models.dart';
 import 'result_repository.dart';
 
@@ -41,6 +42,7 @@ class ResultEntryScreen extends StatefulWidget {
     super.key,
     required this.matchId,
     this.resultRepository,
+    this.participationRepository,
     this.teamRepository,
     this.matchService,
     this.memberRepository,
@@ -52,6 +54,7 @@ class ResultEntryScreen extends StatefulWidget {
   /// Left null the screen builds the production ones, so nothing here knows what
   /// a data provider is.
   final ResultRepository? resultRepository;
+  final ParticipationRepository? participationRepository;
   final TeamRepository? teamRepository;
   final MatchService? matchService;
   final MemberRepository? memberRepository;
@@ -63,6 +66,8 @@ class ResultEntryScreen extends StatefulWidget {
 class _ResultEntryScreenState extends State<ResultEntryScreen> {
   late final ResultRepository _results =
       widget.resultRepository ?? ResultRepository();
+  late final ParticipationRepository _participation =
+      widget.participationRepository ?? ParticipationRepository();
   late final TeamRepository _teams = widget.teamRepository ?? TeamRepository();
   late final MatchService _matches = widget.matchService ?? MatchService();
   late final MemberRepository _members =
@@ -173,7 +178,7 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
       // result can never be recorded by this UI without the organizer stating
       // that the current lineup is who actually played. If the result is later
       // refused, the confirmation remains valid for the unchanged lineup.
-      await _teams.confirmParticipation(widget.matchId);
+      await _participation.confirm(widget.matchId);
 
       await _results.recordResult(
         matchId: widget.matchId,
