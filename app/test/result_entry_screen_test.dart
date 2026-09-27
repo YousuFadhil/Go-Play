@@ -83,6 +83,7 @@ void main() {
     WidgetTester tester, {
     required FakeResultAdapter results,
     List<TeamAssignment>? lineup,
+    FakeTeamAdapter? teams,
     List<MatchRegistration>? registrations,
     CommunityRole? role = CommunityRole.admin,
     Future<void>? gate,
@@ -116,8 +117,9 @@ void main() {
             builder: (_) => ResultEntryScreen(
               matchId: 'm1',
               resultRepository: ResultRepository(results),
-              teamRepository:
-                  TeamRepository(FakeTeamAdapter(lineup ?? storedLineup())),
+              teamRepository: TeamRepository(
+                teams ?? FakeTeamAdapter(lineup ?? storedLineup()),
+              ),
               matchService: MatchService(FakeMatchAdapter(
                 match: match,
                 registrations: registrations ?? fourSeats(),
@@ -148,8 +150,19 @@ void main() {
     await tester.pump();
   }
 
+  Future<void> confirmParticipation(WidgetTester tester) async {
+    final finder = find.byKey(const Key('participationConfirmation'));
+    final tile = tester.widget<CheckboxListTile>(finder);
+    if (!tile.value) {
+      await tester.ensureVisible(finder);
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+    }
+  }
+
   /// The save is pinned below the scrollable lineup.
   Future<void> tapSave(WidgetTester tester) async {
+    await confirmParticipation(tester);
     await tester.ensureVisible(find.text('Save result').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save result').first);
@@ -397,7 +410,7 @@ void main() {
       await tester.pump();
       await tapGoal(tester, 'u1', 1);
       await enterScore(tester, 'teamAScore', '1');
-      await tester.pumpAndSettle();
+      await confirmParticipation(tester);
 
       expect(saveButton(tester).onPressed, isNotNull);
     });
@@ -455,6 +468,7 @@ void main() {
       await pumpResult(tester, results: results);
       await tester.pumpAndSettle();
 
+      await confirmParticipation(tester);
       await enterScore(tester, 'teamAScore', '2');
       await tester.tap(find.byKey(const Key('mvp_u1')));
       await tester.pump();
@@ -471,8 +485,17 @@ void main() {
       await pumpResult(tester, results: results);
       await tester.pumpAndSettle();
 
-      // 0-0 already adds up, and naming a best player is optional, so there is
-      // nothing left for the form to be waiting on.
+      // 0-0 already adds up and naming a best player is optional, but Wave 2
+      // requires the organizer to confirm who actually participated.
+      expect(saveButton(tester).onPressed, isNull);
+      expect(
+        find.text(
+          'I confirm that this lineup represents the players who actually participated in this match.',
+        ),
+        findsOneWidget,
+      );
+
+      await confirmParticipation(tester);
       expect(saveButton(tester).onPressed, isNotNull);
 
       await tapSave(tester);
@@ -563,12 +586,46 @@ void main() {
     });
   });
 
+  group('participation confirmation', () {
+    testWidgets('a successful save confirms the current lineup first',
+        (tester) async {
+      final results = FakeResultAdapter();
+      final teams = FakeTeamAdapter(storedLineup());
+
+      await pumpResult(tester, results: results, teams: teams);
+      await tester.pumpAndSettle();
+      await tapSave(tester);
+
+      expect(teams.confirmations, 1);
+      expect(teams.lastConfirmedMatchId, 'm1');
+      expect(results.writes, 1);
+    });
+
+    testWidgets('a refused participation confirmation sends no result',
+        (tester) async {
+      final results = FakeResultAdapter();
+      final teams = FakeTeamAdapter(
+        storedLineup(),
+        confirmationFailure: const AuthorizationFailure(),
+      );
+
+      await pumpResult(tester, results: results, teams: teams);
+      await tester.pumpAndSettle();
+      await tapSave(tester);
+
+      expect(results.writes, 0);
+      expect(find.byType(ResultEntryScreen), findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
+    });
+  });
+
   group('saving', () {
     testWidgets('a busy save prevents duplicate submissions', (tester) async {
       final gate = Completer<void>();
       final results = FakeResultAdapter(gate: gate.future);
       await pumpResult(tester, results: results);
       await tester.pumpAndSettle();
+      await confirmParticipation(tester);
 
       await tester.tap(find.text('Save result'));
       await tester.pump();
@@ -938,12 +995,25 @@ class FakeResultAdapter implements ResultAdapter {
 
 /// Serves one stored lineup; nothing on this screen generates or writes one.
 class FakeTeamAdapter implements TeamAdapter {
-  FakeTeamAdapter(this.lineup);
+  FakeTeamAdapter(
+    this.lineup, {
+    this.confirmationFailure,
+  });
 
   final List<TeamAssignment> lineup;
+  final Failure? confirmationFailure;
+  int confirmations = 0;
+  String? lastConfirmedMatchId;
 
   @override
   Future<List<TeamAssignment>> fetchLineup(String matchId) async => lineup;
+
+  @override
+  Future<void> confirmParticipation(String matchId) async {
+    if (confirmationFailure != null) throw confirmationFailure!;
+    confirmations++;
+    lastConfirmedMatchId = matchId;
+  }
 
   @override
   Future<void> saveLineup(
