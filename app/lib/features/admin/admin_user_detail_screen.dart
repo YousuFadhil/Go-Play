@@ -187,7 +187,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   value: '${summary.communityCount}',
                 ),
                 _DetailRow(
-                  label: l10n.adminMetricRegistrations,
+                  label: l10n.adminMetricTrackedRegistrations,
                   value: '${summary.trackedRegistrations}',
                 ),
                 _DetailRow(
@@ -195,7 +195,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   value: '${summary.matchesPlayed}',
                 ),
                 _DetailRow(
-                  label: l10n.adminMetricWithdrawals,
+                  label: l10n.adminMetricTrackedWithdrawals,
                   value: '${summary.trackedWithdrawals}',
                 ),
               ]),
