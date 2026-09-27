@@ -7,6 +7,8 @@ import '../../core/states.dart';
 import '../auth/auth_service.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
+import 'player_intelligence_adapter.dart';
+import 'player_intelligence_repository.dart';
 import 'stat_card.dart';
 import 'statistics_models.dart';
 import 'statistics_period.dart';
@@ -44,6 +46,7 @@ class PlayerStatisticsScreen extends StatefulWidget {
     this.userId,
     this.repository,
     this.statistics,
+    this.intelligence,
     this.authService,
   });
 
@@ -60,6 +63,10 @@ class PlayerStatisticsScreen extends StatefulWidget {
   /// All Time never has to supply it.
   final StatisticsRepository? statistics;
 
+  /// Recent rating direction. Kept separate from period statistics because it
+  /// is a rating-history read, not another counter source.
+  final PlayerIntelligenceRepository? intelligence;
+
   final AuthService? authService;
 
   @override
@@ -72,10 +79,16 @@ class PlayerStatisticsScreen extends StatefulWidget {
 /// The two arrive together because the screen shows them together, and they are
 /// separate fields because only one of them is a period's.
 class _PlayerRecord {
-  const _PlayerRecord({required this.counters, required this.rating});
+  const _PlayerRecord({
+    required this.counters,
+    required this.rating,
+    required this.ratingTrend,
+  });
 
-  _PlayerRecord.career(PlayerStatistics career)
-      : counters = PlayerPeriodStatistics(
+  _PlayerRecord.career(
+    PlayerStatistics career,
+    PlayerRatingTrend ratingTrend,
+  )   : counters = PlayerPeriodStatistics(
           matchesPlayed: career.matchesPlayed,
           wins: career.wins,
           losses: career.losses,
@@ -83,10 +96,15 @@ class _PlayerRecord {
           goals: career.goals,
           mvpCount: career.mvpCount,
         ),
-        rating = career.currentRating;
+        rating = career.currentRating,
+        ratingTrend = ratingTrend;
 
   final PlayerPeriodStatistics counters;
   final double rating;
+
+  /// Global recent rating direction, independent of the selected counter
+  /// period. It belongs beside the current Global Rating for the same reason.
+  final PlayerRatingTrend ratingTrend;
 }
 
 class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
@@ -94,6 +112,8 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
       widget.repository ?? ResultRepository();
   late final StatisticsRepository _statistics =
       widget.statistics ?? StatisticsRepository();
+  late final PlayerIntelligenceRepository _intelligence =
+      widget.intelligence ?? PlayerIntelligenceRepository();
   late final AuthService _auth = widget.authService ?? AuthService();
   StatisticsPeriod _period = StatisticsPeriod.allTime;
   late Future<_PlayerRecord> _statisticsFuture;
@@ -109,15 +129,30 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
     // A record is somebody's, so without a session there is no row to name.
     if (userId == null) throw const AuthenticationFailure();
 
-    // The career read happens whichever period is showing, because it carries
-    // the rating and the rating has no period. For All Time it is also the
-    // counters, exactly as before.
-    final career = await _results.fetchStatistics(userId);
-    if (!period.isBounded) return _PlayerRecord.career(career);
+    // Current rating and its recent direction are global facts, while the six
+    // counters may be period-bound. The independent reads start together so
+    // adding intelligence does not serialise the screen.
+    final careerFuture = _results.fetchStatistics(userId);
+    final trendFuture = _intelligence.fetchRatingTrend(userId);
 
-    final counters =
-        await _statistics.fetchPlayerPeriodStatistics(userId, period);
-    return _PlayerRecord(counters: counters, rating: career.currentRating);
+    if (!period.isBounded) {
+      final results = await Future.wait([careerFuture, trendFuture]);
+      return _PlayerRecord.career(
+        results[0] as PlayerStatistics,
+        results[1] as PlayerRatingTrend,
+      );
+    }
+
+    final countersFuture =
+        _statistics.fetchPlayerPeriodStatistics(userId, period);
+    final results =
+        await Future.wait([careerFuture, trendFuture, countersFuture]);
+    final career = results[0] as PlayerStatistics;
+    return _PlayerRecord(
+      counters: results[2] as PlayerPeriodStatistics,
+      rating: career.currentRating,
+      ratingTrend: results[1] as PlayerRatingTrend,
+    );
   }
 
   Future<void> _refresh() async {
@@ -199,7 +234,10 @@ class _CareerBody extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        RatingHeadline(rating: record.rating),
+        RatingHeadline(
+          rating: record.rating,
+          trend: record.ratingTrend,
+        ),
         // Two cards a row rather than three: these labels are phrases where the
         // dashboard's are words, and three across leaves them wrapping to three
         // lines on a phone.
@@ -237,6 +275,26 @@ class _CareerBody extends StatelessWidget {
             icon: Icons.star,
             label: l10n.statMvpCount,
             value: statistics.mvpCount,
+          ),
+        ]),
+        // Two derived efficiency measures, from the same counters already on
+        // screen. They are not persisted and therefore cannot drift from the
+        // W/D/L/goals figures above.
+        _CardRow(children: [
+          _MetricCard(
+            icon: Icons.percent,
+            label: l10n.statWinRate,
+            value: statistics.matchesPlayed == 0
+                ? '—'
+                : '${(statistics.wins * 100 / statistics.matchesPlayed).toStringAsFixed(1)}%',
+          ),
+          _MetricCard(
+            icon: Icons.speed,
+            label: l10n.statGoalsPerMatch,
+            value: statistics.matchesPlayed == 0
+                ? '—'
+                : (statistics.goals / statistics.matchesPlayed)
+                    .toStringAsFixed(2),
           ),
         ]),
         if (statistics.matchesPlayed == 0)
@@ -316,9 +374,14 @@ class _CardRow extends StatelessWidget {
 /// corrections irreversible — so the decimals beneath are real and deliberately
 /// not shown here.
 class RatingHeadline extends StatelessWidget {
-  const RatingHeadline({super.key, required this.rating});
+  const RatingHeadline({
+    super.key,
+    required this.rating,
+    required this.trend,
+  });
 
   final double rating;
+  final PlayerRatingTrend trend;
 
   @override
   Widget build(BuildContext context) {
@@ -343,9 +406,104 @@ class RatingHeadline extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(l10n.statCurrentRating, style: theme.textTheme.titleMedium),
+            if (trend.hasMatches) ...[
+              const SizedBox(height: 10),
+              _RatingTrendLine(trend: trend),
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+
+/// A derived decimal/percentage measure.
+///
+/// Kept local to Player Statistics so the shared [StatCard] can stay honest:
+/// that component represents integer counters on community and player screens,
+/// while these values are calculations over those counters.
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Semantics(
+      label: '$label: $value',
+      excludeSemantics: true,
+      child: Card(
+        margin: const EdgeInsets.all(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: scheme.primary),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                maxLines: 1,
+                style: theme.textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Recent rating movement lives inside the rating card rather than as another
+/// dashboard tile: it explains the rating, and unlike Win Rate or Goals/Match
+/// it does not change when the period selector changes.
+class _RatingTrendLine extends StatelessWidget {
+  const _RatingTrendLine({required this.trend});
+
+  final PlayerRatingTrend trend;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final delta = trend.ratingDelta;
+    final icon = delta > 0
+        ? Icons.trending_up
+        : delta < 0
+            ? Icons.trending_down
+            : Icons.trending_flat;
+    final value = delta > 0
+        ? '+${delta.toStringAsFixed(2)}'
+        : delta.toStringAsFixed(2);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Text(
+          '$value · ${context.l10n.statRatingTrend}',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }
