@@ -580,12 +580,10 @@ void main() {
           startsIn: const Duration(hours: -6),
           duration: const Duration(hours: 2),
           startingPlayers: 4);
-      for (final user in [owner, admin, player, player2]) {
-        // Self-registration is refused once a match has started, so the
-        // administrative path is the one that builds a played roster.
-        await owner.client.rpc('admin_add_player_to_match',
-            params: {'p_match_id': matchId, 'p_user_id': user.id});
-      }
+      // Self-registration is refused once a match has started, and since
+      // 0091 an organizer's add is refused once it has ended, so the played
+      // roster is seated as it would have been, before the end.
+      await seatOnPlayedMatch(owner, matchId, [owner, admin, player, player2]);
       return matchId;
     }
 

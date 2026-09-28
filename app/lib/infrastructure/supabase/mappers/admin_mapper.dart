@@ -137,6 +137,12 @@ AdminUserActivityEvent adminActivityEventFromRow(Map<String, dynamic> row) =>
       matchTitle: _adminReason(row['match_title']),
       platform: _adminReason(row['platform']),
       appVersion: _adminReason(row['app_version']),
+      // Absent from a database that predates `0091`, which reads as null: the
+      // row is still shown, as the event it was recorded as.
+      targetUserId: row['target_user_id'] as String?,
+      targetUserName: _adminReason(row['target_user_name']),
+      shareType: _adminReason(row['share_type']),
+      source: _adminReason(row['source']),
     );
 
 AdminAuditEntry adminAuditEntryFromRow(Map<String, dynamic> row) =>

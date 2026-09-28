@@ -380,11 +380,10 @@ void main() {
       // confirmed, whatever their seat said before.
       // `admin_add_player_to_match` is the organizer's path; the
       // `register_player_in_match` it wraps is an internal helper and is revoked
-      // from every client role, as it should be.
-      await owner.client.rpc('admin_add_player_to_match', params: {
-        'p_match_id': matchId,
-        'p_user_id': player3.id,
-      });
+      // from every client role, as it should be. Since 0091 it refuses a
+      // played match, so the seat is taken as it would have been, before the
+      // end.
+      await seatOnPlayedMatch(owner, matchId, [player3]);
       await owner.client
           .from('match_registrations')
           .update({'status': 'reserve'})
@@ -402,10 +401,7 @@ void main() {
       // Registered first, because that is the state under test: the fixture
       // stores a lineup but no roster, so without this the correction would be
       // creating a seat rather than confirming one.
-      await owner.client.rpc('admin_add_player_to_match', params: {
-        'p_match_id': matchId,
-        'p_user_id': admin.id,
-      });
+      await seatOnPlayedMatch(owner, matchId, [admin]);
       final before = await registrations();
 
       expect(await correct(owner, [upsert(admin, 'B', 'MID')]), 'ALLOW');
@@ -923,6 +919,68 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  group('0091: an organizer adds during an active match, never after', () {
+    Future<String> add(String id, TestUser user) => outcomeOf(() async {
+          await owner.client.rpc('admin_add_player_to_match', params: {
+            'p_match_id': id,
+            'p_user_id': user.id,
+          });
+        });
+
+    test('an active, non-historical match takes an organizer add', () async {
+      final id = await createMatch(owner, communityId,
+          startsIn: const Duration(hours: -1),
+          duration: const Duration(hours: 3),
+          startingPlayers: 4);
+      expect(await add(id, player3), 'ALLOW');
+    });
+
+    test('but still refuses the player registering themselves', () async {
+      final id = await createMatch(owner, communityId,
+          startsIn: const Duration(hours: -1),
+          duration: const Duration(hours: 3),
+          startingPlayers: 4);
+      expect(
+        await outcomeOf(() async {
+          await player3.client
+              .rpc('register_for_match', params: {'p_match_id': id});
+        }),
+        'MATCH_LOCKED',
+      );
+    });
+
+    test('a match that has ended refuses the organizer too', () async {
+      final id = await createMatch(owner, communityId,
+          startsIn: const Duration(hours: -4), startingPlayers: 4);
+      expect(await add(id, player3), 'MATCH_CLOSED');
+    });
+
+    test('a historical match refuses it outright', () async {
+      final start = DateTime.now().toUtc().subtract(const Duration(days: 9));
+      final id = await owner.client.rpc('create_match', params: {
+        'p_community_id': communityId,
+        'p_title': 'ITest historical',
+        'p_location': 'ITest pitch',
+        'p_start_at': start.toIso8601String(),
+        'p_end_at': start.add(const Duration(hours: 2)).toIso8601String(),
+        'p_starting_players': 4,
+        'p_description': null,
+        'p_is_historical': true,
+      }) as String;
+      expect(await add(id, player3), 'MATCH_HISTORICAL');
+    });
+
+    test('the membership, duplicate and capacity rules still apply', () async {
+      final id = await createMatch(owner, communityId,
+          startsIn: const Duration(hours: -1),
+          duration: const Duration(hours: 3),
+          startingPlayers: 4);
+      expect(await add(id, player3), 'ALLOW');
+      expect(await add(id, player3), 'ALREADY_REGISTERED');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   group('A2: the lifecycle moves forward only', () {
     Future<String> edit(
       String id, {
@@ -1024,20 +1082,94 @@ void main() {
       }
     });
 
-    test('completed may not be reopened as active', () async {
+    // UAT round 1 (migration 0091): a completed match with no result, that
+    // is not historical, may be reopened. A result or a historical record
+    // still keeps it completed.
+    test('completed without a result may be reopened as active', () async {
+      final id = await completedMatch();
       expect(
-        await edit(await completedMatch(),
+        await edit(id,
             startsIn: const Duration(hours: -1),
             duration: const Duration(hours: 3)),
-        'MATCH_COMPLETED',
+        'ALLOW',
       );
+      final row = await owner.client
+          .from('matches')
+          .select('status')
+          .eq('id', id)
+          .single();
+      expect(row['status'], isNot('completed'));
     });
 
-    test('completed may not be pushed into the future', () async {
+    test('completed without a result may be reopened as future', () async {
+      final id = await completedMatch();
+      expect(await edit(id, startsIn: const Duration(days: 7)), 'ALLOW');
+      final row = await owner.client
+          .from('matches')
+          .select('status')
+          .eq('id', id)
+          .single();
+      expect(row['status'], 'open');
+    });
+
+    test('completed WITH a result stays completed', () async {
+      await storeLineup();
+      await recordResult();
+      final before = await snapshot();
+
+      expect(await edit(matchId, startsIn: const Duration(days: 7)),
+          'MATCH_COMPLETED');
       expect(
-        await edit(await completedMatch(), startsIn: const Duration(days: 7)),
-        'MATCH_COMPLETED',
-      );
+          await edit(matchId,
+              startsIn: const Duration(hours: -1),
+              duration: const Duration(hours: 3)),
+          'MATCH_COMPLETED');
+      expect(await snapshot(), before, reason: 'no result is reversed');
+    });
+
+    test('a historical match stays completed', () async {
+      final start = DateTime.now().toUtc().subtract(const Duration(days: 9));
+      final id = await owner.client.rpc('create_match', params: {
+        'p_community_id': communityId,
+        'p_title': 'ITest historical',
+        'p_location': 'ITest pitch',
+        'p_start_at': start.toIso8601String(),
+        'p_end_at': start.add(const Duration(hours: 2)).toIso8601String(),
+        'p_starting_players': 4,
+        'p_description': null,
+        'p_is_historical': true,
+      }) as String;
+
+      expect(
+          await edit(id, startsIn: const Duration(days: 7)), 'MATCH_COMPLETED');
+      expect(
+          await edit(id,
+              startsIn: const Duration(hours: -1),
+              duration: const Duration(hours: 3)),
+          'MATCH_COMPLETED');
+    });
+
+    test('a reopen keeps the roster, the lineup, ratings and counters',
+        () async {
+      await seatOnPlayedMatch(owner, matchId, squad);
+      await storeLineup();
+      final before = await snapshot();
+
+      expect(
+          await edit(matchId,
+              startsIn: const Duration(hours: -1),
+              duration: const Duration(hours: 3)),
+          'ALLOW');
+
+      // Registrations, the stored lineup, every rating and every counter are
+      // exactly as they were: a reopen changes the lifecycle and nothing else.
+      expect(await snapshot(), before);
+    });
+
+    test('a completed edit that stays completed still works', () async {
+      await storeLineup();
+      await recordResult();
+      expect(await edit(matchId, startsIn: const Duration(days: -60)), 'ALLOW');
     });
 
     /// Five registrations on a four-a-side match, so the fifth holds a reserve

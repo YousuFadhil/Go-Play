@@ -1045,6 +1045,103 @@ void main() {
           reason: 'a swap leaves the sides the size they were');
     });
 
+    testWidgets('swap positions offers only the same side, then saves once',
+        (tester) async {
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      await pumpTeams(
+        tester,
+        teams: teams,
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      // Sara keeps goal for A; Noor plays midfield for A.
+      await tapPlayer(tester, 'Sara Al Balushi');
+      expect(find.text('Swap positions'), findsOneWidget);
+      await tester.tap(find.text('Swap positions'));
+      await tester.pumpAndSettle();
+
+      Finder inDialog(String name) => find.descendant(
+            of: find.byType(SimpleDialog),
+            matching: find.text(name),
+          );
+
+      expect(find.text('Swap positions with'), findsOneWidget);
+      expect(inDialog('Noor Al Kindi'), findsOneWidget);
+      expect(inDialog('Ahmed Al Harthy'), findsNothing,
+          reason: 'the other side is the other swap');
+      expect(inDialog('Yousef Al Amri'), findsNothing);
+      expect(inDialog('Sara Al Balushi'), findsNothing);
+
+      await tester.tap(inDialog('Noor Al Kindi'));
+      await tester.pumpAndSettle();
+
+      final saved = teams.savedLineup!;
+      expect(teams.saveCount, 1, reason: 'one exchange, one write');
+      expect(teams.lastFromGeneration, isFalse);
+      expect(saved.singleWhere((a) => a.userId == 'u1').assignedPosition,
+          Position.mid);
+      expect(saved.singleWhere((a) => a.userId == 'u3').assignedPosition,
+          Position.gk);
+      expect(saved.singleWhere((a) => a.userId == 'u1').team, TeamId.a);
+      expect(saved.singleWhere((a) => a.userId == 'u3').team, TeamId.a);
+      expect(find.text('Lineup updated.'), findsOneWidget);
+    });
+
+    testWidgets('swap positions is not offered when there is nothing to swap',
+        (tester) async {
+      // Both players on A play midfield: exchanging them changes nothing.
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(
+          lineup: [
+            assignment('u1', TeamId.a, Position.mid),
+            assignment('u3', TeamId.a, Position.mid),
+            assignment('u2', TeamId.b, Position.def),
+            assignment('u4', TeamId.b, Position.fwd),
+          ],
+          roster: fourInputs(),
+        ),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      await tapPlayer(tester, 'Sara Al Balushi');
+
+      expect(find.text('Swap with a player'), findsOneWidget);
+      expect(find.text('Swap positions'), findsNothing);
+    });
+
+    testWidgets('a player is not offered swap positions', (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        role: CommunityRole.player,
+      );
+      await tester.pumpAndSettle();
+
+      await tapPlayer(tester, 'Sara Al Balushi');
+
+      expect(find.text('Swap positions'), findsNothing);
+    });
+
+    testWidgets('the action reads in Arabic', (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        locale: const Locale('ar'),
+      );
+      await tester.pumpAndSettle();
+
+      await tapPlayer(tester, 'Sara Al Balushi');
+
+      expect(find.text('تبديل المراكز'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('a position change asks which, then persists it',
         (tester) async {
       final teams = FakeTeamAdapter(

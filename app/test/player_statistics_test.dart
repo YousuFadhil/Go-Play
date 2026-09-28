@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/features/analytics/analytics_models.dart';
+import 'package:go_play/features/analytics/analytics_repository.dart';
+import 'package:go_play/features/analytics/analytics_service.dart';
 import 'package:go_play/features/results/result_adapter.dart';
 import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
@@ -17,6 +20,8 @@ import 'package:go_play/features/statistics/statistics_period.dart';
 import 'package:go_play/features/statistics/statistics_period_selector.dart';
 import 'package:go_play/features/statistics/stat_card.dart';
 import 'package:go_play/features/statistics/statistics_repository.dart';
+
+import 'product_analytics_test.dart' show FakeAnalyticsAdapter;
 
 /// The Player Statistics screen against a fake result port.
 ///
@@ -583,6 +588,37 @@ void main() {
       for (final period in ['All time', 'Monthly', 'Weekly']) {
         expect(find.text(period), findsOneWidget, reason: period);
       }
+    });
+  });
+
+  group('what opening the statistics records', () {
+    late FakeAnalyticsAdapter analytics;
+
+    setUp(() {
+      analytics = FakeAnalyticsAdapter();
+      ProductAnalytics.instance =
+          ProductAnalytics(repository: AnalyticsRepository(analytics));
+    });
+    tearDown(() => ProductAnalytics.instance = ProductAnalytics());
+
+    testWidgets('a loaded screen records one view of that player',
+        (tester) async {
+      await pumpStatistics(tester, FakeResultAdapter(statistics: played));
+
+      expect(analytics.events, [ProductEvent.playerStatisticsViewed]);
+      // The player whose statistics are shown -- today the reader themselves.
+      expect(analytics.recorded.single.targetUserId, 'u1');
+      expect(analytics.recorded.single.communityId, isNull);
+      expect(analytics.recorded.single.matchId, isNull);
+    });
+
+    testWidgets('a failed load records nothing', (tester) async {
+      await pumpStatistics(
+        tester,
+        FakeResultAdapter(statistics: played, failure: const NetworkFailure()),
+      );
+
+      expect(analytics.events, isEmpty);
     });
   });
 }

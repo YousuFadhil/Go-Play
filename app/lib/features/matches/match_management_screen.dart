@@ -277,10 +277,10 @@ class _MatchManagementScreenState extends State<MatchManagementScreen> {
             // make the record of who played a side effect of a roster edit.
             final canManageRoster = canAdministerRoster(match, busy: _busy);
             // The same boundary for adding somebody who never registered. The
-            // database would still honour `admin_add_player_to_match` on a
-            // completed match, and a recorded (historical) one it refuses
-            // outright with `MATCH_HISTORICAL`; what decides it here is that a
-            // completed match has a canonical correction path of its own.
+            // database refuses `admin_add_player_to_match` on a played match
+            // (`MATCH_CLOSED`, migration `0091`) and on a recorded (historical)
+            // one (`MATCH_HISTORICAL`): a completed match has a canonical
+            // correction path of its own.
             final canAddCommunityPlayer =
                 canAddCommunityPlayerTo(match, busy: _busy);
             // Deletion is time-independent; it will be restricted only once

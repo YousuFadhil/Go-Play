@@ -391,6 +391,66 @@ class TeamRepository {
     }, completedCorrection: completedCorrection);
   }
 
+  /// Exchanges the assigned positions of [firstParticipantId] and
+  /// [secondParticipantId], two participants on the same team.
+  ///
+  /// The counterpart of [swapPlayers]: there the side changes and the
+  /// position stays; here the position changes and the side stays. Both keep
+  /// their team, and the exchange is one lineup write -- never two sequential
+  /// saves, so no lineup with half the exchange done is ever stored.
+  ///
+  /// The assignment basis is recomputed for each participant against their own
+  /// profile and their NEW position (§5.1). It is not carried across with the
+  /// position, because it describes the player rather than the slot. A
+  /// Professional Guest has no basis to recompute (the database stores
+  /// `GUEST`), and one with no position cannot take part: there is nothing of
+  /// theirs to exchange.
+  ///
+  /// Never a generation, so no generation evidence is recorded: this goes
+  /// through `_replace`, like every other manual edit.
+  ///
+  /// Throws [ValidationFailure] when the two are the same participant, when
+  /// either is absent from the stored lineup, when they are on different teams,
+  /// when either has no assigned position, or when their positions are already
+  /// the same: there is no exchange to perform, and silently doing nothing
+  /// would report success for an operation that never happened.
+  Future<void> swapAssignedPositions(
+    String matchId,
+    String firstParticipantId,
+    String secondParticipantId, {
+    required bool completedCorrection,
+  }) async {
+    if (firstParticipantId == secondParticipantId) {
+      throw const ValidationFailure();
+    }
+
+    final lineup = await _adapter.fetchLineup(matchId);
+    final first = _find(lineup, firstParticipantId);
+    final second = _find(lineup, secondParticipantId);
+    final firstPosition = first.assignedPosition;
+    final secondPosition = second.assignedPosition;
+    if (first.team != second.team ||
+        firstPosition == null ||
+        secondPosition == null ||
+        firstPosition == secondPosition) {
+      throw const ValidationFailure();
+    }
+
+    // One roster read answers both bases.
+    final roster = await _adapter.fetchConfirmedPlayerInputs(matchId);
+
+    await _replace(matchId, lineup, {
+      firstParticipantId: first.withPosition(
+        secondPosition,
+        _basisIn(roster, first.userId, secondPosition, first.basis),
+      ),
+      secondParticipantId: second.withPosition(
+        firstPosition,
+        _basisIn(roster, second.userId, firstPosition, second.basis),
+      ),
+    }, completedCorrection: completedCorrection);
+  }
+
   /// Gives [userId] the assigned position [position] in this match's lineup.
   ///
   /// This is the lineup's record of where they played, and nothing else: the
@@ -488,8 +548,25 @@ class TeamRepository {
     String userId,
     Position position,
     AssignmentBasis? fallback,
-  ) async {
-    final roster = await _adapter.fetchConfirmedPlayerInputs(matchId);
+  ) async =>
+      _basisIn(
+        await _adapter.fetchConfirmedPlayerInputs(matchId),
+        userId,
+        position,
+        fallback,
+      );
+
+  /// [_basisFor] against a roster already read.
+  ///
+  /// A null [userId] is a Professional Guest, who has no profile in [roster]
+  /// and so keeps [fallback] -- which for a guest is the null the database
+  /// stores as `GUEST`.
+  AssignmentBasis? _basisIn(
+    List<PlayerCoreInputs> roster,
+    String? userId,
+    Position position,
+    AssignmentBasis? fallback,
+  ) {
     final profile = roster.where((p) => p.userId == userId).firstOrNull;
     if (profile == null) return fallback;
 

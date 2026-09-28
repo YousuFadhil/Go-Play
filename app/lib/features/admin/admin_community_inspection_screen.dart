@@ -136,7 +136,7 @@ class _AdminCommunityInspectionScreenState
                 ),
                 AdminDetailRow(
                   label: l10n.adminMetricCreated,
-                  value: formatMatchDay(context, community.createdAt),
+                  value: formatMuscatMatchDay(context, community.createdAt),
                 ),
                 AdminDetailRow(
                   label: l10n.adminMetricJoinPolicy,

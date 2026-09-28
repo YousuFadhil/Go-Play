@@ -86,6 +86,23 @@ const _muscatOffset = Duration(hours: 4);
 
 DateTime muscatDayOf(DateTime instant) => instant.toUtc().add(_muscatOffset);
 
+/// An instant as Oman's wall clock reads it -- "8:51 PM".
+///
+/// For the Platform Admin, whose timestamps the Product Owner fixed to Oman
+/// time whatever the device's zone: an administrator abroad reads the same
+/// clock as one in Muscat. The conversion is [muscatDayOf], the one this file
+/// already owns, and the format is [formatTime]'s, unchanged -- so it stays
+/// twelve-hour and follows the reader's locale.
+String formatMuscatTime(BuildContext context, DateTime instant) =>
+    formatTime(context, muscatDayOf(instant));
+
+/// The Oman calendar day of an instant, in [formatMatchDay]'s format.
+///
+/// The day moves with the clock: 22:30 UTC on the 28th is 02:30 on the 29th in
+/// Muscat, and that is the day shown.
+String formatMuscatMatchDay(BuildContext context, DateTime instant) =>
+    formatMatchDay(context, muscatDayOf(instant));
+
 /// The week an award covers, as the days a reader would name.
 ///
 /// [endExclusive] is the instant the period ends, which is the start of the

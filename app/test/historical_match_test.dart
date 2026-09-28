@@ -208,8 +208,11 @@ void main() {
       await tester.tap(submitButton());
       await tester.pumpAndSettle();
 
+      // An ordinary match may already be under way (migration `0091`); one
+      // that has wholly ended is what is refused, and it is told where it
+      // belongs instead.
       expect(adapter.writes, 0, reason: 'nothing may be sent');
-      expect(find.text(l10n.startInPastError), findsOneWidget);
+      expect(find.text(l10n.matchAlreadyEndedError), findsOneWidget);
     });
   });
 

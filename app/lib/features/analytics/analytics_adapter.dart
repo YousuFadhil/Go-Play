@@ -23,11 +23,17 @@ abstract interface class AnalyticsAdapter {
   /// them, null otherwise. A `share_used` without a type is a share this build
   /// did not classify, never an error — the column is nullable precisely so
   /// that recording an event never depends on having every field for it.
+  ///
+  /// [targetUserId] is the player a `profile_viewed` or
+  /// `player_statistics_viewed` is about (migration `0091`) — the reader's own
+  /// id when they look at themselves. It names who was viewed, never who
+  /// acted; the actor is still the session.
   Future<void> record(
     ProductEvent event, {
     String? communityId,
     String? matchId,
     ShareType? shareType,
     String? source,
+    String? targetUserId,
   });
 }

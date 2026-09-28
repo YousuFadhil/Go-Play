@@ -649,12 +649,8 @@ void main() {
           startsIn: const Duration(days: -18),
           duration: const Duration(hours: 2),
           startingPlayers: 4);
-      for (final user in [owner, admin, player]) {
-        await owner.client.rpc('admin_add_player_to_match', params: {
-          'p_match_id': matchId,
-          'p_user_id': user.id,
-        });
-      }
+      // Played already: the roster is seated before the end (0091).
+      await seatOnPlayedMatch(owner, matchId, [owner, admin, player]);
       guestId = await addGuest(owner, matchId, 'Ringer');
 
       // Two a side: three members and the guest.
@@ -940,12 +936,8 @@ void main() {
           startsIn: const Duration(days: -19),
           duration: const Duration(hours: 2),
           startingPlayers: 4);
-      for (final user in [owner, admin, player]) {
-        await owner.client.rpc('admin_add_player_to_match', params: {
-          'p_match_id': matchId,
-          'p_user_id': user.id,
-        });
-      }
+      // Played already: the roster is seated before the end (0091).
+      await seatOnPlayedMatch(owner, matchId, [owner, admin, player]);
       guestId = await addGuest(owner, matchId, 'Ringer');
 
       Future<void> assign(String? userId, String? gid, String team,
@@ -1553,6 +1545,12 @@ void main() {
   // passed -- `COMPLETED -> ACTIVE` and `COMPLETED -> FUTURE` are refused with
   // MATCH_COMPLETED (migration 0074), so a played match can no longer be given
   // a schedule that claims it is still to come.
+  //
+  // UAT round 1 (migration 0091) narrowed that refusal to what it protects: a
+  // completed match with a recorded result, or a historical one, stays
+  // completed; one with neither may be reopened as active or future. The
+  // fixture below has no result, so tests 1 and 2 now pin the reopen, and
+  // `all_state_match_management_test.dart` pins the refusals.
 
   group('a completed match stays completed', () {
     late String matchId;
@@ -1600,37 +1598,29 @@ void main() {
           .update({'status': 'completed'}).eq('id', matchId);
     });
 
-    test('1. moving end_at into the future is refused', () async {
-      // A schedule ending four days from now would say this match has not been
-      // played, while its lineup, result, goals and MVP all say it has.
+    test('1. with no result, moving end_at into the future reopens it',
+        () async {
       expect(
         await editBy(owner, matchId,
             title: 'ITest end moved',
             startsIn: const Duration(days: 3),
             duration: const Duration(days: 1)),
-        'MATCH_COMPLETED',
+        'ALLOW',
       );
-      expect(await statusOf(matchId), 'completed');
-      final row = await owner.client
-          .from('matches')
-          .select('title, end_at')
-          .eq('id', matchId)
-          .single();
-      expect(row['title'], isNot('ITest end moved'),
-          reason: 'the refused edit wrote nothing');
-      expect(DateTime.parse(row['end_at'] as String).isBefore(DateTime.now()),
-          isTrue);
+      expect(await statusOf(matchId), 'open',
+          reason: 'a reopened match gets a status that can be read');
     });
 
-    test('2. moving start_at into the future is refused', () async {
+    test('2. with no result, moving start_at into the future reopens it',
+        () async {
       expect(
         await editBy(owner, matchId,
             title: 'ITest start moved',
             startsIn: const Duration(days: 5),
             duration: const Duration(hours: 2)),
-        'MATCH_COMPLETED',
+        'ALLOW',
       );
-      expect(await statusOf(matchId), 'completed');
+      expect(await statusOf(matchId), 'open');
     });
 
     test('2b. re-dating it within the past is allowed', () async {
@@ -2804,12 +2794,8 @@ void main() {
           startsIn: const Duration(days: -19),
           duration: const Duration(hours: 2),
           startingPlayers: 4);
-      for (final user in [owner, admin, player]) {
-        await owner.client.rpc('admin_add_player_to_match', params: {
-          'p_match_id': matchId,
-          'p_user_id': user.id,
-        });
-      }
+      // Played already: the roster is seated before the end (0091).
+      await seatOnPlayedMatch(owner, matchId, [owner, admin, player]);
       final guestId = await addGuest(owner, matchId, 'Ringer');
 
       Future<void> assign(String? userId, String? gid, String team) =>

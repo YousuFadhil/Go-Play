@@ -5,7 +5,6 @@ import '../../core/l10n.dart';
 import '../../core/states.dart';
 import '../sharing/share_card_flow.dart';
 import '../analytics/analytics_models.dart';
-import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import 'community_leaderboards_tab.dart'
@@ -193,7 +192,6 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
       communityId: widget.communityId,
       message: ShareMessage(
         text: l10n.shareTextCommunityStatistics(data.communityName),
-        url: PublicLink.format(PublicLinkKind.community, widget.communityId),
       ),
       shareType: ShareType.community,
       source: ShareSource.communityStatistics,

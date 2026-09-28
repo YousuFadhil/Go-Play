@@ -972,6 +972,7 @@ class _RecordingAnalyticsAdapter implements AnalyticsAdapter {
     String? matchId,
     ShareType? shareType,
     String? source,
+    String? targetUserId,
   }) async {
     if (event == ProductEvent.sessionStarted) return;
     recorded.add(event);

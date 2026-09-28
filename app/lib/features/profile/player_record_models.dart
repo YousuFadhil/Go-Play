@@ -117,7 +117,7 @@ class RecentForm {
   bool get isEmpty => entries.isEmpty;
   bool get isNotEmpty => entries.isNotEmpty;
 
-  /// How many matches this window covers — five at most, and fewer for a
+  /// How many matches this window covers — six at most, and fewer for a
   /// player who has played fewer.
   int get matches => entries.length;
 

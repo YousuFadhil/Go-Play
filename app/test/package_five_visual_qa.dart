@@ -331,7 +331,6 @@ PlayerProfileCardData _card({
       draws: 2,
       form: form ?? _form(),
       achievements: achievements ?? [_highlight()],
-      publicUrl: 'https://go-play-staging.pages.dev/#/player/$_userId',
     );
 
 /// A sentinel meaning "the ordinary highlight", so a caller can ask for none.

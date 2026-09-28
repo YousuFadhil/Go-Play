@@ -123,6 +123,9 @@ class SupabaseFailureMapper {
     // a match cannot be created into the state `update_match` then treats as
     // locked forever.
     'START_IN_PAST': ValidationFailure(FailureReason.startInPast),
+    // `create_match` since `0091`: an ordinary match may start in the past but
+    // must not have ended -- a finished fixture is recorded as historical.
+    'MATCH_ALREADY_ENDED': ValidationFailure(FailureReason.matchAlreadyEnded),
     // The historical path's own temporal refusal (migration `0054`): a match
     // being recorded as played must actually have finished.
     'HISTORICAL_NOT_PAST': ValidationFailure(FailureReason.historicalNotPast),

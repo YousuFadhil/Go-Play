@@ -246,6 +246,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'المباراة السابقة يجب أن تكون قد انتهت قبل الآن';
 
   @override
+  String get matchAlreadyEndedError =>
+      'انتهت هذه المباراة بالفعل. سجّلها كمباراة سابقة بدلاً من ذلك.';
+
+  @override
   String get recordHistoricalMatchButton => 'تسجيل المباراة';
 
   @override
@@ -1147,10 +1151,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get swapPlayerAction => 'تبديل مع لاعب';
 
   @override
+  String get swapPositionsAction => 'تبديل المراكز';
+
+  @override
   String get changePositionAction => 'تغيير المركز';
 
   @override
   String get swapPlayerTitle => 'التبديل مع';
+
+  @override
+  String get swapPositionsTitle => 'تبديل المركز مع';
 
   @override
   String get swapNobodyAvailable =>
@@ -2198,7 +2208,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminAnalyticsNotice =>
-      'تبدأ مؤشرات النشاط من هذا الإصدار للجلسات والتسجيلات والانسحابات، ولم نختلق أحداثًا سابقة. وتبقى الحسابات وسجل كرة القدم المسجَّل من جداول العمل الأصلية، مع استبعاد المباريات التاريخية المستوردة من نوافذ نشاط نظرة المنتج.';
+      'تبدأ مؤشرات النشاط من هذا الإصدار للجلسات والتسجيلات والانسحابات، ولم نختلق أحداثًا سابقة. تُحفظ أحداث النشاط لمدة 12 شهرًا، لذا تصف الأعداد المتتبَّعة النشاط المحفوظ لا السجل الكامل، بينما يبقى «آخر ظهور» محفوظًا بعد تلك المدة. وتبقى الحسابات وسجل كرة القدم المسجَّل من جداول العمل الأصلية، مع استبعاد المباريات التاريخية المستوردة من نوافذ نشاط نظرة المنتج.';
 
   @override
   String get adminAuditTab => 'سجل الإدارة';
@@ -2243,7 +2253,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminMetricActiveDays => 'أيام النشاط';
 
   @override
-  String get adminMetricSessions => 'الجلسات';
+  String get adminMetricSessions => 'الجلسات المتتبَّعة';
 
   @override
   String get adminMetricPlatforms => 'المنصات';
@@ -2298,6 +2308,40 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminEventPublicLinkOpened => 'فتح رابط عام';
+
+  @override
+  String get adminEventViewedOwnProfile => 'عرض ملفه الشخصي';
+
+  @override
+  String adminEventViewedPlayerProfile(String player) {
+    return 'عرض ملف لاعب — $player';
+  }
+
+  @override
+  String get adminEventViewedPlayerStatistics => 'عرض إحصائيات اللاعب';
+
+  @override
+  String adminEventViewedPlayerStatisticsOf(String player) {
+    return 'عرض إحصائيات لاعب — $player';
+  }
+
+  @override
+  String get adminEventSharedPlayerProfile => 'مشاركة ملف لاعب';
+
+  @override
+  String get adminEventSharedPlayerStatistics => 'مشاركة إحصائيات لاعب';
+
+  @override
+  String get adminEventSharedCommunity => 'مشاركة مجتمع';
+
+  @override
+  String get adminEventSharedMatch => 'مشاركة مباراة';
+
+  @override
+  String get adminEventSharedLineup => 'مشاركة تشكيلة';
+
+  @override
+  String get adminEventSharedResult => 'مشاركة نتيجة';
 
   @override
   String get adminDrilldownEmpty => 'لا توجد سجلات لهذا المؤشر.';

@@ -94,6 +94,12 @@ enum FailureReason {
   // seen from the creating end, not a new one.
   startInPast,
 
+  // Since migration `0091` an ordinary match may be created while it is
+  // already being played; what is refused is one that has wholly ended, which
+  // belongs on the historical path instead. `startInPast` stays for a database
+  // that predates `0091`.
+  matchAlreadyEnded,
+
   // The other half of the same rule (migration `0054`). A historical match is
   // the record of a fixture that has been played, so its end must have passed;
   // asking to record one that has not is the mirror of scheduling one into the

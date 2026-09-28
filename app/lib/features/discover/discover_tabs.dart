@@ -35,7 +35,7 @@ class DiscoverTabs extends StatelessWidget {
 
   final TabController controller;
 
-  /// Upcoming, Latest Results, Communities — already localized, and never
+  /// Latest Results, Upcoming, Communities — already localized, and never
   /// shortened here.
   final List<String> labels;
 

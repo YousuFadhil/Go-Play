@@ -249,6 +249,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A match already played must have finished before now';
 
   @override
+  String get matchAlreadyEndedError =>
+      'This match has already ended. Record it as a match already played instead.';
+
+  @override
   String get recordHistoricalMatchButton => 'Record match';
 
   @override
@@ -1172,10 +1176,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get swapPlayerAction => 'Swap with a player';
 
   @override
+  String get swapPositionsAction => 'Swap positions';
+
+  @override
   String get changePositionAction => 'Change position';
 
   @override
   String get swapPlayerTitle => 'Swap with';
+
+  @override
+  String get swapPositionsTitle => 'Swap positions with';
 
   @override
   String get swapNobodyAvailable => 'The other team has nobody to swap with.';
@@ -2214,7 +2224,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminAnalyticsNotice =>
-      'Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.';
+      'Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Activity events are kept for 12 months, so tracked counts describe retained activity, not lifetime history; Last seen is kept beyond that window. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.';
 
   @override
   String get adminAuditTab => 'Audit Log';
@@ -2260,7 +2270,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminMetricActiveDays => 'Active days';
 
   @override
-  String get adminMetricSessions => 'Sessions';
+  String get adminMetricSessions => 'Tracked sessions';
 
   @override
   String get adminMetricPlatforms => 'Platforms';
@@ -2315,6 +2325,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminEventPublicLinkOpened => 'Public link opened';
+
+  @override
+  String get adminEventViewedOwnProfile => 'Viewed own profile';
+
+  @override
+  String adminEventViewedPlayerProfile(String player) {
+    return 'Viewed player profile — $player';
+  }
+
+  @override
+  String get adminEventViewedPlayerStatistics => 'Viewed player statistics';
+
+  @override
+  String adminEventViewedPlayerStatisticsOf(String player) {
+    return 'Viewed player statistics — $player';
+  }
+
+  @override
+  String get adminEventSharedPlayerProfile => 'Shared player profile';
+
+  @override
+  String get adminEventSharedPlayerStatistics => 'Shared player statistics';
+
+  @override
+  String get adminEventSharedCommunity => 'Shared community';
+
+  @override
+  String get adminEventSharedMatch => 'Shared match';
+
+  @override
+  String get adminEventSharedLineup => 'Shared lineup';
+
+  @override
+  String get adminEventSharedResult => 'Shared result';
 
   @override
   String get adminDrilldownEmpty => 'No records for this metric.';

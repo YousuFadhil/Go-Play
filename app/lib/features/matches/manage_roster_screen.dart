@@ -65,11 +65,12 @@ class ManageRosterScreen extends StatefulWidget {
   /// Separate from [canRemove] because the two answer to separate rules.
   /// `admin_add_player_to_match` (migration `0045`) calls
   /// `register_player_in_match` with `p_enforce_time_lock => false`: an owner
-  /// or admin adds somebody in every ordinary match state, a completed one
-  /// included, and the database has allowed exactly that all along. Folding the
-  /// answer into [canRemove] hid a control the server would have honoured —
-  /// which is what left a completed match offering to add a Professional Guest
-  /// but not a community player.
+  /// or admin adds somebody to a match still to come or already under way,
+  /// where a player registering themselves is locked out at kickoff. Since
+  /// migration `0091` the database refuses it once the match has been played
+  /// (`MATCH_CLOSED`) — who played is then corrected on the Teams screen.
+  /// Folding the answer into [canRemove] hid a control the server would have
+  /// honoured.
   ///
   /// Everything the server enforces about the player being added still applies
   /// and is still the server's to enforce: community membership, the duplicate
@@ -563,10 +564,9 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
       ),
     );
     if (picked == null || picked.isEmpty || !mounted) return;
-    // The sheet was open while the clock ran. `admin_add_player_to_match` turns
-    // the time lock off deliberately, so the database would accept these onto a
-    // match that has since finished -- as registrations with no factual lineup
-    // row, which is the state this feature exists to stop producing.
+    // The sheet was open while the clock ran. Since migration `0091` the
+    // database refuses these onto a match that has since finished
+    // (`MATCH_CLOSED`); asking first saves the organizer a batch of refusals.
     if (_refuseIfPlayed(l10n)) return;
 
     setState(() => _busy = true);

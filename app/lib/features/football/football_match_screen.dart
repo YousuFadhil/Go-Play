@@ -9,7 +9,6 @@ import '../analytics/analytics_service.dart';
 import '../profile/player_identity.dart';
 import '../results/match_result_card.dart';
 import '../sharing/share_card_flow.dart';
-import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import '../teams/match_stage.dart';
@@ -190,7 +189,6 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
       communityId: match.communityId,
       message: ShareMessage(
         text: l10n.shareTextMatchResult(match.displayName),
-        url: PublicLink.format(PublicLinkKind.match, widget.matchId),
       ),
       shareType: ShareType.result,
       source: ShareSource.matchResult,
