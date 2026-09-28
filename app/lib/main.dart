@@ -6,6 +6,7 @@ import 'core/config.dart';
 import 'core/config_error_app.dart';
 import 'core/locale_controller.dart';
 import 'features/notifications/push_service.dart';
+import 'features/runtime/client_runtime_reporter.dart';
 import 'infrastructure/supabase/supabase_bootstrap.dart';
 
 Future<void> main() async {
@@ -29,6 +30,11 @@ Future<void> main() async {
   }
 
   await SupabaseBootstrap.initialize();
+
+  // Production-only operational evidence (Wave 4): one run for this process
+  // and its uncaught errors. Never awaited, never blocking, and a no-op in
+  // staging, debug and local builds.
+  ClientRuntimeReporter.instance.start();
 
   // Follows the session from here on: registers this device when somebody signs
   // in, forgets it when they sign out. Returns as soon as it is listening —

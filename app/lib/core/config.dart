@@ -29,6 +29,22 @@ class AppConfig {
     defaultValue: 'https://go-play-44y.pages.dev',
   );
 
+  /// Which deployment this build is: `production`, `staging`, or empty for a
+  /// local/unconfigured build. Injected by the deployment workflows.
+  ///
+  /// Client runtime evidence is sent **only** when this is `production`, so a
+  /// staging or local build never writes operational telemetry into the shared
+  /// live database (Wave 4).
+  static const String deploymentEnvironment =
+      String.fromEnvironment('GOPLAY_DEPLOYMENT_ENV');
+
+  /// The app version the workflow read from `pubspec.yaml`; empty locally.
+  static const String appVersion = String.fromEnvironment('GOPLAY_APP_VERSION');
+
+  /// The exact commit the workflow built (`git rev-parse HEAD`); empty
+  /// locally.
+  static const String buildSha = String.fromEnvironment('GOPLAY_BUILD_SHA');
+
   /// Fail-fast validation: both values present and the URL has a real host.
   static bool get isValid {
     if (supabaseAnonKey.isEmpty) return false;
