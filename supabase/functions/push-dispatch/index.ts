@@ -9,9 +9,15 @@
 // is a migration; changing how a push is transported is a deploy. Keeping those
 // two separate is the whole point of the split.
 //
-// No queue, no retry, no delivery log. A push that fails is a push that did not
-// arrive — the notice is already committed to the Notification Center, which is
-// the source of truth, so nothing is lost that anyone can act on.
+// No queue and no retry. A push that fails is a push that did not arrive — the
+// notice is already committed to the Notification Center, which is the source
+// of truth, so nothing is lost that anyone can act on.
+//
+// Since Wave 4 each terminal outcome is also recorded, best-effort, as one row
+// of transport evidence (`record_push_dispatch_outcome_v1`, migration `0090`):
+// the outcome, the registry priority and the device counts — never a token, the
+// notice text, the recipient or a Firebase response. Recording it can fail
+// without changing anything this function does or answers.
 //
 // Invoked by an `after insert` trigger on `public.notifications` via pg_net.
 //
@@ -159,9 +165,9 @@ async function loadPayload(notificationId: string): Promise<DispatchPayload | nu
 
 /// Forgets a device Firebase has told us no longer exists.
 ///
-/// Not delivery tracking — there is none. A token that FCM reports as
-/// unregistered is an uninstalled app or a reset device, and keeping it would
-/// mean sending to it forever.
+/// Not delivery tracking. A token that FCM reports as unregistered is an
+/// uninstalled app or a reset device, and keeping it would mean sending to it
+/// forever.
 async function forgetToken(token: string): Promise<void> {
   await fetch(
     `${SUPABASE_URL}/rest/v1/notification_push_tokens?token=eq.${encodeURIComponent(token)}`,
@@ -173,6 +179,98 @@ async function forgetToken(token: string): Promise<void> {
       },
     },
   );
+}
+
+// ---------------------------------------------------------------------------
+// Outcome evidence (Wave 4)
+// ---------------------------------------------------------------------------
+
+type PushOutcome =
+  | "not_found"
+  | "suppressed"
+  | "no_devices"
+  | "unrenderable"
+  | "dispatched"
+  | "internal_error";
+
+interface OutcomeEvidence {
+  outcome: PushOutcome;
+  priority?: string | null;
+  tokenCount?: number;
+  sent?: number;
+  stale?: number;
+  failed?: number;
+}
+
+/// The registry's priorities (migration `0036`). The payload reports an
+/// unregistered type as `"unregistered"`, which is not a priority, so it is
+/// recorded as unknown rather than stored.
+const REGISTRY_PRIORITIES = new Set(["high", "medium", "low"]);
+
+/// How long recording may take before it is abandoned. Bounds the only thing
+/// this adds to an invocation; it is not a retry.
+const OUTCOME_TIMEOUT_MS = 3000;
+
+/// Records one terminal outcome as transport evidence. **Never throws.**
+///
+/// Best effort, by rule: a failure here is logged by status or error name only
+/// — never a token, a notice or a response body — and changes nothing about the
+/// push or the response the caller receives. No retry, no queue.
+async function recordOutcome(
+  notificationId: string,
+  evidence: OutcomeEvidence,
+): Promise<void> {
+  try {
+    const priority =
+      evidence.priority && REGISTRY_PRIORITIES.has(evidence.priority)
+        ? evidence.priority
+        : null;
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/rpc/record_push_dispatch_outcome_v1`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({
+          p_notification_id: notificationId,
+          p_outcome: evidence.outcome,
+          p_priority: priority,
+          p_token_count: evidence.tokenCount ?? 0,
+          p_sent_count: evidence.sent ?? 0,
+          p_stale_count: evidence.stale ?? 0,
+          p_failed_count: evidence.failed ?? 0,
+        }),
+        signal: AbortSignal.timeout(OUTCOME_TIMEOUT_MS),
+      },
+    );
+    if (!response.ok) {
+      console.error(`push outcome evidence not recorded (${response.status})`);
+    }
+    await response.body?.cancel();
+  } catch (error) {
+    console.error(
+      `push outcome evidence not recorded (${
+        error instanceof Error ? error.name : "unknown"
+      })`,
+    );
+  }
+}
+
+/// Records [evidence], then returns [response] exactly as it was built.
+///
+/// Every terminal branch below returns through this, once — which is what
+/// makes "one evidence write per outcome" a property of the code rather than
+/// something each branch has to remember.
+async function conclude(
+  notificationId: string,
+  evidence: OutcomeEvidence,
+  response: Response,
+): Promise<Response> {
+  await recordOutcome(notificationId, evidence);
+  return response;
 }
 
 // ---------------------------------------------------------------------------
@@ -369,41 +467,93 @@ Deno.serve(async (request) => {
     return new Response(String(error), { status: 400 });
   }
 
+  // Held outside the `try` so an internal failure after loading can still say
+  // which priority and how many devices it was dealing with.
+  let payload: DispatchPayload | null = null;
+
   try {
-    const payload = await loadPayload(notificationId);
+    payload = await loadPayload(notificationId);
 
     // Not an error in either case. A notice can be deleted between the trigger
     // firing and this running, and a notice the policy says not to push is the
     // ordinary outcome for every low-priority type.
-    if (!payload) return Response.json({ status: "not_found" });
+    if (!payload) {
+      return await conclude(
+        notificationId,
+        { outcome: "not_found" },
+        Response.json({ status: "not_found" }),
+      );
+    }
     if (!payload.should_push) {
-      return Response.json({ status: "suppressed", priority: payload.priority });
+      return await conclude(
+        notificationId,
+        {
+          outcome: "suppressed",
+          priority: payload.priority,
+          // Optional, because this branch never needed the tokens before and
+          // recording them must not be what makes it fail.
+          tokenCount: payload.tokens?.length ?? 0,
+        },
+        Response.json({ status: "suppressed", priority: payload.priority }),
+      );
     }
     if (payload.tokens.length === 0) {
-      return Response.json({ status: "no_devices" });
+      return await conclude(
+        notificationId,
+        { outcome: "no_devices", priority: payload.priority },
+        Response.json({ status: "no_devices" }),
+      );
     }
     // Unreachable while `push_title` is NOT NULL and only registered types are
     // pushed. Checked rather than assumed, because the alternative to a title
     // is a title this file made up — and that is precisely the coupling the
     // registry exists to prevent.
     if (!payload.title || !payload.body) {
-      return Response.json({ status: "unrenderable", type: payload.type });
+      return await conclude(
+        notificationId,
+        {
+          outcome: "unrenderable",
+          priority: payload.priority,
+          tokenCount: payload.tokens.length,
+        },
+        Response.json({ status: "unrenderable", type: payload.type }),
+      );
     }
 
     const account = serviceAccount();
     const bearer = await accessToken(account);
+    // Stale tokens are forgotten inside `send`, before anything is recorded.
+    const loaded = payload;
     const results = await Promise.all(
-      payload.tokens.map((token) => send(account, bearer, token, payload)),
+      loaded.tokens.map((token) => send(account, bearer, token, loaded)),
     );
 
-    return Response.json({
-      status: "dispatched",
-      sent: results.filter((r) => r === "sent").length,
-      stale: results.filter((r) => r === "stale").length,
-      failed: results.filter((r) => r === "failed").length,
-    });
+    const sent = results.filter((r) => r === "sent").length;
+    const stale = results.filter((r) => r === "stale").length;
+    const failed = results.filter((r) => r === "failed").length;
+
+    return await conclude(
+      notificationId,
+      {
+        outcome: "dispatched",
+        priority: loaded.priority,
+        tokenCount: loaded.tokens.length,
+        sent,
+        stale,
+        failed,
+      },
+      Response.json({ status: "dispatched", sent, stale, failed }),
+    );
   } catch (error) {
     console.error(error);
-    return new Response(String(error), { status: 500 });
+    return await conclude(
+      notificationId,
+      {
+        outcome: "internal_error",
+        priority: payload?.priority ?? null,
+        tokenCount: payload?.tokens?.length ?? 0,
+      },
+      new Response(String(error), { status: 500 }),
+    );
   }
 });

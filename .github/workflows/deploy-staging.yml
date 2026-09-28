@@ -36,11 +36,34 @@ jobs:
     # Environment secrets are visible only to a job that names the environment.
     # `staging` holds its own Supabase and Cloudflare values.
     environment: staging
+    env:
+      # Wave 4. What this deployment is, for the build and the smoke check.
+      # `staging` keeps client runtime telemetry off: only a production build
+      # writes it to the shared live database.
+      DEPLOYMENT_ENV: staging
+      # Where a shared link built by this bundle points, and the primary URL the
+      # smoke check reads. Not a secret, and stated here rather than in the
+      # environment so the address a staging card carries is reviewable in the
+      # file. Without it the app falls back to `AppConfig.publicWebBase`'s
+      # default — the production site — and a card shared from staging would
+      # send its recipient to production.
+      PUBLIC_WEB_BASE: https://go-play-staging.pages.dev
     steps:
       - name: Check out the ref being deployed
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.source_ref }}
+
+      # The build identity: the version from pubspec.yaml and the commit that
+      # was actually checked out for `source_ref`.
+      - name: Derive the build identity
+        run: |
+          APP_VERSION="$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | head -n 1 | tr -d '[:space:]')"
+          BUILD_SHA="$(git rev-parse HEAD)"
+          test -n "$APP_VERSION" || { echo "::error::no version in app/pubspec.yaml"; exit 1; }
+          echo "$BUILD_SHA" | grep -Eq '^[0-9a-f]{40}$' || { echo "::error::checked-out HEAD is not a commit SHA"; exit 1; }
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_SHA=$BUILD_SHA" >> "$GITHUB_ENV"
 
       # Fail before the build rather than after the deployment: a missing value
       # otherwise produces a green run and a site showing the "Supabase
@@ -75,18 +98,14 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          # Where a shared link built by this bundle points. Not a secret, and
-          # stated here rather than in the environment so the address a staging
-          # card carries is reviewable in the file. Without it the app falls
-          # back to `AppConfig.publicWebBase`'s default — the production site —
-          # and a card shared from staging would send its recipient to
-          # production.
-          PUBLIC_WEB_BASE: https://go-play-staging.pages.dev
         run: |
           flutter build web --release \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
-            --dart-define=PUBLIC_WEB_BASE="$PUBLIC_WEB_BASE"
+            --dart-define=PUBLIC_WEB_BASE="$PUBLIC_WEB_BASE" \
+            --dart-define=GOPLAY_DEPLOYMENT_ENV="$DEPLOYMENT_ENV" \
+            --dart-define=GOPLAY_APP_VERSION="$APP_VERSION" \
+            --dart-define=GOPLAY_BUILD_SHA="$BUILD_SHA"
 
       # The build succeeds whether or not the values were compiled in, so the
       # bundle is checked rather than trusted. `grep -q` prints nothing, so no
@@ -106,6 +125,17 @@ jobs:
           grep -q 'v_completed_matches' app/build/web/main.dart.js \
             || { echo "::error::bundle predates 0b3fb0f — stale build, refusing to deploy"; exit 1; }
 
+      # Published with the site, so the smoke check below can prove the primary
+      # URL serves exactly this commit. Version, commit and environment only.
+      - name: Record the build identity in the published site
+        working-directory: app
+        run: |
+          dart run tool/release_gate.dart write-build-info \
+            --out build/web/build-info.json \
+            --version "$APP_VERSION" \
+            --sha "$BUILD_SHA" \
+            --environment "$DEPLOYMENT_ENV"
+
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
@@ -117,3 +147,16 @@ jobs:
           # preview. The project must already exist; a wrong name fails the run
           # instead of silently creating a second, empty project.
           command: pages deploy app/build/web --project-name=go-play-staging --branch=staging
+
+      # After publication: the primary URL must serve this exact build -- `/`,
+      # the bootstrap, the bundle and `build-info.json` answer 200, the SHA and
+      # environment match, the bundle carries the Supabase URL and no
+      # service_role. Bounded retries; a failure fails the run for review and
+      # rolls nothing back.
+      - name: Smoke-check the published site
+        working-directory: app
+        run: |
+          dart run tool/release_gate.dart smoke \
+            --url "$PUBLIC_WEB_BASE" \
+            --sha "$BUILD_SHA" \
+            --environment "$DEPLOYMENT_ENV"

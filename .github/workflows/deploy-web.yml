@@ -45,9 +45,40 @@ jobs:
     # and the run fails at "Require the build configuration" — which is what
     # happened on the first run.
     environment: github-pages
+    env:
+      # Wave 4. The one statement of what this deployment is and where it is
+      # served: both the build and the post-deploy smoke check read these.
+      # `PUBLIC_WEB_BASE` is the current production address -- the value
+      # `AppConfig.publicWebBase` already defaults to -- stated here once so no
+      # second copy is needed for the smoke check.
+      DEPLOYMENT_ENV: production
+      PUBLIC_WEB_BASE: https://go-play-44y.pages.dev
     steps:
+      # Wave 4 release integrity: production is published from `main` only.
+      # A push to main and a manual run started from main both pass. A manual
+      # run started from any other branch or ref fails here -- visibly, before
+      # anything is checked out, built or published -- rather than being
+      # skipped as though nothing had been asked.
+      - name: Require the main branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::production deploys only from refs/heads/main; this run is on $GITHUB_REF"
+            exit 1
+          fi
+
       - name: Check out the commit being deployed
         uses: actions/checkout@v4
+
+      # The build identity: the version from pubspec.yaml and the commit that
+      # was actually checked out, not the one that triggered the run.
+      - name: Derive the build identity
+        run: |
+          APP_VERSION="$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | head -n 1 | tr -d '[:space:]')"
+          BUILD_SHA="$(git rev-parse HEAD)"
+          test -n "$APP_VERSION" || { echo "::error::no version in app/pubspec.yaml"; exit 1; }
+          echo "$BUILD_SHA" | grep -Eq '^[0-9a-f]{40}$' || { echo "::error::checked-out HEAD is not a commit SHA"; exit 1; }
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_SHA=$BUILD_SHA" >> "$GITHUB_ENV"
 
       # Fail before the build rather than after the deployment. Without this a
       # missing secret produces a green run and a broken site — the exact
@@ -113,7 +144,11 @@ jobs:
             --dart-define=FIREBASE_WEB_APP_ID="$FIREBASE_WEB_APP_ID" \
             --dart-define=FIREBASE_MESSAGING_SENDER_ID="$FIREBASE_MESSAGING_SENDER_ID" \
             --dart-define=FIREBASE_PROJECT_ID="$FIREBASE_PROJECT_ID" \
-            --dart-define=FIREBASE_WEB_VAPID_KEY="$FIREBASE_WEB_VAPID_KEY"
+            --dart-define=FIREBASE_WEB_VAPID_KEY="$FIREBASE_WEB_VAPID_KEY" \
+            --dart-define=PUBLIC_WEB_BASE="$PUBLIC_WEB_BASE" \
+            --dart-define=GOPLAY_DEPLOYMENT_ENV="$DEPLOYMENT_ENV" \
+            --dart-define=GOPLAY_APP_VERSION="$APP_VERSION" \
+            --dart-define=GOPLAY_BUILD_SHA="$BUILD_SHA"
 
       # The build above succeeds whether or not the values were compiled in, so
       # the bundle is checked rather than trusted. `grep -q` prints nothing, so
@@ -133,6 +168,17 @@ jobs:
           # Statistics count read zero while the database held two.
           grep -q 'v_completed_matches' app/build/web/main.dart.js \
             || { echo "::error::bundle predates 0b3fb0f — stale build, refusing to deploy"; exit 1; }
+
+      # Published with the site, so the smoke check below can prove the primary
+      # URL serves exactly this commit. Version, commit and environment only.
+      - name: Record the build identity in the published site
+        working-directory: app
+        run: |
+          dart run tool/release_gate.dart write-build-info \
+            --out build/web/build-info.json \
+            --version "$APP_VERSION" \
+            --sha "$BUILD_SHA" \
+            --environment "$DEPLOYMENT_ENV"
 
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -160,3 +206,16 @@ jobs:
           # create one, so a wrong name fails the run instead of silently
           # publishing to a second, empty project.
           command: pages deploy app/build/web --project-name=go-play --branch=main
+
+      # After publication: the primary URL must serve this exact build -- `/`,
+      # the bootstrap, the bundle and `build-info.json` answer 200, the SHA and
+      # environment match, the bundle carries the Supabase URL and no
+      # service_role. Bounded retries; a failure fails the run for review and
+      # rolls nothing back.
+      - name: Smoke-check the published site
+        working-directory: app
+        run: |
+          dart run tool/release_gate.dart smoke \
+            --url "$PUBLIC_WEB_BASE" \
+            --sha "$BUILD_SHA" \
+            --environment "$DEPLOYMENT_ENV"

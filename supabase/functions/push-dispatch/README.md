@@ -43,6 +43,35 @@ where id = true;
 `pg_net` must be enabled on the project (**Database → Extensions → pg_net**).
 The migration attempts to enable it and carries on if it cannot.
 
+## Outcome evidence
+
+Each invocation that gets past the secret and body checks records **one**
+terminal outcome through `record_push_dispatch_outcome_v1` (migration `0090`,
+service role only) into `public.push_dispatch_outcomes`:
+
+| Outcome          | Meaning                                              |
+|------------------|------------------------------------------------------|
+| `not_found`      | the notice no longer exists                          |
+| `suppressed`     | the policy says not to push this notice              |
+| `no_devices`     | the recipient has no registered device               |
+| `unrenderable`   | the registry has no title/body for the type          |
+| `dispatched`     | sent to every device: `sent` + `stale` + `failed`    |
+| `internal_error` | the invocation failed and answered HTTP 500          |
+
+Only the notification id, the registry priority (`high`/`medium`/`low`, or
+null when unknown) and device counts are stored — never a push token, the
+notice text, the recipient or a Firebase response. There is no foreign key to
+`notifications`; the Notification Center stays the source of truth.
+
+Recording is best-effort: it is bounded by a short timeout, logged by status
+only when it fails, never retried, and never changes the push, the stale-token
+cleanup or the response. Requests refused by the secret or body checks are not
+recorded — they carry no notification id worth trusting.
+
+OI-05 **FCM Acceptance Rate** = `sent / (sent + stale + failed)` over
+`dispatched` rows. `sent` means Firebase accepted the message, not that a
+device displayed it.
+
 ## Turning push off
 
 ```sql
