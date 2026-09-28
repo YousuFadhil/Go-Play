@@ -210,6 +210,27 @@ void main() {
           contains('PUBLIC_WEB_BASE: https://go-play-staging.pages.dev'));
     });
 
+    test('staging rejects the production public base without requiring its own in the bundle', () {
+      expect(
+        staging,
+        contains("if grep -q 'go-play-44y\\.pages\\.dev' app/build/web/main.dart.js; then"),
+      );
+      expect(
+        staging,
+        contains('::error::staging bundle carries the production public link base'),
+      );
+      expect(
+        staging,
+        isNot(contains("grep -q 'go-play-staging\\.pages\\.dev' app/build/web/main.dart.js")),
+      );
+      // The staging URL remains the explicit deployment/smoke base even when
+      // tree-shaking removes it from main.dart.js because sharing is text-only.
+      expect(
+        staging,
+        contains('PUBLIC_WEB_BASE: https://go-play-staging.pages.dev'),
+      );
+    });
+
     test('write build-info.json after the build and before publishing', () {
       for (final MapEntry(key: name, value: yaml) in workflows.entries) {
         final build = yaml.indexOf('flutter build web --release');
