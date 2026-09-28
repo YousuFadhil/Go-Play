@@ -52,6 +52,36 @@ final _unseen = AdminUserActivitySummary(
 
 String _day(DateTime value) => DateFormat.yMMMEd('en').format(value);
 
+/// `_seen`, last observed at [lastSeenAt].
+AdminUserActivitySummary _seenAt(DateTime lastSeenAt) =>
+    AdminUserActivitySummary(
+      userId: _seen.userId,
+      fullName: _seen.fullName,
+      email: _seen.email,
+      createdAt: _seen.createdAt,
+      isActive: true,
+      lastSeenAt: lastSeenAt,
+      activeDays7d: _seen.activeDays7d,
+      activeDays30d: _seen.activeDays30d,
+      sessionsTotal: _seen.sessionsTotal,
+      platforms: _seen.platforms,
+      latestAppVersion: _seen.latestAppVersion,
+      communityCount: _seen.communityCount,
+      trackedRegistrations: _seen.trackedRegistrations,
+      matchesPlayed: _seen.matchesPlayed,
+      trackedWithdrawals: _seen.trackedWithdrawals,
+    );
+
+/// CLDR puts U+202F between a time and its meridiem.
+String _plain(String value) =>
+    value.replaceAll('\u202f', ' ').replaceAll('\u00a0', ' ');
+
+Finder _textReading(String expected) => find.byWidgetPredicate(
+    (widget) => widget is Text && _plain(widget.data ?? '') == expected);
+
+Finder _textContaining(String expected) => find.byWidgetPredicate(
+    (widget) => widget is Text && _plain(widget.data ?? '').contains(expected));
+
 void main() {
   Future<void> pumpDetail(
     WidgetTester tester,
@@ -573,6 +603,80 @@ void main() {
         find.text('Nothing has been recorded for this account yet.'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('every timestamp reads in Oman time', () {
+    testWidgets('recent activity and Last Seen: UTC 16:51 is 8:51 PM',
+        (tester) async {
+      final stored = DateTime.utc(2026, 9, 28, 16, 51);
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seenAt(stored),
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.sessionStarted.wireName,
+              createdAt: stored,
+            ),
+          ],
+        ),
+      );
+
+      // The activity row's own clock.
+      expect(_textReading('8:51 PM'), findsOneWidget);
+      // Last Seen, through the same conversion.
+      expect(_textContaining('Mon, Sep 28, 2026 • 8:51 PM'), findsOneWidget);
+      expect(_textContaining('4:51'), findsNothing);
+    });
+
+    testWidgets('after 20:00 UTC the row is dated the next Oman day',
+        (tester) async {
+      final late = DateTime.utc(2026, 9, 28, 22, 30);
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seenAt(late),
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.sessionStarted.wireName,
+              createdAt: late,
+            ),
+          ],
+        ),
+      );
+
+      expect(_textReading('2:30 AM'), findsOneWidget);
+      expect(_textContaining(_day(DateTime.utc(2026, 9, 29))), findsWidgets);
+      expect(_textContaining('Tue, Sep 29, 2026 • 2:30 AM'), findsOneWidget);
+      expect(_textContaining(_day(DateTime.utc(2026, 9, 28))), findsNothing);
+    });
+
+    testWidgets('Joined is the Oman day as well', (tester) async {
+      // 21:00 UTC on 14 Jan is already 15 Jan in Muscat.
+      final summary = AdminUserActivitySummary(
+        userId: 'u3',
+        fullName: 'Late Joiner',
+        email: 'late@example.com',
+        createdAt: DateTime.utc(2026, 1, 14, 21),
+        isActive: true,
+        activeDays7d: 0,
+        activeDays30d: 0,
+        sessionsTotal: 0,
+        platforms: const [],
+        communityCount: 0,
+        trackedRegistrations: 0,
+        matchesPlayed: 0,
+        trackedWithdrawals: 0,
+      );
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(activitySummary: summary),
+        userId: 'u3',
+      );
+
+      expect(find.text(_day(DateTime.utc(2026, 1, 15))), findsOneWidget);
+      expect(find.text(_day(DateTime.utc(2026, 1, 14))), findsNothing);
     });
   });
 

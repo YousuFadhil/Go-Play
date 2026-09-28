@@ -56,6 +56,56 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  group('the log reads in Oman time', () {
+    String plain(String value) =>
+        value.replaceAll('\u202f', ' ').replaceAll('\u00a0', ' ');
+    Finder reading(bool Function(String) test) => find.byWidgetPredicate(
+        (widget) => widget is Text && test(plain(widget.data ?? '')));
+
+    testWidgets('UTC 16:51 is 8:51 PM', (tester) async {
+      await openAudit(
+        tester,
+        FakeAdminAdapter(audit: [
+          AdminAuditEntry(
+            id: 'a9',
+            action: 'USER_SUSPENDED',
+            targetType: 'USER',
+            targetLabelSnapshot: 'Ali Al Amri',
+            createdAt: DateTime.utc(2026, 9, 28, 16, 51),
+            actorEmailSnapshot: 'admin@example.com',
+          ),
+        ]),
+      );
+
+      expect(reading((text) => text == '8:51 PM'), findsOneWidget);
+      expect(reading((text) => text.contains('4:51')), findsNothing);
+      expect(reading((text) => text.startsWith('Mon, Sep 28, 2026 · ')),
+          findsOneWidget);
+    });
+
+    testWidgets('after 20:00 UTC the entry is dated the next Oman day',
+        (tester) async {
+      await openAudit(
+        tester,
+        FakeAdminAdapter(audit: [
+          AdminAuditEntry(
+            id: 'a10',
+            action: 'USER_SUSPENDED',
+            targetType: 'USER',
+            targetLabelSnapshot: 'Ali Al Amri',
+            createdAt: DateTime.utc(2026, 9, 28, 22, 30),
+            actorEmailSnapshot: 'admin@example.com',
+          ),
+        ]),
+      );
+
+      expect(reading((text) => text == '2:30 AM'), findsOneWidget);
+      expect(reading((text) => text.startsWith('Tue, Sep 29, 2026 · ')),
+          findsOneWidget);
+      expect(reading((text) => text.contains('Sep 28')), findsNothing);
+    });
+  });
+
   group('the Audit Log is the fifth tab', () {
     testWidgets('and the four before it keep their order', (tester) async {
       await pumpAdmin(tester, FakeAdminAdapter());

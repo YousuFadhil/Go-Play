@@ -168,7 +168,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
               SectionCard(children: [
                 _DetailRow(
                   label: l10n.adminMetricJoined,
-                  value: formatMatchDay(context, summary.createdAt),
+                  value: formatMuscatMatchDay(context, summary.createdAt),
                 ),
                 _DetailRow(
                   label: l10n.adminMetricLastSeen,
@@ -177,8 +177,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   // did not state.
                   value: summary.lastSeenAt == null
                       ? _unknown
-                      : '${formatMatchDay(context, summary.lastSeenAt!)} '
-                          '• ${formatTime(context, summary.lastSeenAt!)}',
+                      : '${formatMuscatMatchDay(context, summary.lastSeenAt!)} '
+                          '• ${formatMuscatTime(context, summary.lastSeenAt!)}',
                   unknown: summary.lastSeenAt == null,
                 ),
                 _DetailRow(
@@ -405,7 +405,7 @@ class _ActivityRow extends StatelessWidget {
               ),
               const SizedBox(width: Gap.sm),
               Text(
-                formatTime(context, event.createdAt),
+                formatMuscatTime(context, event.createdAt),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -414,7 +414,8 @@ class _ActivityRow extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            [formatMatchDay(context, event.createdAt), ...context_].join(' · '),
+            [formatMuscatMatchDay(context, event.createdAt), ...context_]
+                .join(' · '),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

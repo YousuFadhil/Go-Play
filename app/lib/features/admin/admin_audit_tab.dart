@@ -143,14 +143,14 @@ class _AuditRow extends StatelessWidget {
               ),
               const SizedBox(width: Gap.sm),
               Text(
-                formatTime(context, entry.createdAt),
+                formatMuscatTime(context, entry.createdAt),
                 style: theme.textTheme.bodySmall?.copyWith(color: muted),
               ),
             ],
           ),
           const SizedBox(height: Gap.xs),
           Text(
-            '${formatMatchDay(context, entry.createdAt)} · $actor',
+            '${formatMuscatMatchDay(context, entry.createdAt)} · $actor',
             style: theme.textTheme.bodySmall?.copyWith(color: muted),
           ),
           // Present for a suspension and absent for a reactivation, which is
