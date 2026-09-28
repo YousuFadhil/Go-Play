@@ -65,13 +65,34 @@
 --                         only market and the form composes exactly this.
 --   * `primary_position`  one of GK, DEF, MID, FWD. Absent is no longer `MID`.
 --   * `date_of_birth`     an ISO `YYYY-MM-DD` that is a real date, no earlier
---                         than the date picker's own floor (1900-01-01) and not
---                         after tomorrow. The one day of slack is time zones:
---                         the form validates against the device's date and the
---                         database against UTC, and a player in Oman is a day
---                         ahead for several hours of every day.
+--                         than the date picker's own floor (1900-01-01) and
+--                         **never after today's date in Oman**. See below.
 --   * `secondary_position`  optional; when present, one of the four and not the
 --                         primary (`BTGE-SC-6`).
+--
+-- ### Why the date of birth is checked against the Oman calendar date
+--
+-- A date of birth cannot be in the future. "The future" needs a calendar, and
+-- this product has one: Oman's. The bound is therefore
+-- `(now() at time zone 'Asia/Muscat')::date`, stated explicitly in both places
+-- it is applied.
+--
+-- Neither database clock is the answer. `current_date` is the server's, which is
+-- UTC and four hours *behind* Oman, so it would refuse Oman's own today for the
+-- first four hours of every Oman day. Adding a day to it "to be safe" fixes that
+-- by accepting tomorrow -- a date that, in Oman, has not happened -- for the rest
+-- of the day, which is exactly the rule being broken. So the Oman date is used
+-- as it is, with no slack in either direction:
+--
+--     Oman today      valid
+--     Oman tomorrow   invalid
+--     before 1900-01-01   invalid
+--
+-- The registration form checks against the *device's* date, and a device in a
+-- zone ahead of Oman can for a few hours pick a date that is already tomorrow
+-- here. That is refused, and rightly: it is the same rule stated by the one
+-- calendar that counts. For the trigger it means no profile is created and the
+-- player is taken to the profile screen; for the RPC it is `INVALID_DATE_OF_BIRTH`.
 --
 -- The name rule is "not blank" and not the two-character floor the profile
 -- screen applies. The registration form has only ever asked for non-empty, and
@@ -101,6 +122,8 @@ declare
   v_secondary text := nullif(btrim(coalesce(v_meta ->> 'secondary_position', '')), '');
   v_dob_text text := btrim(coalesce(v_meta ->> 'date_of_birth', ''));
   v_dob date;
+  -- Today in Oman, and only that: see the note above section 1's checks.
+  v_today date := (now() at time zone 'Asia/Muscat')::date;
 begin
   if v_name = '' then
     return new;
@@ -129,7 +152,7 @@ begin
   exception when others then
     return new;
   end;
-  if v_dob < date '1900-01-01' or v_dob > current_date + 1 then
+  if v_dob < date '1900-01-01' or v_dob > v_today then
     return new;
   end if;
 
@@ -260,7 +283,8 @@ grant execute on function public.get_my_account_state() to authenticated;
 --                           floor the profile screen applies to a name.
 --   INVALID_PHONE           not `+968` and eight digits.
 --   INVALID_DATE_OF_BIRTH   absent, impossible, before 1900-01-01 or after
---                           tomorrow (see section 1 for the day of slack).
+--                           today's date in Oman (see the note above section 1's
+--                           checks for why that calendar and no slack).
 --   INVALID_POSITION        primary not one of the four; secondary present and
 --                           not one of the four, or equal to the primary.
 create or replace function public.complete_my_player_profile(
@@ -281,6 +305,8 @@ declare
   v_phone text := btrim(coalesce(p_phone, ''));
   v_primary text := btrim(coalesce(p_primary_position, ''));
   v_secondary text := nullif(btrim(coalesce(p_secondary_position, '')), '');
+  -- Today in Oman, and only that.
+  v_today date := (now() at time zone 'Asia/Muscat')::date;
 begin
   if v_uid is null then
     raise exception 'NOT_AUTHENTICATED';
@@ -300,7 +326,7 @@ begin
   end if;
   if p_date_of_birth is null
      or p_date_of_birth < date '1900-01-01'
-     or p_date_of_birth > current_date + 1 then
+     or p_date_of_birth > v_today then
     raise exception 'INVALID_DATE_OF_BIRTH';
   end if;
   if v_primary not in ('GK', 'DEF', 'MID', 'FWD') then

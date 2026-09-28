@@ -122,7 +122,7 @@ void main() {
       expect(body, contains('v_secondary = v_primary'));
       expect(body, contains("v_dob_text !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}\$'"));
       expect(body, contains("date '1900-01-01'"));
-      expect(body, contains('current_date + 1'));
+      expect(body, contains('v_dob > v_today'));
       expect(body.indexOf('insert into'),
           greaterThan(body.indexOf("date '1900-01-01'")),
           reason: 'the insert comes after every check');
@@ -302,7 +302,7 @@ void main() {
       expect(body, contains("raise exception 'INVALID_PHONE'"));
       expect(body, contains('p_date_of_birth is null'));
       expect(body, contains("date '1900-01-01'"));
-      expect(body, contains('current_date + 1'));
+      expect(body, contains('p_date_of_birth > v_today'));
       expect(body, contains("raise exception 'INVALID_DATE_OF_BIRTH'"));
       expect(body, contains("v_primary not in ('GK', 'DEF', 'MID', 'FWD')"));
       expect(body, contains("v_secondary not in ('GK', 'DEF', 'MID', 'FWD')"));
@@ -316,6 +316,54 @@ void main() {
       expect(flat, contains('grant execute on function $signature to authenticated;'));
       expect(flat, isNot(matches(RegExp(
           r'grant execute on function public\.complete_my_player_profile\([^)]*\) to [^;]*\b(anon|public)\b'))));
+    });
+  });
+
+  group('the date of birth is never in the future, by the Oman calendar', () {
+    const omanToday = "(now() at time zone 'Asia/Muscat')::date";
+
+    test('both functions bound it by today in Oman, explicitly', () {
+      for (final name in [
+        'handle_new_user',
+        'complete_my_player_profile',
+      ]) {
+        expect(flatFunction(name), contains('v_today date := $omanToday'),
+            reason: name);
+      }
+    });
+
+    test('and by nothing looser: no server clock, no day of slack', () {
+      expect(flat, isNot(contains('current_date')),
+          reason: 'UTC is four hours behind Oman, so it refuses the Omani '
+              'today early in the day, and adding a day to compensate accepts '
+              'Oman tomorrow for the rest of it');
+      expect(flat, isNot(matches(RegExp(r'v_today\s*\+'))));
+      expect(flat, isNot(matches(RegExp(r'>\s*v_today\s*\+'))));
+      expect(flat, isNot(contains('+ interval')));
+    });
+
+    test('the comparison is strictly "after today": today is valid, tomorrow '
+        'is not', () {
+      expect(flatFunction('handle_new_user'), contains('v_dob > v_today'));
+      expect(flatFunction('complete_my_player_profile'),
+          contains('p_date_of_birth > v_today'));
+      expect(flatFunction('handle_new_user'), isNot(contains('v_dob >= v_today')));
+      expect(flatFunction('complete_my_player_profile'),
+          isNot(contains('p_date_of_birth >= v_today')));
+    });
+
+    test('the lower bound is still the floor of the date picker', () {
+      for (final name in [
+        'handle_new_user',
+        'complete_my_player_profile',
+      ]) {
+        expect(flatFunction(name), contains("date '1900-01-01'"), reason: name);
+      }
+    });
+
+    test('the migration explains why, so it is not "fixed" later', () {
+      expect(sql, contains('Oman tomorrow   invalid'));
+      expect(sql, contains('Oman today      valid'));
     });
   });
 
