@@ -842,6 +842,208 @@ void main() {
       }
     });
   });
+
+  // --- Swap positions (UAT round 1) --------------------------------------------
+  //
+  // The counterpart of a swap: two participants on the SAME side exchange the
+  // positions they are playing, and neither changes team.
+  group('swap positions within a team', () {
+    /// u1 and u2 on A, u3 and u4 on B.
+    List<TeamAssignment> sides() => [
+          at('u1', TeamId.a, Position.def),
+          at('u2', TeamId.a, Position.fwd),
+          at('u3', TeamId.b, Position.mid),
+          at('u4', TeamId.b, Position.fwd),
+        ];
+
+    test('exchanges the two positions and keeps both sides', () async {
+      final adapter = FakeTeamAdapter(lineup: sides());
+
+      await TeamRepository(adapter)
+          .swapAssignedPositions('m1', 'u1', 'u2', completedCorrection: false);
+
+      expect(saved(adapter, 'u1').assignedPosition, Position.fwd);
+      expect(saved(adapter, 'u2').assignedPosition, Position.def);
+      expect(saved(adapter, 'u1').team, TeamId.a);
+      expect(saved(adapter, 'u2').team, TeamId.a);
+      // Nobody else moves.
+      expect(saved(adapter, 'u3').assignedPosition, Position.mid);
+      expect(saved(adapter, 'u4').assignedPosition, Position.fwd);
+      expect(saved(adapter, 'u3').team, TeamId.b);
+    });
+
+    test('is one save, never two', () async {
+      final adapter = FakeTeamAdapter(lineup: sides());
+
+      await TeamRepository(adapter)
+          .swapAssignedPositions('m1', 'u1', 'u2', completedCorrection: false);
+
+      expect(adapter.saveCount, 1);
+      expect(adapter.savedLineup, hasLength(4));
+    });
+
+    test('recomputes each basis for the new position, not by exchanging',
+        () async {
+      // u1 is a natural forward who was playing defence; u2 plays defence as
+      // a second position and was up front out of position. After the swap
+      // each is judged against their own profile.
+      final adapter = FakeTeamAdapter(
+        lineup: [
+          at('u1', TeamId.a, Position.def, basis: AssignmentBasis.transition),
+          at('u2', TeamId.a, Position.fwd, basis: AssignmentBasis.transition),
+          at('u3', TeamId.b, Position.mid),
+        ],
+        roster: [
+          profile('u1', Position.fwd),
+          profile('u2', Position.mid, secondary: Position.def),
+          profile('u3', Position.mid),
+        ],
+      );
+
+      await TeamRepository(adapter)
+          .swapAssignedPositions('m1', 'u1', 'u2', completedCorrection: false);
+
+      expect(saved(adapter, 'u1').assignedPosition, Position.fwd);
+      expect(saved(adapter, 'u1').basis, AssignmentBasis.primary);
+      expect(saved(adapter, 'u2').assignedPosition, Position.def);
+      expect(saved(adapter, 'u2').basis, AssignmentBasis.secondary);
+    });
+
+    test('a goalkeeper swap keeps one goalkeeper on the side', () async {
+      final adapter = FakeTeamAdapter(
+        lineup: [
+          at('u1', TeamId.a, Position.gk),
+          at('u2', TeamId.a, Position.def),
+          at('u3', TeamId.b, Position.gk),
+        ],
+      );
+
+      await TeamRepository(adapter)
+          .swapAssignedPositions('m1', 'u1', 'u2', completedCorrection: false);
+
+      final keepersOnA = adapter.savedLineup!
+          .where((a) => a.team == TeamId.a && a.assignedPosition == Position.gk);
+      expect(keepersOnA.map((a) => a.userId), ['u2']);
+    });
+
+    test('refuses two identical positions: there is nothing to exchange',
+        () async {
+      final adapter = FakeTeamAdapter(
+        lineup: [
+          at('u1', TeamId.a, Position.mid),
+          at('u2', TeamId.a, Position.mid),
+        ],
+      );
+
+      await expectLater(
+        TeamRepository(adapter)
+            .swapAssignedPositions('m1', 'u1', 'u2', completedCorrection: false),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.saveCount, 0);
+    });
+
+    test('refuses two players on different sides -- that is the other swap',
+        () async {
+      final adapter = FakeTeamAdapter(lineup: sides());
+
+      await expectLater(
+        TeamRepository(adapter)
+            .swapAssignedPositions('m1', 'u1', 'u3', completedCorrection: false),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.saveCount, 0);
+    });
+
+    test('refuses the same participant, and one who is not there', () async {
+      final adapter = FakeTeamAdapter(lineup: sides());
+      final teams = TeamRepository(adapter);
+
+      await expectLater(
+        teams.swapAssignedPositions('m1', 'u1', 'u1',
+            completedCorrection: false),
+        throwsA(isA<ValidationFailure>()),
+      );
+      await expectLater(
+        teams.swapAssignedPositions('m1', 'u1', 'u9',
+            completedCorrection: false),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.saveCount, 0);
+    });
+
+    test('a Professional Guest with no position cannot take part', () async {
+      final adapter = FakeTeamAdapter(
+        lineup: [
+          at('u1', TeamId.a, Position.mid),
+          guestAt('g1', TeamId.a),
+        ],
+      );
+
+      await expectLater(
+        TeamRepository(adapter)
+            .swapAssignedPositions('m1', 'u1', 'g1', completedCorrection: false),
+        throwsA(isA<ValidationFailure>()),
+      );
+    });
+
+    test('a Professional Guest with a position exchanges it, and keeps no basis',
+        () async {
+      final adapter = FakeTeamAdapter(
+        lineup: [
+          at('u1', TeamId.a, Position.mid),
+          const TeamAssignment(
+            professionalGuestId: 'g1',
+            team: TeamId.a,
+            assignedPosition: Position.def,
+            basis: null,
+          ),
+        ],
+        roster: [profile('u1', Position.def)],
+      );
+
+      await TeamRepository(adapter)
+          .swapAssignedPositions('m1', 'u1', 'g1', completedCorrection: false);
+
+      final guest = savedParticipant(adapter, 'g1');
+      expect(guest.assignedPosition, Position.mid);
+      expect(guest.basis, isNull, reason: 'the database stores GUEST');
+      expect(guest.professionalGuestId, 'g1');
+      expect(saved(adapter, 'u1').assignedPosition, Position.def);
+      expect(saved(adapter, 'u1').basis, AssignmentBasis.primary);
+    });
+
+    test('keeps the correction intent it was given, and is never a generation',
+        () async {
+      for (final correcting in [false, true]) {
+        final adapter = FakeTeamAdapter(lineup: sides());
+
+        await TeamRepository(adapter).swapAssignedPositions(
+            'm1', 'u1', 'u2',
+            completedCorrection: correcting);
+
+        expect(adapter.lastCompletedCorrection, correcting);
+        // A manual edit: no generation, so no generation evidence either --
+        // the evidence path is `save_generated_lineup_v1`, reached only from
+        // a generation.
+        expect(adapter.lastFromGeneration, isFalse);
+        expect(adapter.historyReads, 0);
+      }
+    });
+
+    test('the existing cross-team swap is unchanged by it', () async {
+      final adapter = FakeTeamAdapter(lineup: sides());
+
+      await TeamRepository(adapter)
+          .swapPlayers('m1', 'u1', 'u3', completedCorrection: false);
+
+      expect(saved(adapter, 'u1').team, TeamId.b);
+      expect(saved(adapter, 'u3').team, TeamId.a);
+      // Each keeps the position they had.
+      expect(saved(adapter, 'u1').assignedPosition, Position.def);
+      expect(saved(adapter, 'u3').assignedPosition, Position.mid);
+    });
+  });
 }
 
 extension on List<TeamAssignment> {

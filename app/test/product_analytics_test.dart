@@ -16,6 +16,7 @@ class RecordedEvent {
     this.matchId, {
     this.shareType,
     this.source,
+    this.targetUserId,
   });
 
   final ProductEvent event;
@@ -26,6 +27,10 @@ class RecordedEvent {
   /// that is not a share, which is most of them.
   final ShareType? shareType;
   final String? source;
+
+  /// The player a view was about (migration `0091`). Null on every other
+  /// event.
+  final String? targetUserId;
 }
 
 /// An analytics port that remembers, and fails on demand.
@@ -46,6 +51,7 @@ class FakeAnalyticsAdapter implements AnalyticsAdapter {
     String? matchId,
     ShareType? shareType,
     String? source,
+    String? targetUserId,
   }) async {
     if (thrown != null) throw thrown!;
     recorded.add(RecordedEvent(
@@ -54,26 +60,28 @@ class FakeAnalyticsAdapter implements AnalyticsAdapter {
       matchId,
       shareType: shareType,
       source: source,
+      targetUserId: targetUserId,
     ));
   }
 }
 
 void main() {
   group('the event model matches the database', () {
-    // `0079` is the *current* definition of both the constraint and the
-    // writer's guard: it restates all eleven names rather than appending one,
-    // so this is the file the enum has to agree with. `0067` established the
-    // first ten and is still asserted, separately, by
-    // `analytics_migration_test.dart`.
+    // `0091` is the *current* definition of both the constraint and the
+    // writer's guard: it restates every name rather than appending two, so
+    // this is the file the enum has to agree with. `0067` established the
+    // first ten and `0079` the eleventh; both are still asserted, separately,
+    // by `analytics_migration_test.dart` and `package_five_migration_test.dart`.
     final sql = File(
-      '../supabase/migrations/0079_package_five_public_sharing.sql',
+      '../supabase/migrations/0091_uat_stabilization_round1.sql',
     ).readAsStringSync().replaceAll('\r\n', '\n');
 
-    // Eleven since migration `0079` added `public_link_opened`. The number is
-    // asserted rather than the list length alone so that adding a twelfth is a
-    // deliberate edit here and not a silent one.
-    test('there are exactly eleven events', () {
-      expect(ProductEvent.values.length, 11);
+    // Thirteen since migration `0091` added `profile_viewed` and
+    // `player_statistics_viewed`. The number is asserted rather than the list
+    // length alone so that adding a fourteenth is a deliberate edit here and
+    // not a silent one.
+    test('there are exactly thirteen events', () {
+      expect(ProductEvent.values.length, 13);
     });
 
     test('every wire name is one the database accepts', () {
@@ -81,7 +89,8 @@ void main() {
       // name that satisfies the table but not the function cannot slip past.
       final check = sql.substring(
         sql.indexOf('add constraint product_events_event_name_check'),
-        sql.indexOf('comment on column public.product_events.share_type'),
+        sql.indexOf(
+            'drop constraint if exists product_events_target_shape_check'),
       );
       final guard = sql.substring(
         sql.indexOf('if p_event_name is null or p_event_name not in ('),

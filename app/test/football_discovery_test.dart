@@ -128,7 +128,7 @@ void main() {
         home: home,
       );
 
-  /// Discover opens on Upcoming Matches; Latest Results is the second tab.
+  /// Discover opens on Latest Results; Upcoming Matches is the second tab.
   ///
   /// By position rather than by label, so the helper is the same in either
   /// language, and scrolled into view first because the bar is deliberately
@@ -143,14 +143,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> openUpcoming(WidgetTester tester) => openTab(tester, 0);
+  Future<void> openUpcoming(WidgetTester tester) => openTab(tester, 1);
 
   Future<void> openCommunities(WidgetTester tester) => openTab(tester, 2);
 
   Future<void> openResults(WidgetTester tester) async {
     final tab = find
         .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
-        .at(1);
+        .at(0);
     await tester.ensureVisible(tab);
     await tester.pumpAndSettle();
     await tester.tap(tab);
@@ -236,7 +236,7 @@ void main() {
   });
 
   group('the signed-in feed', () {
-    testWidgets('shows Latest results between Upcoming and Communities',
+    testWidgets('shows Latest results first, then Upcoming and Communities',
         (tester) async {
       await pumpDiscover(
         tester,
@@ -254,13 +254,19 @@ void main() {
       expect(find.text('Latest results'), findsOneWidget);
       expect(find.text('Communities'), findsOneWidget);
 
-      final upcomingX = tester.getTopLeft(tabs.at(0)).dx;
-      final resultsX = tester.getTopLeft(tabs.at(1)).dx;
+      final resultsX = tester.getTopLeft(tabs.at(0)).dx;
+      final upcomingX = tester.getTopLeft(tabs.at(1)).dx;
       final communitiesX = tester.getTopLeft(tabs.at(2)).dx;
-      expect(upcomingX, lessThan(resultsX));
-      expect(resultsX, lessThan(communitiesX));
+      expect(resultsX, lessThan(upcomingX));
+      expect(upcomingX, lessThan(communitiesX));
+      expect(find.text('Latest results'), findsOneWidget);
+      expect(
+          (tester.widget<Tab>(tabs.at(0)).child! as Text).data, 'Latest results');
 
-      // And only the selected tab's football is on screen.
+      // And only the selected tab's football is on screen: the results, on
+      // the tab Discover opens on.
+      expect(find.byType(FootballResultCard), findsOneWidget);
+      await openUpcoming(tester);
       expect(find.byType(FootballResultCard), findsNothing);
       await openResults(tester);
       expect(find.byType(FootballResultCard), findsOneWidget);
@@ -403,8 +409,8 @@ void main() {
       List<PublicMatch> matches = const [],
       List<String> joined = const [],
       /// Which Discover tab the target lives on. Results by default, because
-      /// that is what most of this suite is about.
-      int tab = 1,
+      /// that is what most of this suite is about -- and the first tab.
+      int tab = 0,
     }) async {
       final routes = _RouteRecorder();
       await pumpDiscover(
@@ -568,7 +574,7 @@ void main() {
       );
       await openResults(tester);
 
-      // The upcoming match lives on the first tab.
+      // The upcoming match lives on the second tab.
       await openUpcoming(tester);
       await tester.tap(find.text('View match'));
       await tester.idle();
@@ -1427,7 +1433,7 @@ void main() {
           await pumpDiscover(tester, signedIn: true, results: feed(5));
           await openResults(tester);
       expect(ports.football.completedCalls, 1);
-      expect(ports.football.lastLimit, 5);
+      expect(ports.football.lastLimit, 6);
 
       await tester.tap(toggle());
       await tester.pumpAndSettle();
@@ -1438,20 +1444,20 @@ void main() {
 
       expect(ports.football.completedCalls, 2,
           reason: 'the refresh is the only new read');
-      expect(ports.football.lastLimit, 5, reason: 'and still capped at five');
+      expect(ports.football.lastLimit, 6, reason: 'and still capped at six');
 
       await tester.tap(toggle());
       await tester.pumpAndSettle();
       expect(ports.football.completedCalls, 2);
     });
 
-    testWidgets('the read is still capped at five', (tester) async {
+    testWidgets('the read is capped at the approved six', (tester) async {
       final ports =
           await pumpDiscover(tester, signedIn: true, results: feed(5));
           await openResults(tester);
 
-      expect(ports.football.lastLimit, 5,
-          reason: 'Cycle B2 changed presentation, not the read');
+      expect(ports.football.lastLimit, 6,
+          reason: 'UAT round 1 moved the recent window from five to six');
     });
 
     testWidgets('the newest result still opens from its card', (tester) async {

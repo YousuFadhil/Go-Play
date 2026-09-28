@@ -20,6 +20,9 @@ import 'package:go_play/features/discover/discover_widgets.dart';
 /// scrolling past every fixture and every result. The approved direction is
 /// one composition with three tabs — identical for both readers, with the
 /// session changing what the cards can *do* and never the shape of the page.
+///
+/// Since UAT round 1 the order is Latest Results, Upcoming Matches,
+/// Communities, and a fresh screen opens on Latest Results.
 void main() {
   PublicMatch match(String id, {String title = 'Friday five-a-side'}) =>
       PublicMatch(
@@ -58,6 +61,7 @@ void main() {
     bool signedIn = false,
     Locale locale = const Locale('en'),
     Size size = const Size(412, 1400),
+    Key? screenKey,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -65,7 +69,7 @@ void main() {
 
     final adapter = _Discover(
       matches: [match('m1'), match('m2')],
-      results: [for (var i = 1; i <= 5; i++) result('r$i', title: 'Result $i')],
+      results: [for (var i = 1; i <= 6; i++) result('r$i', title: 'Result $i')],
       communities: [community('c1', 'Al Amerat FC')],
     );
 
@@ -74,6 +78,7 @@ void main() {
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: DiscoverScreen(
+        key: screenKey,
         repository: DiscoverRepository(adapter),
         authService: AuthService(_Auth(signedIn: signedIn)),
       ),
@@ -93,8 +98,8 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  group('three tabs, and Upcoming is where it opens', () {
-    testWidgets('the control is there, with the approved three',
+  group('three tabs, and Latest Results is where it opens', () {
+    testWidgets('the control is there, with the approved three in order',
         (tester) async {
       await pump(tester);
 
@@ -104,38 +109,82 @@ void main() {
             of: find.byType(DiscoverTabs), matching: find.byType(Tab)),
         findsNWidgets(3),
       );
-      expect(find.text('Upcoming matches'), findsOneWidget);
-      expect(find.text('Latest results'), findsOneWidget);
-      expect(find.text('Communities'), findsOneWidget);
+      final labels = tester
+          .widgetList<Tab>(find.byType(Tab))
+          .map((t) => (t.child! as Text).data)
+          .toList();
+      expect(labels, ['Latest results', 'Upcoming matches', 'Communities']);
     });
 
-    testWidgets('Upcoming is selected on a fresh open', (tester) async {
-      await pump(tester);
+    for (final signedIn in [false, true]) {
+      testWidgets(
+          'Latest Results is selected on a fresh open '
+          '(${signedIn ? 'member' : 'guest'})', (tester) async {
+        await pump(tester, signedIn: signedIn);
 
-      final controller = DefaultTabController.maybeOf(
-        tester.element(find.byType(DiscoverTabs)),
-      );
-      // The screen owns its controller rather than inheriting one.
-      expect(controller, isNull);
-      expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
-    });
+        final controller = DefaultTabController.maybeOf(
+          tester.element(find.byType(DiscoverTabs)),
+        );
+        // The screen owns its controller rather than inheriting one.
+        expect(controller, isNull);
+        expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
+      });
+    }
 
     testWidgets('and only its content is on screen', (tester) async {
       await pump(tester);
 
-      expect(find.byType(CompactPublicMatchCard), findsNWidgets(2));
-      expect(find.byType(PublicResultCard), findsNothing);
+      expect(find.byType(PublicResultCard), findsNWidgets(3));
+      expect(find.byType(CompactPublicMatchCard), findsNothing);
       expect(find.byType(CompactPublicCommunityCard), findsNothing);
+    });
+
+    testWidgets('the selection is not carried into a fresh screen',
+        (tester) async {
+      await pump(tester, screenKey: UniqueKey());
+      await openTab(tester, 2);
+      expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 2);
+
+      // A new Discover, not a rebuild of the old one: nothing persisted the
+      // tab, so it opens where every fresh Discover opens.
+      await pump(tester, screenKey: UniqueKey());
+      expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
+    });
+  });
+
+  group('six latest results, three at a glance', () {
+    testWidgets('six are asked for', (tester) async {
+      final adapter = await pump(tester);
+      expect(adapter.requestedResultLimit, 6);
+      expect(DiscoverRepository.recentResults, 6);
+    });
+
+    testWidgets('three, then all six, then three again', (tester) async {
+      await pump(tester);
+      final toggle =
+          find.byKey(const Key('discoverPublicPreviousResultsToggle'));
+
+      expect(find.byType(PublicResultCard), findsNWidgets(3));
+
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.byType(PublicResultCard), findsNWidgets(6));
+
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.byType(PublicResultCard), findsNWidgets(3));
     });
   });
 
   group('each tab shows its own football', () {
-    testWidgets('Latest Results when it is asked for', (tester) async {
+    testWidgets('Upcoming Matches when it is asked for', (tester) async {
       await pump(tester);
       await openTab(tester, 1);
 
-      expect(find.byType(PublicResultCard), findsNWidgets(3));
-      expect(find.byType(CompactPublicMatchCard), findsNothing);
+      expect(find.byType(CompactPublicMatchCard), findsNWidgets(2));
+      expect(find.byType(PublicResultCard), findsNothing);
       expect(find.byType(CompactPublicCommunityCard), findsNothing);
     });
 
@@ -182,11 +231,10 @@ void main() {
     testWidgets('and the loaded results survive the round trip',
         (tester) async {
       await pump(tester);
-      await openTab(tester, 1);
       expect(find.text('Result 1'), findsOneWidget);
 
-      await openTab(tester, 0);
       await openTab(tester, 1);
+      await openTab(tester, 0);
       expect(find.text('Result 1'), findsOneWidget);
     });
   });
@@ -358,12 +406,17 @@ class _Discover implements DiscoverAdapter {
   /// time.
   int overviewCalls = 0;
 
+  /// What the last results read asked for.
+  int? requestedResultLimit;
+
   @override
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,
-    int limit = 5,
-  }) async =>
-      results;
+    int limit = 6,
+  }) async {
+    requestedResultLimit = limit;
+    return results;
+  }
 
   @override
   Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId}) async {

@@ -354,12 +354,20 @@ void main() {
         statements
             .indexOf('comment on column public.product_events.share_type'),
       );
-      for (final event in ProductEvent.values) {
+      // Every name known when `0079` was written. The two views came with
+      // `0091`, which restates the list again and is asserted there.
+      final known = [
+        for (final event in ProductEvent.values)
+          if (event != ProductEvent.profileViewed &&
+              event != ProductEvent.playerStatisticsViewed)
+            event,
+      ];
+      for (final event in known) {
         expect(constraint, contains("'${event.wireName}'"));
       }
-      // And nothing the application does not know.
+      // And nothing the application did not know then.
       final quoted = RegExp("'[a-z_]+'").allMatches(constraint).length;
-      expect(quoted, ProductEvent.values.length);
+      expect(quoted, known.length);
     });
   });
 

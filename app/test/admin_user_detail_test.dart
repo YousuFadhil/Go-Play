@@ -151,6 +151,40 @@ void main() {
       expect(event.matchTitle, isNull);
     });
 
+    test('an activity row carries the viewed player and the share detail', () {
+      final event = adminActivityEventFromRow(const {
+        'event_name': 'profile_viewed',
+        'created_at': '2026-09-03T18:30:00Z',
+        'target_user_id': 'u9',
+        'target_user_name': '  Noor Al Kindi ',
+        'share_type': null,
+        'source': null,
+      });
+      expect(event.targetUserId, 'u9');
+      expect(event.targetUserName, 'Noor Al Kindi');
+
+      final share = adminActivityEventFromRow(const {
+        'event_name': 'share_used',
+        'created_at': '2026-09-03T18:30:00Z',
+        'share_type': 'lineup',
+        'source': 'teams_screen',
+      });
+      expect(share.shareType, 'lineup');
+      expect(share.source, 'teams_screen');
+      expect(share.targetUserId, isNull);
+    });
+
+    test('a row from a database before 0091 simply has no detail', () {
+      final event = adminActivityEventFromRow(const {
+        'event_name': 'share_used',
+        'created_at': '2026-09-03T18:30:00Z',
+      });
+      expect(event.targetUserId, isNull);
+      expect(event.targetUserName, isNull);
+      expect(event.shareType, isNull);
+      expect(event.source, isNull);
+    });
+
     test('an audit entry keeps its optional fields', () {
       final entry = adminAuditEntryFromRow(const {
         'id': 'a1',
@@ -245,7 +279,8 @@ void main() {
       expect(find.text('4'), findsOneWidget);
       expect(find.text('Active days · 30 days'), findsOneWidget);
       expect(find.text('17'), findsOneWidget);
-      expect(find.text('Sessions'), findsOneWidget);
+      // Retained activity, not lifetime history (migration `0091`).
+      expect(find.text('Tracked sessions'), findsOneWidget);
       expect(find.text('63'), findsOneWidget);
       expect(find.text('Platforms'), findsOneWidget);
       expect(find.text('Android · Web'), findsOneWidget);
@@ -412,6 +447,125 @@ void main() {
       expect(find.text('something_a_later_release_records'), findsOneWidget);
     });
 
+    testWidgets('a view of their own profile reads as their own',
+        (tester) async {
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.profileViewed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 18, 30),
+              // The account the screen is about: `_seen` is u1.
+              targetUserId: 'u1',
+              targetUserName: 'Ali Al Amri',
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('Viewed own profile'), findsOneWidget);
+    });
+
+    testWidgets('a view of another player names them', (tester) async {
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.profileViewed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 18, 30),
+              targetUserId: 'u9',
+              targetUserName: 'Noor Al Kindi',
+            ),
+          ],
+        ),
+      );
+
+      expect(
+          find.text('Viewed player profile — Noor Al Kindi'), findsOneWidget);
+      expect(find.textContaining('u9'), findsNothing);
+    });
+
+    testWidgets('a deleted player keeps the event, named as gone',
+        (tester) async {
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.profileViewed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 18, 30),
+              // The LEFT JOIN found no users row: the account was deleted.
+              targetUserId: 'deadbeef-0000-0000-0000-000000000000',
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('Viewed player profile — No longer available'),
+          findsOneWidget);
+      expect(find.textContaining('deadbeef'), findsNothing);
+    });
+
+    testWidgets('a statistics view reads as one', (tester) async {
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.playerStatisticsViewed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 18, 30),
+              targetUserId: 'u1',
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('Viewed player statistics'), findsOneWidget);
+    });
+
+    testWidgets('a share says what was shared', (tester) async {
+      final labels = {
+        ShareType.playerProfile: 'Shared player profile',
+        ShareType.playerStatistics: 'Shared player statistics',
+        ShareType.community: 'Shared community',
+        ShareType.match: 'Shared match',
+        ShareType.lineup: 'Shared lineup',
+        ShareType.result: 'Shared result',
+      };
+      var minute = 0;
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            for (final type in labels.keys)
+              AdminUserActivityEvent(
+                eventName: ProductEvent.shareUsed.wireName,
+                createdAt: DateTime.utc(2026, 9, 3, 18, minute++),
+                shareType: type.wireName,
+                source: 'teams_screen',
+              ),
+            // A share recorded before its kind was, keeps the plain label.
+            AdminUserActivityEvent(
+              eventName: ProductEvent.shareUsed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 17),
+            ),
+          ],
+        ),
+      );
+
+      for (final label in labels.values) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+      expect(find.text('Share used'), findsOneWidget);
+    });
+
     testWidgets('an account with no activity says so', (tester) async {
       await pumpDetail(tester, FakeAdminAdapter(activitySummary: _seen));
 
@@ -451,8 +605,8 @@ void main() {
   });
 
   group('the analytics contract is unchanged', () {
-    test('there are exactly eleven events', () {
-      expect(ProductEvent.values.length, 11);
+    test('there are exactly thirteen events', () {
+      expect(ProductEvent.values.length, 13);
     });
 
     test('an unknown wire name resolves to null rather than throwing', () {

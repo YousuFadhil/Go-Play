@@ -81,6 +81,17 @@ void main() {
   /// Scrolled into view first, because at 320px the tab bar is deliberately
   /// scrollable rather than shrinking its labels -- so the third tab may start
   /// off screen, exactly as it does for a reader on a narrow phone.
+  /// Upcoming Matches, the second tab since Latest Results became the first.
+  Future<void> openUpcoming(WidgetTester tester) async {
+    final tab = find
+        .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+        .at(1);
+    await tester.ensureVisible(tab);
+    await tester.pumpAndSettle();
+    await tester.tap(tab);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> openCommunities(WidgetTester tester) async {
     // By position, not by label: the Arabic build says `المجتمعات`, and a
     // helper that only knows the English word would silently skip the RTL
@@ -113,6 +124,9 @@ void main() {
     // adapter has not answered yet and the pump does not wait for it.
     Duration? delay,
     bool settle = true,
+    // Which tab to show once loaded. Discover opens on Latest Results (0);
+    // most of this suite is about the fixtures, so it moves to Upcoming (1).
+    int tab = 1,
   }) async {
     // The greeting reads the profile the session holds. Left null nothing is
     // loaded, which is the case the headline has to fall back for.
@@ -154,6 +168,16 @@ void main() {
     ));
     if (settle) {
       await tester.pumpAndSettle();
+      if (tab != 0) {
+        final target = find
+            .descendant(
+                of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+            .at(tab);
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+      }
     } else {
       // One frame, which is the frame the skeleton is on.
       await tester.pump();
@@ -725,6 +749,7 @@ void main() {
 
       // Let the held read finish so the test leaves no timer behind.
       await tester.pumpAndSettle(const Duration(seconds: 2));
+      await openUpcoming(tester);
       expect(find.byType(CompactPublicMatchCard), findsWidgets);
     });
 
@@ -756,6 +781,7 @@ void main() {
       final loading = columnsOf(tester, find.byType(CompactMatchCardSkeleton));
 
       await tester.pumpAndSettle(const Duration(seconds: 2));
+      await openUpcoming(tester);
       final loaded = columnsOf(tester, find.byType(CompactPublicMatchCard));
 
       expect(loading, loaded);
