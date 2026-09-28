@@ -5,6 +5,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
+import '../analytics/acquisition_analytics.dart';
 import '../profile/profile_models.dart';
 import 'auth_models.dart';
 import 'auth_service.dart';
@@ -87,6 +88,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         dateOfBirth: _dateOfBirth!,
         secondaryPosition: _secondaryPosition,
       );
+      // A new account now exists. Marked only here, never on login, so an
+      // existing account signing in is never a signup conversion. Nothing is
+      // awaited: the gate records the conversion once the account is active.
+      AcquisitionAnalytics.instance.registrationSucceeded();
       // On success the session is active; AuthGate navigates to Home.
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on Failure catch (failure) {

@@ -8,6 +8,7 @@ import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
 import '../../core/states.dart';
 import '../../core/tokens.dart';
+import '../analytics/acquisition_analytics.dart';
 import '../analytics/analytics_models.dart';
 import '../auth/auth_models.dart';
 import '../auth/auth_service.dart';
@@ -213,6 +214,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // active. The server answers both the same way on purpose, and so does
     // this — a guessed id learns nothing either way.
     if (record == null) throw const NotFoundFailure();
+
+    // Loaded: reported to acquisition analytics, which records it only when
+    // this profile is the external link arrival of a signed-out reader
+    // (Wave 3). A player previewing their own public page is neither.
+    AcquisitionAnalytics.instance.externalArrivalLoaded(
+      PublicLinkTarget(PublicLinkKind.player, userId),
+    );
 
     return _ProfileView(
       userId: userId,

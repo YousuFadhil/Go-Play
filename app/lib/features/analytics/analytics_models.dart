@@ -51,14 +51,11 @@ enum ProductEvent {
   /// A public link — `/player/{id}`, `/community/{id}`, `/match/{id}` — was
   /// opened and its destination actually shown.
   ///
-  /// **Recorded for a signed-in reader only, and that is the approved
-  /// boundary rather than an oversight.** `product_events.user_id` is `not
-  /// null` and `record_product_event` takes its actor from `auth.uid()`, so
-  /// there is no path by which a signed-out visitor's open reaches the table —
-  /// and opening one would mean an unauthenticated write, which Package 5
-  /// deliberately does not build. A guest who opens a link and then registers
-  /// records nothing for the open: a back-dated event would be a fabricated
-  /// one.
+  /// **Through this enum, recorded for a signed-in reader only.**
+  /// `record_product_event` takes its actor from `auth.uid()` and refuses
+  /// `anon`. A signed-out visitor's external arrival is recorded instead by
+  /// Wave 3's narrow anonymous writer (`AcquisitionAnalytics`, migration
+  /// `0089`), never back-dated onto an account.
   publicLinkOpened('public_link_opened');
 
   const ProductEvent(this.wireName);

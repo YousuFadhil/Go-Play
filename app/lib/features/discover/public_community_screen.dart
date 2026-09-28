@@ -5,7 +5,9 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
 import '../../core/tokens.dart';
+import '../analytics/acquisition_analytics.dart';
 import '../results/result_card.dart';
+import '../sharing/public_link.dart';
 import '../auth/auth_prompt.dart';
 import '../auth/auth_service.dart';
 import 'discover_models.dart';
@@ -64,13 +66,25 @@ class _PublicCommunityScreenState extends State<PublicCommunityScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _repository.fetchCommunityDetails(widget.communityId);
+    _future = _load();
   }
 
   void _refresh() {
     setState(() {
-      _future = _repository.fetchCommunityDetails(widget.communityId);
+      _future = _load();
     });
+  }
+
+  /// The community, and — only once it has actually loaded — the arrival
+  /// reported to acquisition analytics, which decides whether this is an
+  /// external link arrival worth recording (Wave 3). A failed read reports
+  /// nothing.
+  Future<PublicCommunityDetails> _load() async {
+    final details = await _repository.fetchCommunityDetails(widget.communityId);
+    AcquisitionAnalytics.instance.externalArrivalLoaded(
+      PublicLinkTarget(PublicLinkKind.community, widget.communityId),
+    );
+    return details;
   }
 
   Future<void> _promptSignIn(String reason) => requireSignIn(
