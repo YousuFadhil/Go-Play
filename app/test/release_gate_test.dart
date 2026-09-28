@@ -248,5 +248,99 @@ void main() {
       expect(production, contains('environment: github-pages'));
       expect(staging, contains('environment: staging'));
     });
+
+    group('production refuses any ref but main', () {
+      const guardName = 'name: Require the main branch';
+
+      /// The guard step's own shell script, dedented, as the runner runs it.
+      String guardScript() {
+        final step = production.indexOf(guardName);
+        final run = production.indexOf('run: |', step);
+        final next = production.indexOf('\n      - name:', run);
+        return production
+            .substring(run + 'run: |'.length, next)
+            .split('\n')
+            .where((line) => line.trim().isNotEmpty)
+            .map((line) => line.replaceFirst(RegExp(r'^ {10}'), ''))
+            .join('\n');
+      }
+
+      test('as its first step, before checkout, build or publish', () {
+        final guard = production.indexOf(guardName);
+        expect(guard, greaterThan(0));
+        expect(
+            guard, lessThan(production.indexOf('uses: actions/checkout@v4')));
+        expect(
+            guard, lessThan(production.indexOf('flutter build web --release')));
+        expect(guard,
+            lessThan(production.indexOf('name: Publish to Cloudflare Pages')));
+        expect(guard, lessThan(production.indexOf('tool/release_gate.dart')));
+        // The first step of the job.
+        expect(
+            production.indexOf('      - name:', production.indexOf('steps:')),
+            production.indexOf('      - $guardName'));
+      });
+
+      test('by failing, never by silently skipping', () {
+        expect(
+          guardScript(),
+          'if [ "\$GITHUB_REF" != "refs/heads/main" ]; then\n'
+          '  echo "::error::production deploys only from refs/heads/main; '
+          'this run is on \$GITHUB_REF"\n'
+          '  exit 1\n'
+          'fi',
+        );
+        // No `if:` anywhere: a condition would skip the job or the step and
+        // report success for a deployment that was refused.
+        expect(
+            RegExp(r'^\s+if:', multiLine: true).hasMatch(production), isFalse);
+      });
+
+      test('while pushes to main and manual runs stay available', () {
+        expect(production, contains('  push:\n    branches: [main]\n'));
+        expect(production, contains('  workflow_dispatch:\n'));
+      });
+
+      final bash = () {
+        try {
+          return Process.runSync('bash', ['-c', 'exit 0']).exitCode == 0;
+        } catch (_) {
+          return false;
+        }
+      }();
+
+      test(
+        'the guard script passes main and fails every other ref',
+        () async {
+          final script = guardScript();
+
+          // The ref is set inside the script and the script is fed on stdin,
+          // so this runs the same under Git Bash, WSL and Linux: WSL's bash
+          // does not inherit Windows environment variables, and it can
+          // rewrite quoted command-line arguments.
+          Future<int> run(String ref) async {
+            final process = await Process.start('bash', ['-s']);
+            process.stdin.write("GITHUB_REF='$ref'\n$script\n");
+            await process.stdin.close();
+            await process.stdout.drain<void>();
+            await process.stderr.drain<void>();
+            return process.exitCode;
+          }
+
+          expect(await run('refs/heads/main'), 0);
+          for (final ref in [
+            'refs/heads/intelligence/wave4-operational-hardening',
+            'refs/heads/develop',
+            'refs/heads/main-hotfix',
+            'refs/tags/v0.4.1',
+            'refs/pull/48/merge',
+            '',
+          ]) {
+            expect(await run(ref), 1, reason: '"$ref"');
+          }
+        },
+        skip: bash ? false : 'bash is not available to run the guard',
+      );
+    });
   });
 }

@@ -54,6 +54,18 @@ jobs:
       DEPLOYMENT_ENV: production
       PUBLIC_WEB_BASE: https://go-play-44y.pages.dev
     steps:
+      # Wave 4 release integrity: production is published from `main` only.
+      # A push to main and a manual run started from main both pass. A manual
+      # run started from any other branch or ref fails here -- visibly, before
+      # anything is checked out, built or published -- rather than being
+      # skipped as though nothing had been asked.
+      - name: Require the main branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::production deploys only from refs/heads/main; this run is on $GITHUB_REF"
+            exit 1
+          fi
+
       - name: Check out the commit being deployed
         uses: actions/checkout@v4
 
