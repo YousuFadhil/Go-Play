@@ -32,6 +32,7 @@ import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/sharing/public_link.dart';
 import 'package:go_play/infrastructure/supabase/mappers/discover_mapper.dart';
+import 'package:go_play/infrastructure/supabase/supabase_failure_mapper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -413,6 +414,32 @@ void main() {
         await pumpScreen(tester, communityPage());
 
         expect(find.text('Al Amerat FC'), findsWidgets);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('a rate-limited open is dropped and the page still reads',
+          (tester) async {
+        // Wave 4's circuit breaker refuses with TELEMETRY_RATE_LIMITED. The
+        // refusal goes through the real failure mapper, as the Supabase
+        // adapter's would, and is swallowed like any other failure.
+        final limited = _RateLimitedAcquisitionAdapter();
+        await expectLater(limited.recordAnonymousOpen(PublicLinkKind.community),
+            throwsA(isA<Failure>()));
+        expect(
+          await AcquisitionAnalyticsRepository(limited)
+              .recordAnonymousOpen(PublicLinkKind.community),
+          isNull,
+        );
+
+        AcquisitionAnalytics.instance = AcquisitionAnalytics(
+          repository: AcquisitionAnalyticsRepository(limited),
+          isSignedIn: () => readerSignedIn,
+        );
+        PendingPublicLink.instance.offer('/community/$community');
+        await pumpScreen(tester, communityPage());
+
+        expect(find.text('Al Amerat FC'), findsWidgets);
+        expect(limited.opens, 3, reason: 'attempted, refused, swallowed');
         expect(tester.takeException(), isNull);
       });
     });
@@ -913,6 +940,24 @@ class _FakeAcquisitionAdapter implements AcquisitionAnalyticsAdapter {
     completions.add(acquisitionId);
     if (fail) throw const NetworkFailure();
   }
+}
+
+/// Refuses every write the way migration 0090's circuit breaker does, through
+/// the same failure mapper the Supabase adapter uses.
+class _RateLimitedAcquisitionAdapter implements AcquisitionAnalyticsAdapter {
+  int opens = 0;
+
+  @override
+  Future<String> recordAnonymousOpen(PublicLinkKind kind) {
+    opens++;
+    return guarded<String>(() async =>
+        throw const PostgrestException(message: 'TELEMETRY_RATE_LIMITED'));
+  }
+
+  @override
+  Future<void> recordSignupCompleted(String acquisitionId) =>
+      guarded(() async =>
+          throw const PostgrestException(message: 'TELEMETRY_RATE_LIMITED'));
 }
 
 class _RecordingAnalyticsAdapter implements AnalyticsAdapter {
