@@ -4,6 +4,8 @@ import '../../core/app_header.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../../core/states.dart';
+import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import '../auth/auth_service.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
@@ -117,6 +119,10 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
   StatisticsPeriod _period = StatisticsPeriod.allTime;
   late Future<_PlayerRecord> _statisticsFuture;
 
+  /// Whether this screen has recorded its `player_statistics_viewed`. Once per
+  /// screen: a refresh or a change of period is the same visit.
+  bool _viewRecorded = false;
+
   @override
   void initState() {
     super.initState();
@@ -143,6 +149,7 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
 
     if (!period.isBounded) {
       final results = await Future.wait([careerFuture, trendFuture]);
+      _recordView(userId);
       return _PlayerRecord.career(
         results[0] as PlayerStatistics,
         results[1] as PlayerRatingTrend,
@@ -154,10 +161,24 @@ class _PlayerStatisticsScreenState extends State<PlayerStatisticsScreen> {
     final results =
         await Future.wait([careerFuture, trendFuture, countersFuture]);
     final career = results[0] as PlayerStatistics;
+    _recordView(userId);
     return _PlayerRecord(
       counters: results[2] as PlayerPeriodStatistics,
       rating: career.currentRating,
       ratingTrend: results[1] as PlayerRatingTrend,
+    );
+  }
+
+  /// Records that the statistics of [userId] were put in front of the reader.
+  ///
+  /// Only after the figures loaded, so a failed read records nothing. The
+  /// target is the player whose statistics these are -- today, the reader.
+  void _recordView(String userId) {
+    if (_viewRecorded) return;
+    _viewRecorded = true;
+    ProductAnalytics.instance.track(
+      ProductEvent.playerStatisticsViewed,
+      targetUserId: userId,
     );
   }
 
