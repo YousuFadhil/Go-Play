@@ -112,7 +112,7 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
       _football.fetchCommunityStats(widget.communityId),
       _football.fetchCompletedMatches(
         communityId: widget.communityId,
-        limit: 5,
+        limit: DiscoverRepository.recentResults,
       ),
       _football.fetchCommunityPlayerStats(widget.communityId),
     ]);

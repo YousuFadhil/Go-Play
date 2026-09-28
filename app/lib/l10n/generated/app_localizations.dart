@@ -560,6 +560,12 @@ abstract class AppLocalizations {
   /// **'A match already played must have finished before now'**
   String get historicalNotPastError;
 
+  /// No description provided for @matchAlreadyEndedError.
+  ///
+  /// In en, this message translates to:
+  /// **'This match has already ended. Record it as a match already played instead.'**
+  String get matchAlreadyEndedError;
+
   /// No description provided for @recordHistoricalMatchButton.
   ///
   /// In en, this message translates to:
@@ -2120,6 +2126,12 @@ abstract class AppLocalizations {
   /// **'Swap with a player'**
   String get swapPlayerAction;
 
+  /// No description provided for @swapPositionsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap positions'**
+  String get swapPositionsAction;
+
   /// No description provided for @changePositionAction.
   ///
   /// In en, this message translates to:
@@ -2131,6 +2143,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Swap with'**
   String get swapPlayerTitle;
+
+  /// No description provided for @swapPositionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap positions with'**
+  String get swapPositionsTitle;
 
   /// No description provided for @swapNobodyAvailable.
   ///
@@ -3833,7 +3851,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminAnalyticsNotice.
   ///
   /// In en, this message translates to:
-  /// **'Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.'**
+  /// **'Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Activity events are kept for 12 months, so tracked counts describe retained activity, not lifetime history; Last seen is kept beyond that window. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.'**
   String get adminAnalyticsNotice;
 
   /// No description provided for @adminAuditTab.
@@ -3923,7 +3941,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminMetricSessions.
   ///
   /// In en, this message translates to:
-  /// **'Sessions'**
+  /// **'Tracked sessions'**
   String get adminMetricSessions;
 
   /// No description provided for @adminMetricPlatforms.
@@ -4033,6 +4051,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Public link opened'**
   String get adminEventPublicLinkOpened;
+
+  /// No description provided for @adminEventViewedOwnProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed own profile'**
+  String get adminEventViewedOwnProfile;
+
+  /// No description provided for @adminEventViewedPlayerProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed player profile — {player}'**
+  String adminEventViewedPlayerProfile(String player);
+
+  /// No description provided for @adminEventViewedPlayerStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed player statistics'**
+  String get adminEventViewedPlayerStatistics;
+
+  /// No description provided for @adminEventViewedPlayerStatisticsOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed player statistics — {player}'**
+  String adminEventViewedPlayerStatisticsOf(String player);
+
+  /// No description provided for @adminEventSharedPlayerProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared player profile'**
+  String get adminEventSharedPlayerProfile;
+
+  /// No description provided for @adminEventSharedPlayerStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared player statistics'**
+  String get adminEventSharedPlayerStatistics;
+
+  /// No description provided for @adminEventSharedCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared community'**
+  String get adminEventSharedCommunity;
+
+  /// No description provided for @adminEventSharedMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared match'**
+  String get adminEventSharedMatch;
+
+  /// No description provided for @adminEventSharedLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared lineup'**
+  String get adminEventSharedLineup;
+
+  /// No description provided for @adminEventSharedResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared result'**
+  String get adminEventSharedResult;
 
   /// No description provided for @adminDrilldownEmpty.
   ///

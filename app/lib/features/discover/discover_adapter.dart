@@ -49,6 +49,6 @@ abstract interface class DiscoverAdapter {
   /// public.
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,
-    int limit = 5,
+    int limit = 6,
   });
 }

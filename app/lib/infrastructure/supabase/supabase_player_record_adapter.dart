@@ -30,7 +30,7 @@ class SupabasePlayerRecordAdapter implements PlayerRecordAdapter {
   final SupabaseClient _client;
 
   @override
-  Future<RecentForm> fetchRecentForm(String userId, {int limit = 5}) => guarded(
+  Future<RecentForm> fetchRecentForm(String userId, {int limit = 6}) => guarded(
         () async {
           final rows = await _client.rpc(
             'player_recent_form',
@@ -60,7 +60,7 @@ class SupabasePlayerRecordAdapter implements PlayerRecordAdapter {
   @override
   Future<PublicPlayerRecord?> fetchPublicRecord(
     String userId, {
-    int limit = 5,
+    int limit = 6,
     int achievements = 5,
   }) =>
       guarded(

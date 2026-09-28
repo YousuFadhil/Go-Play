@@ -18,9 +18,9 @@ class PlayerRecordRepository {
 
   final PlayerRecordAdapter _adapter;
 
-  /// How many matches Recent Form is about. Five, which is the approved
+  /// How many matches Recent Form is about. Six, which is the approved
   /// window, and stated once so the screen, the card and the read agree.
-  static const formWindow = 5;
+  static const formWindow = 6;
 
   /// How many achievement cards a profile shows at most. Five, approved, and
   /// stated once so the read, the screen and the public contract agree.

@@ -60,7 +60,7 @@ class SupabaseDiscoverAdapter implements DiscoverAdapter {
   @override
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,
-    int limit = 5,
+    int limit = 6,
   }) =>
       guarded(
         () async {

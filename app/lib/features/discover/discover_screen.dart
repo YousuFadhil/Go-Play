@@ -153,14 +153,16 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   /// What has just been played. Null for a guest.
   Future<_LatestResults>? _resultsFuture;
 
-  /// Which of the three tabs is showing.
+  /// Which of the three tabs is showing: Latest Results, Upcoming Matches,
+  /// Communities, in that order.
   ///
   /// **State of this screen, and of nothing else.** It is not a route
   /// argument, not app state and not persisted: every fresh Discover opens on
-  /// Upcoming Matches, which is the approved default. It deliberately survives
-  /// a pull-to-refresh, because [_load] replaces the futures and never touches
-  /// this -- a reader who pulls down on Latest Results is asking for newer
-  /// results, not to be sent back to the fixtures.
+  /// Latest Results -- index 0 -- which is the approved default for a member
+  /// and a guest alike. It deliberately survives a pull-to-refresh, because
+  /// [_load] replaces the futures and never touches this -- a reader who pulls
+  /// down on Upcoming Matches is asking for newer fixtures, not to be sent back
+  /// to the results.
   late final TabController _tabs = TabController(length: 3, vsync: this);
 
   @override
@@ -210,7 +212,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   Future<_LatestResults> _loadResults() async {
     try {
       final football = widget.footballRepository ?? FootballRepository();
-      return _LatestResults(await football.fetchCompletedMatches(limit: 5));
+      return _LatestResults(await football.fetchCompletedMatches(
+        limit: DiscoverRepository.recentResults,
+      ));
     } catch (_) {
       // A failure here is a value rather than a rejection: this future is
       // created in `initState`, before any `FutureBuilder` has attached, so a
@@ -387,8 +391,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                   DiscoverTabs(
                     controller: _tabs,
                     labels: [
-                      l10n.upcomingMatchesTitle,
                       l10n.latestResultsTitle,
+                      l10n.upcomingMatchesTitle,
                       l10n.communitiesTitle,
                     ],
                   ),
@@ -405,16 +409,16 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                           controller: _tabs,
                           children: [
                             _tab(
-                              key: const Key('discoverTabUpcoming'),
-                              loading: loading,
-                              overview: overview,
-                              children: (o) => _matchesSection(l10n, o),
-                            ),
-                            _tab(
                               key: const Key('discoverTabResults'),
                               loading: loading,
                               overview: overview,
                               children: (o) => _resultsSection(l10n, o),
+                            ),
+                            _tab(
+                              key: const Key('discoverTabUpcoming'),
+                              loading: loading,
+                              overview: overview,
+                              children: (o) => _matchesSection(l10n, o),
                             ),
                             _tab(
                               key: const Key('discoverTabCommunities'),
@@ -550,10 +554,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
 
   /// Latest Results, as a visitor sees them.
   ///
-  /// Between Upcoming Matches and Communities, which is where the signed-in
-  /// feed sits — so the page has one order for both readers. With nothing
-  /// scheduled above it, this becomes the first football on the page rather
-  /// than leaving a guest with an empty screen.
+  /// The first tab, which is where the signed-in feed sits too — so the page
+  /// has one order for both readers. Three results show until the reader asks
+  /// for all six.
   List<Widget> _publicResultsSection(
     AppLocalizations l10n,
     DiscoverOverview overview,

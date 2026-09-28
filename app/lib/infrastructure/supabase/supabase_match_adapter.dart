@@ -89,10 +89,9 @@ class SupabaseMatchAdapter implements MatchAdapter {
   /// that validate before they write; this joins them and fails the same way on
   /// the same input.
   ///
-  /// One guard is new, and it is not a new rule: `START_IN_PAST`. `update_match`
-  /// refuses any match whose start has passed, so a match created in that state
-  /// could never be edited or cancelled by its organizer. The insert path
-  /// allowed it; this does not.
+  /// Its temporal guard is `MATCH_ALREADY_ENDED` since migration `0091`: an
+  /// ordinary match may be created while it is already being played, and one
+  /// that has wholly ended is refused -- it is recorded as historical instead.
   ///
   /// `created_by` is no longer sent. The function takes it from `auth.uid()`,
   /// which is what the policy checked it against anyway.

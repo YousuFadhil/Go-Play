@@ -20,10 +20,11 @@ class DiscoverRepository {
 
   final DiscoverAdapter _adapter;
 
-  /// How many results a public page shows. Five, which is a practical recent
-  /// set rather than a history, and stated once so Discover and a community
-  /// page ask for the same thing.
-  static const recentResults = 5;
+  /// How many results a page loads. Six, the approved recent set rather than
+  /// a history, and stated once so Discover -- signed in or not -- and a
+  /// community page ask for the same thing. Discover shows three of them until
+  /// the reader asks for all.
+  static const recentResults = 6;
 
   /// Everything the Discover page shows, in one pass.
   ///

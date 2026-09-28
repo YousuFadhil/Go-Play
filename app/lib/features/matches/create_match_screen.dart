@@ -220,14 +220,15 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       return l10n.endAfterStartError;
     }
     // The one question the two modes answer differently, and the same branch
-    // `create_match` takes: an ordinary match is entirely ahead of now, a
-    // recorded one entirely behind it. Everything above this line — both ends
+    // `create_match` takes: an ordinary match has not ended yet -- it may be
+    // still to come or already under way (migration `0091`) -- and a recorded
+    // one is entirely behind now. Everything above this line — both ends
     // present, the end after the start, the twelve-hour bound — is asked of
     // both, because none of it is about when the match is.
     if (_isHistorical) {
       if (!end.isBefore(DateTime.now())) return l10n.historicalNotPastError;
     } else {
-      if (!start.isAfter(DateTime.now())) return l10n.startInPastError;
+      if (!end.isAfter(DateTime.now())) return l10n.matchAlreadyEndedError;
     }
     return null;
   }
@@ -247,6 +248,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         FailureReason.invalidTitle => l10n.errInvalidTitle,
         FailureReason.invalidLocation => l10n.errInvalidLocation,
         FailureReason.startInPast => l10n.startInPastError,
+        FailureReason.matchAlreadyEnded => l10n.matchAlreadyEndedError,
         FailureReason.historicalNotPast => l10n.historicalNotPastError,
         FailureReason.invalidTimeRange => l10n.endAfterStartError,
         FailureReason.invalidStartingPlayers => l10n.startingPlayersInvalid,
