@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'core/l10n.dart';
 import 'core/states.dart';
 import 'core/locale_controller.dart';
 import 'core/theme.dart';
+import 'features/analytics/acquisition_analytics.dart';
 import 'features/analytics/analytics_models.dart';
 import 'features/analytics/analytics_service.dart';
 import 'features/auth/account_suspended_screen.dart';
@@ -192,64 +194,21 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
     _notificationsChanged();
   }
 
-  /// Opens a public link for a reader who is signed in.
+  /// Opens a public link for a reader who is signed in. See
+  /// [openPendingPublicLink], which holds the rule so it can be asserted
+  /// directly.
+  Future<void> _openPendingPublicLink() => openPendingPublicLink(
+        _navigatorKey.currentState,
+        signedIn: _authService.isSignedIn,
+      );
+
+  /// The gate's signal that the signed-in account is confirmed active.
   ///
-  /// **Signed out, this does nothing, and that is the whole routing rule.** A
-  /// visitor has no stack to push onto — the app opens on Discover — so their
-  /// target stays pending and [AuthGate] renders it as what the app opens on,
-  /// exactly as a pending invitation already works. A signed-in reader has a
-  /// stack, and a link should add a destination to it rather than replace
-  /// wherever they were, so theirs is pushed.
-  ///
-  /// Nothing here decides what may be read. Each destination asks the server
-  /// with the reader's own session when it loads, so a link to something they
-  /// may not see fails on that screen, in that screen's own words — which is
-  /// the same thing that happens when they arrive from anywhere else.
-  Future<void> _openPendingPublicLink() async {
-    // No Navigator yet: a cold start reaches here before the first frame.
-    // Returning *without* consuming is the point — the post-frame callback in
-    // `initState` collects it.
-    final navigator = _navigatorKey.currentState;
-    if (navigator == null) return;
-
-    final target = PendingPublicLink.instance.target.value;
-    if (target == null) return;
-
-    // A visitor's target belongs to the gate, not to this push. Left pending.
-    if (!_authService.isSignedIn) return;
-
-    // Cleared before navigating, so a second link arriving while this one is
-    // opening is not mistaken for a duplicate of one already consumed.
-    PendingPublicLink.instance.clear();
-
-    // The arrival, recorded — for a signed-in reader only, which is the whole
-    // of Package 5's link telemetry. A signed-out visitor's open is
-    // deliberately not recorded anywhere: `record_product_event` takes its
-    // actor from `auth.uid()` and `anon` cannot call it, and back-dating the
-    // event once they register would be inventing one.
-    ProductAnalytics.instance.track(
-      ProductEvent.publicLinkOpened,
-      communityId: target.kind == PublicLinkKind.community ? target.id : null,
-      matchId: target.kind == PublicLinkKind.match ? target.id : null,
-      source: ShareSource.publicLink,
-    );
-
-    await navigator.push(
-      MaterialPageRoute(
-        builder: (_) => switch (target.kind) {
-          PublicLinkKind.player => ProfileScreen(userId: target.id),
-          // The screen a signed-in reader gets for a community they may or may
-          // not belong to. It loads the public part for everyone and the
-          // football part for whoever may read it, and offers Join — so a
-          // link never lands on a screen that refuses the reader outright,
-          // which `CommunityDetailsScreen` would for a non-member.
-          PublicLinkKind.community =>
-            FootballCommunityScreen(communityId: target.id),
-          PublicLinkKind.match => MatchDetailsScreen(matchId: target.id),
-        },
-      ),
-    );
-  }
+  /// A visitor who opened a public link and then registered or signed in still
+  /// has that target pending; nothing else would open it, because the target
+  /// itself did not change. This is what takes them back to it (Wave 3). With
+  /// nothing pending it does nothing, so the gate may call it on every check.
+  void _accountActive() => unawaited(_openPendingPublicLink());
 
   /// Tells the screens that watch the Notification Center to re-read it.
   ///
@@ -316,17 +275,91 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: const AuthGate(),
+          home: AuthGate(onAccountActive: _accountActive),
           // A cold start from a deep link hands Navigator a route name it has
           // no table for; without this it asserts and falls back noisily. The
           // invitation itself has already been captured in initState.
-          onGenerateRoute: (_) =>
-              MaterialPageRoute(builder: (_) => const AuthGate()),
-          onGenerateInitialRoutes: initialRoutesFor,
+          onGenerateRoute: (_) => MaterialPageRoute(
+            builder: (_) => AuthGate(onAccountActive: _accountActive),
+          ),
+          onGenerateInitialRoutes: (initialRoute) => initialRoutesFor(
+            initialRoute,
+            onAccountActive: _accountActive,
+          ),
         );
       },
     );
   }
+}
+
+/// Opens the pending public link for a reader who is signed in.
+///
+/// **Signed out, this does nothing, and that is the whole routing rule.** A
+/// visitor has no stack to push onto — the app opens on Discover — so their
+/// target stays pending and [AuthGate] renders it as what the app opens on,
+/// exactly as a pending invitation already works. A signed-in reader has a
+/// stack, and a link should add a destination to it rather than replace
+/// wherever they were, so theirs is pushed.
+///
+/// Reached three ways: a link tapped while signed in, a cold start, and — since
+/// Wave 3 — the gate confirming an account that has just signed in or
+/// registered while a visitor's target was still pending.
+///
+/// Nothing here decides what may be read. Each destination asks the server
+/// with the reader's own session when it loads, so a link to something they
+/// may not see fails on that screen, in that screen's own words — which is
+/// the same thing that happens when they arrive from anywhere else.
+///
+/// Top-level, like [initialRoutesFor], so the rule can be asserted directly.
+Future<void> openPendingPublicLink(
+  NavigatorState? navigator, {
+  required bool signedIn,
+}) async {
+  // No Navigator yet: a cold start reaches here before the first frame.
+  // Returning *without* consuming is the point — the post-frame callback in
+  // `initState` collects it.
+  if (navigator == null) return;
+
+  final target = PendingPublicLink.instance.target.value;
+  if (target == null) return;
+
+  // A visitor's target belongs to the gate, not to this push. Left pending.
+  if (!signedIn) return;
+
+  // Cleared before navigating, so a second link arriving while this one is
+  // opening is not mistaken for a duplicate of one already consumed.
+  PendingPublicLink.instance.clear();
+
+  // The arrival, recorded for a signed-in reader — Package 5's link
+  // telemetry, unchanged for anybody who was signed in when they opened it.
+  //
+  // Not recorded again when this is the resume of an arrival already counted
+  // anonymously (Wave 3): the visitor opened one link once, and signing in on
+  // top of it is not a second open.
+  if (!AcquisitionAnalytics.instance.takeAnonymousArrival(target)) {
+    ProductAnalytics.instance.track(
+      ProductEvent.publicLinkOpened,
+      communityId: target.kind == PublicLinkKind.community ? target.id : null,
+      matchId: target.kind == PublicLinkKind.match ? target.id : null,
+      source: ShareSource.publicLink,
+    );
+  }
+
+  await navigator.push(
+    MaterialPageRoute(
+      builder: (_) => switch (target.kind) {
+        PublicLinkKind.player => ProfileScreen(userId: target.id),
+        // The screen a signed-in reader gets for a community they may or may
+        // not belong to. It loads the public part for everyone and the
+        // football part for whoever may read it, and offers Join — so a
+        // link never lands on a screen that refuses the reader outright,
+        // which `CommunityDetailsScreen` would for a non-member.
+        PublicLinkKind.community =>
+          FootballCommunityScreen(communityId: target.id),
+        PublicLinkKind.match => MatchDetailsScreen(matchId: target.id),
+      },
+    ),
+  );
 }
 
 /// What a cold start opens, whatever path it started on: one page.
@@ -340,9 +373,15 @@ class _GoPlayAppState extends State<GoPlayApp> with WidgetsBindingObserver {
 /// simplification: it is the whole truth about what a cold start opens.
 ///
 /// Named, rather than a closure on the `MaterialApp`, so the rule can be
-/// asserted directly.
-List<Route<dynamic>> initialRoutesFor(String initialRoute) => [
-      MaterialPageRoute(builder: (_) => const AuthGate()),
+/// asserted directly. [onAccountActive] is passed through to the gate.
+List<Route<dynamic>> initialRoutesFor(
+  String initialRoute, {
+  VoidCallback? onAccountActive,
+}) =>
+    [
+      MaterialPageRoute(
+        builder: (_) => AuthGate(onAccountActive: onAccountActive),
+      ),
     ];
 
 /// Decides what the app opens on: a pending invitation outranks both, because
@@ -358,10 +397,18 @@ List<Route<dynamic>> initialRoutesFor(String initialRoute) => [
 /// a public landing page they would immediately be moved off would be a flicker,
 /// not a first impression.
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key, AuthService? authService})
+  const AuthGate({super.key, AuthService? authService, this.onAccountActive})
       : _authService = authService;
 
   final AuthService? _authService;
+
+  /// Called every time the signed-in account is confirmed active: after a
+  /// sign-in or a registration, and on each later re-check.
+  ///
+  /// The one seam between the gate and the app: [GoPlayApp] uses it to resume
+  /// a public link a visitor opened before authenticating. The gate itself
+  /// knows nothing about links.
+  final VoidCallback? onAccountActive;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -430,7 +477,14 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     //
     // Called on every check, and it is `startSession` that makes that safe: a
     // resume and a rebuild both arrive here and neither is a new session.
-    if (next == _AccountStatus.active) ProductAnalytics.instance.startSession();
+    if (next == _AccountStatus.active) {
+      ProductAnalytics.instance.startSession();
+      // Wave 3. A new registration made from a public link converts here, once
+      // the account is known to be active; a login never does. Both are
+      // non-blocking and safe to repeat.
+      AcquisitionAnalytics.instance.accountActive();
+      widget.onAccountActive?.call();
+    }
   }
 
   /// The session changed under us: re-ask, or forget the answer entirely.
@@ -447,6 +501,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       // must be able to record one; without this the app would record a single
       // session for as long as it stayed open, however many people used it.
       ProductAnalytics.instance.endSession();
+      // And any acquisition this session was carrying ends with it.
+      AcquisitionAnalytics.instance.signedOut();
       setState(() => _status = _AccountStatus.checking);
     }
   }

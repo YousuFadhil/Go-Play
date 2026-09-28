@@ -6,6 +6,7 @@ import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_generation_settings.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/team_repository.dart';
+import 'package:go_play/infrastructure/supabase/mappers/generation_evidence_mapper.dart';
 
 /// The repository driving the engine, with the provider out of the way.
 ///
@@ -368,6 +369,227 @@ void main() {
 
       expect(adapter.savedLineup, isNull,
           reason: 'the organizer may still move a player (BTGE-MO-2)');
+    });
+  });
+
+  group('generation evidence (Wave 3)', () {
+    const windowOfOne = BtgeConfiguration(
+      distributionBand: ToleranceBand.exact(),
+      ratingBand: ToleranceBand(absolute: 5),
+      outOfPositionBand: ToleranceBand.exact(),
+      ageBand: ToleranceBand(absolute: 5),
+      oddCountRule: OddCountRule.weakerTeamGetsExtra,
+      minPlayers: 2,
+      diversityLastNMatches: 1,
+    );
+
+    List<PastMatch> twoPlayed() => [
+          PastMatch(playedAt: DateTime(2026, 7, 31), teams: const [
+            {'u1', 'u2', 'u3'},
+            {'u4', 'u5', 'u6'},
+          ]),
+          PastMatch(playedAt: DateTime(2026, 7, 24), teams: const [
+            {'u1', 'u4'},
+            {'u2', 'u3', 'u5', 'u6'},
+          ]),
+        ];
+
+    test('is captured from the exact inputs and result of the run', () async {
+      final roster = sixPlayers()
+        ..[1] = input('u2', Position.def,
+            secondary: Position.mid, rating: 61, age: 31);
+      final adapter = FakeTeamAdapter(roster: roster, played: twoPlayed());
+      final repository = TeamRepository(adapter);
+
+      final generated = await repository.generateTeamsWithEvidence(
+        match,
+        configuration: windowOfOne,
+        historyLookback: 2,
+      );
+      final evidence = generated.evidence;
+
+      // The lineup handed back *is* the captured proposal.
+      expect(identical(generated.lineup, evidence.generatedLineup), isTrue);
+
+      // The engine, run again on the same inputs and variant, reproduces it
+      // (BTGE-PF-6) -- so the evidence is the run, not a second opinion.
+      final inputs =
+          await repository.fetchGenerationInputs(match, historyLookback: 2);
+      final rerun = const BtgeEngine(windowOfOne).generate(
+        players: inputs.players,
+        settings: inputs.settings,
+        history: inputs.history,
+        variant: evidence.variantIndex,
+      );
+      expect(
+        [
+          for (final a in evidence.generatedLineup)
+            (a.userId, a.team, a.assignedPosition, a.basis),
+        ],
+        [
+          for (final a in rerun.assignments)
+            (a.playerId, a.team, a.assignedPosition, a.basis),
+        ],
+      );
+
+      // Player inputs: the engine's own values, age derived its own way.
+      expect(
+        [
+          for (final p in evidence.playerInputs)
+            (
+              p.userId,
+              p.overallRating,
+              p.ageAtMatch,
+              p.primaryPosition,
+              p.secondaryPosition,
+            ),
+        ],
+        [
+          for (final p in inputs.players)
+            (
+              p.id,
+              p.overallRating,
+              p.ageAt(inputs.settings.matchDate),
+              p.primaryPosition,
+              p.secondaryPosition,
+            ),
+        ],
+      );
+      expect(evidence.playerInputs[1].ageAtMatch, 31);
+      expect(evidence.playerInputs[1].secondaryPosition, Position.mid);
+
+      // Priority 5's pair set: a window of one match sees only the latest.
+      expect(
+        {for (final (a, b) in evidence.teammatePairs) '$a|$b'},
+        inputs.history.pairsInWindow(
+          asOf: inputs.settings.matchDate,
+          lastNMatches: windowOfOne.diversityLastNMatches,
+          within: windowOfOne.diversityWithin,
+        ),
+      );
+      expect(evidence.teammatePairs, [
+        ('u1', 'u2'),
+        ('u1', 'u3'),
+        ('u2', 'u3'),
+        ('u4', 'u5'),
+        ('u4', 'u6'),
+        ('u5', 'u6'),
+      ]);
+
+      expect(identical(evidence.configuration, windowOfOne), isTrue);
+      expect(evidence.historyLookback, 2);
+      expect(adapter.savedLineup, isNull, reason: 'capturing stores nothing');
+    });
+
+    test('records the variant the engine actually returned', () async {
+      final adapter = FakeTeamAdapter(roster: [
+        for (var i = 1; i <= 6; i++) input('u$i', Position.mid),
+      ]);
+      const banded = BtgeConfiguration(
+        distributionBand: ToleranceBand(absolute: 2),
+        ratingBand: ToleranceBand(absolute: 1),
+        outOfPositionBand: ToleranceBand(absolute: 2),
+        ageBand: ToleranceBand(absolute: 1),
+        oddCountRule: OddCountRule.weakerTeamGetsExtra,
+        minPlayers: 4,
+        assignEmergencyGoalkeeper: false,
+      );
+      final repository = TeamRepository(adapter);
+
+      final first = await repository.generateTeamsWithEvidence(match,
+          configuration: banded, historyLookback: null);
+      final again = await repository.generateTeamsWithEvidence(match,
+          configuration: banded, historyLookback: null, avoiding: first.lineup);
+
+      expect(first.evidence.variantIndex, 0);
+      expect(again.evidence.variantIndex, 1);
+      expect(splitOf(again.lineup), isNot(splitOf(first.lineup)));
+    });
+
+    test('generateTeams still returns the same lineup as before', () async {
+      final adapter = FakeTeamAdapter(roster: sixPlayers());
+      final repository = TeamRepository(adapter);
+
+      final lineup = await generate(adapter);
+      final generated = await repository.generateTeamsWithEvidence(match,
+          configuration: strict, historyLookback: null);
+
+      expect(
+        [for (final a in lineup) (a.userId, a.team, a.assignedPosition)],
+        [
+          for (final a in generated.lineup)
+            (a.userId, a.team, a.assignedPosition),
+        ],
+      );
+    });
+
+    test('the wire payload carries only the approved fields', () async {
+      final adapter =
+          FakeTeamAdapter(roster: sixPlayers(), played: twoPlayed());
+      final generated = await TeamRepository(adapter).generateTeamsWithEvidence(
+        match,
+        configuration: approvedTeamGeneration,
+        historyLookback: approvedHistoryLookback,
+      );
+
+      final params = generatedLineupParams('m1', generated.evidence);
+
+      // Exactly the key sets `save_generated_lineup_v1` accepts (0089).
+      expect(params.keys.toSet(), {
+        'p_match_id',
+        'p_generated_lineup',
+        'p_variant_index',
+        'p_configuration',
+        'p_player_inputs',
+        'p_history_context',
+      });
+      for (final row in params['p_generated_lineup'] as List) {
+        expect((row as Map).keys.toSet(),
+            {'user_id', 'team', 'assigned_position', 'assignment_basis'});
+      }
+      for (final row in params['p_player_inputs'] as List) {
+        expect((row as Map).keys.toSet(), {
+          'user_id',
+          'overall_rating',
+          'age_at_match',
+          'primary_position',
+          'secondary_position',
+        });
+      }
+      expect((params['p_history_context'] as Map).keys.toSet(),
+          {'history_lookback', 'teammate_pairs'});
+      expect(params['p_configuration'], {
+        'distribution_band': {'absolute': 2.0, 'relative': 0.0},
+        'rating_band': {'absolute': 0.10, 'relative': 0.0},
+        'out_of_position_band': {'absolute': 2.0, 'relative': 0.0},
+        'age_band': {'absolute': 1.0, 'relative': 0.0},
+        'odd_count_rule': 'weaker_team_gets_extra',
+        'min_players': 4,
+        'transition_cost_by_distance': [0, 1, 3, 9],
+        'diversity_last_n_matches': 5,
+        'diversity_within_seconds': null,
+        'assign_emergency_goalkeeper': true,
+      });
+
+      // No personal field and no derived BTGE metric anywhere in it.
+      final text = params.toString();
+      for (final forbidden in [
+        'Player u',
+        'full_name',
+        'date_of_birth',
+        'avatar',
+        'email',
+        'phone',
+        'professional_guest_id',
+        'rating_delta',
+        'repeat_pair',
+        'out_of_position_count',
+        'age_delta',
+        'elapsed',
+        'candidates',
+      ]) {
+        expect(text, isNot(contains(forbidden)), reason: forbidden);
+      }
     });
   });
 

@@ -13,6 +13,9 @@ import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
 import 'package:go_play/features/teams/formation.dart';
+import 'package:go_play/features/teams/generated_lineup_adapter.dart';
+import 'package:go_play/features/teams/generated_lineup_repository.dart';
+import 'package:go_play/features/teams/generation_evidence.dart';
 import 'package:go_play/features/results/result_adapter.dart';
 import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
@@ -142,6 +145,7 @@ void main() {
     Locale locale = const Locale('en'),
     FakeMemberAdapter? members,
     NavigatorObserver? observer,
+    FakeGeneratedLineupAdapter? generated,
   }) async {
     // Two pitches and the controls under them need more than the default
     // 800x600, or the buttons sit below the fold and a tap lands on nothing.
@@ -157,6 +161,13 @@ void main() {
       home: TeamsScreen(
         matchId: 'm1',
         teamRepository: TeamRepository(teams),
+        // A generation is saved through the Wave 3 atomic port. Its fake
+        // writes through [teams] exactly as `save_generated_lineup_v1` writes
+        // through `replace_match_lineup`, so every generation assertion below
+        // still reads the lineup where it always did.
+        generatedLineupRepository: GeneratedLineupRepository(
+          generated ?? FakeGeneratedLineupAdapter(teams),
+        ),
         matchService: MatchService(matches),
         memberRepository:
             MemberRepository(members ?? FakeMemberAdapter(role: role)),
@@ -780,6 +791,118 @@ void main() {
 
       expect(teams.savedLineup, hasLength(4));
       expect(find.text('Teams generated.'), findsOneWidget);
+    });
+  });
+
+  group('generation evidence (Wave 3)', () {
+    testWidgets('a first generation is saved through the atomic Wave 3 path',
+        (tester) async {
+      final teams = FakeTeamAdapter(roster: fourInputs());
+      final generated = FakeGeneratedLineupAdapter(teams);
+      await pumpTeams(
+        tester,
+        teams: teams,
+        generated: generated,
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Generate teams'));
+      await tester.pumpAndSettle();
+
+      expect(generated.saves, 1);
+      expect(generated.runs, hasLength(1));
+      expect(teams.saveCount, 1, reason: 'one write, made by the atomic save');
+      expect(teams.lastFromGeneration, isTrue);
+      expect(teams.lastCompletedCorrection, isFalse);
+
+      // What was stored is exactly the proposal the evidence records.
+      final run = generated.runs.single;
+      expect(
+        [for (final a in teams.savedLineup!) (a.userId, a.team)],
+        [for (final a in run.generatedLineup) (a.userId, a.team)],
+      );
+      expect([for (final p in run.playerInputs) p.userId],
+          ['u1', 'u2', 'u3', 'u4']);
+      expect(find.text('Teams generated.'), findsOneWidget);
+    });
+
+    testWidgets('each regeneration is a new atomic save and a new run',
+        (tester) async {
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      final generated = FakeGeneratedLineupAdapter(teams);
+      await pumpTeams(
+        tester,
+        teams: teams,
+        generated: generated,
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      for (var i = 1; i <= 2; i++) {
+        await tester.tap(find.text('Regenerate teams'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Regenerate teams').last);
+        await tester.pumpAndSettle();
+
+        expect(generated.runs, hasLength(i),
+            reason: 'a regeneration appends; it never replaces a run');
+      }
+      expect(teams.saveCount, 2);
+      expect(teams.lastFromGeneration, isTrue);
+    });
+
+    testWidgets('a manual move keeps its own path and records no run',
+        (tester) async {
+      final teams =
+          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+      final generated = FakeGeneratedLineupAdapter(teams);
+      await pumpTeams(
+        tester,
+        teams: teams,
+        generated: generated,
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      // The manual-override group's `tapPlayer`, which is scoped to it.
+      await tester.tap(find.text('Sara Al Balushi'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Move to the other team'));
+      await tester.pumpAndSettle();
+
+      expect(teams.savedLineup, hasLength(4));
+      expect(teams.lastFromGeneration, isFalse);
+      expect(generated.saves, 0);
+      expect(generated.runs, isEmpty);
+    });
+
+    testWidgets('a refused generation save is reported as before, with no run',
+        (tester) async {
+      final teams = FakeTeamAdapter(
+        roster: fourInputs(),
+        saveFailure: const AuthorizationFailure(),
+      );
+      final generated = FakeGeneratedLineupAdapter(teams);
+      await pumpTeams(
+        tester,
+        teams: teams,
+        generated: generated,
+        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Generate teams'));
+      await tester.pumpAndSettle();
+
+      expect(
+          find.text('You do not have permission to do this.'), findsOneWidget);
+      expect(generated.saves, 1);
+      expect(generated.runs, isEmpty, reason: 'no evidence without the lineup');
+      expect(teams.savedLineup, isNull);
+      expect(find.text('Teams have not been generated for this match yet.'),
+          findsOneWidget);
     });
   });
 
@@ -2485,6 +2608,36 @@ class _PitchRouteRecorder extends NavigatorObserver {
 // Each answers from memory and records what it was handed, as the fakes in
 // `repository_behaviour_test.dart` do. Methods the screen never reaches are
 // left unimplemented on purpose.
+
+/// Stands in for `save_generated_lineup_v1` (migration `0089`).
+///
+/// The lineup is written through [teams] as a generation — the same fake
+/// writer `replace_match_lineup` stands behind — and the evidence is kept only
+/// once that write has succeeded, which is the RPC's one-transaction rule: a
+/// refused save leaves no run.
+class FakeGeneratedLineupAdapter implements GeneratedLineupAdapter {
+  FakeGeneratedLineupAdapter(this.teams);
+
+  final FakeTeamAdapter teams;
+
+  int saves = 0;
+  final runs = <GenerationEvidence>[];
+
+  @override
+  Future<void> saveGeneratedLineup(
+    String matchId,
+    GeneratedTeams generated,
+  ) async {
+    saves++;
+    await teams.saveLineup(
+      matchId,
+      generated.lineup,
+      fromGeneration: true,
+      completedCorrection: false,
+    );
+    runs.add(generated.evidence);
+  }
+}
 
 class FakeTeamAdapter implements TeamAdapter {
   FakeTeamAdapter({
