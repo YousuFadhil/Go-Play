@@ -411,7 +411,9 @@ means somebody verified it, not that it is usually fine.
       line — a `^` continuation silently drops the defines and the app starts
       with "Supabase configuration missing" (`SETUP.md` §4).
 - [ ] Auth settings unchanged and correct: Email provider enabled, **Confirm
-      email disabled** (`SETUP.md` §1.3).
+      email disabled** (`SETUP.md` §1.3) — until the deferred activation in
+      [§10](#10-authentication-configuration-activation-deferred) is carried out,
+      after which the settings listed there are the correct ones.
 
 **Backup**
 
@@ -459,6 +461,88 @@ document.
 | **`GAP-2`** | `.gitignore` has no rule excluding database dumps. Nothing currently produces one inside the working tree, so nothing is at risk today; the rule should exist before the first dump is written there. |
 | **`GAP-3`** | Supabase Storage is unused — no bucket, no upload path, no bucket policies. [§5](#5-storage-guidelines) is pre-emptive, and [§3.6](#36-storage-objects-are-not-in-a-database-dump) has nothing to cover yet. |
 | **`GAP-4`** | The integration suite and production share one project (`Docs/12-Testing.md`), and four permanent test accounts live in production data. The Free plan allows a second project, which would separate them. |
+
+---
+
+## 10. Authentication Configuration (activation deferred)
+
+The authentication modernization — Google sign-in, email confirmation for new
+registrations, password recovery and the player-profile onboarding step —
+ships as code and as migration `0092` that work under **both** Auth
+configurations. **Nothing in this section is enabled by that change, and nothing
+here has been changed on the live project.** Each step below is a Dashboard
+setting the Product Owner applies deliberately, after the code and the migration
+have been reviewed, in the order given.
+
+> **Staging and production share one Supabase project**
+> (`Docs/12-Testing.md`, `GAP-4`). Every setting below applies to
+> both front ends at once; there is no "try it on staging first" for Dashboard
+> configuration. Verify with a throwaway address, not a real player.
+
+**1. Apply migration `0092` first.** Back up first ([§3](#3-backup-strategy)). The
+new client asks `get_my_account_state()` and fails closed — an "account status
+unavailable" screen — against a database that does not have it. The previous
+client is unaffected by the migration.
+
+**2. Redirect URLs.** *Authentication → URL Configuration → Redirect URLs* must
+contain **every** form the app sends, or Auth ignores the parameter and falls
+back to the Site URL, which is not an address that reopens the app:
+
+| Form | Value | Used for |
+|---|---|---|
+| Native (Android) | `goplay://login-callback` | Confirmation, recovery and Google, back into the app |
+| Web, production | `https://go-play-44y.pages.dev/login-callback` | The same, in the browser |
+| Web, staging | `https://go-play-staging.pages.dev/login-callback` | The same |
+| Web, local run | `http://localhost:<port>/login-callback` | Only while developing against this project |
+
+The web value is derived from the running page's origin (`AuthService`), so a new
+web host needs its own row before it can complete any of these flows. The app is
+a single page and the host's SPA rewrite already answers `/login-callback`. The
+Android manifest already carries the `goplay://login-callback` filter; iOS is
+not configured for it and is not a supported target of this change.
+
+**3. Google provider.** *Authentication → Sign In / Providers → Google.* Create
+an OAuth client of type *Web application* in Google Cloud, add
+`https://<project-ref>.supabase.co/auth/v1/callback` as its authorised redirect
+URI, and paste the client ID and secret into Supabase before switching the
+provider on. The app uses Supabase's own redirect flow — there is no Google SDK
+and no key in the app. **Enable the provider before serving a build that shows
+"Continue with Google"**: the button is always drawn, and against a project with
+the provider off Auth answers the browser with a raw error page.
+
+**4. Email confirmation.** *Sign In / Providers → Email → Confirm email → on.*
+A new email registration then produces an account and **no session**; the app
+shows "check your email" and the person signs in after opening the link. The
+app already handles both settings, so this can be flipped without a release.
+Existing accounts are not asked to confirm anything. `SETUP.md` §1 and the
+integration suite were written for confirmation **off** (they sign up and expect
+an immediate session); once it is on, provision any new test accounts by hand.
+
+**5. SMTP.** Supabase's built-in email service is for evaluation only: it is
+heavily rate-limited and is not meant to deliver to real players. **Production
+auth email requires a configured SMTP provider** (*Authentication → Emails →
+SMTP Settings*) before Confirm email is switched on, or new players will not
+receive their link. Password recovery depends on it equally. Keep the default
+templates' `{{ .ConfirmationURL }}` so the redirect above is honoured. The app
+respects the provider's limits: "Resend email" is held back for a minute and a
+429 is reported as "too many attempts" rather than retried.
+
+**6. What is deliberately not done.**
+
+- **Existing accounts are not migrated, recreated or forced to verify.** Most
+  legacy addresses are not real inboxes: password recovery cannot reach them,
+  and Google cannot match them, until the player changes the address through
+  *Edit Profile* and confirms it. That is by design.
+- **A Google account whose verified email matches an existing account** is
+  linked to it by Auth under its own automatic-linking rules; the application
+  does nothing to cause or prevent it and does not hard-code any account.
+- **A brand-new Google account has no player profile.** Migration `0092` stops
+  `handle_new_user()` inventing one; the app shows *Complete your player
+  profile* and the account is neither active nor suspended until it is done.
+- A recovery link's session exists only to choose a new password; finishing (or
+  cancelling) signs it out. If the app is closed in the middle, the session is
+  restored like any other on the next start — Auth does not mark it, and the
+  application cannot tell it apart after a restart.
 
 ---
 
