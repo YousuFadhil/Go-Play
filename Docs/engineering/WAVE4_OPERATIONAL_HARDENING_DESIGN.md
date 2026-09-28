@@ -1,6 +1,6 @@
 # Go Play Intelligence — Wave 4 Operational Hardening Design
 
-**Status:** PROPOSED — design only, no Wave 4 migration or runtime change applied  
+**Status:** APPROVED — Product Owner approved decisions 1–4; implementation may proceed, no Wave 4 migration or runtime change applied yet  
 **Branch:** `intelligence/wave4-operational-hardening`  
 **Base:** `develop` at `9aa9f9a140e1f0951c95c892086a2df9541dd87a`  
 **Production branch:** `main` at `7cefd7b4584cded2914c2bd2407b0d6db64488af`  
@@ -570,32 +570,44 @@ Run Supabase Security and Performance Advisors after migration.
 
 ---
 
-## 11. Decisions requiring Product Owner approval
+## 11. Product Owner decisions — APPROVED
 
 Before implementation, approve these four decisions:
 
-1. **Push metric semantics**  
+1. **Push metric semantics — APPROVED**  
    OI-05 is **FCM Acceptance Rate**, not guaranteed device delivery:
    `sent / (sent + stale + failed)`.
 
-2. **Client error measurement**  
+2. **Client error measurement — APPROVED**  
    Measure affected **production app runs** across signed-in and guest use with
    an in-memory server-generated run id and **no user identity**. Store only
    category + deterministic fingerprint + short sanitized context; no raw
    message/stack.
 
-3. **Public telemetry circuit breaker**  
+3. **Public telemetry circuit breaker — APPROVED**  
    Add a global, non-identifying minute-bucket limiter with initial limits:
    - public-link opens 120/min;
    - client run starts 120/min;
    - client errors 240/min.
    When exceeded, telemetry is dropped only; product flows continue.
 
-4. **Release smoke gate**  
+4. **Release smoke gate — APPROVED**  
    Add post-deploy smoke checks to both Staging and Production workflows.
    A smoke failure marks the workflow failed after publication; there is no
    automatic rollback.
 
-Recommended: approve all four. They close the Wave 0 operational evidence gaps
+All four decisions are approved. They close the Wave 0 operational evidence gaps
 with no new vendor, no personal tracking, no operations UI and minimal runtime
 surface.
+
+### Engineering decisions frozen for implementation
+
+- no Sentry, Upstash, Redis, or new monitoring vendor;
+- no Operations UI in Flutter;
+- no user identity, IP, device id, raw exception text, raw stack trace, or push token in operational evidence;
+- client telemetry is Production-only; Staging/local builds must not write runtime events to the shared live database;
+- public telemetry failures and circuit-breaker refusals are always best-effort and must never block product flows;
+- the existing `push-dispatch` authentication model using `PUSH_DISPATCH_SECRET` remains unchanged;
+- the existing notification center remains the source of truth; push outcome evidence is transport-only;
+- no automatic rollback is added to deployment workflows;
+- no historical backfill is allowed.
