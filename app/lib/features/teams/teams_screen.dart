@@ -18,6 +18,7 @@ import '../sharing/share_card_flow.dart';
 import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
+import 'generated_lineup_repository.dart';
 import 'match_stage.dart';
 import 'played_participants_sheet.dart';
 import 'match_stage_board.dart';
@@ -43,6 +44,7 @@ class TeamsScreen extends StatefulWidget {
     super.key,
     required this.matchId,
     this.teamRepository,
+    this.generatedLineupRepository,
     this.matchService,
     this.memberRepository,
     this.resultRepository,
@@ -56,6 +58,10 @@ class TeamsScreen extends StatefulWidget {
   /// Left null the screen builds the production ones, so nothing here knows
   /// what a data provider is.
   final TeamRepository? teamRepository;
+
+  /// Where a generation is saved with its evidence (Wave 3). Every manual edit
+  /// still goes through [teamRepository] and records no generation.
+  final GeneratedLineupRepository? generatedLineupRepository;
   final MatchService? matchService;
   final MemberRepository? memberRepository;
 
@@ -76,6 +82,8 @@ class TeamsScreen extends StatefulWidget {
 
 class _TeamsScreenState extends State<TeamsScreen> {
   late final TeamRepository _teams = widget.teamRepository ?? TeamRepository();
+  late final GeneratedLineupRepository _generatedLineups =
+      widget.generatedLineupRepository ?? GeneratedLineupRepository();
   late final MatchService _matches = widget.matchService ?? MatchService();
   late final MemberRepository _members =
       widget.memberRepository ?? MemberRepository();
@@ -238,8 +246,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
   /// Generates the teams and records the result.
   ///
-  /// Two deliberate steps: the engine proposes, and [TeamRepository.saveLineup]
-  /// makes the proposal the match's lineup. Generation stores nothing on its
+  /// Two deliberate steps: the engine proposes, and
+  /// [GeneratedLineupRepository.save] makes the proposal the match's lineup
+  /// while recording the evidence of the run. Generation stores nothing on its
   /// own, so without the second step there would be nothing to come back to.
   /// The screen then re-reads rather than rendering what it holds, which is
   /// what keeps the stored lineup the only source of truth.
@@ -287,7 +296,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     setState(() => _busy = true);
 
     try {
-      final lineup = await _teams.generateTeams(
+      final generated = await _teams.generateTeamsWithEvidence(
         view.match,
         configuration: approvedTeamGeneration,
         historyLookback: approvedHistoryLookback,
@@ -296,7 +305,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // instead of the one already on screen.
         avoiding: replacing ? view.lineup : const [],
       );
-      await _teams.saveLineup(widget.matchId, lineup);
+      // One atomic write: the lineup through the existing database rules and
+      // the evidence of the run that produced it (Wave 3). A regeneration is a
+      // new run and appends new evidence; it never rewrites the old.
+      await _generatedLineups.save(widget.matchId, generated);
       _showMessage(l10n.teamsGenerated);
     } on Failure catch (failure) {
       _showMessage(_generationError(l10n, failure));

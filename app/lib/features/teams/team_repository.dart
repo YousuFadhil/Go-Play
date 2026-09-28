@@ -3,6 +3,7 @@ import 'package:btge/btge.dart';
 import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_team_adapter.dart';
 import '../matches/match_models.dart';
+import 'generation_evidence.dart';
 import 'team_adapter.dart';
 import 'team_models.dart';
 
@@ -95,6 +96,28 @@ class TeamRepository {
     required BtgeConfiguration configuration,
     required int? historyLookback,
     List<TeamAssignment> avoiding = const [],
+  }) async =>
+      (await generateTeamsWithEvidence(
+        match,
+        configuration: configuration,
+        historyLookback: historyLookback,
+        avoiding: avoiding,
+      ))
+          .lineup;
+
+  /// [generateTeams], returning the lineup together with the evidence of the
+  /// run that produced it (Wave 3).
+  ///
+  /// The evidence is captured from the very [GenerationInputs] handed to the
+  /// engine and the very [GenerationResult] it returned — the same two values
+  /// the lineup is made of — so no second read can stand in for what the
+  /// engine actually saw. Still nothing is stored here; the Teams screen saves
+  /// the result through `GeneratedLineupRepository`.
+  Future<GeneratedTeams> generateTeamsWithEvidence(
+    Match match, {
+    required BtgeConfiguration configuration,
+    required int? historyLookback,
+    List<TeamAssignment> avoiding = const [],
   }) async {
     final inputs =
         await fetchGenerationInputs(match, historyLookback: historyLookback);
@@ -123,10 +146,14 @@ class TeamRepository {
       result = run(1);
     }
 
-    return [
-      for (final assignment in result.assignments)
-        TeamAssignment.fromAssignment(assignment),
-    ];
+    return GeneratedTeams(
+      GenerationEvidence.capture(
+        inputs: inputs,
+        result: result,
+        configuration: configuration,
+        historyLookback: historyLookback,
+      ),
+    );
   }
 
   /// Whether [assignments] puts exactly the same players on exactly the same
@@ -186,10 +213,14 @@ class TeamRepository {
   /// an organizer's adjustment reaches it directly. `BTGE-MO-5` makes both the
   /// authoritative lineup for the match, so both take the same path.
   ///
-  /// This is the generation half of that path — the Teams screen calls it with
-  /// what the engine just produced — so it is where the guests give up any side
-  /// an organizer chose around the previous teams. The manual operations below
-  /// go through `_replace`, which does not.
+  /// This is the generation half of that path, so it is where the guests give
+  /// up any side an organizer chose around the previous teams. The manual
+  /// operations below go through `_replace`, which does not.
+  ///
+  /// Since Wave 3 the Teams screen saves a generation through
+  /// `GeneratedLineupRepository` instead, which applies the same database rules
+  /// and records the generation evidence in the same transaction. This stays
+  /// for any caller that saves a generated lineup without evidence.
   ///
   /// **Never a completed-match correction, and there is no parameter to make it
   /// one.** A generation is the engine proposing teams; a correction is a
