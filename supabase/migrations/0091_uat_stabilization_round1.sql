@@ -927,6 +927,14 @@ grant execute on function public.create_match(
 -- untouched. Membership, duplicate prevention, capacity, the overlap rule and
 -- the ordering below are unchanged, so both paths still share one source of
 -- truth.
+--
+-- Reconcile the historical helper drift before defining the canonical helper.
+-- Migration 0041 created a two-argument version; later migrations moved both
+-- wrappers to the three-argument version below. The old overload has no caller
+-- or dependency and keeping it would leave two public-schema functions with
+-- the same RPC name.
+drop function if exists public.register_player_in_match(uuid, uuid);
+
 create or replace function public.register_player_in_match(
   p_match_id uuid,
   p_user_id uuid,

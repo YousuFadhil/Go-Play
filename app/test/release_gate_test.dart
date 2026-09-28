@@ -155,11 +155,19 @@ void main() {
   });
 
   group('the deployment workflows', () {
-    final production =
-        File('../.github/workflows/deploy-web.yml').readAsStringSync();
-    final staging =
-        File('../.github/workflows/deploy-staging.yml').readAsStringSync();
+    String readWorkflow(String name) =>
+        File('../.github/workflows/$name')
+            .readAsStringSync()
+            .replaceAll('\r\n', '\n');
+
+    final production = readWorkflow('deploy-web.yml');
+    final staging = readWorkflow('deploy-staging.yml');
     final workflows = {'production': production, 'staging': staging};
+
+    test('normalizes workflow line endings before exact assertions', () {
+      expect(production, isNot(contains('\r')));
+      expect(staging, isNot(contains('\r')));
+    });
 
     test('derive the build identity from the checked-out commit', () {
       for (final MapEntry(key: name, value: yaml) in workflows.entries) {

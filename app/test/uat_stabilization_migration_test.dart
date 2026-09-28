@@ -480,11 +480,74 @@ void main() {
               'to service_role;'));
     });
 
-    test('self-registration and the admin wrapper are not redefined', () {
+    test('keeps one canonical registration helper and existing wrappers', () {
+      final flatStatements = flat(statements);
+      const obsoleteDrop =
+          'drop function if exists public.register_player_in_match(uuid, uuid);';
+      const canonicalCreate =
+          'create or replace function public.register_player_in_match(';
+
+      expect(flatStatements, contains(obsoleteDrop));
+      expect(
+        statements.indexOf(
+            'drop function if exists public.register_player_in_match(uuid, uuid);'),
+        lessThan(statements.indexOf(canonicalCreate)),
+      );
+      expect(
+        RegExp(
+          r'create or replace function public\.register_player_in_match\s*\(',
+        ).allMatches(statements),
+        hasLength(1),
+      );
+      expect(
+        flatStatements,
+        isNot(contains(
+            'drop function if exists public.register_player_in_match(uuid, uuid, boolean);')),
+      );
+
+      // 0091 changes the shared transaction only; the authorization wrappers
+      // remain the effective definitions from 0065.
       expect(
           statements, isNot(contains('function public.register_for_match(')));
       expect(statements,
           isNot(contains('function public.admin_add_player_to_match(')));
+
+      final wrapperMigration = File(
+        '../supabase/migrations/0065_platform_admin_community_suspension_enforcement.sql',
+      ).readAsStringSync().replaceAll('\r\n', '\n');
+      final flatWrappers = flat(wrapperMigration);
+      expect(
+        flatWrappers,
+        contains(
+            'return register_player_in_match(p_match_id, auth.uid(), true);'),
+      );
+      expect(
+        flatWrappers,
+        contains(
+            'return register_player_in_match(p_match_id, p_user_id, false);'),
+      );
+
+      for (final entry in Directory('../supabase/migrations').listSync()) {
+        if (entry is! File) continue;
+        final name = entry.uri.pathSegments.last;
+        final match = RegExp(r'^(\d{4})_').firstMatch(name);
+        if (match == null) continue;
+        final number = int.parse(match.group(1)!);
+        if (number <= 65 || number >= 91) continue;
+        final later = entry.readAsStringSync().replaceAll('\r\n', '\n');
+        expect(
+          later,
+          isNot(contains(
+              'create or replace function public.register_for_match(')),
+          reason: name,
+        );
+        expect(
+          later,
+          isNot(contains(
+              'create or replace function public.admin_add_player_to_match(')),
+          reason: name,
+        );
+      }
     });
 
     test('a completed match reopens only without a result and not historical',
