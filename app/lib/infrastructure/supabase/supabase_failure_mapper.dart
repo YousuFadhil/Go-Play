@@ -191,6 +191,16 @@ class SupabaseFailureMapper {
     ),
     'USER_NOT_FOUND': NotFoundFailure(FailureReason.profileNotFound),
 
+    // Completing a player profile (migration `0092`). The first is a state the
+    // operation ran into. The other three are input the caller got wrong - the
+    // screen has already checked all of them, so reaching one means the request
+    // was built some other way, and a plain validation failure says so. The
+    // position outcome is `INVALID_POSITION`, already above.
+    'PROFILE_ALREADY_EXISTS': ConflictFailure(FailureReason.profileAlreadyExists),
+    'INVALID_FULL_NAME': ValidationFailure(),
+    'INVALID_PHONE': ValidationFailure(),
+    'INVALID_DATE_OF_BIRTH': ValidationFailure(),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),
@@ -229,6 +239,17 @@ class SupabaseFailureMapper {
   static Failure _fromAuth(AuthException error) {
     // The SDK's own signal that the request never reached the server.
     if (error is AuthRetryableFetchException) return const NetworkFailure();
+
+    // The provider limits how often it will send an email or accept an attempt,
+    // and says so with a 429 and one of these codes. It is not a wrong password
+    // and not a taken address, and it is checked first because a rate-limit
+    // message can contain words the checks below would misread.
+    final rateLimited = error.statusCode == '429' ||
+        error.code == 'over_email_send_rate_limit' ||
+        error.code == 'over_request_rate_limit';
+    if (rateLimited) {
+      return const InfrastructureFailure(FailureReason.tooManyRequests);
+    }
 
     final alreadyUsed = error.statusCode == '422' ||
         error.message.toLowerCase().contains('already');

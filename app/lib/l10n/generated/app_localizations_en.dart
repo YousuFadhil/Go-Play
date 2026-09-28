@@ -2526,4 +2526,87 @@ class AppLocalizationsEn extends AppLocalizations {
   String leaderboardPointsPerGame(String value) {
     return '$value PPG';
   }
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get authOrDivider => 'or';
+
+  @override
+  String get googleSignInFailed =>
+      'Could not start Google sign-in. Please try again.';
+
+  @override
+  String get forgotPasswordLink => 'Forgot password?';
+
+  @override
+  String get forgotPasswordTitle => 'Reset your password';
+
+  @override
+  String get forgotPasswordBody =>
+      'Enter the email you signed up with. If it belongs to an account, we will send a link to choose a new password.';
+
+  @override
+  String get forgotPasswordSend => 'Send reset link';
+
+  @override
+  String get forgotPasswordSent =>
+      'If that email belongs to an account, a reset link is on its way. Check your inbox and your spam folder.';
+
+  @override
+  String get backToLogin => 'Back to log in';
+
+  @override
+  String get tooManyRequests =>
+      'Too many attempts. Please wait a few minutes and try again.';
+
+  @override
+  String get checkEmailTitle => 'Check your email';
+
+  @override
+  String checkEmailBody(String email) {
+    return 'We sent a confirmation link to $email. Open it to activate your account, then log in.';
+  }
+
+  @override
+  String get checkEmailResend => 'Resend email';
+
+  @override
+  String get checkEmailResent => 'Confirmation email sent again.';
+
+  @override
+  String get checkEmailResendWait =>
+      'Did not arrive? You can ask for another one in a minute.';
+
+  @override
+  String get resetPasswordTitle => 'Choose a new password';
+
+  @override
+  String get newPasswordLabel => 'New password';
+
+  @override
+  String get resetPasswordSubmit => 'Save new password';
+
+  @override
+  String get resetPasswordLinkExpired =>
+      'This reset link is no longer valid. Request a new one.';
+
+  @override
+  String get passwordResetSuccess =>
+      'Your password was changed. Log in with your new password.';
+
+  @override
+  String get completeProfileTitle => 'Complete your player profile';
+
+  @override
+  String get completeProfileBody =>
+      'One last step before you play: tell us a little about yourself.';
+
+  @override
+  String get completeProfileSubmit => 'Continue';
+
+  @override
+  String get profileDetailsInvalid =>
+      'Please check your details and try again.';
 }

@@ -4405,6 +4405,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{value} PPG'**
   String leaderboardPointsPerGame(String value);
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @authOrDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get authOrDivider;
+
+  /// No description provided for @googleSignInFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start Google sign-in. Please try again.'**
+  String get googleSignInFailed;
+
+  /// No description provided for @forgotPasswordLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPasswordLink;
+
+  /// No description provided for @forgotPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get forgotPasswordTitle;
+
+  /// No description provided for @forgotPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the email you signed up with. If it belongs to an account, we will send a link to choose a new password.'**
+  String get forgotPasswordBody;
+
+  /// No description provided for @forgotPasswordSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send reset link'**
+  String get forgotPasswordSend;
+
+  /// No description provided for @forgotPasswordSent.
+  ///
+  /// In en, this message translates to:
+  /// **'If that email belongs to an account, a reset link is on its way. Check your inbox and your spam folder.'**
+  String get forgotPasswordSent;
+
+  /// No description provided for @backToLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to log in'**
+  String get backToLogin;
+
+  /// No description provided for @tooManyRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Please wait a few minutes and try again.'**
+  String get tooManyRequests;
+
+  /// No description provided for @checkEmailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your email'**
+  String get checkEmailTitle;
+
+  /// No description provided for @checkEmailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a confirmation link to {email}. Open it to activate your account, then log in.'**
+  String checkEmailBody(String email);
+
+  /// No description provided for @checkEmailResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend email'**
+  String get checkEmailResend;
+
+  /// No description provided for @checkEmailResent.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmation email sent again.'**
+  String get checkEmailResent;
+
+  /// No description provided for @checkEmailResendWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Did not arrive? You can ask for another one in a minute.'**
+  String get checkEmailResendWait;
+
+  /// No description provided for @resetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password'**
+  String get resetPasswordTitle;
+
+  /// No description provided for @newPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPasswordLabel;
+
+  /// No description provided for @resetPasswordSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Save new password'**
+  String get resetPasswordSubmit;
+
+  /// No description provided for @resetPasswordLinkExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This reset link is no longer valid. Request a new one.'**
+  String get resetPasswordLinkExpired;
+
+  /// No description provided for @passwordResetSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password was changed. Log in with your new password.'**
+  String get passwordResetSuccess;
+
+  /// No description provided for @completeProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete your player profile'**
+  String get completeProfileTitle;
+
+  /// No description provided for @completeProfileBody.
+  ///
+  /// In en, this message translates to:
+  /// **'One last step before you play: tell us a little about yourself.'**
+  String get completeProfileBody;
+
+  /// No description provided for @completeProfileSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get completeProfileSubmit;
+
+  /// No description provided for @profileDetailsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your details and try again.'**
+  String get profileDetailsInvalid;
 }
 
 class _AppLocalizationsDelegate

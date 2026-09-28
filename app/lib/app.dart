@@ -12,7 +12,11 @@ import 'features/analytics/acquisition_analytics.dart';
 import 'features/analytics/analytics_models.dart';
 import 'features/analytics/analytics_service.dart';
 import 'features/auth/account_suspended_screen.dart';
+import 'features/auth/auth_models.dart';
 import 'features/auth/auth_service.dart';
+import 'features/auth/complete_profile_screen.dart';
+import 'features/auth/login_screen.dart';
+import 'features/auth/reset_password_screen.dart';
 import 'features/discover/discover_screen.dart';
 import 'features/discover/public_community_screen.dart';
 import 'features/discover/public_match_screen.dart';
@@ -396,6 +400,19 @@ List<Route<dynamic>> initialRoutesFor(
 /// A signed-in player still lands on [HomeShell] directly. Sending them through
 /// a public landing page they would immediately be moved off would be a flicker,
 /// not a first impression.
+///
+/// **A password-recovery session outranks all of it.** A recovery link creates a
+/// session that is indistinguishable, by "is there a session", from a sign-in;
+/// what tells them apart is the [AuthEvent] the session arrived with. While that
+/// session is current the gate shows [ResetPasswordScreen] and nothing else --
+/// not Home, not a pending invitation, not an account check -- because the
+/// session exists to choose a password and must not become a way into the
+/// product. Finishing or cancelling ends it.
+///
+/// A signed-in account is then one of three things ([AccountState]): active,
+/// which is Home; suspended, which is the suspension screen; or one that has no
+/// player profile yet, which is asked for it ([CompletePlayerProfileScreen]).
+/// The last is not a suspension and is never worded as one.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key, AuthService? authService, this.onAccountActive})
       : _authService = authService;
@@ -415,7 +432,13 @@ class AuthGate extends StatefulWidget {
 }
 
 /// What the gate knows about the signed-in account right now.
-enum _AccountStatus { checking, active, suspended, unavailable }
+enum _AccountStatus {
+  checking,
+  active,
+  profileRequired,
+  suspended,
+  unavailable,
+}
 
 class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   late final AuthService _authService = widget._authService ?? AuthService();
@@ -429,16 +452,32 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   bool _signedIn = false;
 
+  /// Whether the session in front of the gate is a password-recovery session.
+  ///
+  /// Set by the [AuthEvent] the session arrived with and cleared only when the
+  /// session ends or the person finishes or cancels: while it is true the reset
+  /// screen is all the gate shows, whatever else is true of the session.
+  bool _recovering = false;
+
+  StreamSubscription<AuthEvent>? _events;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Listened to from the start, because a recovery link that was handled
+    // before this gate existed is replayed to a late listener and must not be
+    // missed. Errors are the provider's own noise and are dropped one layer
+    // down; the handler here is only a belt for a listener that would otherwise
+    // rethrow them.
+    _events = _authService.authEvents.listen(_onAuthEvent, onError: (_) {});
     _signedIn = _authService.isSignedIn;
     if (_signedIn) _checkAccount();
   }
 
   @override
   void dispose() {
+    unawaited(_events?.cancel());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -453,15 +492,21 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   Future<void> _checkAccount() async {
+    // A recovery session is not entering the product, so nothing about the
+    // account behind it is asked or acted on.
+    if (_recovering) return;
+
     final id = ++_checkId;
     if (_status != _AccountStatus.checking) {
       setState(() => _status = _AccountStatus.checking);
     }
     _AccountStatus next;
     try {
-      next = await _authService.isCurrentUserActive()
-          ? _AccountStatus.active
-          : _AccountStatus.suspended;
+      next = switch (await _authService.fetchAccountState()) {
+        AccountState.active => _AccountStatus.active,
+        AccountState.profileRequired => _AccountStatus.profileRequired,
+        AccountState.suspended => _AccountStatus.suspended,
+      };
     } catch (_) {
       // Fails closed. An unanswered question is not permission to enter.
       next = _AccountStatus.unavailable;
@@ -473,7 +518,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // point in the application that knows both halves of what a session is:
     // signed in **and** active. A suspended reader records nothing — they do
     // not enter the product, and counting them as a daily active user would
-    // measure the wrong thing twice over.
+    // measure the wrong thing twice over. Neither does an account that has not
+    // given its player profile yet.
     //
     // Called on every check, and it is `startSession` that makes that safe: a
     // resume and a rebuild both arrive here and neither is a new session.
@@ -487,11 +533,57 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
   }
 
+  /// The session did something. Only one thing matters here: it began as a
+  /// password recovery, which is what makes it not a product session.
+  void _onAuthEvent(AuthEvent event) {
+    if (event != AuthEvent.passwordRecovery || _recovering || !mounted) return;
+    // Any account check already in flight belongs to a session that is not
+    // going into the product; its answer is discarded when it lands.
+    _checkId++;
+    setState(() => _recovering = true);
+    // A recovery link opened while the app was already running lands on top of
+    // whatever was pushed -- the login form, the registration form -- and the
+    // reset screen the gate is about to show would sit hidden underneath it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    });
+  }
+
+  /// The new password is set and the recovery session is over. What is left is
+  /// the ordinary login, with the news that it worked.
+  ///
+  /// Pushed rather than rendered as the gate's own content, so it is a
+  /// destination with Back like any other login and the visitor can still go
+  /// back to Discover from it.
+  void _recoveryCompleted() {
+    setState(() => _recovering = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(
+            authService: _authService,
+            passwordResetSucceeded: true,
+          ),
+        ),
+      );
+    });
+  }
+
+  /// The person left without choosing a password. The session was ended by the
+  /// screen; the gate goes back to what a signed-out visitor sees.
+  void _recoveryCancelled() => setState(() => _recovering = false);
+
   /// The session changed under us: re-ask, or forget the answer entirely.
   void _onSignedInChanged(bool signedIn) {
-    if (signedIn == _signedIn) return;
+    if (!mounted || signedIn == _signedIn) return;
     _signedIn = signedIn;
     if (signedIn) {
+      // Whatever was pushed while nobody was signed in -- the login form, the
+      // registration form -- is over. Password sign-in already unwinds itself;
+      // this is for the ways in that are not a form submission, such as coming
+      // back from Google, where nothing on this side knows the moment it lands.
+      Navigator.of(context).popUntil((route) => route.isFirst);
       _checkAccount();
     } else {
       // Signed out: no account to have a state. Bumping the id abandons any
@@ -503,6 +595,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       ProductAnalytics.instance.endSession();
       // And any acquisition this session was carrying ends with it.
       AcquisitionAnalytics.instance.signedOut();
+      // `_recovering` is deliberately left alone. Finishing a recovery ends the
+      // session *before* the reset screen reports it is done, and clearing the
+      // flag here would drop the reader onto Discover for the moment in between.
+      // Both ways out of the reset screen clear it themselves.
       setState(() => _status = _AccountStatus.checking);
     }
   }
@@ -519,6 +615,17 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         if (signedIn != _signedIn) {
           WidgetsBinding.instance.addPostFrameCallback(
             (_) => _onSignedInChanged(signedIn),
+          );
+        }
+
+        // A password-recovery session is decided before anything else, the
+        // sign-in state included: it looks like a signed-in reader and must not
+        // be treated as one.
+        if (_recovering) {
+          return ResetPasswordScreen(
+            authService: _authService,
+            onCompleted: _recoveryCompleted,
+            onCancelled: _recoveryCancelled,
           );
         }
 
@@ -566,11 +673,18 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
         // Signed in. The account's state is decided before anything else,
         // because a suspended reader must not reach the product through a
-        // pending invitation either.
+        // pending invitation either -- and neither may somebody who has not
+        // given a player profile yet.
         return switch (_status) {
           _AccountStatus.checking => const Scaffold(body: LoadingState()),
           _AccountStatus.suspended =>
             AccountSuspendedScreen(authService: _authService),
+          _AccountStatus.profileRequired => CompletePlayerProfileScreen(
+              authService: _authService,
+              // Asks the database again and lets the player in only if the
+              // answer is now "active"; the screen decides nothing itself.
+              onCompleted: _checkAccount,
+            ),
           _AccountStatus.unavailable =>
             AccountStatusUnavailableScreen(onRetry: _checkAccount),
           _AccountStatus.active => ValueListenableBuilder<String?>(

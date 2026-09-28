@@ -28,6 +28,25 @@ abstract interface class AuthAdapter {
   /// the provider itself.
   Stream<bool> get signedInChanges;
 
+  /// What the session did, in the application's own terms.
+  ///
+  /// [signedInChanges] says only whether a session exists, and a recovery link
+  /// produces one that is indistinguishable from an ordinary sign-in. This is
+  /// the stream that keeps the difference: it is how the gate learns that the
+  /// session it is looking at exists to reset a password and nothing else.
+  ///
+  /// May replay the most recent event to a late listener, as the provider's own
+  /// stream does, so a recovery link that was handled before the gate existed is
+  /// still seen. Provider errors never surface on it.
+  Stream<AuthEvent> get authEvents;
+
+  /// The full name the sign-in provider supplied for the signed-in account, or
+  /// null when there is none or it is blank.
+  ///
+  /// Only ever a suggestion for a form the person can edit. It is never stored
+  /// from here and never trusted as a profile.
+  String? get suggestedFullName;
+
   /// The signed-in user's stored full name, or null when there is no session
   /// or no profile row yet.
   Future<String?> fetchCurrentUserFullName();
@@ -41,7 +60,15 @@ abstract interface class AuthAdapter {
   /// There is no rating parameter. `OP-1` makes the initial rating the
   /// database's to set, and an implementation that sent one would be handing a
   /// system-managed value to whoever fills in the form.
-  Future<void> signUp({
+  ///
+  /// The result says whether the provider signed the new account in. It is
+  /// [SignUpOutcome.confirmationRequired] when the project asks the owner of the
+  /// address to confirm it first, and the caller must not then behave as though
+  /// there were a session.
+  ///
+  /// [redirectTo] is where the confirmation link, when there is one, sends the
+  /// player. See [changeEmail] for why it cannot be left to the provider.
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -49,7 +76,35 @@ abstract interface class AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   });
+
+  /// Sends the sign-up confirmation email again.
+  ///
+  /// The provider rate-limits this and says so; an implementation reports that
+  /// as a `Failure` and does not retry.
+  Future<void> resendSignupConfirmation({
+    required String email,
+    required String redirectTo,
+  });
+
+  /// Starts signing in with Google through the provider's own redirect flow.
+  ///
+  /// Returns once the browser has been handed the request, not once anybody is
+  /// signed in: the result arrives later, through [authEvents] and
+  /// [signedInChanges], when the redirect returns to [redirectTo]. On the web
+  /// the page itself navigates away.
+  ///
+  /// An account whose email matches an existing one is linked to it by the
+  /// provider, under the provider's own rules. Nothing here decides that.
+  Future<void> signInWithGoogle({required String redirectTo});
+
+  /// Asks the provider to email a password-recovery link to [email].
+  ///
+  /// The provider answers the same whether or not the address belongs to an
+  /// account, and an implementation must not add a difference of its own: this
+  /// is a question anybody can ask, so its answer cannot say who is registered.
+  Future<void> requestPasswordReset(String email, {required String redirectTo});
 
   Future<void> signIn({required String email, required String password});
 
@@ -77,6 +132,27 @@ abstract interface class AuthAdapter {
   /// not make those (OP-2) -- an implementation raises a `Failure` and the
   /// caller decides.
   Future<bool> isCurrentUserActive();
+
+  /// What the signed-in account is: active, suspended, or without a player
+  /// profile yet -- straight from the database's own `get_my_account_state()`.
+  ///
+  /// Like [isCurrentUserActive] it reports what the database says and nothing
+  /// more; an unanswerable question is a `Failure`, and the caller decides.
+  Future<AccountState> fetchAccountState();
+
+  /// Creates the signed-in account's player profile, for an account that has
+  /// none.
+  ///
+  /// Takes what the profile needs and nothing else -- no rating, role, active
+  /// state or user id -- because the database acts for the session's own user
+  /// and sets the rest itself. [phone] is already in its stored form.
+  Future<void> completePlayerProfile({
+    required String fullName,
+    required String phone,
+    required DateTime dateOfBirth,
+    required PlayerPosition position,
+    required PlayerPosition? secondaryPosition,
+  });
 
   Future<void> signOut();
 }

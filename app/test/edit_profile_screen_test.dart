@@ -13,6 +13,7 @@ import 'package:go_play/features/profile/profile_adapter.dart';
 import 'package:go_play/features/profile/profile_models.dart';
 import 'package:go_play/features/profile/profile_repository.dart';
 import 'package:go_play/features/profile/edit_profile_screen.dart';
+import 'auth_adapter_defaults.dart';
 
 /// The Edit Profile form against fake ports.
 ///
@@ -648,7 +649,7 @@ class FakeProfileAdapter implements ProfileAdapter {
 
 /// The identity port, holding an email and recording the two credential
 /// changes. Nothing else on this screen reaches it.
-class FakeAuthAdapter implements AuthAdapter {
+class FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   FakeAuthAdapter({this.email = 'player@example.com'});
 
   final String email;
@@ -683,7 +684,7 @@ class FakeAuthAdapter implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() => throw UnimplementedError();
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -691,6 +692,7 @@ class FakeAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) =>
       throw UnimplementedError();
 

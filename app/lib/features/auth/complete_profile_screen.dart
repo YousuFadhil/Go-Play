@@ -3,50 +3,64 @@ import 'package:flutter/services.dart';
 // `intl` exports a `TextDirection` of its own; the fields below mean Flutter's.
 import 'package:intl/intl.dart' hide TextDirection;
 
+import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
-import '../analytics/acquisition_analytics.dart';
 import '../profile/profile_models.dart';
 import 'auth_models.dart';
 import 'auth_service.dart';
-import 'check_email_view.dart';
-import 'google_sign_in_button.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key, this.authService});
+/// The player profile an account arrives without.
+///
+/// An account that signed in with Google has a name and an email and nothing
+/// football-shaped, and the database no longer invents the rest (migration
+/// `0092`). Until the person gives it they are neither suspended nor a player,
+/// and the auth gate shows this screen instead of either.
+///
+/// It asks for exactly what registration asks for once an identity exists — full
+/// name, Oman phone, date of birth, primary position and an optional secondary —
+/// and under the same rules, which live in [AuthService] and are not restated
+/// here. **There is no email and no password**: the account has its credentials
+/// already, and asking again would only suggest it did not.
+///
+/// The name starts as whatever the sign-in provider supplied, when it supplied
+/// one, and is the person's to change: it is what every roster will show.
+///
+/// Finishing does not navigate. It tells the gate ([onCompleted]), which asks
+/// the database what the account is now and lets the player in only if the
+/// answer is "active" — this screen never decides that for itself.
+class CompletePlayerProfileScreen extends StatefulWidget {
+  const CompletePlayerProfileScreen({
+    super.key,
+    required this.authService,
+    required this.onCompleted,
+  });
 
-  /// Supplied only by tests, as the repositories take an optional port. Left
-  /// null the screen builds the production service, so nothing here knows what
-  /// a data provider is.
-  final AuthService? authService;
+  final AuthService authService;
+
+  /// The profile exists now (or already did). The gate re-checks the account.
+  final VoidCallback onCompleted;
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<CompletePlayerProfileScreen> createState() =>
+      _CompletePlayerProfileScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _CompletePlayerProfileScreenState
+    extends State<CompletePlayerProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
+  late final TextEditingController _fullNameController =
+      TextEditingController(text: widget.authService.suggestedFullName ?? '');
   final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
-  late final AuthService _authService = widget.authService ?? AuthService();
   PlayerPosition? _position;
   PlayerPosition? _secondaryPosition;
   DateTime? _dateOfBirth;
   bool _isLoading = false;
 
-  /// Set when the account was created but the provider is holding it for the
-  /// address to be confirmed. While it is set the form is replaced by the
-  /// "check your email" state; nothing is signed in.
-  String? _pendingConfirmationEmail;
-
   @override
   void dispose() {
     _fullNameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -60,18 +74,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     };
   }
 
-  /// Opens the date picker and records what came back.
-  ///
-  /// [lastDate] is today: a date of birth that has not happened yet is refused
-  /// by never being offered. Nothing else is bounded — no approved document
-  /// sets a minimum or maximum age, and the picker is not the place to invent
-  /// one.
+  /// Same bounds as registration: nothing after today, and no minimum or maximum
+  /// age, because no approved document sets one.
   Future<void> _pickDateOfBirth(FormFieldState<DateTime> field) async {
     final today = dateOnly(DateTime.now());
     final picked = await showDatePicker(
       context: context,
-      initialDate: _dateOfBirth ?? DateTime(today.year - 25, today.month,
-          today.day),
+      initialDate:
+          _dateOfBirth ?? DateTime(today.year - 25, today.month, today.day),
       firstDate: DateTime(1900),
       lastDate: today,
     );
@@ -86,47 +96,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final l10n = context.l10n;
     setState(() => _isLoading = true);
     try {
-      final outcome = await _authService.register(
-        email: _emailController.text,
-        localPhone: _phoneController.text,
-        password: _passwordController.text,
+      await widget.authService.completePlayerProfile(
         fullName: _fullNameController.text,
-        position: _position!,
+        localPhone: _phoneController.text,
         dateOfBirth: _dateOfBirth!,
+        position: _position!,
         secondaryPosition: _secondaryPosition,
       );
-      // The provider is holding the account for the address to be confirmed:
-      // there is no session, so nothing below applies. The person is told to
-      // check their email, and the gate stays where it is.
-      //
-      // The acquisition conversion is deliberately not marked here. It is a
-      // flag that lives until the gate confirms an active account or the session
-      // ends, and with no session there is neither -- it would still be set when
-      // somebody else signed in, and a login must never count as a signup.
-      if (outcome == SignUpOutcome.confirmationRequired) {
-        if (mounted) {
-          setState(
-              () => _pendingConfirmationEmail = _emailController.text.trim());
-        }
-        return;
-      }
-      // A new account now exists. Marked only here, never on login, so an
-      // existing account signing in is never a signup conversion. Nothing is
-      // awaited: the gate records the conversion once the account is active.
-      AcquisitionAnalytics.instance.registrationSucceeded();
-      // On success the session is active; AuthGate navigates to Home.
-      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+      widget.onCompleted();
     } on Failure catch (failure) {
-      _showError(switch (failure) {
-        NetworkFailure() => l10n.networkError,
-        // The only conflict sign-up can hit is an address already registered.
-        ConflictFailure() => l10n.emailAlreadyUsed,
-        AuthenticationFailure() => l10n.registerFailed,
-        _ => l10n.genericError,
-      });
+      switch (failure) {
+        // The account has a profile already - a second tap, or it was finished
+        // elsewhere. That is the outcome this screen exists for, so the gate is
+        // simply asked again rather than the person being told it failed.
+        case ConflictFailure():
+          widget.onCompleted();
+        case NetworkFailure():
+          _showError(l10n.networkError);
+        case ValidationFailure():
+          _showError(l10n.profileDetailsInvalid);
+        default:
+          _showError(l10n.genericError);
+      }
     } catch (_) {
       _showError(l10n.genericError);
     } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Leaving without finishing. Ordinary sign-out; the gate follows the session.
+  Future<void> _signOut() async {
+    setState(() => _isLoading = true);
+    try {
+      await widget.authService.logout();
+    } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -140,28 +144,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).toString();
 
-    final pendingEmail = _pendingConfirmationEmail;
-    if (pendingEmail != null) {
-      return Scaffold(
-        appBar: AppBar(title: Text(l10n.registerTitle)),
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: CheckEmailView(
-                email: pendingEmail,
-                authService: _authService,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.registerTitle)),
+      appBar: AppBar(
+        title: Text(l10n.completeProfileTitle),
+        automaticallyImplyLeading: false,
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -172,12 +162,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Text(
+                    l10n.completeProfileBody,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: Gap.xl),
                   TextFormField(
                     controller: _fullNameController,
                     textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(
-                      labelText: l10n.fullNameLabel,
-                    ),
+                    decoration: InputDecoration(labelText: l10n.fullNameLabel),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return l10n.fullNameRequired;
@@ -185,25 +178,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textDirection: TextDirection.ltr,
-                    decoration: InputDecoration(
-                      labelText: l10n.emailLabel,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return l10n.emailRequired;
-                      }
-                      if (!AuthService.isValidEmail(value)) {
-                        return l10n.emailInvalid;
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Gap.lg),
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.number,
@@ -215,41 +190,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     decoration: InputDecoration(
                       labelText: l10n.phoneLabel,
                       hintText: l10n.phoneHint,
-                      // Fixed Oman country code; user types only the 8 digits.
+                      // Fixed Oman country code; the person types only the 8
+                      // digits.
                       prefixText: '${AuthService.omanCallingCode} ',
                     ),
                     validator: (value) {
                       final digits = AuthService.digitsOnly(value ?? '');
-                      if (digits.isEmpty) {
-                        return l10n.phoneRequired;
-                      }
+                      if (digits.isEmpty) return l10n.phoneRequired;
                       if (!AuthService.isValidOmanLocalPhone(digits)) {
                         return l10n.phoneInvalid;
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: l10n.passwordLabel,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return l10n.passwordRequired;
-                      }
-                      if (value.length < 8) {
-                        return l10n.passwordTooShort;
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // A date, picked rather than typed. §4.1 makes it a required
-                  // Core Player Input, so it is a field of the form and the
-                  // form refuses to submit without it.
+                  const SizedBox(height: Gap.lg),
                   FormField<DateTime>(
                     initialValue: _dateOfBirth,
                     validator: (value) =>
@@ -268,12 +222,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Gap.lg),
                   DropdownButtonFormField<PlayerPosition>(
                     initialValue: _position,
-                    decoration: InputDecoration(
-                      labelText: l10n.positionLabel,
-                    ),
+                    decoration: InputDecoration(labelText: l10n.positionLabel),
                     items: [
                       for (final position in PlayerPosition.values)
                         DropdownMenuItem(
@@ -283,9 +235,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                     onChanged: (value) => setState(() {
                       _position = value;
-                      // The second position was a second choice. Once the
-                      // primary becomes it, it is no longer one, so it goes
-                      // rather than sitting there duplicating the primary.
+                      // Once the primary becomes it, the second position is no
+                      // longer a second choice, so it goes.
                       if (_secondaryPosition == value) {
                         _secondaryPosition = null;
                       }
@@ -293,10 +244,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (value) =>
                         value == null ? l10n.positionRequired : null,
                   ),
-                  const SizedBox(height: 16),
-                  // Optional (`BTGE-SC-6`), and never the primary: the primary
-                  // is left out of the list, and "None" is an offered choice
-                  // rather than an empty field.
+                  const SizedBox(height: Gap.lg),
                   DropdownButtonFormField<PlayerPosition?>(
                     initialValue: _secondaryPosition,
                     decoration: InputDecoration(
@@ -320,7 +268,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ? l10n.secondaryPositionSameAsPrimary
                         : null,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: Gap.xl),
                   FilledButton(
                     onPressed: _isLoading ? null : _submit,
                     child: _isLoading
@@ -329,18 +277,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Text(l10n.registerButton),
+                        : Text(l10n.completeProfileSubmit),
                   ),
-                  const SizedBox(height: 12),
-                  GoogleSignInSection(
-                    authService: widget.authService,
-                    enabled: !_isLoading,
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Gap.sm),
                   TextButton(
-                    onPressed:
-                        _isLoading ? null : () => Navigator.of(context).pop(),
-                    child: Text(l10n.haveAccountPrompt),
+                    onPressed: _isLoading ? null : _signOut,
+                    child: Text(l10n.logoutLabel),
                   ),
                 ],
               ),

@@ -11,6 +11,7 @@ import 'package:go_play/features/auth/auth_service.dart';
 import 'package:go_play/features/auth/login_screen.dart';
 import 'package:go_play/features/auth/register_screen.dart';
 import 'package:go_play/features/sharing/public_link.dart';
+import 'auth_adapter_defaults.dart';
 
 /// The registration screen against a fake identity port.
 ///
@@ -153,6 +154,22 @@ void main() {
       await accountActive(tester);
 
       expect(adapter.signUpCount, 0);
+      expect(acquisition.completions, isEmpty);
+    });
+
+    testWidgets('a registration held for email confirmation marks none',
+        (tester) async {
+      // No session exists, so the flag would outlive this registration and be
+      // still set when somebody else signed in -- and a login must never count
+      // as a signup.
+      final adapter = FakeAuthAdapter()
+        ..signUpOutcome = SignUpOutcome.confirmationRequired;
+      await arrive(tester);
+      await register(tester, adapter);
+      await accountActive(tester);
+
+      expect(adapter.signUpCount, 1);
+      expect(find.text('Check your email'), findsOneWidget);
       expect(acquisition.completions, isEmpty);
     });
 
@@ -430,7 +447,7 @@ class _FakeAcquisitionAdapter implements AcquisitionAnalyticsAdapter {
   }
 }
 
-class FakeAuthAdapter implements AuthAdapter {
+class FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   /// Refuses the sign-up, as the provider can.
   Failure? signUpFailure;
   int signInCount = 0;
@@ -442,9 +459,41 @@ class FakeAuthAdapter implements AuthAdapter {
   PlayerPosition? lastPosition;
   PlayerPosition? lastSecondaryPosition;
   DateTime? lastDateOfBirth;
+  String? lastRedirectTo;
+
+  /// What the provider says happened to the new account. `signedIn` is the
+  /// project with Email Confirmation off; `confirmationRequired` is it on.
+  SignUpOutcome signUpOutcome = SignUpOutcome.signedIn;
+
+  int resendCount = 0;
+  String? lastResendEmail;
+  String? lastResendRedirectTo;
+  Failure? resendFailure;
+
+  int googleCount = 0;
+  String? lastGoogleRedirectTo;
+  Failure? googleFailure;
 
   @override
-  Future<void> signUp({
+  Future<void> resendSignupConfirmation({
+    required String email,
+    required String redirectTo,
+  }) async {
+    if (resendFailure != null) throw resendFailure!;
+    resendCount++;
+    lastResendEmail = email;
+    lastResendRedirectTo = redirectTo;
+  }
+
+  @override
+  Future<void> signInWithGoogle({required String redirectTo}) async {
+    if (googleFailure != null) throw googleFailure!;
+    googleCount++;
+    lastGoogleRedirectTo = redirectTo;
+  }
+
+  @override
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -452,6 +501,7 @@ class FakeAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) async {
     if (signUpFailure != null) throw signUpFailure!;
     signUpCount++;
@@ -461,6 +511,8 @@ class FakeAuthAdapter implements AuthAdapter {
     lastPosition = position;
     lastSecondaryPosition = secondaryPosition;
     lastDateOfBirth = dateOfBirth;
+    lastRedirectTo = redirectTo;
+    return signUpOutcome;
   }
 
   @override

@@ -24,6 +24,14 @@ class AuthService {
   /// Emits true while a session exists.
   Stream<bool> get signedInChanges => _adapter.signedInChanges;
 
+  /// What the session did, so the gate can tell a password-recovery session
+  /// from an ordinary one. [signedInChanges] cannot: both are "a session".
+  Stream<AuthEvent> get authEvents => _adapter.authEvents;
+
+  /// The name the sign-in provider supplied, to offer as a starting point for a
+  /// form the person edits. Null when there is none.
+  String? get suggestedFullName => _adapter.suggestedFullName;
+
   /// Id of the signed-in user, or null when there is no session.
   String? get currentUserId => _adapter.currentUserId;
 
@@ -79,7 +87,12 @@ class AuthService {
   /// the date of birth has not happened yet or the secondary position repeats
   /// the primary. It is the same rule the profile screen writes under, asked in
   /// the same place.
-  Future<void> register({
+  ///
+  /// Returns whether the new account is signed in. It is not always: when the
+  /// project asks for the address to be confirmed first, the account exists and
+  /// nothing is signed in, and the caller shows "check your email" rather than
+  /// waiting for a session that is not coming.
+  Future<SignUpOutcome> register({
     required String email,
     required String localPhone,
     required String password,
@@ -93,13 +106,114 @@ class AuthService {
       primaryPosition: position,
       secondaryPosition: secondaryPosition,
     );
-    await _adapter.signUp(
+    return _adapter.signUp(
       email: email.trim(),
       password: password,
       fullName: fullName.trim(),
       position: position,
       phone: toOmanE164(localPhone),
       dateOfBirth: dateOnly(dateOfBirth),
+      secondaryPosition: secondaryPosition,
+      redirectTo: authCallbackRedirect,
+    );
+  }
+
+  /// Sends the sign-up confirmation email again.
+  ///
+  /// The provider allows one email per address a minute or so and refuses the
+  /// rest; that surfaces as a failure the screen words, and nothing here
+  /// retries. Throws [ValidationFailure] for something that is not an address.
+  Future<void> resendConfirmation(String email) async {
+    final trimmed = email.trim();
+    if (!isValidEmail(trimmed)) throw const ValidationFailure();
+    await _adapter.resendSignupConfirmation(
+      email: trimmed,
+      redirectTo: authCallbackRedirect,
+    );
+  }
+
+  /// Starts signing in with Google. See [AuthAdapter.signInWithGoogle]: this
+  /// returns when the browser has the request, and the outcome arrives as a
+  /// session change, not as this call's result.
+  Future<void> signInWithGoogle() =>
+      _adapter.signInWithGoogle(redirectTo: authCallbackRedirect);
+
+  /// Asks for a password-recovery email.
+  ///
+  /// Throws [ValidationFailure] for something that is not an address. Nothing
+  /// else about the address is checked or reported: the provider answers the
+  /// same for a registered address and an unregistered one, and this must not
+  /// add a difference the caller could show.
+  Future<void> requestPasswordReset(String email) async {
+    final trimmed = email.trim();
+    if (!isValidEmail(trimmed)) throw const ValidationFailure();
+    await _adapter.requestPasswordReset(
+      trimmed,
+      redirectTo: authCallbackRedirect,
+    );
+  }
+
+  /// Chooses the new password for a password-recovery session, then ends that
+  /// session.
+  ///
+  /// The sign-out is the point. A recovery link proves control of an inbox, not
+  /// knowledge of the old password, and the session it produces exists to make
+  /// this one change; leaving it in place would turn "I clicked a link" into a
+  /// signed-in product session nobody asked for. After this the person signs in
+  /// in the ordinary way, with the password they just chose.
+  ///
+  /// Throws [ValidationFailure] when the password is too short. A failure from
+  /// the provider - an expired link, no connection - leaves the session alone so
+  /// the person can try again or cancel.
+  Future<void> completePasswordRecovery(String password) async {
+    if (!isValidPassword(password)) throw const ValidationFailure();
+    await _adapter.changePassword(password);
+    try {
+      await _adapter.signOut();
+    } catch (_) {
+      // The password *did* change, so this must not be reported as though it had
+      // not. What matters is that no session is left behind, and a provider
+      // clears its local one before it tells the server; only when one is
+      // somehow still there is the failure real.
+      if (_adapter.isSignedIn) rethrow;
+    }
+  }
+
+  /// What the signed-in account is: active, suspended, or waiting for a player
+  /// profile. The gate fails closed on a failure here exactly as it does on
+  /// [isCurrentUserActive].
+  Future<AccountState> fetchAccountState() => _adapter.fetchAccountState();
+
+  /// Creates the signed-in account's player profile.
+  ///
+  /// This is the Google onboarding path, and it is held to the same rules as
+  /// registration and the profile screen, asked in the same places: the name is
+  /// the one every roster shows, so a blank one is refused; the phone is an
+  /// 8-digit Oman number and is stored as `+968XXXXXXXX`; the date of birth
+  /// cannot be in the future; and a secondary position is a different position.
+  ///
+  /// Throws [ValidationFailure] - before anything reaches the provider - for any
+  /// of those. There is no email or password here: the account already has its
+  /// credentials.
+  Future<void> completePlayerProfile({
+    required String fullName,
+    required String localPhone,
+    required DateTime dateOfBirth,
+    required PlayerPosition position,
+    PlayerPosition? secondaryPosition,
+  }) async {
+    validateAccountInputs(fullName: fullName);
+    if (!isValidOmanLocalPhone(localPhone)) throw const ValidationFailure();
+    validateProfileInputs(
+      dateOfBirth: dateOfBirth,
+      primaryPosition: position,
+      secondaryPosition: secondaryPosition,
+    );
+    await _adapter.completePlayerProfile(
+      fullName: fullName.trim(),
+      phone: toOmanE164(localPhone),
+      dateOfBirth: dateOnly(dateOfBirth),
+      position: position,
       secondaryPosition: secondaryPosition,
     );
   }
@@ -155,6 +269,15 @@ class AuthService {
   /// the project configuration.
   static String get emailChangeRedirect =>
       kIsWeb ? webEmailChangeRedirect(Uri.base) : nativeEmailChangeRedirect;
+
+  /// Where every emailed or redirected authentication link sends the player:
+  /// the sign-up confirmation, a password-recovery link, and the return from
+  /// Google. It is the same address as [emailChangeRedirect] on purpose - one
+  /// callback, one manifest filter, one allow-list entry per form - and this
+  /// name exists so those callers do not read as though they were changing an
+  /// email. Everything said above about what has to agree outside Dart applies
+  /// to it unchanged.
+  static String get authCallbackRedirect => emailChangeRedirect;
 
   /// What reopens the app on Android and iOS. Registered in the manifest.
   static const String nativeEmailChangeRedirect = 'goplay://login-callback';

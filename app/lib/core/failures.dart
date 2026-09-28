@@ -197,6 +197,17 @@ enum FailureReason {
   // Identity
   emailAlreadyUsed,
 
+  // The provider is refusing further emails or attempts for now. A supporting
+  // service saying "not yet" rather than anything the person entered wrongly, so
+  // it is worded on its own: asking again at once is the one thing that cannot
+  // help, and "something went wrong" would invite exactly that.
+  tooManyRequests,
+
+  // Completing a player profile (migration `0092`). The account already has one
+  // - the person tapped twice, or finished it somewhere else - which is a state
+  // the operation ran into, not input they got wrong.
+  profileAlreadyExists,
+
   // Opening another player's profile.
   //
   // The player set their profile to community members only and the viewer

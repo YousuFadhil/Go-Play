@@ -37,6 +37,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'player_record_fakes.dart';
+import 'auth_adapter_defaults.dart';
 
 /// Public links, from the visitor's side.
 ///
@@ -981,7 +982,7 @@ class _RecordingAnalyticsAdapter implements AnalyticsAdapter {
   }
 }
 
-class _FakeAuthAdapter implements AuthAdapter {
+class _FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   _FakeAuthAdapter({bool signedIn = false}) : _signedIn = signedIn;
 
   bool _signedIn;

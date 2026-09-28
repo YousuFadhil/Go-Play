@@ -4,6 +4,8 @@ import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import 'auth_service.dart';
+import 'forgot_password_screen.dart';
+import 'google_sign_in_button.dart';
 import 'register_screen.dart';
 
 /// Signing in.
@@ -15,7 +17,16 @@ import 'register_screen.dart';
 /// success, which the auth gate then answers by swapping the public tree for the
 /// signed-in one.
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.authService});
+  const LoginScreen({
+    super.key,
+    this.authService,
+    this.passwordResetSucceeded = false,
+  });
+
+  /// True when the person has just finished choosing a new password and been
+  /// sent here to use it. Shows the confirmation the reset screen cannot: that
+  /// screen is gone by the time this one is on top.
+  final bool passwordResetSucceeded;
 
   /// Supplied only by tests, as the registration screen already takes one. Left
   /// null the screen builds the production service, so nothing here knows what
@@ -118,6 +129,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: Gap.xl),
+                if (widget.passwordResetSucceeded) ...[
+                  _ResetSucceededBanner(message: l10n.passwordResetSuccess),
+                  const SizedBox(height: Gap.lg),
+                ],
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -149,7 +164,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: Gap.xl),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ForgotPasswordScreen(
+                                  authService: widget.authService,
+                                  // Carried over so it is not typed twice.
+                                  initialEmail: _emailController.text.trim(),
+                                ),
+                              ),
+                            ),
+                    child: Text(l10n.forgotPasswordLink),
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
                 FilledButton(
                   onPressed: _isLoading ? null : _submit,
                   child: _isLoading
@@ -159,6 +191,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : Text(l10n.loginButton),
+                ),
+                const SizedBox(height: Gap.lg),
+                GoogleSignInSection(
+                  authService: widget.authService,
+                  enabled: !_isLoading,
                 ),
                 const SizedBox(height: Gap.sm),
                 TextButton(
@@ -177,6 +214,38 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The line above the fields after a password reset: the change worked, and this
+/// is the ordinary login it leads back to.
+class _ResetSucceededBanner extends StatelessWidget {
+  const _ResetSucceededBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(Radii.control),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle_outline, color: scheme.onPrimaryContainer),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: scheme.onPrimaryContainer),
+            ),
+          ),
+        ],
       ),
     );
   }
