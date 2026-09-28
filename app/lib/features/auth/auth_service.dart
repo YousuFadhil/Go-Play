@@ -1,10 +1,12 @@
-import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, kIsWeb, visibleForTesting;
 
 import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_auth_adapter.dart';
 import '../profile/profile_models.dart';
 import 'auth_adapter.dart';
 import 'auth_models.dart';
+import 'password_recovery_state.dart';
 
 /// Identity: sign-up, sign-in, the session stream, and the profile name.
 ///
@@ -12,10 +14,16 @@ import 'auth_models.dart';
 /// the product's own rules — what a valid Oman number looks like, how it is
 /// stored, and what counts as a first name.
 class AuthService {
-  AuthService([AuthAdapter? adapter])
-      : _adapter = adapter ?? SupabaseAuthAdapter();
+  AuthService([AuthAdapter? adapter, PasswordRecoveryState? recovery])
+      : _adapter = adapter ?? SupabaseAuthAdapter(),
+        _recovery = recovery ?? PasswordRecoveryState.instance;
 
   final AuthAdapter _adapter;
+
+  /// The durable memory of an unfinished password recovery. Shared with the
+  /// launch and route handling in `main.dart` and `GoPlayApp` through
+  /// [PasswordRecoveryState.instance]; a test supplies its own.
+  final PasswordRecoveryState _recovery;
 
   /// Whether a session exists. The auth gate reads this so the widget layer
   /// never sees a provider's session object.
@@ -24,9 +32,25 @@ class AuthService {
   /// Emits true while a session exists.
   Stream<bool> get signedInChanges => _adapter.signedInChanges;
 
-  /// What the session did, so the gate can tell a password-recovery session
-  /// from an ordinary one. [signedInChanges] cannot: both are "a session".
+  /// What the session did, as it happens. A listener sees only what is emitted
+  /// after it starts listening; **it is not a record of what happened before**,
+  /// so nothing that must not be missed may depend on it alone — see
+  /// [recoveryInProgress].
   Stream<AuthEvent> get authEvents => _adapter.authEvents;
+
+  /// Whether a password recovery is in progress on this device, durably: it is
+  /// still true after the app is killed and reopened, which the provider's own
+  /// event cannot be. The gate consults it before anything else about a
+  /// signed-in account.
+  ValueListenable<bool> get recoveryInProgress => _recovery.inProgress;
+
+  /// Records that a recovery began. Called when the provider reports one, as a
+  /// backup to the launch or route that came from the recovery callback.
+  Future<void> beginPasswordRecovery() => _recovery.begin();
+
+  /// Forgets a recovery that has nothing behind it: a flag with no session, or
+  /// an armed link that an ordinary sign-in has since taken over from.
+  Future<void> discardPasswordRecovery() => _recovery.clear();
 
   /// The name the sign-in provider supplied, to offer as a starting point for a
   /// form the person edits. Null when there is none.
@@ -144,17 +168,20 @@ class AuthService {
   /// else about the address is checked or reported: the provider answers the
   /// same for a registered address and an unregistered one, and this must not
   /// add a difference the caller could show.
+  ///
+  /// The link goes to [recoveryRedirect], not the ordinary callback: what the
+  /// person arrives on is what tells the application it was a recovery.
   Future<void> requestPasswordReset(String email) async {
     final trimmed = email.trim();
     if (!isValidEmail(trimmed)) throw const ValidationFailure();
     await _adapter.requestPasswordReset(
       trimmed,
-      redirectTo: authCallbackRedirect,
+      redirectTo: recoveryRedirect,
     );
   }
 
   /// Chooses the new password for a password-recovery session, then ends that
-  /// session.
+  /// session and the durable record of it.
   ///
   /// The sign-out is the point. A recovery link proves control of an inbox, not
   /// knowledge of the old password, and the session it produces exists to make
@@ -162,21 +189,40 @@ class AuthService {
   /// signed-in product session nobody asked for. After this the person signs in
   /// in the ordinary way, with the password they just chose.
   ///
+  /// The order is fixed: change the password, end the session, *then* clear the
+  /// flag. Interrupted anywhere before the last step the flag is still set, so a
+  /// session that outlived the interruption is met by the reset screen again
+  /// rather than becoming an ordinary one; interrupted after the sign-out the
+  /// flag is merely stale, and the gate finds it with no session and drops it.
+  ///
   /// Throws [ValidationFailure] when the password is too short. A failure from
-  /// the provider - an expired link, no connection - leaves the session alone so
-  /// the person can try again or cancel.
+  /// the provider — an expired link, no connection — leaves the session and the
+  /// flag alone so the person can try again or cancel.
   Future<void> completePasswordRecovery(String password) async {
     if (!isValidPassword(password)) throw const ValidationFailure();
     await _adapter.changePassword(password);
+    await _endRecovery();
+  }
+
+  /// Leaves a password recovery without changing anything: ends the session and
+  /// clears the durable record of it.
+  ///
+  /// If the session cannot be ended the flag is **kept** and the failure is
+  /// thrown. Clearing it over a session that is still there would be exactly
+  /// what the flag exists to prevent.
+  Future<void> cancelPasswordRecovery() => _endRecovery();
+
+  Future<void> _endRecovery() async {
     try {
       await _adapter.signOut();
     } catch (_) {
-      // The password *did* change, so this must not be reported as though it had
-      // not. What matters is that no session is left behind, and a provider
-      // clears its local one before it tells the server; only when one is
-      // somehow still there is the failure real.
+      // A provider clears its own copy of the session before it tells the
+      // server, so a failed call usually still leaves nobody signed in, and that
+      // is what matters. Only when a session is somehow still there is the
+      // failure real.
       if (_adapter.isSignedIn) rethrow;
     }
+    await _recovery.clear();
   }
 
   /// What the signed-in account is: active, suspended, or waiting for a player
@@ -270,14 +316,37 @@ class AuthService {
   static String get emailChangeRedirect =>
       kIsWeb ? webEmailChangeRedirect(Uri.base) : nativeEmailChangeRedirect;
 
-  /// Where every emailed or redirected authentication link sends the player:
-  /// the sign-up confirmation, a password-recovery link, and the return from
-  /// Google. It is the same address as [emailChangeRedirect] on purpose - one
-  /// callback, one manifest filter, one allow-list entry per form - and this
-  /// name exists so those callers do not read as though they were changing an
-  /// email. Everything said above about what has to agree outside Dart applies
-  /// to it unchanged.
+  /// Where the ordinary emailed or redirected authentication links send the
+  /// player: the sign-up confirmation and the return from Google. It is the same
+  /// address as [emailChangeRedirect] on purpose - one callback, one manifest
+  /// filter, one allow-list entry per form - and this name exists so those
+  /// callers do not read as though they were changing an email. Everything said
+  /// above about what has to agree outside Dart applies to it unchanged.
+  ///
+  /// Password recovery does **not** use it; see [recoveryRedirect].
   static String get authCallbackRedirect => emailChangeRedirect;
+
+  /// Where a password-recovery link sends the player: the ordinary callback with
+  /// `/recovery` after it.
+  ///
+  /// The extra segment is what lets the application recognise a recovery from
+  /// the address it was opened on, without having to have seen the provider's
+  /// event (`RecoveryLink`). It adds two things outside Dart that have to agree:
+  /// the Redirect URLs allow-list needs the `/recovery` form of **each** ordinary
+  /// entry, or Auth ignores the parameter and falls back to the Site URL; and
+  /// the Android intent filter must accept it — which it does, because it names
+  /// the host `login-callback` and restricts no path.
+  static String get recoveryRedirect =>
+      kIsWeb ? webRecoveryRedirect(Uri.base) : nativeRecoveryRedirect;
+
+  /// What reopens the app on Android and iOS for a recovery.
+  static const String nativeRecoveryRedirect = 'goplay://login-callback/recovery';
+
+  /// The web form, for a page served from [base]. Derived the same way as
+  /// [webEmailChangeRedirect], and for the same reasons.
+  @visibleForTesting
+  static String webRecoveryRedirect(Uri base) =>
+      '${base.origin}/login-callback/recovery';
 
   /// What reopens the app on Android and iOS. Registered in the manifest.
   static const String nativeEmailChangeRedirect = 'goplay://login-callback';

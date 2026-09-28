@@ -486,20 +486,32 @@ client is unaffected by the migration.
 
 **2. Redirect URLs.** *Authentication → URL Configuration → Redirect URLs* must
 contain **every** form the app sends, or Auth ignores the parameter and falls
-back to the Site URL, which is not an address that reopens the app:
+back to the Site URL, which is not an address that reopens the app. There are two
+callbacks per platform: the **ordinary** one, for sign-up confirmation and the
+return from Google, and the **recovery** one, which is the ordinary one with
+`/recovery` after it. Password-recovery emails use the second, and that address is
+how the app recognises a recovery — so it is not optional, and an allow-list
+holding only the ordinary forms sends recovery emails to the Site URL:
 
-| Form | Value | Used for |
+| Form | Ordinary callback | Recovery callback |
 |---|---|---|
-| Native (Android) | `goplay://login-callback` | Confirmation, recovery and Google, back into the app |
-| Web, production | `https://go-play-44y.pages.dev/login-callback` | The same, in the browser |
-| Web, staging | `https://go-play-staging.pages.dev/login-callback` | The same |
-| Web, local run | `http://localhost:<port>/login-callback` | Only while developing against this project |
+| Native (Android) | `goplay://login-callback` | `goplay://login-callback/recovery` |
+| Web, production | `https://go-play-44y.pages.dev/login-callback` | `https://go-play-44y.pages.dev/login-callback/recovery` |
+| Web, staging | `https://go-play-staging.pages.dev/login-callback` | `https://go-play-staging.pages.dev/login-callback/recovery` |
+| Web, local run | `http://localhost:<port>/login-callback` | `http://localhost:<port>/login-callback/recovery` |
+
+(Local runs only while developing against this project. A wildcard entry such as
+`goplay://login-callback/**` would cover both forms; the exact entries above are
+the ones the app sends.)
 
 The web value is derived from the running page's origin (`AuthService`), so a new
-web host needs its own row before it can complete any of these flows. The app is
-a single page and the host's SPA rewrite already answers `/login-callback`. The
-Android manifest already carries the `goplay://login-callback` filter; iOS is
-not configured for it and is not a supported target of this change.
+web host needs its own two rows before it can complete any of these flows. The app
+is a single page: Cloudflare Pages serves `index.html` for any path that matches
+no file, so `/login-callback` and `/login-callback/recovery` both reach it. The
+Android manifest's `login-callback` filter names the host and restricts no path,
+so `/recovery` is already accepted (asserted in
+`app/test/auth_recovery_persistence_test.dart`); iOS is not configured for either
+and is not a supported target of this change.
 
 **3. Google provider.** *Authentication → Sign In / Providers → Google.* Create
 an OAuth client of type *Web application* in Google Cloud, add
@@ -539,10 +551,22 @@ respects the provider's limits: "Resend email" is held back for a minute and a
 - **A brand-new Google account has no player profile.** Migration `0092` stops
   `handle_new_user()` inventing one; the app shows *Complete your player
   profile* and the account is neither active nor suspended until it is done.
-- A recovery link's session exists only to choose a new password; finishing (or
-  cancelling) signs it out. If the app is closed in the middle, the session is
-  restored like any other on the next start — Auth does not mark it, and the
-  application cannot tell it apart after a restart.
+- **A recovery session never becomes an ordinary one.** The application keeps a
+  small durable record on the device (local storage, `PasswordRecoveryState`):
+  set by the launch or resume that came from the recovery callback and, as a
+  backup, by Auth's recovery event; read by the auth gate before anything else
+  about a signed-in account; cleared by finishing or cancelling (both sign the
+  session out first) or when it is found with no session behind it. It is not
+  derived from Auth's event, because that event can be emitted before the app is
+  listening and a restored session carries no memory of how it began. The one
+  case it cannot see is a recovery whose callback the platform hands over in a
+  shape not recognised *and* whose event was also missed; such a session is then
+  an ordinary one.
+- **Acquisition attribution is not carried across these redirects.** A sign-up
+  completed through Google or an email-confirmation link leaves the app and
+  returns to it, and may not count as the same-session anonymous signup
+  conversion that a plain registration does. This is a known and accepted
+  limitation: no persistent tracking or cookie is added to work around it.
 
 ---
 

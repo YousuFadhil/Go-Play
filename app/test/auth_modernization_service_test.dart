@@ -5,10 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
+import 'package:go_play/features/auth/password_recovery_state.dart';
 import 'package:go_play/infrastructure/supabase/supabase_auth_adapter.dart';
 import 'package:go_play/infrastructure/supabase/supabase_failure_mapper.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_modernization_fakes.dart';
@@ -80,9 +82,27 @@ void main() {
       );
     });
 
-    test('one callback serves the email change, sign-up, recovery and Google',
-        () {
+    test('one callback serves the email change, sign-up confirmation and '
+        'Google', () {
       expect(AuthService.authCallbackRedirect, AuthService.emailChangeRedirect);
+    });
+
+    test('password recovery has its own, so it is recognisable on arrival', () {
+      expect(AuthService.nativeRecoveryRedirect,
+          'goplay://login-callback/recovery');
+      expect(AuthService.recoveryRedirect, AuthService.nativeRecoveryRedirect,
+          reason: 'a VM, not a browser');
+      expect(
+        AuthService.webRecoveryRedirect(
+            Uri.parse('https://go-play-staging.pages.dev/community/abc?x=1')),
+        'https://go-play-staging.pages.dev/login-callback/recovery',
+      );
+      expect(AuthService.recoveryRedirect,
+          isNot(AuthService.authCallbackRedirect));
+      expect(AuthService.recoveryRedirect,
+          startsWith('${AuthService.authCallbackRedirect}/'),
+          reason: 'the ordinary callback with one segment added, so the same '
+              'manifest filter and origin serve it');
     });
 
     test('the profile reaches the port exactly as registration always sent it',
@@ -145,20 +165,31 @@ void main() {
 
   group('AuthService: password recovery', () {
     late ScriptedAuthAdapter adapter;
+    late PasswordRecoveryState recovery;
     late AuthService service;
 
-    setUp(() {
+    Future<bool> persisted() async => (await SharedPreferences.getInstance())
+            .getBool(PasswordRecoveryState.storageKey) ??
+        false;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
       adapter = ScriptedAuthAdapter(signedIn: true);
-      service = AuthService(adapter);
+      recovery = PasswordRecoveryState();
+      await recovery.load();
+      await recovery.begin();
+      service = AuthService(adapter, recovery);
     });
 
-    test('a request names the trimmed address and the platform callback',
+    test('a request names the trimmed address and the recovery callback',
         () async {
       await service.requestPasswordReset('  sara@example.com ');
 
       expect(adapter.resetRequests.single.email, 'sara@example.com');
       expect(adapter.resetRequests.single.redirectTo,
-          AuthService.authCallbackRedirect);
+          AuthService.recoveryRedirect,
+          reason: 'not the ordinary callback: the address the link comes back '
+              'to is how a recovery is recognised');
     });
 
     test('something that is not an address never reaches the provider',
@@ -188,6 +219,93 @@ void main() {
       expect(adapter.journal, ['changePassword', 'signOut']);
       expect(adapter.isSignedIn, isFalse,
           reason: 'a recovery session must not survive as a product session');
+    });
+
+    test('and only then clears the durable record, and from storage too',
+        () async {
+      bool? atSignOut;
+      adapter.onSignOut = () => atSignOut = recovery.isInProgress;
+
+      await service.completePasswordRecovery('a-new-password');
+
+      expect(atSignOut, isTrue,
+          reason: 'still set when the session ends: interrupted here, the next '
+              'start is met by the reset screen, not by an ordinary session');
+      expect(recovery.isInProgress, isFalse);
+      expect(await persisted(), isFalse);
+    });
+
+    test('cancelling ends the session and then clears the record', () async {
+      bool? atSignOut;
+      adapter.onSignOut = () => atSignOut = recovery.isInProgress;
+
+      await service.cancelPasswordRecovery();
+
+      expect(adapter.passwordChanges, isEmpty);
+      expect(adapter.signOuts, 1);
+      expect(adapter.isSignedIn, isFalse);
+      expect(atSignOut, isTrue);
+      expect(recovery.isInProgress, isFalse);
+      expect(await persisted(), isFalse);
+    });
+
+    test('a cancel that cannot end the session keeps the record', () async {
+      adapter
+        ..signOutFailure = const NetworkFailure()
+        ..signOutLeavesSession = true;
+
+      await expectLater(service.cancelPasswordRecovery(),
+          throwsA(isA<NetworkFailure>()));
+
+      expect(adapter.isSignedIn, isTrue);
+      expect(recovery.isInProgress, isTrue,
+          reason: 'clearing it over a live recovery session is the one thing '
+              'the record exists to prevent');
+      expect(await persisted(), isTrue);
+    });
+
+    test('a cancel whose call failed but whose session is gone still clears it',
+        () async {
+      adapter.signOutFailure = const NetworkFailure();
+
+      await service.cancelPasswordRecovery();
+
+      expect(adapter.isSignedIn, isFalse);
+      expect(recovery.isInProgress, isFalse);
+    });
+
+    test('a refusal from the provider keeps the record', () async {
+      adapter.changePasswordFailure = const AuthenticationFailure();
+
+      await expectLater(service.completePasswordRecovery('a-new-password'),
+          throwsA(isA<AuthenticationFailure>()));
+
+      expect(recovery.isInProgress, isTrue);
+      expect(await persisted(), isTrue);
+    });
+
+    test('a password below the minimum keeps the record', () async {
+      await expectLater(service.completePasswordRecovery('short'),
+          throwsA(isA<ValidationFailure>()));
+
+      expect(recovery.isInProgress, isTrue);
+    });
+
+    test('the provider\'s event is remembered as a backup', () async {
+      await recovery.clear();
+      expect(service.recoveryInProgress.value, isFalse);
+
+      await service.beginPasswordRecovery();
+
+      expect(service.recoveryInProgress.value, isTrue);
+      expect(await persisted(), isTrue);
+    });
+
+    test('a record with nothing behind it can be discarded', () async {
+      await service.discardPasswordRecovery();
+
+      expect(service.recoveryInProgress.value, isFalse);
+      expect(await persisted(), isFalse);
     });
 
     test('a password below the minimum changes nothing and keeps the session',
@@ -226,10 +344,11 @@ void main() {
       await service.completePasswordRecovery('a-new-password');
 
       expect(adapter.isSignedIn, isFalse);
+      expect(recovery.isInProgress, isFalse);
     });
 
-    test('but a session that is somehow still there is a real failure',
-        () async {
+    test('but a session that is somehow still there is a real failure, and '
+        'the record stays', () async {
       adapter
         ..signOutFailure = const NetworkFailure()
         ..signOutLeavesSession = true;
@@ -238,6 +357,7 @@ void main() {
           throwsA(isA<NetworkFailure>()));
 
       expect(adapter.isSignedIn, isTrue);
+      expect(recovery.isInProgress, isTrue);
     });
   });
 
@@ -624,15 +744,6 @@ void main() {
           AuthEvent.sessionUpdated,
           AuthEvent.signedOut,
         ]);
-      });
-
-      test('a recovery link handled before anybody listened is still seen',
-          () async {
-        // ignore: invalid_use_of_internal_member
-        client.auth.notifyAllSubscribers(AuthChangeEvent.passwordRecovery);
-        await pumpEventQueue();
-
-        expect(await adapter.authEvents.first, AuthEvent.passwordRecovery);
       });
 
       test('provider errors on the stream never reach a listener', () async {

@@ -35,9 +35,14 @@ abstract interface class AuthAdapter {
   /// the stream that keeps the difference: it is how the gate learns that the
   /// session it is looking at exists to reset a password and nothing else.
   ///
-  /// May replay the most recent event to a late listener, as the provider's own
-  /// stream does, so a recovery link that was handled before the gate existed is
-  /// still seen. Provider errors never surface on it.
+  /// **Live events only.** A listener sees what is emitted after it starts
+  /// listening and nothing from before: the provider processes an auth link and
+  /// emits its event while it initialises, which can be before anything in the
+  /// application exists to listen, and a session restored later carries no memory
+  /// of how it began. Nothing that must not be missed may therefore depend on
+  /// this stream alone -- password recovery is remembered separately and durably
+  /// (`PasswordRecoveryState`), and this event is only a backup to that.
+  /// Provider errors never surface on it.
   Stream<AuthEvent> get authEvents;
 
   /// The full name the sign-in provider supplied for the signed-in account, or

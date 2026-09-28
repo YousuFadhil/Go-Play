@@ -423,7 +423,7 @@ void main() {
       expect(adapter.resetRequests, isEmpty);
     });
 
-    testWidgets('asks for the trimmed address with the platform callback',
+    testWidgets('asks for the trimmed address with the recovery callback',
         (tester) async {
       final adapter = await openForgot(tester);
 
@@ -431,7 +431,7 @@ void main() {
 
       expect(adapter.resetRequests.single.email, 'sara@example.com');
       expect(adapter.resetRequests.single.redirectTo,
-          AuthService.authCallbackRedirect);
+          AuthService.recoveryRedirect);
     });
 
     testWidgets('answers in neutral words, and never echoes the address',

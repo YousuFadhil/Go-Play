@@ -15,8 +15,12 @@ import 'auth_service.dart';
 ///
 /// **Finishing signs the person out.** A recovery link proves control of an
 /// inbox; it does not prove a product session is wanted. So the password is
-/// changed, the session ends, and [onCompleted] returns the person to the
-/// ordinary login flow to sign in with what they just chose.
+/// changed, the session ends and the durable record of the recovery is cleared,
+/// and [onCompleted] returns the person to the ordinary login flow to sign in
+/// with what they just chose.
+///
+/// The screen is reached again after the app is killed while it is up, because
+/// that record outlives the process; nothing here has to persist anything.
 ///
 /// The password rule is the one every other screen holds
 /// ([AuthService.minimumPasswordLength]); it is not restated here.
@@ -30,10 +34,12 @@ class ResetPasswordScreen extends StatefulWidget {
 
   final AuthService authService;
 
-  /// The password was changed and the recovery session is over.
+  /// The password was changed, the recovery session is over and its durable
+  /// record is cleared.
   final VoidCallback onCompleted;
 
-  /// The person left without changing it. The recovery session has been ended.
+  /// The person left without changing it. The recovery session has been ended
+  /// and its durable record cleared.
   final VoidCallback onCancelled;
 
   @override
@@ -80,13 +86,26 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   /// Leaves without changing anything. The session goes with it: a recovery
   /// session that outlived the screen would be a signed-in product session
   /// nobody chose.
+  ///
+  /// If the session cannot be ended the screen **stays**: leaving it up over a
+  /// session that is still there, with the durable record cleared, is exactly
+  /// how an unfinished recovery becomes an ordinary session.
   Future<void> _cancel() async {
+    final l10n = context.l10n;
     setState(() => _isLoading = true);
     try {
-      await widget.authService.logout();
+      await widget.authService.cancelPasswordRecovery();
+    } on Failure catch (failure) {
+      _showError(switch (failure) {
+        NetworkFailure() => l10n.networkError,
+        _ => l10n.genericError,
+      });
+      if (mounted) setState(() => _isLoading = false);
+      return;
     } catch (_) {
-      // The provider clears its own copy of the session before it tells the
-      // server, so a failure here still leaves nobody signed in locally.
+      _showError(l10n.genericError);
+      if (mounted) setState(() => _isLoading = false);
+      return;
     }
     widget.onCancelled();
   }

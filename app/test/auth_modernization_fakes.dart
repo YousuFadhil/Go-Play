@@ -47,10 +47,13 @@ class CompletionCall {
 ///
 /// It behaves like the provider where that matters to the tests written against
 /// it: every session event updates whether there is a session and is announced on
-/// both streams, a late listener on [authEvents] is replayed the latest event
-/// (the provider's stream does the same, which is how a recovery link handled
-/// before the gate existed still reaches it), and signing out ends the session
-/// before it returns.
+/// both streams, and signing out ends the session before it returns.
+///
+/// **[authEvents] carries live events only** — a listener that starts late sees
+/// nothing from before. That is the contract the application is written against
+/// (`AuthAdapter.authEvents`), and it is why the tests for a recovery that
+/// survives a restart drive the application's own durable state rather than a
+/// fake that remembers an event for them.
 ///
 /// Nothing here knows about Supabase.
 class ScriptedAuthAdapter implements AuthAdapter {
@@ -58,15 +61,12 @@ class ScriptedAuthAdapter implements AuthAdapter {
     bool signedIn = false,
     this.accountState = AccountState.active,
     this.suggestedName,
-    AuthEvent? replayedEvent,
     String email = 'player@example.com',
   })  : _signedIn = signedIn,
-        _email = email,
-        _lastEvent = replayedEvent;
+        _email = email;
 
   bool _signedIn;
   final String _email;
-  AuthEvent? _lastEvent;
 
   // ---- scripted answers ------------------------------------------------------
 
@@ -84,6 +84,11 @@ class ScriptedAuthAdapter implements AuthAdapter {
   /// With [signOutFailure] set: the failure happens before the session is
   /// cleared, so the session is still there afterwards.
   bool signOutLeavesSession = false;
+
+  /// Called at the moment of sign-out, before the session ends, so a test can
+  /// observe what else was true then (for instance, that the durable recovery
+  /// record is still set).
+  void Function()? onSignOut;
   Object? completionFailure;
 
   /// A completed profile is what makes the account `active`; leave it true to
@@ -114,7 +119,6 @@ class ScriptedAuthAdapter implements AuthAdapter {
   /// What the provider does when something happens to the session.
   void emit(AuthEvent event, {required bool signedIn}) {
     _signedIn = signedIn;
-    _lastEvent = event;
     _signedInController.add(_signedIn);
     _eventController.add(event);
   }
@@ -126,12 +130,7 @@ class ScriptedAuthAdapter implements AuthAdapter {
   Stream<bool> get signedInChanges => _signedInController.stream;
 
   @override
-  Stream<AuthEvent> get authEvents => Stream<AuthEvent>.multi((controller) {
-        final replay = _lastEvent;
-        if (replay != null) controller.add(replay);
-        final subscription = _eventController.stream.listen(controller.add);
-        controller.onCancel = subscription.cancel;
-      }, isBroadcast: true);
+  Stream<AuthEvent> get authEvents => _eventController.stream;
 
   @override
   String? get currentUserId => _signedIn ? 'u1' : null;
@@ -249,6 +248,7 @@ class ScriptedAuthAdapter implements AuthAdapter {
   Future<void> signOut() async {
     signOuts++;
     journal.add('signOut');
+    onSignOut?.call();
     if (signOutFailure != null && signOutLeavesSession) throw signOutFailure!;
     // A provider clears its own copy of the session before it tells the server,
     // so the session is over even when the call then fails.

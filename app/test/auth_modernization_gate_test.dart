@@ -13,11 +13,13 @@ import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
 import 'package:go_play/features/auth/complete_profile_screen.dart';
 import 'package:go_play/features/auth/login_screen.dart';
+import 'package:go_play/features/auth/password_recovery_state.dart';
 import 'package:go_play/features/auth/reset_password_screen.dart';
 import 'package:go_play/features/discover/discover_screen.dart';
 import 'package:go_play/features/home/home_shell.dart';
 import 'package:go_play/features/invitations/invite_landing_screen.dart';
 import 'package:go_play/features/invitations/invite_link.dart';
+import 'package:go_play/features/sharing/public_link.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -79,10 +81,14 @@ void main() {
 
   Future<ScriptedAuthAdapter> pump(
     WidgetTester tester,
-    ScriptedAuthAdapter adapter,
-  ) async {
+    ScriptedAuthAdapter adapter, {
+    PasswordRecoveryState? recovery,
+  }) async {
     tallSurface(tester);
-    await tester.pumpWidget(app(AuthService(adapter)));
+    // Its own recovery state each time, never the process-wide one: what one
+    // test records must not be there for the next.
+    await tester.pumpWidget(
+        app(AuthService(adapter, recovery ?? PasswordRecoveryState())));
     await tester.pumpAndSettle();
     return adapter;
   }
@@ -447,6 +453,54 @@ void main() {
   });
 
   group('a password-recovery session outranks normal routing', () {
+    // The tests here use the application's own durable recovery state over
+    // (mock) local storage, and simulate a restart by throwing the running app
+    // and its state away and building new ones from storage alone -- which is
+    // all a killed process leaves behind. Nothing replays an event for them.
+    late PasswordRecoveryState recovery;
+
+    const recoveryLink = 'goplay://login-callback/recovery?code=abc123';
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      recovery = PasswordRecoveryState();
+      await recovery.load();
+    });
+
+    tearDown(() {
+      PendingPublicLink.instance.clear();
+    });
+
+    Future<bool> persisted() async =>
+        (await SharedPreferences.getInstance())
+            .getBool(PasswordRecoveryState.storageKey) ??
+        false;
+
+    /// The app is opened by a recovery link whose session already exists, and
+    /// no event is emitted: the launch is all there is to go on.
+    Future<ScriptedAuthAdapter> pumpRecovery(
+      WidgetTester tester, {
+      AccountState accountState = AccountState.active,
+      Locale locale = const Locale('en'),
+    }) async {
+      await recovery.captureLink(recoveryLink);
+      final adapter =
+          ScriptedAuthAdapter(signedIn: true, accountState: accountState);
+      tallSurface(tester);
+      await tester.pumpWidget(app(AuthService(adapter, recovery), locale: locale));
+      await tester.pumpAndSettle();
+      return adapter;
+    }
+
+    /// The process is killed: the widget tree, the state object and the fake
+    /// provider go with it. What comes back is built from storage alone.
+    Future<PasswordRecoveryState> restart(WidgetTester tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final restarted = PasswordRecoveryState();
+      await restarted.load();
+      return restarted;
+    }
+
     Future<void> enterPasswords(
       WidgetTester tester,
       String password, [
@@ -462,235 +516,467 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('a signed-in reader who follows a recovery link is shown the '
-        'reset screen, not Home', (tester) async {
-      final adapter = await pump(tester, ScriptedAuthAdapter(signedIn: true));
-      expect(find.byType(HomeShell), findsOneWidget);
-      final checks = adapter.accountStateChecks;
+    group('how a recovery is recognised', () {
+      testWidgets('the provider\'s event on a running app shows the reset '
+          'screen, and is remembered', (tester) async {
+        final adapter = await pump(tester, ScriptedAuthAdapter(signedIn: true),
+            recovery: recovery);
+        expect(find.byType(HomeShell), findsOneWidget);
+        final checks = adapter.accountStateChecks;
 
-      adapter.emit(AuthEvent.passwordRecovery, signedIn: true);
-      await tester.pumpAndSettle();
+        adapter.emit(AuthEvent.passwordRecovery, signedIn: true);
+        await tester.pumpAndSettle();
 
-      expect(find.byType(ResetPasswordScreen), findsOneWidget);
-      expect(find.byType(HomeShell), findsNothing);
-      expect(adapter.accountStateChecks, checks,
-          reason: 'nothing about the account is asked of a recovery session');
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(find.byType(HomeShell), findsNothing);
+        expect(adapter.accountStateChecks, checks,
+            reason: 'nothing about the account is asked of a recovery session');
+        expect(recovery.isInProgress, isTrue);
+        expect(await persisted(), isTrue,
+            reason: 'the event is only a backup, but it is a durable one');
+      });
+
+      testWidgets('a cold start from the recovery link, with its session and '
+          'no event at all, shows the reset screen', (tester) async {
+        final adapter = await pumpRecovery(tester);
+
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(find.byType(HomeShell), findsNothing);
+        expect(adapter.accountStateChecks, 0,
+            reason: 'the durable record is read before any account question');
+        expect(analytics.events, isEmpty,
+            reason: 'a recovery session is not a product session');
+      });
+
+      testWidgets('a link handed to the app while it is running shows it too',
+          (tester) async {
+        final adapter = await pump(tester, ScriptedAuthAdapter(signedIn: true),
+            recovery: recovery);
+        expect(find.byType(HomeShell), findsOneWidget);
+
+        expect(await recovery.captureLink(recoveryLink), isTrue);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(find.byType(HomeShell), findsNothing);
+        expect(adapter.accountStateChecks, 1);
+      });
+
+      testWidgets('it lands on top of a form that was pushed', (tester) async {
+        final adapter = await pump(tester, ScriptedAuthAdapter(),
+            recovery: recovery);
+        unawaited(Navigator.of(tester.element(find.byType(DiscoverScreen))).push(
+          MaterialPageRoute<void>(
+              builder: (_) => LoginScreen(authService: AuthService(adapter))),
+        ));
+        await tester.pumpAndSettle();
+
+        adapter.emit(AuthEvent.passwordRecovery, signedIn: true);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(LoginScreen), findsNothing);
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+      });
+
+      testWidgets('an ordinary persisted session does not become one',
+          (tester) async {
+        final adapter = await pump(tester, ScriptedAuthAdapter(signedIn: true),
+            recovery: recovery);
+
+        expect(find.byType(HomeShell), findsOneWidget);
+        expect(find.byType(ResetPasswordScreen), findsNothing);
+        expect(adapter.accountStateChecks, 1);
+        expect(recovery.isInProgress, isFalse);
+        expect(await persisted(), isFalse);
+      });
+
+      testWidgets('nor does a Google return or a confirmation link',
+          (tester) async {
+        for (final link in [
+          'goplay://login-callback?code=abc123',
+          'https://go-play-44y.pages.dev/login-callback?code=abc123',
+          'goplay://login-callback#access_token=a&refresh_token=b&type=signup',
+          '/login-callback?code=abc123',
+        ]) {
+          expect(await recovery.captureLink(link), isFalse, reason: link);
+        }
+        expect(recovery.isInProgress, isFalse);
+
+        final adapter = await pump(tester, ScriptedAuthAdapter(),
+            recovery: recovery);
+        adapter.emit(AuthEvent.signedIn, signedIn: true);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(HomeShell), findsOneWidget);
+        expect(find.byType(ResetPasswordScreen), findsNothing);
+        expect(recovery.isInProgress, isFalse);
+        expect(await persisted(), isFalse);
+      });
     });
 
-    testWidgets('a recovery link handled before the gate existed is still '
-        'seen', (tester) async {
-      await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
+    group('across a restart', () {
+      testWidgets('killed on the reset screen, it is the reset screen again',
+          (tester) async {
+        final first = await pump(tester, ScriptedAuthAdapter(signedIn: true),
+            recovery: recovery);
+        first.emit(AuthEvent.passwordRecovery, signedIn: true);
+        await tester.pumpAndSettle();
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        // The first run began as an ordinary session, so it did record one.
+        final sessionsBefore = analytics.events.length;
 
-      expect(find.byType(ResetPasswordScreen), findsOneWidget);
-      expect(find.byType(HomeShell), findsNothing);
-      expect(analytics.events, isEmpty,
-          reason: 'a recovery session is not a product session');
-    });
+        final restarted = await restart(tester);
+        // The provider restores its persisted session; no event follows it.
+        final second = await pump(tester, ScriptedAuthAdapter(signedIn: true),
+            recovery: restarted);
 
-    testWidgets('an ordinary sign-in replayed the same way is not one',
-        (tester) async {
-      await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.signedIn));
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(find.byType(HomeShell), findsNothing);
+        expect(second.accountStateChecks, 0);
+        expect(analytics.events.length, sessionsBefore,
+            reason: 'the restarted recovery session recorded nothing');
+      });
 
-      expect(find.byType(ResetPasswordScreen), findsNothing);
-      expect(find.byType(HomeShell), findsOneWidget);
-    });
+      testWidgets('and again after a second restart, until it is finished',
+          (tester) async {
+        await pumpRecovery(tester);
+        var state = await restart(tester);
+        await pump(tester, ScriptedAuthAdapter(signedIn: true), recovery: state);
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
 
-    testWidgets('it outranks a pending invitation', (tester) async {
-      PendingInvite.instance.offer('1234');
-      await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
+        state = await restart(tester);
+        await pump(tester, ScriptedAuthAdapter(signedIn: true), recovery: state);
 
-      expect(find.byType(ResetPasswordScreen), findsOneWidget);
-      expect(find.byType(InviteLandingScreen), findsNothing);
-    });
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+      });
 
-    testWidgets('it outranks an account that has no profile or is suspended',
-        (tester) async {
-      for (final state in [
-        AccountState.profileRequired,
-        AccountState.suspended,
-      ]) {
-        await pump(
-            tester,
-            ScriptedAuthAdapter(
-                signedIn: true,
-                accountState: state,
-                replayedEvent: AuthEvent.passwordRecovery));
+      testWidgets('what was recorded is read before Home or any account state',
+          (tester) async {
+        for (final state in AccountState.values) {
+          SharedPreferences.setMockInitialValues(
+              {PasswordRecoveryState.storageKey: true});
+          final stored = PasswordRecoveryState();
+          await stored.load();
+          final adapter = await pump(
+              tester,
+              ScriptedAuthAdapter(signedIn: true, accountState: state),
+              recovery: stored);
+
+          expect(find.byType(ResetPasswordScreen), findsOneWidget,
+              reason: '$state');
+          expect(find.byType(HomeShell), findsNothing);
+          expect(find.byType(CompletePlayerProfileScreen), findsNothing);
+          expect(find.byType(AccountSuspendedScreen), findsNothing);
+          expect(adapter.accountStateChecks, 0, reason: '$state');
+        }
+      });
+
+      testWidgets('a record with no session behind it is dropped, and does '
+          'not loop', (tester) async {
+        SharedPreferences.setMockInitialValues(
+            {PasswordRecoveryState.storageKey: true});
+        final stale = PasswordRecoveryState();
+        await stale.load();
+        expect(stale.isInProgress, isTrue);
+
+        await pump(tester, ScriptedAuthAdapter(), recovery: stale);
+
+        expect(find.byType(DiscoverScreen), findsOneWidget,
+            reason: 'the ordinary signed-out flow');
+        expect(find.byType(ResetPasswordScreen), findsNothing);
+        expect(stale.isInProgress, isFalse);
+        expect(await persisted(), isFalse);
+
+        // Nothing is left to come back: the next start, with an ordinary
+        // session, is an ordinary start.
+        final restarted = await restart(tester);
+        expect(restarted.isInProgress, isFalse);
+        await pump(tester, ScriptedAuthAdapter(signedIn: true),
+            recovery: restarted);
+        expect(find.byType(HomeShell), findsOneWidget);
+        expect(find.byType(ResetPasswordScreen), findsNothing);
+      });
+
+      testWidgets('the reset screen stays up if its session ends, until the '
+          'person leaves it', (tester) async {
+        final adapter = await pumpRecovery(tester);
+
+        adapter.emit(AuthEvent.signedOut, signedIn: false);
+        await tester.pumpAndSettle();
 
         expect(find.byType(ResetPasswordScreen), findsOneWidget,
-            reason: '$state');
-        expect(find.byType(CompletePlayerProfileScreen), findsNothing);
-        expect(find.byType(AccountSuspendedScreen), findsNothing);
-      }
+            reason: 'it is what finishing relies on: the session ends before '
+                'the screen says it is done');
+        expect(recovery.isInProgress, isTrue);
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(recovery.isInProgress, isFalse);
+        expect(await persisted(), isFalse);
+        expect(find.byType(DiscoverScreen), findsOneWidget);
+      });
     });
 
-    testWidgets('it lands on top of a form that was pushed', (tester) async {
-      final adapter = await pump(tester, ScriptedAuthAdapter());
-      unawaited(Navigator.of(tester.element(find.byType(DiscoverScreen))).push(
-        MaterialPageRoute<void>(
-            builder: (_) => LoginScreen(authService: AuthService(adapter))),
-      ));
-      await tester.pumpAndSettle();
+    group('a link whose session has not arrived yet', () {
+      testWidgets('is armed while nobody is signed in, and no reset screen is '
+          'shown for it', (tester) async {
+        await pump(tester, ScriptedAuthAdapter(), recovery: recovery);
 
-      adapter.emit(AuthEvent.passwordRecovery, signedIn: true);
-      await tester.pumpAndSettle();
+        await recovery.captureLink(recoveryLink);
+        await tester.pumpAndSettle();
 
-      expect(find.byType(LoginScreen), findsNothing);
-      expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(find.byType(DiscoverScreen), findsOneWidget);
+        expect(find.byType(ResetPasswordScreen), findsNothing);
+      });
+
+      testWidgets('shows the reset screen when the recovery session lands',
+          (tester) async {
+        final adapter = await pump(tester, ScriptedAuthAdapter(),
+            recovery: recovery);
+        await recovery.captureLink(recoveryLink);
+
+        adapter.emit(AuthEvent.passwordRecovery, signedIn: true);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(adapter.accountStateChecks, 0);
+      });
+
+      testWidgets('is not mistaken for the ordinary sign-in that comes instead '
+          'when the link had expired', (tester) async {
+        final adapter = await pump(tester, ScriptedAuthAdapter(),
+            recovery: recovery);
+        await recovery.captureLink(recoveryLink);
+
+        // The exchange never produced a recovery session; the person went back
+        // and simply signed in.
+        adapter.emit(AuthEvent.signedIn, signedIn: true);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(HomeShell), findsOneWidget);
+        expect(find.byType(ResetPasswordScreen), findsNothing);
+        expect(recovery.isInProgress, isFalse);
+        expect(await persisted(), isFalse);
+      });
     });
 
-    testWidgets('there is no way back to the product from it', (tester) async {
-      await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
+    group('nothing outranks it', () {
+      testWidgets('not a pending invitation', (tester) async {
+        PendingInvite.instance.offer('1234');
+        await pumpRecovery(tester);
 
-      expect(find.byType(BackButton), findsNothing);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(find.byType(InviteLandingScreen), findsNothing);
+      });
+
+      testWidgets('not a pending public destination', (tester) async {
+        PendingPublicLink.instance
+            .offer('/player/3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
+        expect(PendingPublicLink.instance.target.value, isNotNull);
+
+        await pumpRecovery(tester);
+
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(find.byType(HomeShell), findsNothing);
+        expect(PendingPublicLink.instance.target.value, isNotNull,
+            reason: 'still pending: the recovery only stands in front of it');
+      });
+
+      testWidgets('not an account with no profile, nor a suspended one',
+          (tester) async {
+        for (final state in [
+          AccountState.profileRequired,
+          AccountState.suspended,
+        ]) {
+          await pumpRecovery(tester, accountState: state);
+
+          expect(find.byType(ResetPasswordScreen), findsOneWidget,
+              reason: '$state');
+          expect(find.byType(CompletePlayerProfileScreen), findsNothing);
+          expect(find.byType(AccountSuspendedScreen), findsNothing);
+        }
+      });
+
+      testWidgets('and there is no way back to the product from it',
+          (tester) async {
+        await pumpRecovery(tester);
+
+        expect(find.byType(BackButton), findsNothing);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+      });
     });
 
-    testWidgets('a short password is refused before the port', (tester) async {
-      final adapter = await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
+    group('the reset screen', () {
+      testWidgets('refuses a short password before the port', (tester) async {
+        final adapter = await pumpRecovery(tester);
 
-      await enterPasswords(tester, 'short');
-      await save(tester);
+        await enterPasswords(tester, 'short');
+        await save(tester);
 
-      expect(find.text('Password must be at least 8 characters'),
-          findsOneWidget);
-      expect(adapter.passwordChanges, isEmpty);
+        expect(find.text('Password must be at least 8 characters'),
+            findsOneWidget);
+        expect(adapter.passwordChanges, isEmpty);
+      });
+
+      testWidgets('refuses a confirmation that differs before the port',
+          (tester) async {
+        final adapter = await pumpRecovery(tester);
+
+        await enterPasswords(tester, 'a-new-password', 'a-new-passwrod');
+        await save(tester);
+
+        expect(find.text('The two passwords do not match'), findsOneWidget);
+        expect(adapter.passwordChanges, isEmpty);
+        expect(adapter.signOuts, 0);
+      });
+
+      testWidgets('says so when the link has expired, and stays',
+          (tester) async {
+        final adapter = await pumpRecovery(tester);
+        adapter.changePasswordFailure = const AuthenticationFailure();
+
+        await enterPasswords(tester, 'a-new-password');
+        await save(tester);
+
+        expect(find.text('This reset link is no longer valid. Request a new '
+            'one.'), findsOneWidget);
+        expect(find.byType(ResetPasswordScreen), findsOneWidget);
+        expect(adapter.signOuts, 0);
+        expect(recovery.isInProgress, isTrue,
+            reason: 'nothing has finished, so nothing is cleared');
+        expect(await persisted(), isTrue);
+      });
+
+      testWidgets('is in Arabic in Arabic', (tester) async {
+        await pumpRecovery(tester, locale: const Locale('ar'));
+
+        expect(find.text('اختر كلمة مرور جديدة'), findsWidgets);
+        expect(find.text('كلمة المرور الجديدة'), findsOneWidget);
+        expect(find.text('حفظ كلمة المرور الجديدة'), findsOneWidget);
+      });
     });
 
-    testWidgets('a confirmation that differs is refused before the port',
-        (tester) async {
-      final adapter = await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
+    group('finishing', () {
+      testWidgets('changes the password, signs out, clears the record, and '
+          'returns to the login flow with the news', (tester) async {
+        final adapter = await pumpRecovery(tester);
+        bool? recordedAtSignOut;
+        adapter.onSignOut = () => recordedAtSignOut = recovery.isInProgress;
 
-      await enterPasswords(tester, 'a-new-password', 'a-new-passwrod');
-      await save(tester);
+        await enterPasswords(tester, 'a-new-password');
+        await save(tester);
 
-      expect(find.text('The two passwords do not match'), findsOneWidget);
-      expect(adapter.passwordChanges, isEmpty);
-      expect(adapter.signOuts, 0);
+        expect(adapter.journal, ['changePassword', 'signOut']);
+        expect(adapter.passwordChanges, ['a-new-password']);
+        expect(adapter.isSignedIn, isFalse);
+        expect(recordedAtSignOut, isTrue,
+            reason: 'the record outlives the session it describes, so an '
+                'interruption in between is met by the reset screen again');
+        expect(recovery.isInProgress, isFalse);
+        expect(await persisted(), isFalse);
+
+        expect(find.byType(ResetPasswordScreen), findsNothing);
+        expect(find.byType(HomeShell), findsNothing,
+            reason: 'the recovery session was never a way in');
+        expect(find.byType(LoginScreen), findsOneWidget);
+        expect(find.text('Your password was changed. Log in with your new '
+            'password.'), findsOneWidget);
+        expect(analytics.events, isEmpty);
+      });
+
+      testWidgets('and that login is a destination with Back, over Discover',
+          (tester) async {
+        final adapter = await pumpRecovery(tester);
+        await enterPasswords(tester, 'a-new-password');
+        await save(tester);
+        expect(find.byType(LoginScreen), findsOneWidget);
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+
+        expect(find.byType(DiscoverScreen), findsOneWidget);
+        expect(adapter.isSignedIn, isFalse);
+      });
+
+      testWidgets('nothing of it is left to come back after a restart',
+          (tester) async {
+        await pumpRecovery(tester);
+        await enterPasswords(tester, 'a-new-password');
+        await save(tester);
+
+        final restarted = await restart(tester);
+        expect(restarted.isInProgress, isFalse);
+        await pump(tester, ScriptedAuthAdapter(), recovery: restarted);
+        expect(find.byType(DiscoverScreen), findsOneWidget);
+      });
+
+      testWidgets('afterwards an ordinary sign-in is an ordinary sign-in',
+          (tester) async {
+        final adapter = await pumpRecovery(tester);
+        await enterPasswords(tester, 'a-new-password');
+        await save(tester);
+
+        adapter.emit(AuthEvent.signedIn, signedIn: true);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ResetPasswordScreen), findsNothing,
+            reason: 'the recovery is over; it does not stick to later sessions');
+        expect(find.byType(LoginScreen), findsNothing);
+        expect(find.byType(HomeShell), findsOneWidget);
+      });
     });
 
-    testWidgets('an expired link says so and leaves the reader where they are',
-        (tester) async {
-      final adapter = await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery)
-            ..changePasswordFailure = const AuthenticationFailure());
+    group('cancelling', () {
+      testWidgets('signs out and clears the record', (tester) async {
+        final adapter = await pumpRecovery(tester);
+        bool? recordedAtSignOut;
+        adapter.onSignOut = () => recordedAtSignOut = recovery.isInProgress;
 
-      await enterPasswords(tester, 'a-new-password');
-      await save(tester);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('This reset link is no longer valid. Request a new '
-          'one.'), findsOneWidget);
-      expect(find.byType(ResetPasswordScreen), findsOneWidget);
-      expect(adapter.signOuts, 0);
-    });
+        expect(adapter.signOuts, 1);
+        expect(adapter.passwordChanges, isEmpty);
+        expect(adapter.isSignedIn, isFalse);
+        expect(recordedAtSignOut, isTrue);
+        expect(recovery.isInProgress, isFalse);
+        expect(await persisted(), isFalse);
+        expect(find.byType(DiscoverScreen), findsOneWidget);
+        expect(find.byType(LoginScreen), findsNothing);
+        expect(find.byType(HomeShell), findsNothing);
+      });
 
-    testWidgets('finishing signs the session out and returns to the login '
-        'flow with the news', (tester) async {
-      final adapter = await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
+      testWidgets('leaves nothing to come back after a restart', (tester) async {
+        await pumpRecovery(tester);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
 
-      await enterPasswords(tester, 'a-new-password');
-      await save(tester);
+        final restarted = await restart(tester);
 
-      expect(adapter.journal, ['changePassword', 'signOut']);
-      expect(adapter.passwordChanges, ['a-new-password']);
-      expect(adapter.isSignedIn, isFalse);
+        expect(restarted.isInProgress, isFalse);
+      });
 
-      expect(find.byType(ResetPasswordScreen), findsNothing);
-      expect(find.byType(HomeShell), findsNothing,
-          reason: 'the recovery session was never a way in');
-      expect(find.byType(LoginScreen), findsOneWidget);
-      expect(find.text('Your password was changed. Log in with your new '
-          'password.'), findsOneWidget);
-      expect(analytics.events, isEmpty);
-    });
+      testWidgets('that cannot end the session keeps the record and the screen',
+          (tester) async {
+        final adapter = await pumpRecovery(tester);
+        adapter
+          ..signOutFailure = const NetworkFailure()
+          ..signOutLeavesSession = true;
 
-    testWidgets('and that login is a destination with Back, over Discover',
-        (tester) async {
-      final adapter = await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
-      await enterPasswords(tester, 'a-new-password');
-      await save(tester);
-      expect(find.byType(LoginScreen), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      expect(find.byType(DiscoverScreen), findsOneWidget);
-      expect(adapter.isSignedIn, isFalse);
-    });
-
-    testWidgets('afterwards an ordinary sign-in is an ordinary sign-in',
-        (tester) async {
-      final adapter = await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
-      await enterPasswords(tester, 'a-new-password');
-      await save(tester);
-
-      adapter.emit(AuthEvent.signedIn, signedIn: true);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ResetPasswordScreen), findsNothing,
-          reason: 'the recovery is over; it does not stick to later sessions');
-      expect(find.byType(LoginScreen), findsNothing);
-      expect(find.byType(HomeShell), findsOneWidget);
-    });
-
-    testWidgets('cancelling ends the session and shows what a visitor sees',
-        (tester) async {
-      final adapter = await pump(
-          tester,
-          ScriptedAuthAdapter(
-              signedIn: true, replayedEvent: AuthEvent.passwordRecovery));
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      expect(adapter.signOuts, 1);
-      expect(adapter.passwordChanges, isEmpty);
-      expect(adapter.isSignedIn, isFalse);
-      expect(find.byType(DiscoverScreen), findsOneWidget);
-      expect(find.byType(LoginScreen), findsNothing);
-      expect(find.byType(HomeShell), findsNothing);
-    });
-
-    testWidgets('is in Arabic in Arabic', (tester) async {
-      final adapter = ScriptedAuthAdapter(
-          signedIn: true, replayedEvent: AuthEvent.passwordRecovery);
-      tallSurface(tester);
-      await tester.pumpWidget(app(AuthService(adapter), locale: const Locale('ar')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('اختر كلمة مرور جديدة'), findsWidgets);
-      expect(find.text('كلمة المرور الجديدة'), findsOneWidget);
-      expect(find.text('حفظ كلمة المرور الجديدة'), findsOneWidget);
+        expect(adapter.isSignedIn, isTrue);
+        expect(find.byType(ResetPasswordScreen), findsOneWidget,
+            reason: 'leaving would hand a live recovery session to the product');
+        expect(recovery.isInProgress, isTrue);
+        expect(await persisted(), isTrue);
+        expect(find.text('Could not reach the server. Check your internet '
+            'connection.'), findsOneWidget);
+      });
     });
   });
 }
