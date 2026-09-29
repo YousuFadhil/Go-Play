@@ -341,6 +341,10 @@ class FakeProfileAdapter implements ProfileAdapter {
   final PlayerProfileView player;
 
   @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<PlayerProfileView> fetchPlayerProfile(String userId) async => player;
 
   @override

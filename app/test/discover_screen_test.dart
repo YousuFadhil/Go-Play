@@ -24,11 +24,15 @@ import 'package:go_play/features/discover/public_community_screen.dart';
 import 'package:go_play/features/football/football_adapter.dart';
 import 'package:go_play/features/football/football_models.dart';
 import 'package:go_play/features/football/football_repository.dart';
+import 'package:go_play/features/locations/guest_location_store.dart';
+import 'package:go_play/features/locations/wilayat_repository.dart';
 import 'package:go_play/features/profile/current_user.dart';
 import 'package:go_play/features/profile/profile_adapter.dart';
 import 'package:go_play/features/profile/profile_models.dart';
 import 'package:go_play/features/profile/profile_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_adapter_defaults.dart';
+import 'wilayat_fixtures.dart';
 
 /// The public entry experience: what a visitor can see, and where they are
 /// stopped.
@@ -128,13 +132,19 @@ void main() {
     // Which tab to show once loaded. Discover opens on Latest Results (0);
     // most of this suite is about the fixtures, so it moves to Upcoming (1).
     int tab = 1,
+    // Nearby discovery: the Wilayat names, a guest's device storage, the
+    // profile port (to see what is written to it) and the public results.
+    WilayatRepository? wilayats,
+    GuestLocationStore? guestStore,
+    _StaticProfileAdapter? profileAdapter,
+    List<PublicResult> recentResults = const [],
   }) async {
     // The greeting reads the profile the session holds. Left null nothing is
     // loaded, which is the case the headline has to fall back for.
+    final profiles = profileAdapter ??
+        (profile == null ? null : _StaticProfileAdapter(profile));
     CurrentUser.instance.useRepository(
-      profile == null
-          ? null
-          : ProfileRepository(_StaticProfileAdapter(profile)),
+      profiles == null ? null : ProfileRepository(profiles),
     );
     addTearDown(() => CurrentUser.instance.useRepository(null));
 
@@ -148,7 +158,7 @@ void main() {
       matches: matches ?? [match('m1')],
       failure: failure,
       delay: delay,
-    );
+    )..recentResults = recentResults;
 
     await tester.pumpWidget(MaterialApp(
       supportedLocales: AppLocalizations.supportedLocales,
@@ -165,6 +175,8 @@ void main() {
         ),
         communityRepository:
             CommunityRepository(_JoinedCommunitiesAdapter(joinedCommunityIds)),
+        wilayatRepository: wilayats,
+        guestLocationStore: guestStore,
       ),
     ));
     if (settle) {
@@ -794,6 +806,411 @@ void main() {
       expect(loading, loaded);
     });
   });
+
+  group('Near: nearby discovery by Wilayat', () {
+    const sohar = 7;
+    const salalah = 51;
+    const muscat = 1;
+
+    final soon = DateTime.now().add(const Duration(days: 30));
+
+    PublicMatch matchIn(
+      String id,
+      int? wilayat, {
+      DateTime? start,
+      DateTime? end,
+      String? title,
+    }) {
+      final startAt = start ?? soon;
+      return PublicMatch(
+        id: id,
+        communityId: 'c-$id',
+        communityName: 'Club $id',
+        location: 'Pitch $id',
+        startAt: startAt,
+        endAt: end ?? startAt.add(const Duration(hours: 2)),
+        startingPlayers: 10,
+        openSlots: 4,
+        title: title ?? 'Match $id',
+        wilayatCode: wilayat,
+      );
+    }
+
+    PublicCommunity communityIn(String id, int? wilayat, {DateTime? active}) =>
+        PublicCommunity(
+          id: id,
+          name: 'Club $id',
+          memberCount: 8,
+          upcomingMatchCount: 1,
+          wilayatCode: wilayat,
+          lastActivityAt: active,
+        );
+
+    const profileInSohar = PlayerProfile(
+      fullName: 'Salim Al Harthy',
+      phone: '+96890000000',
+      primaryPosition: PlayerPosition.mid,
+      defaultWilayatCode: sohar,
+    );
+
+    WilayatRepository catalogOf() => WilayatRepository(FakeWilayatAdapter());
+
+    List<String> shownMatches(WidgetTester tester) => [
+          for (final card in tester.widgetList<CompactPublicMatchCard>(
+              find.byType(CompactPublicMatchCard)))
+            card.match.id,
+        ];
+
+    List<String> shownCommunities(WidgetTester tester) => [
+          for (final card in tester.widgetList<CompactPublicCommunityCard>(
+              find.byType(CompactPublicCommunityCard)))
+            card.community.id,
+        ];
+
+    Finder chip() => find.byKey(const Key('discoverNearChip'));
+
+    Future<void> chooseNear(WidgetTester tester, int code) async {
+      await tester.tap(chip());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('wilayat_$code')));
+      await tester.pumpAndSettle();
+    }
+
+    setUp(() => SharedPreferences.setMockInitialValues({}));
+
+    testWidgets('a signed-in reader starts from their Default Location',
+        (tester) async {
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        profile: profileInSohar,
+        wilayats: catalogOf(),
+        matches: [
+          matchIn('far', salalah, start: soon),
+          matchIn('near', sohar, start: soon.add(const Duration(days: 2))),
+        ],
+      );
+
+      expect(find.text('Near: Sohar'), findsOneWidget);
+      expect(shownMatches(tester), ['near', 'far']);
+    });
+
+    testWidgets('Communities: local first, then the rest by latest activity',
+        (tester) async {
+      final old = DateTime.utc(2027, 1, 1);
+      final recent = DateTime.utc(2027, 3, 1);
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        profile: profileInSohar,
+        wilayats: catalogOf(),
+        tab: 2,
+        communities: [
+          communityIn('far-recent', salalah, active: recent),
+          communityIn('none-old', null, active: old),
+          communityIn('near-old', sohar, active: old),
+        ],
+      );
+
+      expect(shownCommunities(tester), ['near-old', 'far-recent', 'none-old']);
+    });
+
+    testWidgets(
+        'changing Near overrides the Default Location for the session '
+        'and writes nothing', (tester) async {
+      final profiles = _StaticProfileAdapter(profileInSohar);
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        profileAdapter: profiles,
+        wilayats: catalogOf(),
+        matches: [
+          matchIn('sohar', sohar, start: soon.add(const Duration(days: 2))),
+          matchIn('salalah', salalah, start: soon),
+        ],
+      );
+      expect(shownMatches(tester), ['sohar', 'salalah']);
+
+      await chooseNear(tester, salalah);
+
+      expect(find.text('Near: Salalah'), findsOneWidget);
+      expect(shownMatches(tester), ['salalah', 'sohar']);
+      // The Default Location is the player's setting: Near never touches it.
+      expect(profiles.defaultWilayatWrites, isEmpty);
+      expect(CurrentUser.instance.profile.value?.defaultWilayatCode, sohar);
+    });
+
+    testWidgets('a new session returns to the Default Location',
+        (tester) async {
+      final profiles = _StaticProfileAdapter(profileInSohar);
+      Future<void> session() => pumpDiscover(
+            tester,
+            signedIn: true,
+            profileAdapter: profiles,
+            wilayats: catalogOf(),
+          );
+
+      await session();
+      await chooseNear(tester, salalah);
+      expect(find.text('Near: Salalah'), findsOneWidget);
+
+      // The screen going away and a new one being built is a new session.
+      await tester.pumpWidget(const SizedBox());
+      await session();
+
+      expect(find.text('Near: Sohar'), findsOneWidget);
+    });
+
+    testWidgets(
+        'a signed-in reader with no Default Location is asked to choose',
+        (tester) async {
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        profile: const PlayerProfile(
+          fullName: 'Salim Al Harthy',
+          phone: '+96890000000',
+          primaryPosition: PlayerPosition.mid,
+        ),
+        wilayats: catalogOf(),
+      );
+
+      expect(find.text('Near: choose Wilayat'), findsOneWidget);
+    });
+
+    testWidgets('a guest chooses a Wilayat on the device, and it is remembered',
+        (tester) async {
+      await pumpDiscover(tester, wilayats: catalogOf());
+      expect(find.text('Near: choose Wilayat'), findsOneWidget);
+
+      await chooseNear(tester, sohar);
+
+      expect(find.text('Near: Sohar'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt(GuestLocationStore.key), sohar);
+
+      await tester.pumpWidget(const SizedBox());
+      await pumpDiscover(tester, wilayats: catalogOf());
+      expect(find.text('Near: Sohar'), findsOneWidget);
+    });
+
+    testWidgets('a guest choice is never sent to an account', (tester) async {
+      final profiles = _StaticProfileAdapter(profileInSohar);
+      await pumpDiscover(
+        tester,
+        profileAdapter: profiles,
+        wilayats: catalogOf(),
+      );
+
+      await chooseNear(tester, salalah);
+
+      expect(profiles.defaultWilayatWrites, isEmpty);
+    });
+
+    testWidgets('a stored code that is inactive or unknown is no location',
+        (tester) async {
+      for (final stale in [55, 999]) {
+        SharedPreferences.setMockInitialValues({GuestLocationStore.key: stale});
+        await pumpDiscover(tester, wilayats: catalogOf());
+
+        expect(find.text('Near: choose Wilayat'), findsOneWidget,
+            reason: 'code $stale is not offered any more');
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('Wilayat is labelled on Upcoming Matches and Communities only',
+        (tester) async {
+      final adapterResults = [
+        PublicResult(
+          matchId: 'r1',
+          communityId: 'c-r1',
+          communityName: 'Result Club',
+          startAt: DateTime(2026, 9, 1, 20),
+          teamAScore: 3,
+          teamBScore: 1,
+        ),
+      ];
+      await pumpDiscover(
+        tester,
+        wilayats: catalogOf(),
+        recentResults: adapterResults,
+        tab: 0,
+        matches: [matchIn('m', sohar)],
+        communities: [communityIn('m', sohar)],
+      );
+
+      // Latest Results: no Wilayat anywhere, and no Near control over it.
+      expect(find.byType(PublicResultCard), findsOneWidget);
+      expect(find.text('Sohar'), findsNothing);
+      expect(chip(), findsNothing);
+
+      await openUpcoming(tester);
+      expect(
+        find.descendant(
+            of: find.byType(CompactPublicMatchCard),
+            matching: find.text('Sohar')),
+        findsOneWidget,
+      );
+      expect(chip(), findsOneWidget);
+
+      await openCommunities(tester);
+      expect(
+        find.descendant(
+            of: find.byKey(const Key('communityWilayatLine')),
+            matching: find.text('Sohar')),
+        findsOneWidget,
+      );
+      expect(chip(), findsOneWidget);
+    });
+
+    testWidgets('a community with no Wilayat carries no label', (tester) async {
+      await pumpDiscover(
+        tester,
+        wilayats: catalogOf(),
+        tab: 2,
+        communities: [communityIn('a', null)],
+      );
+
+      expect(find.byKey(const Key('communityWilayatLine')), findsNothing);
+      expect(find.byType(CompactPublicCommunityCard), findsOneWidget);
+    });
+
+    testWidgets('the label and the chip follow the reader\'s language',
+        (tester) async {
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        profile: profileInSohar,
+        wilayats: catalogOf(),
+        locale: const Locale('ar'),
+        matches: [matchIn('m', sohar)],
+      );
+
+      expect(find.text('قريب من: صحار'), findsOneWidget);
+      expect(
+        find.descendant(
+            of: find.byType(CompactPublicMatchCard),
+            matching: find.text('صحار')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a match in play is badged LIVE, one that has not begun is not',
+        (tester) async {
+      final now = DateTime.now();
+      await pumpDiscover(
+        tester,
+        wilayats: catalogOf(),
+        matches: [
+          matchIn('live', sohar,
+              start: now.subtract(const Duration(hours: 1)),
+              end: now.add(const Duration(hours: 1))),
+          matchIn('later', sohar, start: now.add(const Duration(days: 1))),
+        ],
+      );
+
+      expect(find.byKey(const Key('matchLiveBadge')), findsOneWidget);
+      expect(find.text('LIVE'), findsOneWidget);
+      final liveCard = find.ancestor(
+        of: find.byKey(const Key('matchLiveBadge')),
+        matching: find.byType(CompactPublicMatchCard),
+      );
+      expect(
+        tester.widget<CompactPublicMatchCard>(liveCard).match.id,
+        'live',
+      );
+      // LIVE is a badge, and the order is still by start: it leads its group.
+      expect(shownMatches(tester), ['live', 'later']);
+    });
+
+    testWidgets(
+        'with nothing local everything is still shown, without a '
+        'message', (tester) async {
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        profile: const PlayerProfile(
+          fullName: 'Salim',
+          phone: '+96890000000',
+          primaryPosition: PlayerPosition.mid,
+          defaultWilayatCode: muscat,
+        ),
+        wilayats: catalogOf(),
+        matches: [
+          matchIn('a', sohar),
+          matchIn('b', salalah, start: soon.add(const Duration(days: 1))),
+        ],
+      );
+
+      expect(find.text('Near: Muscat'), findsOneWidget);
+      expect(shownMatches(tester), ['a', 'b']);
+      expect(find.byType(DiscoverEmpty), findsNothing);
+    });
+
+    testWidgets('the picker searches by either hamza spelling and by alias',
+        (tester) async {
+      await pumpDiscover(tester, wilayats: catalogOf());
+      await tester.tap(chip());
+      await tester.pumpAndSettle();
+
+      Future<void> search(String text) async {
+        await tester.enterText(
+            find.byKey(const Key('wilayatSearchField')), text);
+        await tester.pumpAndSettle();
+      }
+
+      await search('ازكي');
+      expect(find.byKey(const Key('wilayat_34')), findsOneWidget);
+      expect(find.byKey(const Key('wilayat_7')), findsNothing);
+
+      await search('مجيس');
+      expect(find.byKey(const Key('wilayat_7')), findsOneWidget);
+      expect(find.byKey(const Key('wilayat_34')), findsNothing);
+
+      await search('nothing-like-this');
+      expect(find.text('No Wilayat matches your search.'), findsOneWidget);
+    });
+
+    testWidgets(
+        'the picker offers active Wilayats only, grouped by Governorate',
+        (tester) async {
+      await pumpDiscover(tester, wilayats: catalogOf());
+      await tester.tap(chip());
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('wilayat_51')), findsOneWidget);
+      expect(find.byKey(const Key('wilayat_55')), findsNothing,
+          reason: 'Sadh is retired');
+      expect(find.text('Al Batinah North'), findsOneWidget);
+      expect(find.text('Dhofar'), findsOneWidget);
+    });
+
+    testWidgets('without the names the page still orders, and offers a retry',
+        (tester) async {
+      await pumpDiscover(
+        tester,
+        signedIn: true,
+        profile: profileInSohar,
+        wilayats:
+            WilayatRepository(FakeWilayatAdapter(failure: StateError('x'))),
+        matches: [
+          matchIn('far', salalah, start: soon),
+          matchIn('near', sohar, start: soon.add(const Duration(days: 2))),
+        ],
+      );
+
+      // Ordering needs codes, not names, so local still leads...
+      expect(shownMatches(tester), ['near', 'far']);
+      // ...and no card claims a Wilayat it cannot name.
+      expect(find.text('Sohar'), findsNothing);
+      expect(find.text('Near: choose Wilayat'), findsOneWidget);
+
+      await tester.tap(chip());
+      await tester.pumpAndSettle();
+      expect(find.text('Retry'), findsOneWidget);
+    });
+  });
 }
 
 /// Answers from memory, with no session anywhere in sight.
@@ -959,6 +1376,15 @@ class _StaticProfileAdapter implements ProfileAdapter {
 
   final PlayerProfile profile;
 
+  /// Every Default Location written through this port. Near must never add to
+  /// it: choosing where "near" is, in Discover, is not saving a setting.
+  final defaultWilayatWrites = <int?>[];
+
+  @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) async {
+    defaultWilayatWrites.add(wilayatCode);
+  }
+
   @override
   Future<PlayerProfile> fetchMyProfile() async => profile;
 
@@ -1046,6 +1472,10 @@ class _JoinedCommunitiesAdapter implements CommunityAdapter {
   var myCommunitiesCalls = 0;
 
   @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchMyCommunities() async {
     myCommunitiesCalls++;
     return [
@@ -1069,6 +1499,7 @@ class _JoinedCommunitiesAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       throw UnimplementedError();
   @override

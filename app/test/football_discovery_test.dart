@@ -1665,6 +1665,10 @@ class _JoinedAdapter implements CommunityAdapter {
   var myCommunitiesCalls = 0;
 
   @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchMyCommunities() async {
     myCommunitiesCalls++;
     if (failure != null) throw failure!;
@@ -1697,6 +1701,7 @@ class _JoinedAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       throw UnimplementedError();
   @override

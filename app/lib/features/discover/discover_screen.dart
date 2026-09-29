@@ -20,6 +20,11 @@ import '../football/football_match_screen.dart';
 import '../football/football_models.dart';
 import '../football/football_repository.dart';
 import '../football/football_result_card.dart';
+import '../locations/guest_location_store.dart';
+import '../locations/wilayat_models.dart';
+import '../locations/wilayat_picker.dart';
+import '../locations/wilayat_repository.dart';
+import '../profile/current_user.dart';
 import '../results/result_card.dart';
 import '../matches/match_details_screen.dart';
 import 'discover_models.dart';
@@ -103,6 +108,8 @@ class DiscoverScreen extends StatefulWidget {
     this.authService,
     this.footballRepository,
     this.communityRepository,
+    this.wilayatRepository,
+    this.guestLocationStore,
   });
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
@@ -116,6 +123,12 @@ class DiscoverScreen extends StatefulWidget {
   /// Used to read which communities the signed-in reader has joined, once per
   /// screen load rather than once per card.
   final CommunityRepository? communityRepository;
+
+  /// The Wilayat reference data. Defaults to the app-wide cached instance.
+  final WilayatRepository? wilayatRepository;
+
+  /// Where a guest's Near choice is kept on the device.
+  final GuestLocationStore? guestLocationStore;
 
   @override
   State<DiscoverScreen> createState() => _DiscoverScreenState();
@@ -132,6 +145,28 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   CommunityRepository? _communities;
 
   late Future<DiscoverOverview> _future;
+
+  late final WilayatRepository _wilayats =
+      widget.wilayatRepository ?? WilayatRepository.shared;
+  late final GuestLocationStore _guestStore =
+      widget.guestLocationStore ?? GuestLocationStore();
+
+  /// The Wilayat names are read from the repository's cache, once they have
+  /// arrived: null until then, and for good if the read fails -- in which case
+  /// the cards simply carry no Wilayat line and ordering, which needs codes and
+  /// not names, is unaffected.
+  WilayatCatalog? get _catalog => _wilayats.cached;
+
+  /// A guest's saved choice, loaded from the device. Never sent anywhere.
+  int? _guestCode;
+
+  /// **Near, for this session only.** A signed-in reader who changes Near here
+  /// overrides their Default Location until the app is closed; nothing is
+  /// written, and the Default Location is untouched. Held in this screen's state
+  /// -- which the home shell keeps alive for the whole signed-in session -- so a
+  /// new session starts from the Default Location again.
+  int? _nearOverride;
+  bool _hasOverride = false;
 
   /// The signed-in half of the page, and null for a guest.
   ///
@@ -169,15 +204,83 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   void initState() {
     super.initState();
     _load();
+    _loadWilayats();
+    if (_signedIn) {
+      // The Default Location is read from the profile the session already holds.
+      CurrentUser.instance.ensureLoaded();
+    } else {
+      _loadGuestChoice();
+    }
+    CurrentUser.instance.profile.addListener(_onProfileChanged);
   }
 
   @override
   void dispose() {
+    CurrentUser.instance.profile.removeListener(_onProfileChanged);
     _tabs.dispose();
     super.dispose();
   }
 
   bool get _signedIn => _auth.isSignedIn;
+
+  /// The Default Location moved -- the profile finished loading, or the player
+  /// changed it -- so Near and the ordering under it are re-derived.
+  void _onProfileChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Names for the labels and the picker. Read once and held by the repository;
+  /// a failure is not surfaced here, because a card without a Wilayat line is
+  /// still a complete card and the picker offers its own retry.
+  void _loadWilayats() {
+    _wilayats.load().then((_) {
+      if (mounted) setState(() {});
+    }, onError: (_) {});
+  }
+
+  Future<void> _loadGuestChoice() async {
+    final code = await _guestStore.load();
+    if (mounted && code != null) setState(() => _guestCode = code);
+  }
+
+  /// The Wilayat "near" means right now, or null when the reader has none.
+  ///
+  /// A signed-in reader: this session's override if they made one, else their
+  /// Default Location. A guest: their locally saved choice. Whatever is stored
+  /// must still be an active Wilayat -- an inactive or unknown code is no
+  /// location at all -- which can only be checked once the names have arrived;
+  /// until then the raw code orders correctly on its own.
+  int? get _nearCode {
+    final raw = _signedIn
+        ? (_hasOverride
+            ? _nearOverride
+            : CurrentUser.instance.profile.value?.defaultWilayatCode)
+        : _guestCode;
+    final catalog = _catalog;
+    return catalog == null ? raw : catalog.activeByCode(raw)?.code;
+  }
+
+  String? _wilayatName(int? code) =>
+      _catalog?.nameOf(code, arabic: wilayatArabic(context));
+
+  Future<void> _chooseNear() async {
+    final picked = await showWilayatPicker(
+      context,
+      repository: _wilayats,
+      selectedCode: _nearCode,
+    );
+    if (picked == null || !mounted) return;
+    if (_signedIn) {
+      // A session override, not a setting: nothing is saved.
+      setState(() {
+        _nearOverride = picked;
+        _hasOverride = true;
+      });
+      return;
+    }
+    setState(() => _guestCode = picked);
+    await _guestStore.save(picked);
+  }
 
   void _load() {
     _future = _repository.fetchOverview();
@@ -396,6 +499,29 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                       l10n.communitiesTitle,
                     ],
                   ),
+                  // **Near** orders Upcoming Matches and Communities. Latest
+                  // Results is exactly what it was, so the control is not shown
+                  // over it -- a chip that changed nothing would be a lie.
+                  ListenableBuilder(
+                    listenable: _tabs,
+                    builder: (context, _) => _tabs.index == 0
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              Layout.sheetGutter,
+                              0,
+                              Layout.sheetGutter,
+                              Gap.sm,
+                            ),
+                            child: Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: NearChip(
+                                wilayatName: _wilayatName(_nearCode),
+                                onTap: _chooseNear,
+                              ),
+                            ),
+                          ),
+                  ),
                   Expanded(
                     child: FutureBuilder<DiscoverOverview>(
                       future: _future,
@@ -517,6 +643,13 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     AppLocalizations l10n,
     DiscoverOverview overview,
   ) {
+    // Local first, then the rest, each by start. Derived here from the rows
+    // already fetched, so changing Near reorders without a request.
+    final matches = DiscoverRepository.orderUpcomingMatches(
+      overview.matches,
+      nearWilayatCode: _nearCode,
+    );
+    final now = DateTime.now();
     return [
       if (overview.matches.isEmpty)
         DiscoverEmpty(
@@ -536,12 +669,14 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             vertical: Gap.xs,
           ),
           children: [
-            for (final match in overview.matches)
+            for (final match in matches)
               _MembershipAware(
                 future: _membershipFuture,
                 communityId: match.communityId,
                 builder: (isMember) => CompactPublicMatchCard(
                   match: match,
+                  isLive: match.isLiveAt(now),
+                  wilayatLabel: _wilayatName(match.wilayatCode),
                   actionLabel:
                       _signedIn ? l10n.viewMatchAction : l10n.joinMatchButton,
                   onAction: () => _openMatch(match, isMember: isMember),
@@ -600,6 +735,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     AppLocalizations l10n,
     DiscoverOverview overview,
   ) {
+    // Local first, then the rest, each by latest activity.
+    final communities = DiscoverRepository.orderCommunities(
+      overview.communities,
+      nearWilayatCode: _nearCode,
+    );
     return [
       if (overview.communities.isEmpty)
         DiscoverEmpty(
@@ -615,12 +755,13 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             vertical: Gap.xs,
           ),
           children: [
-            for (final community in overview.communities)
+            for (final community in communities)
               _MembershipAware(
                 future: _membershipFuture,
                 communityId: community.id,
                 builder: (isMember) => CompactPublicCommunityCard(
                   community: community,
+                  wilayatLabel: _wilayatName(community.wilayatCode),
                   onOpen: () => _openCommunity(community, isMember: isMember),
                   onJoin: () => _join(community),
                 ),

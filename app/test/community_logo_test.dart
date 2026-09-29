@@ -563,6 +563,10 @@ class _RecordingAdapter implements CommunityAdapter {
       'https://example.test/community-logos/c1/logo-uploaded.png';
 
   @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<String> uploadCommunityLogo({
     required String communityId,
     required Uint8List bytes,

@@ -27,11 +27,12 @@ class SupabaseDiscoverAdapter implements DiscoverAdapter {
   final SupabaseClient _client;
 
   static const _communityColumns =
-      'id, name, description, member_count, upcoming_match_count, logo_url';
+      'id, name, description, member_count, upcoming_match_count, logo_url, '
+      'wilayat_code, last_activity_at';
 
   static const _matchColumns =
       'id, community_id, community_name, title, location, start_at, end_at, '
-      'starting_players, open_slots';
+      'starting_players, open_slots, wilayat_code';
 
   /// Newest first, so a community created today leads the list. The view keeps
   /// `created_at` for exactly this and for nothing the guest is shown.

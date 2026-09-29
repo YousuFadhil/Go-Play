@@ -963,6 +963,10 @@ class FakeProfileAdapter implements ProfileAdapter {
   final Failure? failure;
 
   @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<PlayerProfile> fetchMyProfile() async {
     if (failure != null) throw failure!;
     return profile!;

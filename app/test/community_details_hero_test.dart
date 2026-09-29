@@ -13,11 +13,14 @@ import 'package:go_play/features/communities/community_adapter.dart';
 import 'package:go_play/features/communities/community_details_screen.dart';
 import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/communities/community_repository.dart';
+import 'package:go_play/features/locations/wilayat_repository.dart';
 import 'package:go_play/features/matches/match_adapter.dart';
 import 'package:go_play/features/matches/match_models.dart';
 import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+
+import 'wilayat_fixtures.dart';
 
 /// Community Details, wearing the Club direction.
 ///
@@ -91,6 +94,7 @@ void main() {
     List<CommunityMember>? roster,
     // A port of the caller's own, for the tests that write through it.
     _FakeCommunityAdapter? adapter,
+    WilayatRepository? wilayats,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -109,6 +113,7 @@ void main() {
           _FakeMemberAdapter(members: roster ?? members, role: role),
         ),
         matchService: MatchService(_FakeMatchAdapter(matches)),
+        wilayatRepository: wilayats,
       ),
     ));
     await tester.pumpAndSettle();
@@ -463,6 +468,9 @@ void main() {
       );
       await openActions(tester);
 
+      // The owner's sheet has eight rows now and scrolls; bring the row in.
+      await tester.ensureVisible(find.byKey(const Key('communityRemoveLogo')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('communityRemoveLogo')));
       await tester.pumpAndSettle();
 
@@ -486,6 +494,9 @@ void main() {
       );
       await openActions(tester);
 
+      // The owner's sheet has eight rows now and scrolls; bring the row in.
+      await tester.ensureVisible(find.byKey(const Key('communityRemoveLogo')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('communityRemoveLogo')));
       await tester.pumpAndSettle();
 
@@ -609,22 +620,179 @@ void main() {
       expect(columnsOf(tester, find.byType(CommunityMemberCard)), 3);
     });
   });
+
+  group('where the community plays', () {
+    const inSohar = Community(
+      id: 'c1',
+      ownerId: 'u9',
+      name: 'Al Amerat FC',
+      description: 'Friday football in Al Amerat.',
+      joinPolicy: JoinPolicy.open,
+      wilayatCode: 7,
+    );
+
+    Future<void> openActions(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+    }
+
+    WilayatRepository catalog() => WilayatRepository(FakeWilayatAdapter());
+
+    testWidgets(
+        'an owner is offered it, beside the join setting, and it says '
+        'where the community is', (tester) async {
+      await pumpCommunity(
+        tester,
+        which: inSohar,
+        role: CommunityRole.owner,
+        wilayats: catalog(),
+      );
+      await openActions(tester);
+
+      final row = find.byKey(const Key('communityChangeWilayat'));
+      expect(row, findsOneWidget);
+      expect(find.descendant(of: row, matching: find.text('Sohar')),
+          findsOneWidget);
+      expect(find.text('Joining'), findsOneWidget);
+    });
+
+    testWidgets('a community with none says so', (tester) async {
+      await pumpCommunity(
+        tester,
+        role: CommunityRole.owner,
+        wilayats: catalog(),
+      );
+      await openActions(tester);
+
+      expect(
+        find.descendant(
+            of: find.byKey(const Key('communityChangeWilayat')),
+            matching: find.text('Not set')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an admin and a player are offered neither', (tester) async {
+      // The picture is an admin's; where a community plays is the owner's, the
+      // same kind of decision as how people join it. The server refuses the
+      // others regardless -- this is convenience, not the security.
+      for (final role in [CommunityRole.admin, CommunityRole.player]) {
+        await pumpCommunity(tester,
+            which: inSohar, role: role, wilayats: catalog());
+        await openActions(tester);
+
+        expect(find.byKey(const Key('communityChangeWilayat')), findsNothing,
+            reason: '$role');
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('the owner moves it with one picker and one write',
+        (tester) async {
+      final adapter = _FakeCommunityAdapter(inSohar);
+      await pumpCommunity(
+        tester,
+        which: inSohar,
+        role: CommunityRole.owner,
+        adapter: adapter,
+        wilayats: catalog(),
+      );
+      await openActions(tester);
+
+      await tester.tap(find.byKey(const Key('communityChangeWilayat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('wilayat_51')));
+      await tester.pumpAndSettle();
+
+      expect(adapter.wilayatWrites, [51]);
+      expect(find.text('Community Wilayat updated.'), findsOneWidget);
+
+      // The screen reloaded from the port, which now answers Salalah.
+      await tester.pump(const Duration(seconds: 5));
+      await openActions(tester);
+      expect(
+        find.descendant(
+            of: find.byKey(const Key('communityChangeWilayat')),
+            matching: find.text('Salalah')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('choosing where it already is writes nothing', (tester) async {
+      final adapter = _FakeCommunityAdapter(inSohar);
+      await pumpCommunity(
+        tester,
+        which: inSohar,
+        role: CommunityRole.owner,
+        adapter: adapter,
+        wilayats: catalog(),
+      );
+      await openActions(tester);
+
+      await tester.tap(find.byKey(const Key('communityChangeWilayat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('wilayat_7')));
+      await tester.pumpAndSettle();
+
+      expect(adapter.wilayatWrites, isEmpty);
+    });
+
+    testWidgets('a refusal is reported as one and changes nothing',
+        (tester) async {
+      final adapter = _FakeCommunityAdapter(
+        inSohar,
+        setWilayatFailure: const AuthorizationFailure(),
+      );
+      await pumpCommunity(
+        tester,
+        which: inSohar,
+        role: CommunityRole.owner,
+        adapter: adapter,
+        wilayats: catalog(),
+      );
+      await openActions(tester);
+
+      await tester.tap(find.byKey(const Key('communityChangeWilayat')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('wilayat_51')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Only the owner can do this.'), findsOneWidget);
+      expect(adapter.community.wilayatCode, 7);
+    });
+  });
 }
 
 // --- Fake ports -------------------------------------------------------------
 
 class _FakeCommunityAdapter implements CommunityAdapter {
-  _FakeCommunityAdapter(this._community, {this.setLogoFailure});
+  _FakeCommunityAdapter(
+    this._community, {
+    this.setLogoFailure,
+    this.setWilayatFailure,
+  });
 
   Community _community;
 
   /// What the port refuses with, where a test is about a refusal.
   final Failure? setLogoFailure;
+  final Failure? setWilayatFailure;
+
+  /// Every Wilayat the owner moved the community to, in order.
+  final List<int> wilayatWrites = [];
 
   /// Every value written to `logo_url`, in order. Null is a reset.
   final List<String?> logoWrites = [];
 
   Community get community => _community;
+
+  /// Writes the column, so the screen's reload sees what it just set.
+  @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) async {
+    if (setWilayatFailure != null) throw setWilayatFailure!;
+    wilayatWrites.add(wilayatCode);
+    _community = _community.withWilayat(wilayatCode);
+  }
 
   @override
   Future<Community> fetchCommunity(String communityId) async => _community;
@@ -647,6 +815,7 @@ class _FakeCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       throw UnimplementedError();
 

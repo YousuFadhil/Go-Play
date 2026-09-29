@@ -4579,6 +4579,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please check your details and try again.'**
   String get profileDetailsInvalid;
+
+  /// No description provided for @nearChipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Near: {wilayat}'**
+  String nearChipLabel(String wilayat);
+
+  /// No description provided for @nearChipChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Near: choose Wilayat'**
+  String get nearChipChoose;
+
+  /// No description provided for @wilayatPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a Wilayat'**
+  String get wilayatPickerTitle;
+
+  /// No description provided for @wilayatSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by Wilayat or village'**
+  String get wilayatSearchHint;
+
+  /// No description provided for @wilayatSearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No Wilayat matches your search.'**
+  String get wilayatSearchEmpty;
+
+  /// No description provided for @wilayatRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a Wilayat'**
+  String get wilayatRequired;
+
+  /// No description provided for @wilayatNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get wilayatNotSet;
+
+  /// No description provided for @communityWilayatLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Wilayat'**
+  String get communityWilayatLabel;
+
+  /// No description provided for @communityWilayatSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Community Wilayat updated.'**
+  String get communityWilayatSaved;
+
+  /// No description provided for @defaultLocationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default location'**
+  String get defaultLocationLabel;
+
+  /// No description provided for @defaultLocationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for Near in Discover. Only you can see it.'**
+  String get defaultLocationHelp;
+
+  /// No description provided for @defaultLocationSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Default location updated.'**
+  String get defaultLocationSaved;
+
+  /// No description provided for @defaultLocationClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear default location'**
+  String get defaultLocationClear;
+
+  /// No description provided for @matchLiveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get matchLiveBadge;
 }
 
 class _AppLocalizationsDelegate

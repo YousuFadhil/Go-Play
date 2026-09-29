@@ -5,6 +5,7 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/time_format.dart';
 import '../../core/tokens.dart';
+import '../../core/football_components.dart';
 import '../matches/compact_match_card.dart';
 import '../profile/current_user.dart';
 import '../profile/profile_models.dart';
@@ -463,6 +464,8 @@ class CompactPublicMatchCard extends StatelessWidget {
     required this.actionLabel,
     required this.onAction,
     this.showCommunityName = true,
+    this.isLive = false,
+    this.wilayatLabel,
   });
 
   final PublicMatch match;
@@ -470,16 +473,43 @@ class CompactPublicMatchCard extends StatelessWidget {
   final VoidCallback onAction;
   final bool showCommunityName;
 
+  /// In play now (`start_at <= now < end_at`), decided once by the screen so
+  /// every card on the page agrees about "now". A badge, not a sort: see
+  /// [DiscoverRepository.orderUpcomingMatches].
+  final bool isLive;
+
+  /// The community's current Wilayat, or null where it has none or the
+  /// reference data has not arrived -- and then the line is simply absent.
+  final String? wilayatLabel;
+
   @override
   Widget build(BuildContext context) {
+    final seats = _SeatsBadge(match: match);
     return CompactMatchShell(
       onTap: onAction,
       day: match.startAt,
-      badge: _SeatsBadge(match: match),
+      // Two badges share the one slot the shell offers. A [Wrap], so a narrow
+      // card puts the second on the next line instead of overflowing.
+      badge: isLive
+          ? Wrap(
+              spacing: Gap.xs,
+              runSpacing: Gap.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                GoStatusChip(
+                  key: const Key('matchLiveBadge'),
+                  label: context.l10n.matchLiveBadge,
+                  tone: GoChipTone.danger,
+                ),
+                seats,
+              ],
+            )
+          : seats,
       title: match.displayName,
       subtitle: showCommunityName ? match.communityName : null,
       time: formatTimeRange(context, match.startAt, match.endAt),
       location: match.location,
+      wilayatLabel: wilayatLabel,
       action: FilledButton.tonal(
         onPressed: onAction,
         style: FilledButton.styleFrom(
@@ -785,11 +815,16 @@ class CompactPublicCommunityCard extends StatelessWidget {
     required this.community,
     required this.onOpen,
     required this.onJoin,
+    this.wilayatLabel,
   });
 
   final PublicCommunity community;
   final VoidCallback onOpen;
   final VoidCallback onJoin;
+
+  /// The Wilayat the community plays in. Absent for a community with none, and
+  /// until the reference data has arrived.
+  final String? wilayatLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -833,6 +868,29 @@ class CompactPublicCommunityCard extends StatelessWidget {
                       ?.copyWith(color: GoColors.onSurfaceVariant),
                 ),
               ],
+              if (wilayatLabel != null && wilayatLabel!.trim().isNotEmpty) ...[
+                const SizedBox(height: Gap.sm),
+                Row(
+                  key: const Key('communityWilayatLine'),
+                  children: [
+                    const Icon(
+                      Icons.location_city_outlined,
+                      size: IconSize.meta,
+                      color: GoColors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: Gap.xs),
+                    Expanded(
+                      child: Text(
+                        wilayatLabel!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: GoColors.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: Gap.sm),
               CommunityCounts(community: community),
               const SizedBox(height: Gap.md),
@@ -862,6 +920,77 @@ class CompactPublicCommunityCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The one control Discover adds: which Wilayat "near" means right now.
+///
+/// **A control, so it is not drawn as a status chip.** In this product a chip is
+/// a reading and never a button; this is a button, and looks like one -- an
+/// outlined pill with a drop arrow. Its label is `Near: [Wilayat]`, or an
+/// invitation to choose one when nothing is set.
+class NearChip extends StatelessWidget {
+  const NearChip({super.key, required this.wilayatName, required this.onTap});
+
+  /// The name to show, already in the reader's language, or null when there is
+  /// no Near yet.
+  final String? wilayatName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final name = wilayatName;
+
+    return Semantics(
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('discoverNearChip'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.pill),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 36),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Gap.md,
+              vertical: Gap.xs,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Radii.pill),
+              border: Border.all(color: GoColors.borderOutlined),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.near_me_outlined,
+                  size: IconSize.meta,
+                  color: GoColors.primary,
+                ),
+                const SizedBox(width: Gap.xs),
+                Flexible(
+                  child: Text(
+                    name == null
+                        ? l10n.nearChipChoose
+                        : l10n.nearChipLabel(name),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoType.chip.copyWith(color: GoColors.onSurface),
+                  ),
+                ),
+                const SizedBox(width: Gap.xs),
+                const Icon(
+                  Icons.arrow_drop_down,
+                  size: IconSize.meta + 4,
+                  color: GoColors.onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
       ),
