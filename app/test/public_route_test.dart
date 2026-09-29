@@ -866,6 +866,25 @@ PublicMatch _publicMatch() => PublicMatch(
     );
 
 class _FakeDiscoverAdapter implements DiscoverAdapter {
+  /// Nothing recorded and nobody ranked: this suite is not about football.
+  @override
+  Future<PublicCommunityFootballRecord> fetchCommunityFootballRecord(
+    String communityId,
+  ) async =>
+      PublicCommunityFootballRecord(
+        communityId: communityId,
+        completedMatches: 0,
+        players: 0,
+        goals: 0,
+        mvpCount: 0,
+      );
+
+  @override
+  Future<List<PublicCommunityTopPlayer>> fetchCommunityTopPlayers(
+    String communityId,
+  ) async =>
+      const [];
+
   @override
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,

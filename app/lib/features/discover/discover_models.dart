@@ -279,3 +279,67 @@ class PublicLineupEntry {
   /// available; the database decides both.
   final String? playerId;
 }
+
+/// A community's football record, as a visitor reads it above the tabs.
+///
+/// **The four figures the member's own view of a community already reports**
+/// (`v_football_community_stats`), and nothing more: no community name, no
+/// roster and nothing about any player. They come from
+/// `public_community_football_record` (migration `0093`), a narrow contract of
+/// their own -- the broader football views stay behind a session.
+class PublicCommunityFootballRecord {
+  const PublicCommunityFootballRecord({
+    required this.communityId,
+    required this.completedMatches,
+    required this.players,
+    required this.goals,
+    required this.mvpCount,
+  });
+
+  final String communityId;
+
+  /// Matches played, under the database's completed rule.
+  final int completedMatches;
+
+  /// How many players have an all-time record in this community. Not the
+  /// roster: somebody who has joined but never finished a match has no record
+  /// and is not counted.
+  final int players;
+
+  final int goals;
+  final int mvpCount;
+}
+
+/// One player in a community's public Top Players.
+///
+/// Exactly the columns `public_community_top_players` publishes (migration
+/// `0093`): a name, a picture, the Global Rating and three career counters. The
+/// list arrives already ranked and already capped at eleven, so nothing here
+/// orders or trims it -- and [userId] is only ever a player whose public profile
+/// exists, which is what lets a row lead to `/player/{id}`.
+class PublicCommunityTopPlayer {
+  const PublicCommunityTopPlayer({
+    required this.communityId,
+    required this.userId,
+    required this.displayName,
+    required this.overallRating,
+    required this.matchesPlayed,
+    required this.goals,
+    required this.mvpCount,
+    this.avatarUrl,
+  });
+
+  final String communityId;
+  final String userId;
+  final String displayName;
+
+  /// Their picture, resolved from the `avatar_path` the contract publishes. A
+  /// path is storage knowledge; the adapter turns it into an address.
+  final String? avatarUrl;
+
+  /// The Global Rating, defaulting to the 5.0 everybody starts on.
+  final double overallRating;
+  final int matchesPlayed;
+  final int goals;
+  final int mvpCount;
+}

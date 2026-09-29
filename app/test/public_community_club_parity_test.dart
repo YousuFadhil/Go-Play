@@ -8,6 +8,7 @@ import 'package:go_play/features/auth/auth_service.dart';
 import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
+import 'package:go_play/features/discover/discover_tabs.dart';
 import 'package:go_play/features/discover/discover_widgets.dart';
 import 'package:go_play/features/discover/public_community_screen.dart';
 import 'package:go_play/features/discover/public_match_screen.dart';
@@ -38,6 +39,7 @@ void main() {
     _Discover adapter, {
     Locale locale = const Locale('en'),
     Size size = const Size(412, 1200),
+    int tab = 0,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -54,6 +56,18 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
+
+    // The page opens on Latest Results; a test about another tab goes there by
+    // position, so the helper is the same in either language.
+    if (tab != 0) {
+      final target = find
+          .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+          .at(tab);
+      await tester.ensureVisible(target);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
   }
 
   group('it is composed like the place it is', () {
@@ -110,18 +124,26 @@ void main() {
   });
 
   group('what is on it did not change', () {
-    testWidgets('upcoming matches and latest results, both public',
+    testWidgets('latest results and upcoming matches, both public',
         (tester) async {
       final adapter = _Discover(results: [result('m1')]);
       await pump(tester, adapter);
 
-      // Twice: once as the hero figure's label and once as the section
-      // heading -- exactly as the member's view of this community reads.
+      // Twice: once as the hero figure's label and once as the tab -- the
+      // sections became tabs, so there is no heading left to count.
       expect(find.text('Upcoming matches'), findsNWidgets(2));
       expect(find.text('Latest results'), findsOneWidget);
-      expect(find.byType(DiscoverSectionHeader), findsNWidgets(2));
-      expect(find.byType(PublicMatchCard), findsOneWidget);
+      expect(find.byType(DiscoverSectionHeader), findsNothing);
+      // It opens on Latest Results...
       expect(find.byType(PublicResultCard), findsOneWidget);
+      expect(find.byType(PublicMatchCard), findsNothing);
+
+      // ...and the fixtures are one tab away.
+      await tester.tap(find
+          .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+          .at(1));
+      await tester.pumpAndSettle();
+      expect(find.byType(PublicMatchCard), findsOneWidget);
       // Scoped to this community, through the public contract only.
       expect(adapter.recentResultsRequests, ['c1']);
     });
@@ -148,7 +170,10 @@ void main() {
         if (forbidden == 'Members') continue;
         expect(find.text(forbidden), findsNothing, reason: forbidden);
       }
-      expect(find.byType(TabBar), findsNothing);
+      // The one tab bar is the public community's three -- not the member
+      // screen's statistics tabs.
+      expect(find.byType(TabBar), findsOneWidget);
+      expect(find.byType(Tab), findsNWidgets(3));
     });
 
     testWidgets('and nothing authenticated is ever mounted', (tester) async {
@@ -197,6 +222,7 @@ void main() {
         tester,
         _Discover(results: [result('m1')], longName: true),
         size: const Size(320, 1400),
+        tab: 1,
       );
 
       expect(tester.takeException(), isNull);
@@ -218,6 +244,7 @@ void main() {
         tester,
         _Discover(results: [result('m1')]),
         size: const Size(412, 1400),
+        tab: 1,
       );
 
       expect(tester.takeException(), isNull);
@@ -234,6 +261,7 @@ void main() {
             _Discover(results: [result('m1')], longName: true),
             locale: locale,
             size: Size(width, 1400),
+            tab: 1,
           );
 
           expect(tester.takeException(), isNull);
@@ -271,6 +299,24 @@ class _Discover implements DiscoverAdapter {
 
   /// One entry per read, carrying the community it was scoped to.
   final List<String?> recentResultsRequests = [];
+
+  @override
+  Future<PublicCommunityFootballRecord> fetchCommunityFootballRecord(
+    String communityId,
+  ) async =>
+      PublicCommunityFootballRecord(
+        communityId: communityId,
+        completedMatches: 14,
+        players: 33,
+        goals: 91,
+        mvpCount: 4,
+      );
+
+  @override
+  Future<List<PublicCommunityTopPlayer>> fetchCommunityTopPlayers(
+    String communityId,
+  ) async =>
+      const [];
 
   PublicCommunity get _community => PublicCommunity(
         id: 'c1',

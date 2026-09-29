@@ -26,6 +26,12 @@ class DiscoverRepository {
   /// the reader asks for all.
   static const recentResults = 6;
 
+  /// How many Top Players a community page shows. Eleven, a football side --
+  /// stated once and enforced twice: the database function caps its answer at
+  /// the same number, and [fetchCommunityFootball] trims to it again so a
+  /// misbehaving adapter cannot draw a longer list than the approved one.
+  static const topPlayers = 11;
+
   /// Everything the Discover page shows, in one pass.
   ///
   /// Three lists now, and they still fail together: a guest who was shown
@@ -90,6 +96,36 @@ class DiscoverRepository {
       results: reads[2] as List<PublicResult>,
     );
   }
+
+  /// One community's football: the record above the tabs and the Top Players
+  /// tab, from the narrow public contracts of migration `0093`.
+  ///
+  /// **The same read for a guest and for a signed-in non-member.** Neither
+  /// reaches the authenticated football views, so the two audiences see one
+  /// record and one ranking.
+  ///
+  /// Fetched apart from [fetchCommunityDetails] on purpose: the community's
+  /// name and fixtures must not disappear because a football read failed, and
+  /// the football must not be held up by the fixtures. The two reads here are
+  /// one section of the page and are useless in pieces, so they succeed or fail
+  /// together.
+  ///
+  /// The players are taken in the order the database ranked them -- nothing is
+  /// re-sorted here, because a second ranking rule is a rule that can drift.
+  Future<PublicCommunityFootball> fetchCommunityFootball(
+    String communityId,
+  ) async {
+    final reads = await Future.wait([
+      _adapter.fetchCommunityFootballRecord(communityId),
+      _adapter.fetchCommunityTopPlayers(communityId),
+    ]);
+    return PublicCommunityFootball(
+      record: reads[0] as PublicCommunityFootballRecord,
+      topPlayers: (reads[1] as List<PublicCommunityTopPlayer>)
+          .take(topPlayers)
+          .toList(),
+    );
+  }
 }
 
 /// What the Discover page renders.
@@ -122,4 +158,19 @@ class PublicCommunityDetails {
   /// This community's most recent results. What keeps its public page from
   /// being nearly empty in a week with nothing scheduled.
   final List<PublicResult> results;
+}
+
+/// The football half of a community page: what sits above the tabs and what
+/// fills the Top Players tab.
+class PublicCommunityFootball {
+  const PublicCommunityFootball({
+    required this.record,
+    required this.topPlayers,
+  });
+
+  final PublicCommunityFootballRecord record;
+
+  /// At most [DiscoverRepository.topPlayers], best first. Empty is an ordinary
+  /// answer: a community nobody has finished a match in has nobody to rank.
+  final List<PublicCommunityTopPlayer> topPlayers;
 }

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/failures.dart';
 import '../../features/discover/discover_adapter.dart';
 import '../../features/discover/discover_models.dart';
 import 'mappers/discover_mapper.dart';
@@ -108,6 +109,51 @@ class SupabaseDiscoverAdapter implements DiscoverAdapter {
             publicLineupEntryFromRow(row, avatarUrl: _avatar),
         ];
       }, operation: 'rpc public_match_lineup');
+
+  /// One community's football record, through `public_community_football_record`
+  /// (migration `0093`).
+  ///
+  /// No rows means the community is not publicly visible -- inactive,
+  /// suspended or never there, which the database deliberately does not tell
+  /// apart -- and is reported as not found.
+  @override
+  Future<PublicCommunityFootballRecord> fetchCommunityFootballRecord(
+    String communityId,
+  ) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'public_community_football_record',
+            params: {'p_community_id': communityId},
+          ) as List<dynamic>;
+          if (rows.isEmpty) throw const NotFoundFailure();
+          return publicCommunityFootballRecordFromRow(
+            rows.first as Map<String, dynamic>,
+          );
+        },
+        operation: 'rpc public_community_football_record',
+      );
+
+  /// The Top Players, through `public_community_top_players` (migration
+  /// `0093`). The function ranks and caps the list, so the rows are mapped in
+  /// the order they arrive and no `order` or `limit` is asked for here.
+  @override
+  Future<List<PublicCommunityTopPlayer>> fetchCommunityTopPlayers(
+    String communityId,
+  ) =>
+      guarded(
+        () async {
+          final rows = await _client.rpc(
+            'public_community_top_players',
+            params: {'p_community_id': communityId},
+          ) as List<dynamic>;
+          return [
+            for (final row in rows.cast<Map<String, dynamic>>())
+              publicCommunityTopPlayerFromRow(row, avatarUrl: _avatar),
+          ];
+        },
+        operation: 'rpc public_community_top_players',
+      );
 
   String? _avatar(String? path) => SupabaseAvatars.publicUrl(_client, path);
 

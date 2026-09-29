@@ -258,8 +258,10 @@ void main() {
     });
 
     test('the football screen still shows two decimals', () {
+      // The Top Players row moved into the widget both community pages share
+      // (`TopPlayerRow`); the rating it draws is the same two-decimal figure.
       final source = File(
-        'lib/features/football/football_community_screen.dart',
+        'lib/features/discover/public_community_tabs.dart',
       ).readAsStringSync();
       expect(source, contains('overallRating.toStringAsFixed(2)'));
       expect(6.487.toStringAsFixed(2), '6.49');
