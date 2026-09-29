@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/failures.dart';
@@ -12,9 +13,30 @@ import 'supabase_failure_mapper.dart';
 /// the profile row the trigger creates alongside the account.
 class SupabaseAuthAdapter implements AuthAdapter {
   SupabaseAuthAdapter([SupabaseClient? client])
-      : _client = client ?? SupabaseBootstrap.client;
+      : this._(
+          client ?? SupabaseBootstrap.client,
+          SupabaseBootstrap.newImplicitAuthClient,
+          kIsWeb,
+        );
+
+  /// For tests: the auth client used for the web recovery request, and whether
+  /// this run counts as the web, are supplied rather than read from the platform.
+  @visibleForTesting
+  SupabaseAuthAdapter.forRecoveryTest(
+    SupabaseClient client, {
+    required GoTrueClient Function() implicitAuthClient,
+    required bool web,
+  }) : this._(client, implicitAuthClient, web);
+
+  SupabaseAuthAdapter._(
+    this._client,
+    this._implicitAuthClient,
+    this._recoveryWithoutPkce,
+  );
 
   final SupabaseClient _client;
+  final GoTrueClient Function() _implicitAuthClient;
+  final bool _recoveryWithoutPkce;
 
   GoTrueClient get _auth => _client.auth;
 
@@ -160,13 +182,50 @@ class SupabaseAuthAdapter implements AuthAdapter {
         if (!launched) throw const AuthenticationFailure();
       });
 
+  /// **On the web the recovery email is requested without a PKCE challenge.**
+  ///
+  /// The app's Auth flow is PKCE: a request stores a one-time *verifier* in the
+  /// browser that made it, and the emailed link can only be redeemed by a browser
+  /// that still holds that verifier. That is right for everything that returns to
+  /// the page it started from, and wrong for an email: a phone opens the link in
+  /// whatever its mail app is set to use, which is routinely not the browser the
+  /// person asked in. Requested in Safari and opened in Chrome, the link reached
+  /// a page with no verifier, the SDK refused the exchange **before making any
+  /// request**, and the person was left on the public page with no session and
+  /// nothing said.
+  ///
+  /// So the web asks the provider for the implicit form instead: the link returns
+  /// with the session in its address fragment
+  /// (`.../login-callback/recovery#access_token=...&type=recovery`) and redeems in
+  /// any browser. The app's own client, which is PKCE, already understands that
+  /// form: it exchanges the fragment for a session and reports a recovery, and
+  /// the rest of the recovery path -- the durable record, the gate, the reset
+  /// screen -- is identical.
+  ///
+  /// What stays PKCE: sign-up, Google, and every other flow, and recovery on
+  /// Android, where the link opens the installed app and its own storage holds
+  /// the verifier. The trade is tokens in a URL fragment for the length of one
+  /// redirect -- the form these links took before PKCE -- and the SDK removes them
+  /// from the address as soon as it has read them. A recovery link that carries
+  /// no session in the URL at all (`token_hash`, from a custom email template)
+  /// would need no such trade; that is provider configuration and is not assumed
+  /// here.
   @override
   Future<void> requestPasswordReset(
     String email, {
     required String redirectTo,
   }) =>
       guarded(() async {
-        await _auth.resetPasswordForEmail(email, redirectTo: redirectTo);
+        if (!_recoveryWithoutPkce) {
+          await _auth.resetPasswordForEmail(email, redirectTo: redirectTo);
+          return;
+        }
+        final implicit = _implicitAuthClient();
+        try {
+          await implicit.resetPasswordForEmail(email, redirectTo: redirectTo);
+        } finally {
+          implicit.dispose();
+        }
       });
 
   @override

@@ -75,6 +75,20 @@ class PasswordRecoveryState {
     await _persist(false);
   }
 
+  /// What the application does at launch, **before the provider starts**: read
+  /// the persisted record, then record the recovery if [launchLocation] -- the
+  /// address the app was opened on -- is the recovery callback. Says whether it
+  /// was.
+  ///
+  /// The order is the point, and it is why this is one call. On the web the SDK
+  /// exchanges the link's credentials and strips them from the address while it
+  /// initialises; by the time anything else runs the link is gone. What is
+  /// recorded here is what the auth gate reads first.
+  Future<bool> startUp({String? launchLocation}) async {
+    await load();
+    return captureLink(launchLocation);
+  }
+
   /// Starts a recovery if [location] is the recovery callback, and says whether
   /// it was.
   ///

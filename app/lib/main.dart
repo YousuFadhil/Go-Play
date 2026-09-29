@@ -38,9 +38,10 @@ Future<void> main() async {
   // the time the app is up neither the link nor the event can be recovered. What
   // is recorded here is what the auth gate consults first, so a recovery session
   // is never mistaken for an ordinary one -- on this launch or after a restart.
-  await PasswordRecoveryState.instance.load();
-  await PasswordRecoveryState.instance.captureLink(
-    kIsWeb ? Uri.base.toString() : PlatformDispatcher.instance.defaultRouteName,
+  await PasswordRecoveryState.instance.startUp(
+    launchLocation: kIsWeb
+        ? Uri.base.toString()
+        : PlatformDispatcher.instance.defaultRouteName,
   );
 
   await SupabaseBootstrap.initialize();

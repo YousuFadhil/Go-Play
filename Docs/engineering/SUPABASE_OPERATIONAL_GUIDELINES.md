@@ -562,6 +562,25 @@ respects the provider's limits: "Resend email" is held back for a minute and a
   case it cannot see is a recovery whose callback the platform hands over in a
   shape not recognised *and* whose event was also missed; such a session is then
   an ordinary one.
+- **On the web, a recovery link redeems in any browser.** The app's Auth flow is
+  PKCE, which stores a one-time verifier in the browser that made the request and
+  can only be redeemed there. That suits a redirect that returns to the page it
+  started from and fails for an email: a phone opens the link in whatever its mail
+  app uses, which is often not the browser the person asked in. (The first Staging
+  UAT hit exactly this: requested in iPhone Safari, opened in iPhone Chrome. The
+  provider's logs showed `/verify` succeeding and then *no* `/token` request,
+  because the SDK refuses the exchange client-side when the verifier is absent.)
+  So on the web the recovery email is requested **without a PKCE challenge**
+  (`SupabaseAuthAdapter.requestPasswordReset`): the link returns to
+  `<origin>/login-callback/recovery#access_token=…&type=recovery`, which the app's
+  own client already exchanges for a session, and the SDK removes from the address
+  as soon as it has read it. Nothing about the project's configuration changes:
+  the Redirect URLs and the email template are the same. Sign-up, Google and
+  recovery on Android stay PKCE. The cost is tokens in a URL fragment for one
+  redirect. A link that carries no session in the URL at all (`token_hash`, from a
+  custom "Reset Password" email template that points at the app) would avoid it
+  and would also be browser-independent; that is a template change and a client
+  handler, and is a candidate follow-up rather than something assumed here.
 - **Acquisition attribution is not carried across these redirects.** A sign-up
   completed through Google or an email-confirmation link leaves the app and
   returns to it, and may not count as the same-session anonymous signup
