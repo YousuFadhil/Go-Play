@@ -28,6 +28,7 @@ import 'package:go_play/features/profile/current_user.dart';
 import 'package:go_play/features/profile/profile_adapter.dart';
 import 'package:go_play/features/profile/profile_models.dart';
 import 'package:go_play/features/profile/profile_repository.dart';
+import 'auth_adapter_defaults.dart';
 
 /// The public entry experience: what a visitor can see, and where they are
 /// stopped.
@@ -874,7 +875,7 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
 
 /// Says whether somebody is signed in, and nothing else — every method that
 /// would change that is out of this test's scope and says so.
-class _StubAuthAdapter implements AuthAdapter {
+class _StubAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   _StubAuthAdapter({required this.signedIn});
 
   final bool signedIn;
@@ -895,7 +896,7 @@ class _StubAuthAdapter implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() async => null;
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -903,6 +904,7 @@ class _StubAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) async =>
       throw UnimplementedError();
 

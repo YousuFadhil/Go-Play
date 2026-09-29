@@ -20,6 +20,7 @@ import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'auth_adapter_defaults.dart';
 
 /// Opening a match you are not a member of.
 ///
@@ -894,7 +895,7 @@ class FakeMemberAdapter implements MemberAdapter {
 
 /// A signed-in session, which is all this screen asks of identity: whose
 /// registration is whose.
-class _StubAuthAdapter implements AuthAdapter {
+class _StubAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   _StubAuthAdapter({this.signedIn = true});
 
   final bool signedIn;
@@ -915,7 +916,7 @@ class _StubAuthAdapter implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() async => null;
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -923,6 +924,7 @@ class _StubAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) =>
       throw UnimplementedError();
 

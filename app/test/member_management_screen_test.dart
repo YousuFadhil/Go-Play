@@ -10,6 +10,7 @@ import 'package:go_play/features/communities/community_models.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_management_screen.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'auth_adapter_defaults.dart';
 
 void main() {
   const owner = CommunityMember(
@@ -289,7 +290,7 @@ class FakeMemberAdapter implements MemberAdapter {
       throw UnimplementedError();
 }
 
-class FakeAuthAdapter implements AuthAdapter {
+class FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   FakeAuthAdapter(this.id);
 
   final String id;
@@ -310,7 +311,7 @@ class FakeAuthAdapter implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() async => null;
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -318,6 +319,7 @@ class FakeAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) =>
       throw UnimplementedError();
 

@@ -35,6 +35,7 @@ import 'package:go_play/features/teams/pitch_view.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
+import 'auth_adapter_defaults.dart';
 
 /// Cycle 3: the football discovery experience.
 ///
@@ -1752,7 +1753,7 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
   }
 }
 
-class _StubAuth implements AuthAdapter {
+class _StubAuth with AuthAdapterDefaults implements AuthAdapter {
   _StubAuth({required this.signedIn});
 
   final bool signedIn;
@@ -1773,7 +1774,7 @@ class _StubAuth implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() async => null;
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -1781,6 +1782,7 @@ class _StubAuth implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) async =>
       throw UnimplementedError();
 

@@ -23,6 +23,7 @@ import 'package:go_play/features/profile/profile_repository.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/team_repository.dart';
+import 'auth_adapter_defaults.dart';
 
 /// What the repositories decide once the provider is out of the way (OP-6).
 ///
@@ -1042,7 +1043,7 @@ class FakeProfileAdapter implements ProfileAdapter {
       throw UnimplementedError();
 }
 
-class FakeAuthAdapter implements AuthAdapter {
+class FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   FakeAuthAdapter({this.fullName});
 
   final String? fullName;
@@ -1054,12 +1055,14 @@ class FakeAuthAdapter implements AuthAdapter {
   DateTime? lastDateOfBirth;
   PlayerPosition? lastSecondaryPosition;
   int signUpCount = 0;
+  String? lastSignUpRedirect;
+  SignUpOutcome signUpOutcome = SignUpOutcome.signedIn;
 
   @override
   Future<String?> fetchCurrentUserFullName() async => fullName;
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -1067,6 +1070,7 @@ class FakeAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) async {
     signUpCount++;
     lastEmail = email;
@@ -1075,6 +1079,8 @@ class FakeAuthAdapter implements AuthAdapter {
     lastPosition = position;
     lastDateOfBirth = dateOfBirth;
     lastSecondaryPosition = secondaryPosition;
+    lastSignUpRedirect = redirectTo;
+    return signUpOutcome;
   }
 
   @override

@@ -2512,4 +2512,101 @@ class AppLocalizationsAr extends AppLocalizations {
   String leaderboardPointsPerGame(String value) {
     return '$value نقطة/مباراة';
   }
+
+  @override
+  String get continueWithGoogle => 'المتابعة باستخدام Google';
+
+  @override
+  String get authOrDivider => 'أو';
+
+  @override
+  String get googleSignInFailed =>
+      'تعذّر بدء تسجيل الدخول عبر Google. حاول مرة أخرى.';
+
+  @override
+  String get forgotPasswordLink => 'نسيت كلمة المرور؟';
+
+  @override
+  String get forgotPasswordTitle => 'إعادة تعيين كلمة المرور';
+
+  @override
+  String get forgotPasswordBody =>
+      'أدخل البريد الإلكتروني الذي سجّلت به. إن كان يخص حساباً فسنرسل إليه رمزاً لاختيار كلمة مرور جديدة.';
+
+  @override
+  String get forgotPasswordSend => 'إرسال الرمز';
+
+  @override
+  String get backToLogin => 'العودة إلى تسجيل الدخول';
+
+  @override
+  String get tooManyRequests =>
+      'محاولات كثيرة. انتظر بضع دقائق ثم حاول مرة أخرى.';
+
+  @override
+  String get emailCodeTitle => 'أدخل الرمز';
+
+  @override
+  String get emailCodeRecoveryBody =>
+      'أدخل الرمز الذي أرسلناه إلى بريدك الإلكتروني.';
+
+  @override
+  String get emailCodeSignupBody => 'تحقق من بريدك الإلكتروني لإكمال التسجيل.';
+
+  @override
+  String emailCodeSentTo(String email) {
+    return 'أرسلنا رمزاً من 6 أرقام إلى $email.';
+  }
+
+  @override
+  String get emailCodeLabel => 'الرمز المكوّن من 6 أرقام';
+
+  @override
+  String get emailCodeIncomplete => 'أدخل الأرقام الستة كاملة.';
+
+  @override
+  String get emailCodeVerify => 'تحقق';
+
+  @override
+  String get emailCodeInvalid =>
+      'الرمز غير صحيح أو انتهت صلاحيته. راجعه أو اطلب رمزاً جديداً.';
+
+  @override
+  String get emailCodeResend => 'إرسال رمز جديد';
+
+  @override
+  String get emailCodeResent => 'الرمز الجديد في طريقه إليك.';
+
+  @override
+  String get emailCodeResendWait => 'لم يصل؟ يمكنك طلب رمز جديد بعد دقيقة.';
+
+  @override
+  String get resetPasswordTitle => 'اختر كلمة مرور جديدة';
+
+  @override
+  String get newPasswordLabel => 'كلمة المرور الجديدة';
+
+  @override
+  String get resetPasswordSubmit => 'حفظ كلمة المرور الجديدة';
+
+  @override
+  String get resetPasswordLinkExpired =>
+      'لم يعد رابط إعادة التعيين صالحاً. اطلب رابطاً جديداً.';
+
+  @override
+  String get passwordResetSuccess =>
+      'تم تغيير كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.';
+
+  @override
+  String get completeProfileTitle => 'أكمل ملفك كلاعب';
+
+  @override
+  String get completeProfileBody =>
+      'خطوة أخيرة قبل أن تلعب: أخبرنا قليلاً عن نفسك.';
+
+  @override
+  String get completeProfileSubmit => 'متابعة';
+
+  @override
+  String get profileDetailsInvalid => 'تحقق من بياناتك ثم حاول مرة أخرى.';
 }

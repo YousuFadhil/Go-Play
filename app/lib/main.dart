@@ -5,6 +5,7 @@ import 'app.dart';
 import 'core/config.dart';
 import 'core/config_error_app.dart';
 import 'core/locale_controller.dart';
+import 'features/auth/password_recovery_state.dart';
 import 'features/notifications/push_service.dart';
 import 'features/runtime/client_runtime_reporter.dart';
 import 'infrastructure/supabase/supabase_bootstrap.dart';
@@ -28,6 +29,20 @@ Future<void> main() async {
     runApp(const ConfigErrorApp());
     return;
   }
+
+  // Whether a password recovery is in progress is read from storage, and the
+  // address the app was launched with is checked for the recovery callback --
+  // both **before the SDK starts**. On the web the SDK exchanges a link's
+  // credentials and strips them from the address while it initialises, and its
+  // auth events are emitted then too, possibly before anything is listening; by
+  // the time the app is up neither the link nor the event can be recovered. What
+  // is recorded here is what the auth gate consults first, so a recovery session
+  // is never mistaken for an ordinary one -- on this launch or after a restart.
+  await PasswordRecoveryState.instance.startUp(
+    launchLocation: kIsWeb
+        ? Uri.base.toString()
+        : PlatformDispatcher.instance.defaultRouteName,
+  );
 
   await SupabaseBootstrap.initialize();
 

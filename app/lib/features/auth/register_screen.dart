@@ -9,6 +9,8 @@ import '../analytics/acquisition_analytics.dart';
 import '../profile/profile_models.dart';
 import 'auth_models.dart';
 import 'auth_service.dart';
+import 'email_code_view.dart';
+import 'google_sign_in_button.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key, this.authService});
@@ -33,6 +35,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   PlayerPosition? _secondaryPosition;
   DateTime? _dateOfBirth;
   bool _isLoading = false;
+
+  /// Set when the account was created but the provider is holding it for the
+  /// address to be confirmed. While it is set the form is replaced by the
+  /// email-code state, which asks for the six-digit code; nothing is signed in.
+  String? _pendingConfirmationEmail;
 
   @override
   void dispose() {
@@ -79,7 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final l10n = context.l10n;
     setState(() => _isLoading = true);
     try {
-      await _authService.register(
+      final outcome = await _authService.register(
         email: _emailController.text,
         localPhone: _phoneController.text,
         password: _passwordController.text,
@@ -88,6 +95,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         dateOfBirth: _dateOfBirth!,
         secondaryPosition: _secondaryPosition,
       );
+      // The provider is holding the account for the address to be confirmed:
+      // there is no session, so nothing below applies. The person is asked for
+      // the code in the email, and the gate stays where it is.
+      //
+      // The acquisition conversion is deliberately not marked here. It is a
+      // flag that lives until the gate confirms an active account or the session
+      // ends, and with no session there is neither -- it would still be set when
+      // somebody else signed in, and a login must never count as a signup. It is
+      // marked when the code is accepted instead: see [_onEmailVerified].
+      if (outcome == SignUpOutcome.confirmationRequired) {
+        if (mounted) {
+          setState(
+              () => _pendingConfirmationEmail = _emailController.text.trim());
+        }
+        return;
+      }
       // A new account now exists. Marked only here, never on login, so an
       // existing account signing in is never a signup conversion. Nothing is
       // awaited: the gate records the conversion once the account is active.
@@ -109,6 +132,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  /// The code was accepted, so the account is confirmed and signed in, and the
+  /// gate is already on its way to the account check.
+  ///
+  /// This is where the registration counts as a conversion: the account was
+  /// created by this form and only now has a session to be counted against, so it
+  /// is what the immediate-session path above marks, one step later.
+  void _onEmailVerified() {
+    AcquisitionAnalytics.instance.registrationSucceeded();
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -119,6 +153,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final locale = Localizations.localeOf(context).toString();
+
+    final pendingEmail = _pendingConfirmationEmail;
+    if (pendingEmail != null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.registerTitle)),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: EmailCodeView(
+                purpose: EmailCodePurpose.signup,
+                email: pendingEmail,
+                authService: _authService,
+                onVerified: _onEmailVerified,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.registerTitle)),
@@ -290,6 +344,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(l10n.registerButton),
+                  ),
+                  const SizedBox(height: 12),
+                  GoogleSignInSection(
+                    authService: widget.authService,
+                    enabled: !_isLoading,
                   ),
                   const SizedBox(height: 12),
                   TextButton(

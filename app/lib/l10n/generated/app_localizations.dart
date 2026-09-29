@@ -4405,6 +4405,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{value} PPG'**
   String leaderboardPointsPerGame(String value);
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @authOrDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get authOrDivider;
+
+  /// No description provided for @googleSignInFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start Google sign-in. Please try again.'**
+  String get googleSignInFailed;
+
+  /// No description provided for @forgotPasswordLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPasswordLink;
+
+  /// No description provided for @forgotPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get forgotPasswordTitle;
+
+  /// No description provided for @forgotPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the email you signed up with. If it belongs to an account, we will send a code to choose a new password.'**
+  String get forgotPasswordBody;
+
+  /// No description provided for @forgotPasswordSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get forgotPasswordSend;
+
+  /// No description provided for @backToLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to log in'**
+  String get backToLogin;
+
+  /// No description provided for @tooManyRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Please wait a few minutes and try again.'**
+  String get tooManyRequests;
+
+  /// No description provided for @emailCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your code'**
+  String get emailCodeTitle;
+
+  /// No description provided for @emailCodeRecoveryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code we sent to your email.'**
+  String get emailCodeRecoveryBody;
+
+  /// No description provided for @emailCodeSignupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify your email to complete registration.'**
+  String get emailCodeSignupBody;
+
+  /// No description provided for @emailCodeSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a 6-digit code to {email}.'**
+  String emailCodeSentTo(String email);
+
+  /// No description provided for @emailCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'6-digit code'**
+  String get emailCodeLabel;
+
+  /// No description provided for @emailCodeIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter all 6 digits.'**
+  String get emailCodeIncomplete;
+
+  /// No description provided for @emailCodeVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get emailCodeVerify;
+
+  /// No description provided for @emailCodeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That code is incorrect or has expired. Check it, or ask for a new one.'**
+  String get emailCodeInvalid;
+
+  /// No description provided for @emailCodeResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a new code'**
+  String get emailCodeResend;
+
+  /// No description provided for @emailCodeResent.
+  ///
+  /// In en, this message translates to:
+  /// **'A new code is on its way.'**
+  String get emailCodeResent;
+
+  /// No description provided for @emailCodeResendWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Did not arrive? You can ask for a new code in a minute.'**
+  String get emailCodeResendWait;
+
+  /// No description provided for @resetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password'**
+  String get resetPasswordTitle;
+
+  /// No description provided for @newPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPasswordLabel;
+
+  /// No description provided for @resetPasswordSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Save new password'**
+  String get resetPasswordSubmit;
+
+  /// No description provided for @resetPasswordLinkExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This reset link is no longer valid. Request a new one.'**
+  String get resetPasswordLinkExpired;
+
+  /// No description provided for @passwordResetSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password was changed. Log in with your new password.'**
+  String get passwordResetSuccess;
+
+  /// No description provided for @completeProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete your player profile'**
+  String get completeProfileTitle;
+
+  /// No description provided for @completeProfileBody.
+  ///
+  /// In en, this message translates to:
+  /// **'One last step before you play: tell us a little about yourself.'**
+  String get completeProfileBody;
+
+  /// No description provided for @completeProfileSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get completeProfileSubmit;
+
+  /// No description provided for @profileDetailsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your details and try again.'**
+  String get profileDetailsInvalid;
 }
 
 class _AppLocalizationsDelegate
