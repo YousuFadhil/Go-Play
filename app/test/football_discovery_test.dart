@@ -16,6 +16,7 @@ import 'package:go_play/features/discover/discover_models.dart';
 import 'package:go_play/features/discover/discover_repository.dart';
 import 'package:go_play/features/discover/discover_screen.dart';
 import 'package:go_play/features/discover/discover_tabs.dart';
+import 'package:go_play/features/discover/discover_widgets.dart';
 import 'package:go_play/features/football/football_result_card.dart';
 import 'package:go_play/features/discover/public_community_screen.dart';
 import 'package:go_play/features/football/football_adapter.dart';
@@ -1067,46 +1068,67 @@ void main() {
 
   // --------------------------------------------------------------------------
   group('the football community screen', () {
-    Future<void> pumpCommunity(
+    PublicResult publicResult(String id, {int a = 3, int b = 2}) =>
+        PublicResult(
+          matchId: id,
+          communityId: 'c1',
+          communityName: 'Muscat United',
+          title: 'Friday night',
+          startAt: DateTime(2026, 8, 20, 18),
+          teamAScore: a,
+          teamBScore: b,
+        );
+
+    Future<({_FakeDiscoverAdapter discover, _FakeFootballAdapter football})>
+        pumpCommunity(
       WidgetTester tester, {
-      List<CompletedMatch> results = const [],
-      List<CommunityPlayerStats> players = const [],
-      CommunityFootballStats? stats,
+      List<PublicResult> results = const [],
+      List<PublicCommunityTopPlayer> players = const [],
+      PublicCommunityFootballRecord? record,
       Object? footballFailure,
       JoinCommunityOutcome joinOutcome = const NeedsJoinCode(),
       List<NavigatorObserver> observers = const [],
+      // What the authenticated football views would answer, seeded with values
+      // that differ from the public ones so a page that read them shows.
+      List<CommunityPlayerStats> memberPlayers = const [],
+      CommunityFootballStats? memberStats,
     }) async {
       tester.view.physicalSize = const Size(900, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      final discover = _FakeDiscoverAdapter(
+        communities: [community('c1', 'Muscat United')],
+        matches: [upcoming('m1')],
+      )
+        ..recentResults = results
+        ..record = record
+        ..topPlayers = players
+        ..footballFailure = footballFailure;
+      final football = _FakeFootballAdapter(
+        players: memberPlayers,
+        stats: memberStats,
+      );
+
       await tester.pumpWidget(wrap(
           FootballCommunityScreen(
             communityId: 'c1',
-            discoverRepository: DiscoverRepository(_FakeDiscoverAdapter(
-              communities: [community('c1', 'Muscat United')],
-              matches: [upcoming('m1')],
-            )),
-            footballRepository: FootballRepository(_FakeFootballAdapter(
-              results: results,
-              players: players,
-              stats: stats,
-              failure: footballFailure,
-            )),
+            discoverRepository: DiscoverRepository(discover),
+            footballRepository: FootballRepository(football),
             communityRepository: CommunityRepository(
                 _JoinedAdapter(const [], join: joinOutcome)),
           ),
           observers: observers));
       await tester.pumpAndSettle();
+      return (discover: discover, football: football);
     }
 
     testWidgets('shows the community football record', (tester) async {
       await pumpCommunity(
         tester,
-        stats: const CommunityFootballStats(
+        record: const PublicCommunityFootballRecord(
           communityId: 'c1',
-          communityName: 'Muscat United',
           completedMatches: 14,
           players: 33,
           goals: 91,
@@ -1114,18 +1136,35 @@ void main() {
         ),
       );
 
-      expect(find.text('Football record'), findsOneWidget);
+      expect(find.byKey(const Key('communityFootballRecord')), findsOneWidget);
       expect(find.text('14'), findsOneWidget);
       expect(find.text('33'), findsOneWidget);
       expect(find.text('91'), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
     });
 
-    testWidgets('shows recent results with the same card as Discover',
+    testWidgets('opens on Latest Results, with the same card as Discover',
         (tester) async {
-      await pumpCommunity(tester, results: [completed('p1', a: 3, b: 2)]);
+      await pumpCommunity(tester, results: [publicResult('p1')]);
 
-      expect(find.text('Recent results'), findsOneWidget);
+      expect(find.byType(PublicResultCard), findsOneWidget);
       expect(find.byType(ScorePair), findsOneWidget);
+    });
+
+    testWidgets('a result opens the signed-in match screen', (tester) async {
+      final routes = _RouteRecorder();
+      await pumpCommunity(
+        tester,
+        results: [publicResult('p1')],
+        observers: [routes],
+      );
+
+      await tester.tap(find.byType(PublicResultCard));
+      await tester.idle();
+
+      final pushed = routes.lastPushedWidget(tester);
+      expect(pushed, isA<FootballMatchScreen>());
+      expect((pushed! as FootballMatchScreen).matchId, 'p1');
     });
 
     testWidgets('never reveals a join code', (tester) async {
@@ -1142,6 +1181,7 @@ void main() {
         (tester) async {
       final routes = _RouteRecorder();
       await pumpCommunity(tester, observers: [routes]);
+      await openTab(tester, 1);
 
       // Two of them: the hero's, and the upcoming-match card's. The card's
       // action used to read "View match" and push a screen that would refuse
@@ -1191,75 +1231,74 @@ void main() {
 
     testWidgets('a football failure leaves the public half standing',
         (tester) async {
-      await pumpCommunity(tester, footballFailure: StateError('offline'));
+      await pumpCommunity(
+        tester,
+        results: [publicResult('p1')],
+        footballFailure: StateError('offline'),
+      );
 
+      // The community, and the results that come with it, are still there...
       expect(find.text('Muscat United'), findsWidgets);
-      expect(find.text('Upcoming matches'), findsWidgets);
+      expect(find.byType(PublicResultCard), findsOneWidget);
+      // ...and the football says so where the record would have been.
       expect(find.textContaining('Could not load recent football'),
           findsOneWidget);
+      expect(find.byKey(const Key('recordRetry')), findsOneWidget);
     });
-  });
 
-  // --------------------------------------------------------------------------
-  group('the Top Players rule', () {
-    CommunityPlayerStats p(
-      String name, {
-      double rating = 6.0,
-      int goals = 0,
-      int mvp = 0,
-    }) =>
-        CommunityPlayerStats(
+    testWidgets('it reads the public football contract, not the football views',
+        (tester) async {
+      final ports = await pumpCommunity(
+        tester,
+        results: [publicResult('p1')],
+        record: const PublicCommunityFootballRecord(
           communityId: 'c1',
-          userId: 'u-$name',
-          displayName: name,
-          overallRating: rating,
-          matchesPlayed: 10,
-          wins: 5,
-          draws: 2,
-          losses: 3,
-          goals: goals,
-          mvpCount: mvp,
-        );
+          completedMatches: 7,
+          players: 8,
+          goals: 9,
+          mvpCount: 6,
+        ),
+        memberStats: const CommunityFootballStats(
+          communityId: 'c1',
+          communityName: 'Muscat United',
+          completedMatches: 777,
+          players: 888,
+          goals: 999,
+          mvpCount: 666,
+        ),
+        memberPlayers: const [
+          CommunityPlayerStats(
+            communityId: 'c1',
+            userId: 'u-member-view',
+            displayName: 'Only In The Member View',
+            overallRating: 9.9,
+            matchesPlayed: 1,
+            wins: 1,
+            draws: 0,
+            losses: 0,
+            goals: 1,
+            mvpCount: 1,
+          ),
+        ],
+      );
 
-    test('rating descending leads', () {
-      final ranked =
-          rankTopPlayers([p('low', rating: 5.0), p('high', rating: 7.0)]);
-      expect(ranked.map((e) => e.displayName), ['high', 'low']);
-    });
+      expect(find.text('777'), findsNothing);
+      expect(find.text('7'), findsOneWidget);
+      await openTab(tester, 2);
+      expect(find.text('Only In The Member View'), findsNothing);
 
-    test('goals break a rating tie', () {
-      final ranked = rankTopPlayers([
-        p('few', rating: 6.0, goals: 1),
-        p('many', rating: 6.0, goals: 9),
-      ]);
-      expect(ranked.map((e) => e.displayName), ['many', 'few']);
-    });
-
-    test('MVPs break a rating and goals tie', () {
-      final ranked = rankTopPlayers([
-        p('none', rating: 6.0, goals: 3, mvp: 0),
-        p('some', rating: 6.0, goals: 3, mvp: 2),
-      ]);
-      expect(ranked.map((e) => e.displayName), ['some', 'none']);
-    });
-
-    test('the name is the deterministic last resort', () {
-      final ranked = rankTopPlayers([
-        p('Zaid', rating: 6.0, goals: 3, mvp: 1),
-        p('Ahmed', rating: 6.0, goals: 3, mvp: 1),
-      ]);
-      expect(ranked.map((e) => e.displayName), ['Ahmed', 'Zaid'],
-          reason: 'a ranking that is not stable is not a ranking');
-    });
-
-    test('takes five', () {
-      final ranked = rankTopPlayers([
-        for (var i = 0; i < 9; i++) p('p$i', rating: 9.0 - i),
-      ]);
-      expect(ranked, hasLength(5));
-      expect(ranked.first.displayName, 'p0');
+      expect(ports.discover.footballReads, ['record:c1', 'players:c1']);
+      expect(ports.football.communityStatsCalls, 0,
+          reason: 'v_football_community_stats is authenticated-only');
+      expect(ports.football.playerStatsCalls, 0,
+          reason: 'v_football_community_player_stats is authenticated-only');
+      expect(ports.football.completedCalls, 0,
+          reason: 'the results are the public ones, the same as a guest reads');
+      // The same approved recent set a guest is shown.
+      expect(ports.discover.recentResultsRequests, ['c1']);
     });
   });
+
   // --- how many results are shown before the reader asks for more -----------
 
   group('previous results are behind a disclosure', () {
@@ -1544,6 +1583,11 @@ class _FakeFootballAdapter implements FootballAdapter {
 
   var completedCalls = 0;
 
+  /// The two authenticated football views a community page used to read. Counted
+  /// so a test can prove the page no longer reaches either.
+  var communityStatsCalls = 0;
+  var playerStatsCalls = 0;
+
   /// Reads that opening one completed match costs. Counted so a test can show
   /// that sharing what is already on screen costs none.
   var matchDetailReads = 0;
@@ -1585,6 +1629,7 @@ class _FakeFootballAdapter implements FootballAdapter {
 
   @override
   Future<CommunityFootballStats> fetchCommunityStats(String communityId) async {
+    communityStatsCalls++;
     if (failure != null) throw failure!;
     return stats ??
         const CommunityFootballStats(
@@ -1601,6 +1646,7 @@ class _FakeFootballAdapter implements FootballAdapter {
   Future<List<CommunityPlayerStats>> fetchCommunityPlayerStats(
     String communityId,
   ) async {
+    playerStatsCalls++;
     if (failure != null) throw failure!;
     return players;
   }
@@ -1690,6 +1736,40 @@ class _JoinedAdapter implements CommunityAdapter {
 }
 
 class _FakeDiscoverAdapter implements DiscoverAdapter {
+  /// What the public football contract answers with -- the record above the
+  /// tabs and the Top Players -- and whether it fails.
+  PublicCommunityFootballRecord? record;
+  List<PublicCommunityTopPlayer> topPlayers = const [];
+  Object? footballFailure;
+
+  /// One entry per read, so a test can prove which contract was asked.
+  final List<String> footballReads = [];
+
+  @override
+  Future<PublicCommunityFootballRecord> fetchCommunityFootballRecord(
+    String communityId,
+  ) async {
+    footballReads.add('record:$communityId');
+    if (footballFailure != null) throw footballFailure!;
+    return record ??
+        PublicCommunityFootballRecord(
+          communityId: communityId,
+          completedMatches: 0,
+          players: 0,
+          goals: 0,
+          mvpCount: 0,
+        );
+  }
+
+  @override
+  Future<List<PublicCommunityTopPlayer>> fetchCommunityTopPlayers(
+    String communityId,
+  ) async {
+    footballReads.add('players:$communityId');
+    if (footballFailure != null) throw footballFailure!;
+    return topPlayers;
+  }
+
   @override
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,

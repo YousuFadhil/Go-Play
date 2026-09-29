@@ -416,6 +416,12 @@ void main() {
         ),
         findsOneWidget,
       );
+      // It opens on Latest Results; what is scheduled is the second tab.
+      expect(find.text('Friday night five-a-side'), findsNothing);
+      await tester.tap(find
+          .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab))
+          .at(1));
+      await tester.pumpAndSettle();
       expect(find.text('Friday night five-a-side'), findsOneWidget);
     });
 
@@ -792,6 +798,25 @@ void main() {
 
 /// Answers from memory, with no session anywhere in sight.
 class _FakeDiscoverAdapter implements DiscoverAdapter {
+  /// Nothing recorded and nobody ranked: this suite is not about football.
+  @override
+  Future<PublicCommunityFootballRecord> fetchCommunityFootballRecord(
+    String communityId,
+  ) async =>
+      PublicCommunityFootballRecord(
+        communityId: communityId,
+        completedMatches: 0,
+        players: 0,
+        goals: 0,
+        mvpCount: 0,
+      );
+
+  @override
+  Future<List<PublicCommunityTopPlayer>> fetchCommunityTopPlayers(
+    String communityId,
+  ) async =>
+      const [];
+
   @override
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,

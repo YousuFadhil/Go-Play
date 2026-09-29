@@ -117,3 +117,39 @@ PublicLineupEntry publicLineupEntryFromRow(
       isMvp: row['is_mvp'] as bool? ?? false,
       playerId: row['player_id'] as String?,
     );
+
+/// Reads the one row of `public_community_football_record` (migration `0093`).
+PublicCommunityFootballRecord publicCommunityFootballRecordFromRow(
+  Map<String, dynamic> row,
+) =>
+    PublicCommunityFootballRecord(
+      communityId: row['community_id'] as String,
+      completedMatches: row['completed_matches'] as int? ?? 0,
+      players: row['players'] as int? ?? 0,
+      goals: row['goals'] as int? ?? 0,
+      mvpCount: row['mvp_count'] as int? ?? 0,
+    );
+
+/// Reads one row of `public_community_top_players` (migration `0093`).
+///
+/// A missing rating falls back to the 5.0 every player starts on, which is
+/// also what the function itself substitutes; `numeric` may arrive as a number
+/// or as a string, so both are read.
+PublicCommunityTopPlayer publicCommunityTopPlayerFromRow(
+  Map<String, dynamic> row, {
+  required String? Function(String? path) avatarUrl,
+}) =>
+    PublicCommunityTopPlayer(
+      communityId: row['community_id'] as String,
+      userId: row['user_id'] as String,
+      displayName: row['display_name'] as String? ?? '',
+      avatarUrl: avatarUrl(row['avatar_path'] as String?),
+      overallRating: switch (row['overall_rating']) {
+        final num n => n.toDouble(),
+        final String s => double.tryParse(s) ?? 5.0,
+        _ => 5.0,
+      },
+      matchesPlayed: row['matches_played'] as int? ?? 0,
+      goals: row['goals'] as int? ?? 0,
+      mvpCount: row['mvp_count'] as int? ?? 0,
+    );
