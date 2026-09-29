@@ -4,6 +4,7 @@ import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import 'auth_service.dart';
+import 'email_code_view.dart';
 import 'forgot_password_screen.dart';
 import 'google_sign_in_button.dart';
 import 'register_screen.dart';
@@ -16,6 +17,16 @@ import 'register_screen.dart';
 /// validation, the same failures, and the same unwind to the root route on
 /// success, which the auth gate then answers by swapping the public tree for the
 /// signed-in one.
+///
+/// **One thing it now does that it did not:** when the provider refuses a
+/// password sign-in *because the address has not been verified yet* -- a person
+/// who registered, never entered the emailed code, and came back later -- it does
+/// not say "login failed". It swaps the form for the same six-digit code screen
+/// registration shows, for the address that was typed, so they can finish without
+/// registering again. That happens only on the provider's own
+/// `email_not_confirmed`, which it raises after checking the password: a wrong
+/// password or an address nobody registered gets the ordinary failure, and there
+/// is no way to reach the code screen from an address alone.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
@@ -44,6 +55,11 @@ class _LoginScreenState extends State<LoginScreen> {
   late final AuthService _authService = widget.authService ?? AuthService();
   bool _isLoading = false;
 
+  /// Set when the provider said this address is not verified yet. While it is
+  /// set the form is replaced by the code screen. It is the address and nothing
+  /// else: the password is cleared the moment this is set and is never kept.
+  String? _unverifiedEmail;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -66,6 +82,17 @@ class _LoginScreenState extends State<LoginScreen> {
       // invitation — where it has to get out of the way again.
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on Failure catch (failure) {
+      // Right password, unverified address: carry on where registration left off.
+      if (failure is AuthenticationFailure &&
+          failure.reason == FailureReason.emailNotConfirmed) {
+        // The password has done its job. It is not held for the verification and
+        // is not there to be sent again; going back asks for it afresh.
+        _passwordController.clear();
+        if (mounted) {
+          setState(() => _unverifiedEmail = _emailController.text.trim());
+        }
+        return;
+      }
       _showError(switch (failure) {
         NetworkFailure() => l10n.networkError,
         AuthenticationFailure() => l10n.loginFailed,
@@ -78,6 +105,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Back from the code screen is the ordinary form, not out of the login screen.
+  void _backToLogin() {
+    if (mounted) setState(() => _unverifiedEmail = null);
+  }
+
+  /// The code was accepted: the account is confirmed and signed in, and the gate
+  /// is already on its way to the account check. Like a password sign-in, this
+  /// only has to get out of the way if it was pushed over something. Nothing is
+  /// counted as a registration: the account was created in an earlier visit, and
+  /// a login never counts as a signup.
+  void _onEmailVerified() {
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -87,6 +128,35 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+
+    final unverified = _unverifiedEmail;
+    if (unverified != null) {
+      return PopScope(
+        // The app bar's back arrow and the system back both mean "back to the
+        // form" here, not "leave the login screen".
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _backToLogin();
+        },
+        child: Scaffold(
+          appBar: AppBar(title: Text(l10n.loginTitle)),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding:
+                  const EdgeInsets.fromLTRB(Gap.xl, Gap.xl, Gap.xl, Gap.xl),
+              child: EmailCodeView(
+                purpose: EmailCodePurpose.signup,
+                email: unverified,
+                authService: _authService,
+                onVerified: _onEmailVerified,
+                onBack: _backToLogin,
+                canResendAtStart: true,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.loginTitle)),

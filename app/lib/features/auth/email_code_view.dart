@@ -52,6 +52,8 @@ class EmailCodeView extends StatefulWidget {
     required this.email,
     required this.authService,
     this.onVerified,
+    this.onBack,
+    this.canResendAtStart = false,
     this.resendDelay = const Duration(seconds: 60),
   });
 
@@ -65,6 +67,20 @@ class EmailCodeView extends StatefulWidget {
   /// Called after the code was accepted, for what only the caller knows. The
   /// session already exists by then and the gate is already reacting to it.
   final VoidCallback? onVerified;
+
+  /// What "Back to log in" does. Left null it pops the route the view is on,
+  /// which is what a screen that swapped this in for its own form wants; a screen
+  /// that has to return to *its own form* instead (a login that resumed a
+  /// verification) supplies this.
+  final VoidCallback? onBack;
+
+  /// Whether sending another is allowed from the start, rather than after the
+  /// first minute. The minute exists because the request that led here has just
+  /// sent an email; a person who arrives having sent nothing -- a sign-in that
+  /// found the address unverified, long after the code from sign-up was sent or
+  /// lost -- needs to be able to ask at once. After a send the wait applies as
+  /// usual, and the provider's own limit is still what decides.
+  final bool canResendAtStart;
 
   /// How long sending another stays disabled. A parameter so a test does not
   /// have to wait a real minute; production uses the default.
@@ -85,7 +101,11 @@ class _EmailCodeViewState extends State<EmailCodeView> {
   @override
   void initState() {
     super.initState();
-    _startCooldown();
+    if (widget.canResendAtStart) {
+      _canResend = true;
+    } else {
+      _startCooldown();
+    }
   }
 
   @override
@@ -291,7 +311,9 @@ class _EmailCodeViewState extends State<EmailCodeView> {
         ],
         const SizedBox(height: Gap.md),
         TextButton(
-          onPressed: _verifying ? null : () => Navigator.of(context).pop(),
+          onPressed: _verifying
+              ? null
+              : (widget.onBack ?? () => Navigator.of(context).pop()),
           child: Text(l10n.backToLogin),
         ),
       ],

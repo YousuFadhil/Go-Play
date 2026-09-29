@@ -209,6 +209,12 @@ enum FailureReason {
   // find out who is registered -- and this is that one answer.
   invalidEmailCode,
 
+  // A password sign-in was refused because the account exists and the password was
+  // right, but the address has not been verified yet. Only ever the provider's own
+  // `email_not_confirmed`, which it raises after checking the password -- so it
+  // says nothing about an address that has not also been given its password.
+  emailNotConfirmed,
+
   // Completing a player profile (migration `0092`). The account already has one
   // - the person tapped twice, or finished it somewhere else - which is a state
   // the operation ran into, not input they got wrong.

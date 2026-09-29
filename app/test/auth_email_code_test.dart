@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/app.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/features/analytics/acquisition_analytics.dart';
+import 'package:go_play/features/analytics/acquisition_analytics_adapter.dart';
+import 'package:go_play/features/analytics/acquisition_analytics_repository.dart';
 import 'package:go_play/features/analytics/analytics_repository.dart';
 import 'package:go_play/features/analytics/analytics_service.dart';
 import 'package:go_play/features/auth/account_suspended_screen.dart';
@@ -19,7 +22,9 @@ import 'package:go_play/features/auth/password_recovery_state.dart';
 import 'package:go_play/features/auth/reset_password_screen.dart';
 import 'package:go_play/features/discover/discover_screen.dart';
 import 'package:go_play/features/home/home_shell.dart';
+import 'package:go_play/features/sharing/public_link.dart';
 import 'package:go_play/infrastructure/supabase/supabase_auth_adapter.dart';
+import 'package:go_play/infrastructure/supabase/supabase_failure_mapper.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -120,6 +125,22 @@ void main() {
 
   String typed(WidgetTester tester) =>
       tester.widget<TextField>(find.byType(TextField)).controller!.text;
+
+  /// The login screen, pushed onto the gate's navigator as the application
+  /// reaches it.
+  Future<void> openLogin(WidgetTester tester, AuthService service) =>
+      push(tester, LoginScreen(authService: service));
+
+  Future<void> logIn(WidgetTester tester,
+      {String email = address, String password = 'password1'}) async {
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), email);
+    await tester.enterText(fields.at(1), password);
+    await tester.tap(find.widgetWithText(FilledButton, 'Log in'));
+    await tester.pumpAndSettle();
+  }
+
+  const loginFailed = 'Login failed. Check your email and password.';
 
   // ===========================================================================
   // 1. The service
@@ -834,6 +855,360 @@ void main() {
   });
 
   // ===========================================================================
+  // 3b. Signing in with an address that is not verified yet
+  // ===========================================================================
+
+  group('what the provider\'s refusal is called', () {
+    Failure map(Object error) => SupabaseFailureMapper.from(error);
+
+    AuthApiException refusal(String code,
+            {String status = '400', String message = 'refused'}) =>
+        AuthApiException(message, statusCode: status, code: code);
+
+    test('email_not_confirmed is the dedicated reason, and only that code is',
+        () {
+      final failure = map(refusal('email_not_confirmed',
+          message: 'Email not confirmed'));
+
+      expect(failure, isA<AuthenticationFailure>());
+      expect(failure.reason, FailureReason.emailNotConfirmed);
+    });
+
+    test('nothing else is: every other refusal keeps the meaning it had', () {
+      final cases = <String, (Failure, FailureReason?)>{
+        // The password was wrong, or nobody has that address -- one answer.
+        'invalid_credentials': (map(refusal('invalid_credentials')), null),
+        'user_not_found': (map(refusal('user_not_found')), null),
+        // An account the provider has banned.
+        'user_banned': (map(refusal('user_banned', status: '403')), null),
+        'validation_failed': (map(refusal('validation_failed')), null),
+        'provider_disabled': (map(refusal('provider_disabled')), null),
+        'flow_state_not_found': (map(refusal('flow_state_not_found')), null),
+        // A refused email code is its own thing.
+        'otp_expired': (
+          map(refusal('otp_expired', status: '403')),
+          FailureReason.invalidEmailCode
+        ),
+        // A limit is a wait.
+        'over_request_rate_limit': (
+          map(refusal('over_request_rate_limit', status: '429')),
+          FailureReason.tooManyRequests
+        ),
+        'over_email_send_rate_limit': (
+          map(refusal('over_email_send_rate_limit', status: '429')),
+          FailureReason.tooManyRequests
+        ),
+        // A taken address is a conflict.
+        'user_already_exists': (
+          map(refusal('user_already_exists', status: '422')),
+          FailureReason.emailAlreadyUsed
+        ),
+      };
+
+      for (final entry in cases.entries) {
+        final (failure, reason) = entry.value;
+        expect(failure.reason, reason, reason: entry.key);
+        expect(failure.reason, isNot(FailureReason.emailNotConfirmed),
+            reason: entry.key);
+      }
+    });
+
+    test('a request that never reached the provider is a network failure',
+        () {
+      final failure = map(AuthRetryableFetchException(message: 'x'));
+
+      expect(failure, isA<NetworkFailure>());
+      expect(failure.reason, isNot(FailureReason.emailNotConfirmed));
+    });
+
+    test('the words alone are not enough: a message that resembles it, with '
+        'no code, is an ordinary refusal', () {
+      // The sign-in screen acts on this reason by opening the verification flow,
+      // so it is never reached from prose.
+      for (final message in [
+        'Email not confirmed',
+        'email_not_confirmed',
+        'Please confirm your email',
+      ]) {
+        final failure = map(AuthApiException(message, statusCode: '400'));
+
+        expect(failure, isA<AuthenticationFailure>(), reason: message);
+        expect(failure.reason, isNull, reason: message);
+      }
+    });
+  });
+
+  group('signing in with an address that is not verified yet', () {
+    late ScriptedAuthAdapter adapter;
+    late PasswordRecoveryState recovery;
+    late AuthService service;
+
+    const unverified = AuthenticationFailure(FailureReason.emailNotConfirmed);
+
+    setUp(() {
+      adapter = ScriptedAuthAdapter()..signInFailure = unverified;
+      recovery = PasswordRecoveryState();
+      service = AuthService(adapter, recovery);
+    });
+
+    /// Login, then a sign-in the provider refuses for the unverified address.
+    Future<void> reachCodeScreen(WidgetTester tester,
+        {String email = address}) async {
+      await pumpGate(tester, service);
+      await openLogin(tester, service);
+      await logIn(tester, email: email);
+    }
+
+    testWidgets('opens the sign-up code screen instead of "login failed", '
+        'without asking for anything to be entered again', (tester) async {
+      await reachCodeScreen(tester);
+
+      final view = tester.widget<EmailCodeView>(find.byType(EmailCodeView));
+      expect(view.purpose, EmailCodePurpose.signup);
+      expect(find.text('Verify your email to complete registration.'),
+          findsOneWidget);
+      expect(find.text(loginFailed), findsNothing);
+      expect(find.byType(TextFormField), findsNothing,
+          reason: 'no form: nobody registers, or types a password, again');
+      expect(find.byType(CompletePlayerProfileScreen), findsNothing);
+      expect(adapter.isSignedIn, isFalse);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('is for the address typed on Login, trimmed', (tester) async {
+      await reachCodeScreen(tester, email: '  $address ');
+
+      expect(tester.widget<EmailCodeView>(find.byType(EmailCodeView)).email,
+          address);
+      expect(find.textContaining(address), findsOneWidget);
+
+      await enterCode(tester, '482 913');
+      await tapVerify(tester);
+
+      expect(adapter.signupVerifications.single, (email: address, code: code));
+      expect(adapter.recoveryVerifications, isEmpty);
+    });
+
+    testWidgets('does not keep or reuse the password', (tester) async {
+      await reachCodeScreen(tester);
+      await enterCode(tester, code);
+      await tapVerify(tester);
+
+      expect(adapter.signIns, hasLength(1),
+          reason: 'sent once, to sign in; verifying a code never signs in '
+              'again with it');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getKeys(), isEmpty,
+          reason: 'no password, no code, and no recovery record');
+    });
+
+    testWidgets('going back asks for the password afresh, and keeps the '
+        'address', (tester) async {
+      await reachCodeScreen(tester);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Back to log in'));
+      await tester.pumpAndSettle();
+
+      final fields = find.byType(TextFormField);
+      expect(fields, findsNWidgets(2));
+      expect(tester.widget<TextFormField>(fields.at(0)).controller!.text,
+          address);
+      expect(tester.widget<TextFormField>(fields.at(1)).controller!.text, '');
+    });
+
+    testWidgets('a right code hands the rest to the gate: Home, through the '
+        'account check, as an ordinary session', (tester) async {
+      await reachCodeScreen(tester);
+
+      await enterCode(tester, code);
+      await tapVerify(tester);
+
+      expect(find.byType(HomeShell), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+      expect(find.byType(EmailCodeView), findsNothing);
+      expect(adapter.accountStateChecks, 1);
+      expect(recovery.isInProgress, isFalse);
+      expect(find.byType(ResetPasswordScreen), findsNothing);
+    });
+
+    testWidgets('and an account that has no player profile is asked for one, '
+        'as always', (tester) async {
+      adapter.accountState = AccountState.profileRequired;
+      await reachCodeScreen(tester);
+
+      await enterCode(tester, code);
+      await tapVerify(tester);
+
+      expect(find.byType(CompletePlayerProfileScreen), findsOneWidget);
+      expect(find.byType(HomeShell), findsNothing);
+    });
+
+    testWidgets('a wrong or expired code stays on the code screen', (tester) async {
+      adapter.verifyFailure =
+          const AuthenticationFailure(FailureReason.invalidEmailCode);
+      await reachCodeScreen(tester);
+
+      await enterCode(tester, code);
+      await tapVerify(tester);
+
+      expect(find.textContaining('incorrect or has expired'), findsOneWidget);
+      expect(find.byType(EmailCodeView), findsOneWidget);
+      expect(find.byType(HomeShell), findsNothing);
+      expect(adapter.isSignedIn, isFalse);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('sending a new code is the sign-up resend, and is allowed at '
+        'once because nothing has just been sent', (tester) async {
+      await reachCodeScreen(tester);
+      Finder resend() => find.widgetWithText(OutlinedButton, 'Send a new code');
+
+      expect(tester.widget<OutlinedButton>(resend()).onPressed, isNotNull);
+      expect(find.textContaining('in a minute'), findsNothing);
+
+      await tester.tap(resend());
+      await tester.pump();
+
+      expect(adapter.resends.single.email, address);
+      expect(adapter.resends.single.redirectTo, AuthService.authCallbackRedirect);
+      expect(adapter.resetRequests, isEmpty, reason: 'not a recovery request');
+      expect(find.text('A new code is on its way.'), findsOneWidget);
+      expect(tester.widget<OutlinedButton>(resend()).onPressed, isNull,
+          reason: 'and then the provider\'s minute applies');
+      expect(find.textContaining('in a minute'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('the provider refusing a new code is worded as a wait',
+        (tester) async {
+      adapter.resendFailure =
+          const InfrastructureFailure(FailureReason.tooManyRequests);
+      await reachCodeScreen(tester);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Send a new code'));
+      await tester.pump();
+
+      expect(find.textContaining('Too many attempts'), findsOneWidget);
+      expect(adapter.resends, isEmpty);
+      expect(
+          tester
+              .widget<OutlinedButton>(
+                  find.widgetWithText(OutlinedButton, 'Send a new code'))
+              .onPressed,
+          isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('Back is the ordinary login form, and the app bar\'s back '
+        'means the same before it leaves the login screen', (tester) async {
+      await reachCodeScreen(tester);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Back to log in'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EmailCodeView), findsNothing);
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byType(TextFormField), findsNWidgets(2));
+
+      // And once more, this time leaving through the app bar.
+      await logIn(tester);
+      expect(find.byType(EmailCodeView), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(EmailCodeView), findsNothing);
+      expect(find.byType(LoginScreen), findsOneWidget,
+          reason: 'still on the login screen, showing the form');
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(LoginScreen), findsNothing);
+      expect(find.byType(DiscoverScreen), findsOneWidget);
+    });
+
+    testWidgets('a wrong password does not open it', (tester) async {
+      adapter.signInFailure = const AuthenticationFailure();
+
+      await pumpGate(tester, service);
+      await openLogin(tester, service);
+      await logIn(tester);
+
+      expect(find.text(loginFailed), findsOneWidget);
+      expect(find.byType(EmailCodeView), findsNothing);
+      expect(find.byType(TextFormField), findsNWidgets(2));
+      expect(adapter.resends, isEmpty);
+      expect(adapter.signupVerifications, isEmpty);
+    });
+
+    testWidgets('nor does a refusal that only shares its type with it, such '
+        'as a refused email code', (tester) async {
+      adapter.signInFailure =
+          const AuthenticationFailure(FailureReason.invalidEmailCode);
+
+      await pumpGate(tester, service);
+      await openLogin(tester, service);
+      await logIn(tester);
+
+      expect(find.text(loginFailed), findsOneWidget);
+      expect(find.byType(EmailCodeView), findsNothing);
+    });
+
+    testWidgets('nor does having no connection', (tester) async {
+      adapter.signInFailure = const NetworkFailure();
+
+      await pumpGate(tester, service);
+      await openLogin(tester, service);
+      await logIn(tester);
+
+      expect(find.text('Could not reach the server. Check your internet '
+          'connection.'), findsOneWidget);
+      expect(find.byType(EmailCodeView), findsNothing);
+    });
+
+    testWidgets('a verified, ordinary login is unchanged: Home, and no code '
+        'screen', (tester) async {
+      adapter.signInFailure = null;
+
+      await pumpGate(tester, service);
+      await openLogin(tester, service);
+      await logIn(tester, email: '  $address ');
+
+      expect(find.byType(HomeShell), findsOneWidget);
+      expect(find.byType(EmailCodeView), findsNothing);
+      expect(adapter.signIns.single.email, address);
+      expect(adapter.signupVerifications, isEmpty);
+    });
+
+    group('and the registration conversion', () {
+      const target = PublicLinkTarget(
+          PublicLinkKind.player, '3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
+      final previous = AcquisitionAnalytics.instance;
+      late _Acquisitions acquisitions;
+
+      setUp(() {
+        acquisitions = _Acquisitions();
+        AcquisitionAnalytics.instance = AcquisitionAnalytics(
+          repository: AcquisitionAnalyticsRepository(acquisitions),
+          isSignedIn: () => false,
+          pendingTarget: ValueNotifier(target),
+        );
+      });
+      tearDown(() => AcquisitionAnalytics.instance = previous);
+
+      testWidgets('is not counted when an earlier registration is finished '
+          'from Login: a login is never a signup', (tester) async {
+        AcquisitionAnalytics.instance.externalArrivalLoaded(target);
+        await reachCodeScreen(tester);
+
+        await enterCode(tester, code);
+        await tapVerify(tester);
+
+        expect(find.byType(HomeShell), findsOneWidget,
+            reason: 'the gate has confirmed an active account');
+        expect(acquisitions.completions, isEmpty);
+      });
+    });
+  });
+
+  // ===========================================================================
   // 4. The real SDK
   // ===========================================================================
 
@@ -994,6 +1369,18 @@ void main() {
           expect(adapter.isSignedIn, isFalse);
         });
 
+        test('and from the older error shape too (${purpose.name})',
+            () async {
+          provider
+            ..legacyErrorShape = true
+            ..verify = _Verify.expired;
+
+          final failure = await failureOf(verify());
+
+          expect((failure as AuthenticationFailure).reason,
+              FailureReason.invalidEmailCode);
+        });
+
         test('and it is recognised from the message when an older server '
             'sends no error code (${purpose.name})', () async {
           provider.verify = _Verify.expiredWithoutCode;
@@ -1137,6 +1524,172 @@ void main() {
       });
     });
 
+    group('signing in', () {
+      for (final legacy in [false, true]) {
+        final shape =
+            legacy ? 'the older error shape' : 'the current error shape';
+
+        test('an unverified address is the dedicated failure -- the code is '
+            'read from the structured field ($shape)', () async {
+          provider
+            ..legacyErrorShape = legacy
+            ..signIn = _SignIn.notConfirmed;
+
+          final failure = await failureOf(
+              adapter.signIn(email: address, password: 'password1'));
+
+          expect(failure, isA<AuthenticationFailure>());
+          expect((failure as AuthenticationFailure).reason,
+              FailureReason.emailNotConfirmed);
+          expect(adapter.isSignedIn, isFalse);
+        });
+
+        test('a wrong password and an unknown address are the same ordinary '
+            'failure, indistinguishable ($shape)', () async {
+          provider
+            ..legacyErrorShape = legacy
+            ..signIn = _SignIn.invalidCredentials;
+
+          final failure = await failureOf(
+              adapter.signIn(email: address, password: 'not-the-password'));
+
+          expect(failure, isA<AuthenticationFailure>());
+          expect((failure as AuthenticationFailure).reason, isNull);
+        });
+      }
+
+      test('the provider limiting sign-ins is a wait, not an unverified '
+          'address', () async {
+        provider.signIn = _SignIn.rateLimited;
+
+        final failure = await failureOf(
+            adapter.signIn(email: address, password: 'password1'));
+
+        expect(failure, isA<InfrastructureFailure>());
+        expect((failure as InfrastructureFailure).reason,
+            FailureReason.tooManyRequests);
+      });
+    });
+
+    group('a login that finds the address unverified, through the gate', () {
+      Future<void> reach(WidgetTester tester,
+          {_SignIn signIn = _SignIn.notConfirmed,
+          bool legacy = false,
+          String password = 'password1'}) async {
+        provider
+          ..signIn = signIn
+          ..legacyErrorShape = legacy;
+        await pumpGate(tester, service);
+        await openLogin(tester, service);
+        await logIn(tester, password: password);
+      }
+
+      for (final legacy in [false, true]) {
+        testWidgets('resumes the verification for the typed address: one '
+            'sign-in, then the code, then Home (${legacy ? 'older' : 'current'} '
+            'error shape)', (tester) async {
+          await reach(tester, legacy: legacy);
+
+          expect(find.byType(EmailCodeView), findsOneWidget);
+          expect(find.text(loginFailed), findsNothing);
+          expect(provider.requests, ['POST /auth/v1/token'],
+              reason: 'the password was checked first, by the provider, and '
+                  'nothing else has been asked of it');
+
+          await enterCode(tester, code);
+          await tapVerify(tester);
+
+          final verify = provider.bodies['POST /auth/v1/verify']!;
+          expect(verify['type'], 'signup');
+          expect(verify['email'], address);
+          expect(verify['token'], code);
+          expect(verify.containsKey('password'), isFalse);
+          expect(provider.requests.where((r) => r == 'POST /auth/v1/token'),
+              hasLength(1),
+              reason: 'verifying never signs in with the password again');
+          expect(provider.requests,
+              contains('POST /rest/v1/rpc/get_my_account_state'));
+          expect(find.byType(HomeShell), findsOneWidget);
+          expect(recovery.isInProgress, isFalse);
+        });
+      }
+
+      testWidgets('a wrong password does not reach it, and neither does an '
+          'address nobody registered -- the provider answers both alike',
+          (tester) async {
+        await reach(tester,
+            signIn: _SignIn.invalidCredentials, password: 'wrong');
+
+        expect(find.text(loginFailed), findsOneWidget);
+        expect(find.byType(EmailCodeView), findsNothing);
+        expect(provider.requests, ['POST /auth/v1/token'],
+            reason: 'no resend, no verification: nothing was offered');
+      });
+
+      testWidgets('an expired code on the resumed screen says so and stays',
+          (tester) async {
+        provider.verify = _Verify.expired;
+        await reach(tester);
+
+        await enterCode(tester, code);
+        await tapVerify(tester);
+
+        expect(find.textContaining('incorrect or has expired'), findsOneWidget);
+        expect(find.byType(EmailCodeView), findsOneWidget);
+        expect(adapter.isSignedIn, isFalse);
+        await tester.pumpWidget(const SizedBox());
+      });
+
+      testWidgets('a new code is the SDK\'s sign-up resend, and can be asked '
+          'for at once', (tester) async {
+        await reach(tester);
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Send a new code'));
+        await tester.pumpAndSettle();
+
+        expect(provider.requests.last, 'POST /auth/v1/resend');
+        final body = provider.bodies['POST /auth/v1/resend']!;
+        expect(body['type'], 'signup');
+        expect(body['email'], address);
+        expect(body.containsKey('password'), isFalse);
+        await tester.pumpWidget(const SizedBox());
+      });
+
+      testWidgets('a confirmed account signs in exactly as before',
+          (tester) async {
+        await reach(tester, signIn: _SignIn.ok);
+
+        expect(find.byType(HomeShell), findsOneWidget);
+        expect(find.byType(EmailCodeView), findsNothing);
+        expect(provider.requests.where((r) => r.contains('/verify')), isEmpty);
+      });
+
+      testWidgets('the password and the code are never written to storage or '
+          'the log', (tester) async {
+        final logged = <String>[];
+        final previous = debugPrint;
+        debugPrint = (String? message, {int? wrapWidth}) =>
+            logged.add(message ?? '');
+        try {
+          await reach(tester, password: 'hunter2-hunter2');
+          await enterCode(tester, code);
+          await tapVerify(tester);
+          expect(find.byType(HomeShell), findsOneWidget);
+        } finally {
+          debugPrint = previous;
+        }
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getKeys(), isEmpty);
+        final stored = provider.storage.values.values.join();
+        for (final secret in ['hunter2-hunter2', code]) {
+          expect(stored, isNot(contains(secret)), reason: 'SDK storage');
+          expect(logged.join('\n'), isNot(contains(secret)), reason: 'log');
+        }
+        expect(logged.join('\n'), isNot(contains(address)));
+      });
+    });
+
     group('what is kept, and what is not', () {
       testWidgets('the code is never written to storage or to the log -- not '
           'when it is right and not when it is wrong', (tester) async {
@@ -1228,6 +1781,34 @@ class _MemoryStorage extends GotrueAsyncStorage {
   Future<void> removeItem({required String key}) async => values.remove(key);
 }
 
+/// What the provider answers to a password sign-in.
+enum _SignIn {
+  ok,
+
+  /// 400 `email_not_confirmed`: the password was right and the address has not
+  /// been verified. The provider checks the password first.
+  notConfirmed,
+
+  /// 400 `invalid_credentials`: a wrong password and an unknown address, alike.
+  invalidCredentials,
+
+  rateLimited,
+}
+
+/// What the acquisition port was asked, counted from 1 like a database would.
+class _Acquisitions implements AcquisitionAnalyticsAdapter {
+  int opens = 0;
+  final completions = <String>[];
+
+  @override
+  Future<String> recordAnonymousOpen(PublicLinkKind kind) async =>
+      'acq-${++opens}';
+
+  @override
+  Future<void> recordSignupCompleted(String acquisitionId) async =>
+      completions.add(acquisitionId);
+}
+
 /// The provider's Auth and REST endpoints, as far as these flows reach them.
 /// Records requests by method and path, and bodies and queries by what they
 /// carried -- the code is asserted on, so it is kept only in `bodies`.
@@ -1242,7 +1823,18 @@ class _Provider {
   final storage = _MemoryStorage();
 
   _Verify verify = _Verify.session;
+  _SignIn signIn = _SignIn.ok;
   bool signUpReturnsSession = false;
+
+  /// The shape of an error body. Real Supabase answers a request that carries
+  /// `x-supabase-api-version: 2024-01-01` -- which supabase_flutter always
+  /// sends, and which this was checked against on the live project -- with
+  /// `{"code": "<error_code>", "message": ...}` and echoes the header, and the SDK
+  /// reads the code from `code`. The older shape is
+  /// `{"code": <status>, "error_code": ..., "msg": ...}`. Both are answered by
+  /// real servers, so the tests that matter run under each; this is the current
+  /// one unless a test says otherwise.
+  bool legacyErrorShape = false;
   String accountState = 'ACTIVE';
 
   final requests = <String>[];
@@ -1270,13 +1862,24 @@ class _Provider {
         'user': _user,
       };
 
-  http.Response _json(http.Request request, Object? body, [int status = 200]) =>
+  http.Response _json(http.Request request, Object? body,
+          [int status = 200, Map<String, String> headers = const {}]) =>
       http.Response.bytes(
         utf8.encode(jsonEncode(body)),
         status,
-        headers: {'content-type': 'application/json'},
+        headers: {'content-type': 'application/json', ...headers},
         request: request,
       );
+
+  http.Response _apiError(
+      http.Request request, int status, String code, String message) {
+    if (legacyErrorShape) {
+      return _json(request,
+          {'code': status, 'error_code': code, 'msg': message}, status);
+    }
+    return _json(request, {'code': code, 'message': message}, status,
+        {'x-supabase-api-version': '2024-01-01'});
+  }
 
   http.Client get _transport => MockClient((request) async {
         final key = '${request.method} ${request.url.path}';
@@ -1292,20 +1895,14 @@ class _Provider {
           case 'POST /auth/v1/verify':
             return switch (verify) {
               _Verify.session => _json(request, _session),
-              _Verify.expired => _json(request, {
-                  'code': 403,
-                  'error_code': 'otp_expired',
-                  'msg': 'Token has expired or is invalid',
-                }, 403),
+              _Verify.expired => _apiError(request, 403, 'otp_expired',
+                  'Token has expired or is invalid'),
               _Verify.expiredWithoutCode => _json(request, {
                   'code': 403,
                   'msg': 'Token has expired or is invalid',
                 }, 403),
-              _Verify.rateLimited => _json(request, {
-                  'code': 429,
-                  'error_code': 'over_request_rate_limit',
-                  'msg': 'Request rate limit reached',
-                }, 429),
+              _Verify.rateLimited => _apiError(request, 429,
+                  'over_request_rate_limit', 'Request rate limit reached'),
               _Verify.noSession => _json(request, _user),
             };
           case 'POST /auth/v1/signup':
@@ -1315,7 +1912,15 @@ class _Provider {
                     ? _session
                     : {..._user, 'confirmation_sent_at': '2026-01-01T00:00:00Z'});
           case 'POST /auth/v1/token':
-            return _json(request, _session);
+            return switch (signIn) {
+              _SignIn.ok => _json(request, _session),
+              _SignIn.notConfirmed => _apiError(
+                  request, 400, 'email_not_confirmed', 'Email not confirmed'),
+              _SignIn.invalidCredentials => _apiError(request, 400,
+                  'invalid_credentials', 'Invalid login credentials'),
+              _SignIn.rateLimited => _apiError(request, 429,
+                  'over_request_rate_limit', 'Request rate limit reached'),
+            };
           case 'POST /auth/v1/recover':
           case 'POST /auth/v1/resend':
             return _json(request, <String, Object?>{});

@@ -261,6 +261,16 @@ class SupabaseFailureMapper {
       return const AuthenticationFailure(FailureReason.invalidEmailCode);
     }
 
+    // The account exists, the password was right, and the address is not
+    // verified yet: `email_not_confirmed`, which the provider raises only after it
+    // has checked the password. **By the structured code and nothing else.** The
+    // sign-in screen acts on this by opening the verification flow, so it must
+    // never be reached from a message that merely resembles it, and a wrong
+    // password or an unknown address (`invalid_credentials`) must not resemble it.
+    if (error.code == 'email_not_confirmed') {
+      return const AuthenticationFailure(FailureReason.emailNotConfirmed);
+    }
+
     final alreadyUsed = error.statusCode == '422' ||
         error.message.toLowerCase().contains('already');
     if (alreadyUsed) {

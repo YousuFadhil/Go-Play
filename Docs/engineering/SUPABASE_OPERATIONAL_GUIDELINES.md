@@ -523,21 +523,50 @@ and no key in the app. **Enable the provider before serving a build that shows
 the provider off Auth answers the browser with a raw error page.
 
 **4. Email confirmation.** *Sign In / Providers → Email → Confirm email → on.*
-A new email registration then produces an account and **no session**; the app
-shows "check your email" and the person signs in after opening the link. The
-app already handles both settings, so this can be flipped without a release.
-Existing accounts are not asked to confirm anything. `SETUP.md` §1 and the
-integration suite were written for confirmation **off** (they sign up and expect
-an immediate session); once it is on, provision any new test accounts by hand.
+A new email registration then produces an account and **no session**. The app
+shows *Verify your email to complete registration* and asks for the **six-digit
+code** the confirmation email carries (`OtpType.signup`); once it is accepted the
+person is signed in and the auth gate carries on through the usual account-state
+and profile checks. A person who closes the app before entering the code is not
+stranded: signing in later with the correct password is refused by Auth with
+`email_not_confirmed` -- which it raises only *after* checking the password -- and
+the login screen resumes the same code screen for the address typed, with *Send a
+new code* available at once (it is the sign-up resend). A wrong password or an
+address nobody registered gets the ordinary "login failed", so that path cannot be
+used to find out who is registered. Existing accounts are not asked to confirm
+anything. `SETUP.md` §1 and the integration suite were written for confirmation
+**off** (they sign up and expect an immediate session); once it is on, provision
+any new test accounts by hand.
 
 **5. SMTP.** Supabase's built-in email service is for evaluation only: it is
 heavily rate-limited and is not meant to deliver to real players. **Production
 auth email requires a configured SMTP provider** (*Authentication → Emails →
 SMTP Settings*) before Confirm email is switched on, or new players will not
-receive their link. Password recovery depends on it equally. Keep the default
-templates' `{{ .ConfirmationURL }}` so the redirect above is honoured. The app
-respects the provider's limits: "Resend email" is held back for a minute and a
-429 is reported as "too many attempts" rather than retried.
+receive their code. Password recovery depends on it equally. The app respects the
+provider's limits: *Send a new code* is held back for a minute and a 429 is
+reported as "too many attempts" rather than retried.
+
+**Rollout order for the email codes.** Email verification and password recovery
+are **six-digit code flows**: for the app to show a code, the *Confirm signup* and
+*Reset password* emails must carry `{{ .Token }}`. Staging and production share
+one project, and the production client that is live today understands **links
+only**, so the order matters and is not to be reversed:
+
+1. Release a client that supports the codes to production. It still accepts the
+   old recovery link (the link handling has **not** been removed) -- that is the
+   backward-compatibility period.
+2. Only then change the *Confirm signup* and *Reset password* templates to
+   `{{ .Token }}`. Changed earlier, every recovery email would carry a code the
+   production client cannot use. Until then the templates stay the defaults
+   (`{{ .ConfirmationURL }}`, so the redirect above is honoured), and the new
+   client's "Send code" screen still delivers a link, which works as before.
+3. Configure custom SMTP (step 5).
+4. Only then turn *Confirm email* on (step 4).
+
+Code-based recovery does not depend on which browser asked for it, which is what
+the web workaround under step 6 exists to achieve for links; once production has
+the code screens, the link handling and that workaround can be retired as a
+separate change.
 
 **6. What is deliberately not done.**
 
@@ -553,8 +582,9 @@ respects the provider's limits: "Resend email" is held back for a minute and a
   profile* and the account is neither active nor suspended until it is done.
 - **A recovery session never becomes an ordinary one.** The application keeps a
   small durable record on the device (local storage, `PasswordRecoveryState`):
-  set by the launch or resume that came from the recovery callback and, as a
-  backup, by Auth's recovery event; read by the auth gate before anything else
+  set by the launch or resume that came from the recovery callback, by
+  verifying a recovery code (written *before* Auth is asked, so no recovery
+  session exists without it) and, as a backup, by Auth's recovery event; read by the auth gate before anything else
   about a signed-in account; cleared by finishing or cancelling (both sign the
   session out first) or when it is found with no session behind it. It is not
   derived from Auth's event, because that event can be emitted before the app is
@@ -562,7 +592,8 @@ respects the provider's limits: "Resend email" is held back for a minute and a
   case it cannot see is a recovery whose callback the platform hands over in a
   shape not recognised *and* whose event was also missed; such a session is then
   an ordinary one.
-- **On the web, a recovery link redeems in any browser.** The app's Auth flow is
+- **On the web, a recovery link redeems in any browser** (temporary: see the
+  rollout order above, which replaces links with codes). The app's Auth flow is
   PKCE, which stores a one-time verifier in the browser that made the request and
   can only be redeemed there. That suits a redirect that returns to the page it
   started from and fails for an email: a phone opens the link in whatever its mail

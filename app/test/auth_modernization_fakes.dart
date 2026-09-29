@@ -85,6 +85,10 @@ class ScriptedAuthAdapter implements AuthAdapter {
   /// code is accepted.
   Object? verifyFailure;
 
+  /// What a password sign-in raises. Null means it succeeds, and the provider
+  /// then announces a sign-in as it does for a real one.
+  Object? signInFailure;
+
   /// Called at the moment a code is being verified, **before** the provider
   /// would create a session, so a test can observe what was already true then --
   /// for instance, that the durable recovery record was already on disk.
@@ -118,6 +122,9 @@ class ScriptedAuthAdapter implements AuthAdapter {
 
   /// Every code the port was asked to verify. The tests read these to prove what
   /// reached the provider; nothing else in the application keeps a code.
+  /// Every password sign-in the port was asked to make. The password is kept
+  /// here so a test can prove it was sent once and only once.
+  final signIns = <({String email, String password})>[];
   final recoveryVerifications = <({String email, String code})>[];
   final signupVerifications = <({String email, String code})>[];
 
@@ -233,8 +240,12 @@ class ScriptedAuthAdapter implements AuthAdapter {
   }
 
   @override
-  Future<void> signIn({required String email, required String password}) =>
-      throw UnimplementedError();
+  Future<void> signIn({required String email, required String password}) async {
+    journal.add('signIn');
+    signIns.add((email: email, password: password));
+    if (signInFailure != null) throw signInFailure!;
+    emit(AuthEvent.signedIn, signedIn: true);
+  }
 
   // ---- recovery ----------------------------------------------------------------
 
