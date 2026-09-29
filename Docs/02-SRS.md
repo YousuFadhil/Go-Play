@@ -11,6 +11,10 @@
   read out as a code, and both carry the same identifier. Opening a link shows
   which community is offered without an account; redeeming it joins that
   community
+- Nearby discovery: a Wilayat (one of the 63) is the only location unit. A
+  community has one, required when it is created in the app and changeable only
+  by its owner; a player may set a private Default Location; Discover has a
+  session-only Near override, and a guest's choice stays on the device
 - Match management: create (with a required title), edit, delete, manage the
   roster
 - Match registration with a reserve list and automatic promotion
@@ -38,6 +42,15 @@
 - Every community is visible to every signed-in user. What differs is the join
   policy: OPEN lets anyone join from the list, CODE_REQUIRED asks for the join
   code first. Default is OPEN.
+- Discover orders by Near: the reader's Wilayat first, then everything else. Upcoming
+  matches go by `start_at` ascending, and one in play (`start_at <= now < end_at`)
+  is badged LIVE, not sorted apart. Communities go by their latest completed
+  match's `start_at` (`status = 'completed' OR end_at <= now()`), else
+  `created_at`, then `id`. A community with no Wilayat is not local. With nothing
+  local, everything else is shown without a message.
+- Latest Results is unaffected by Near, and shows no Wilayat.
+- A match has no location of its own: it takes its community's current Wilayat.
+  `matches.location` is display text only.
 - The invitation link works under either policy, because it carries the code.
 - Redeeming an invitation grants the player role and nothing more.
 - System Admin is granted only in SQL. The app can neither grant it nor delete

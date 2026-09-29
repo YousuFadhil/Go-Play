@@ -31,8 +31,11 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
   /// revoked table SELECT and granted columns one at a time, so a column that
   /// is not on this list is a column the server refuses rather than one the
   /// client merely forgot to ask for.
+  ///
+  /// `wilayat_code` is granted by migration `0094`, which must therefore be
+  /// applied before a client that names it.
   static const _columns =
-      'id, owner_id, name, description, join_policy, logo_url';
+      'id, owner_id, name, description, join_policy, logo_url, wilayat_code';
 
   @override
   Future<List<Community>> fetchMyCommunities() => guarded(() async {
@@ -73,12 +76,14 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       guarded(() async {
         final result = await _client.rpc('create_community', params: {
           'p_name': name,
           'p_description': description,
           'p_join_policy': joinPolicyToDb(joinPolicy),
+          'p_wilayat_code': wilayatCode,
         });
         return result as String;
       });
@@ -114,6 +119,24 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
             .select('id');
         if (rows.isEmpty) throw const AuthorizationFailure();
       });
+
+  /// The owner's one Wilayat operation, through `set_community_wilayat`
+  /// (migration `0094`). An RPC rather than a column write for the same reason
+  /// [setCommunityLogo] is: the function is what checks the role, the account
+  /// and the community are all active, and that the code is one that may still
+  /// be chosen. Its refusals reach [guarded] as `NOT_AUTHORIZED` and
+  /// `INVALID_WILAYAT`.
+  @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      guarded(
+        () async {
+          await _client.rpc('set_community_wilayat', params: {
+            'p_community_id': communityId,
+            'p_wilayat_code': wilayatCode,
+          });
+        },
+        operation: 'rpc set_community_wilayat',
+      );
 
   /// The join code, through `community_join_code` (migration `0055`).
   ///

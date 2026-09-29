@@ -404,8 +404,19 @@ void main() {
     test('the ranking is not re-implemented here or in the repository', () {
       final repository = File(
         'lib/features/discover/discover_repository.dart',
-      ).readAsStringSync();
-      for (final source in [adapter, mapper, repository]) {
+      ).readAsStringSync().replaceAll('\r\n', '\n');
+      // The repository also holds Discover's own ordering now (migration 0094:
+      // the reader's Wilayat first), and that sorts. What must stay true is that
+      // the *players* are taken as the database ranked them, so the repository
+      // is checked through the one method that reads them.
+      final start = repository
+          .indexOf('Future<PublicCommunityFootball> fetchCommunityFootball(');
+      expect(start, greaterThanOrEqualTo(0));
+      final football = repository.substring(
+        start,
+        repository.indexOf('\n  }\n', start),
+      );
+      for (final source in [adapter, mapper, football]) {
         expect(source, isNot(contains('.sort(')));
         expect(source, isNot(contains('.order(\'overall_rating\'')));
       }

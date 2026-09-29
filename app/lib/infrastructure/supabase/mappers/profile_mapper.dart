@@ -35,6 +35,8 @@ PlayerProfile playerProfileFromRow(
         secondary == null ? null : playerPositionFromDb(secondary),
     avatarUrl: avatarUrl,
     privacy: profilePrivacyFromRow(row),
+    // Read from `my_profile` only (migration `0094`); absent before it.
+    defaultWilayatCode: row['default_wilayat_code'] as int?,
   );
 }
 

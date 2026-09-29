@@ -12,6 +12,8 @@ import '../../core/states.dart';
 import '../../core/tokens.dart';
 import '../analytics/analytics_models.dart';
 import '../analytics/analytics_service.dart';
+import '../locations/wilayat_picker.dart';
+import '../locations/wilayat_repository.dart';
 import '../matches/compact_match_card.dart';
 import '../matches/create_match_screen.dart';
 import 'member_card.dart';
@@ -35,6 +37,7 @@ class CommunityDetailsScreen extends StatefulWidget {
     this.matchService,
     this.statisticsRepository,
     this.imagePicker,
+    this.wilayatRepository,
   });
 
   final String communityId;
@@ -52,6 +55,9 @@ class CommunityDetailsScreen extends StatefulWidget {
 
   /// Handed to the Statistics tab, which already takes one of its own.
   final StatisticsRepository? statisticsRepository;
+
+  /// The Wilayat reference data; defaults to the app-wide cached instance.
+  final WilayatRepository? wilayatRepository;
 
   @override
   State<CommunityDetailsScreen> createState() => _CommunityDetailsScreenState();
@@ -81,6 +87,7 @@ enum _CommunityAction {
   invitation,
   insights,
   joinPolicy,
+  wilayat,
   members,
   changeLogo,
   removeLogo,
@@ -94,8 +101,13 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       widget.memberRepository ?? MemberRepository();
   late final MatchService _matchService = widget.matchService ?? MatchService();
   late final ImagePicker _picker = widget.imagePicker ?? ImagePicker();
+  late final WilayatRepository _wilayats =
+      widget.wilayatRepository ?? WilayatRepository.shared;
   late Future<_Data> _dataFuture;
   bool _busy = false;
+
+  /// The Wilayat names come from the repository's cache, for the owner's row in
+  /// the actions sheet. The row works without them and then names nothing.
 
   /// Whether this screen has already recorded that its community was viewed.
   ///
@@ -108,6 +120,9 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
   void initState() {
     super.initState();
     _dataFuture = _loadData();
+    _wilayats.load().then((_) {
+      if (mounted) setState(() {});
+    }, onError: (_) {});
   }
 
   Future<_Data> _loadData() async {
@@ -190,6 +205,32 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       await _communityRepository.setJoinPolicy(widget.communityId,
           joinPolicy: policy);
       _say(l10n.joinPolicySaved);
+      _refresh();
+    } on AuthorizationFailure {
+      _say(l10n.permissionOwnerOnly);
+    } catch (_) {
+      _say(l10n.genericError);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Where the community plays. Owner only, and the one place it changes: one
+  /// menu action, one picker, one server operation -- there is no general Edit
+  /// Community. Discovery follows at once, because a match is discovered where
+  /// its community is.
+  Future<void> _changeWilayat(Community community) async {
+    final l10n = context.l10n;
+    final picked = await showWilayatPicker(
+      context,
+      repository: _wilayats,
+      selectedCode: community.wilayatCode,
+    );
+    if (picked == null || picked == community.wilayatCode || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _communityRepository.setCommunityWilayat(community.id, picked);
+      _say(l10n.communityWilayatSaved);
       _refresh();
     } on AuthorizationFailure {
       _say(l10n.permissionOwnerOnly);
@@ -446,6 +487,24 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                   onTap: () => Navigator.of(sheetContext)
                       .pop(_CommunityAction.joinPolicy),
                 ),
+              // Beside the join setting, and to the owner alone: where a
+              // community plays is the same kind of decision as how people join
+              // it. Admins may change the picture but not this.
+              if (isOwner)
+                ListTile(
+                  key: const Key('communityChangeWilayat'),
+                  leading: const Icon(Icons.location_city_outlined),
+                  title: Text(l10n.communityWilayatLabel),
+                  subtitle: Text(
+                    _wilayats.cached?.nameOf(
+                          community.wilayatCode,
+                          arabic: wilayatArabic(context),
+                        ) ??
+                        l10n.wilayatNotSet,
+                  ),
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_CommunityAction.wilayat),
+                ),
               ListTile(
                 leading: const Icon(Icons.group_outlined),
                 title: Text(l10n.manageMembersTitle),
@@ -512,6 +571,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
         await _setJoinPolicy(
           codeRequired ? JoinPolicy.open : JoinPolicy.codeRequired,
         );
+      case _CommunityAction.wilayat:
+        await _changeWilayat(community);
       case _CommunityAction.changeLogo:
         await _changeLogo(community);
       case _CommunityAction.removeLogo:

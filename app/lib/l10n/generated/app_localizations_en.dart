@@ -2625,4 +2625,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get profileDetailsInvalid =>
       'Please check your details and try again.';
+
+  @override
+  String nearChipLabel(String wilayat) {
+    return 'Near: $wilayat';
+  }
+
+  @override
+  String get nearChipChoose => 'Near: choose Wilayat';
+
+  @override
+  String get wilayatPickerTitle => 'Choose a Wilayat';
+
+  @override
+  String get wilayatSearchHint => 'Search by Wilayat or village';
+
+  @override
+  String get wilayatSearchEmpty => 'No Wilayat matches your search.';
+
+  @override
+  String get wilayatRequired => 'Choose a Wilayat';
+
+  @override
+  String get wilayatNotSet => 'Not set';
+
+  @override
+  String get communityWilayatLabel => 'Wilayat';
+
+  @override
+  String get communityWilayatSaved => 'Community Wilayat updated.';
+
+  @override
+  String get defaultLocationLabel => 'Default location';
+
+  @override
+  String get defaultLocationHelp =>
+      'Used for Near in Discover. Only you can see it.';
+
+  @override
+  String get defaultLocationSaved => 'Default location updated.';
+
+  @override
+  String get defaultLocationClear => 'Clear default location';
+
+  @override
+  String get matchLiveBadge => 'LIVE';
 }

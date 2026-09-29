@@ -201,6 +201,10 @@ class SupabaseFailureMapper {
     'INVALID_PHONE': ValidationFailure(),
     'INVALID_DATE_OF_BIRTH': ValidationFailure(),
 
+    // A Wilayat that does not exist or is no longer offered (migration `0094`).
+    // The picker only lists active ones, so reaching this means a stale list.
+    'INVALID_WILAYAT': ValidationFailure(),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),

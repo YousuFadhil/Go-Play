@@ -232,6 +232,10 @@ class _StaticProfileAdapter implements ProfileAdapter {
   int reads = 0;
 
   @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<PlayerProfile> fetchMyProfile() async {
     reads++;
     return profile;

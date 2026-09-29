@@ -4,11 +4,21 @@ import '../../core/app_header.dart';
 import '../../core/l10n.dart';
 import '../analytics/analytics_models.dart';
 import '../analytics/analytics_service.dart';
+import '../locations/wilayat_picker.dart';
+import '../locations/wilayat_repository.dart';
 import 'community_models.dart';
 import 'community_repository.dart';
 
 class CreateCommunityScreen extends StatefulWidget {
-  const CreateCommunityScreen({super.key});
+  const CreateCommunityScreen({
+    super.key,
+    this.repository,
+    this.wilayatRepository,
+  });
+
+  /// Supplied only by tests, exactly as the repositories take an optional port.
+  final CommunityRepository? repository;
+  final WilayatRepository? wilayatRepository;
 
   @override
   State<CreateCommunityScreen> createState() => _CreateCommunityScreenState();
@@ -18,11 +28,38 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _communityRepository = CommunityRepository();
+  late final CommunityRepository _communityRepository =
+      widget.repository ?? CommunityRepository();
+  late final WilayatRepository _wilayats =
+      widget.wilayatRepository ?? WilayatRepository.shared;
   // Open by default: a community is always visible, and the organizer opts
   // into requiring the code rather than out of it.
   JoinPolicy _joinPolicy = JoinPolicy.open;
   bool _isLoading = false;
+
+  /// Where the community plays. Required: it is what places the community in
+  /// Discover, and there is deliberately no default to fall back on.
+  int? _wilayatCode;
+
+  @override
+  void initState() {
+    super.initState();
+    // Warms the cache so the picker opens ready; the label reads it at build.
+    _wilayats.load().then((_) {
+      if (mounted) setState(() {});
+    }, onError: (_) {});
+  }
+
+  Future<void> _pickWilayat(FormFieldState<int> field) async {
+    final picked = await showWilayatPicker(
+      context,
+      repository: _wilayats,
+      selectedCode: _wilayatCode,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _wilayatCode = picked);
+    field.didChange(picked);
+  }
 
   @override
   void dispose() {
@@ -40,6 +77,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
         name: _nameController.text,
         description: _descriptionController.text,
         joinPolicy: _joinPolicy,
+        wilayatCode: _wilayatCode!,
       );
       // After the community exists, and before the screen closes. The record
       // does not delay the close: `track` returns immediately and the RPC
@@ -93,6 +131,25 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                   maxLength: 200,
                 ),
                 const SizedBox(height: 8),
+                FormField<int>(
+                  key: const Key('createCommunityWilayat'),
+                  initialValue: _wilayatCode,
+                  validator: (value) =>
+                      value == null ? l10n.wilayatRequired : null,
+                  builder: (field) => WilayatField(
+                    label: l10n.communityWilayatLabel,
+                    valueText: _wilayatCode == null
+                        ? null
+                        : _wilayats.cached?.nameOf(
+                              _wilayatCode,
+                              arabic: wilayatArabic(context),
+                            ) ??
+                            '—',
+                    emptyText: l10n.wilayatRequired,
+                    errorText: field.errorText,
+                    onTap: () => _pickWilayat(field),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(l10n.joinPolicyLabel,
                     style: Theme.of(context).textTheme.labelLarge),

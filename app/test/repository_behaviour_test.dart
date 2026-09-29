@@ -149,10 +149,29 @@ void main() {
       await CommunityRepository(adapter).createCommunity(
         name: '  Friday Football  ',
         joinPolicy: JoinPolicy.open,
+        wilayatCode: 7,
       );
 
       expect(adapter.lastName, 'Friday Football');
       expect(adapter.lastJoinPolicy, JoinPolicy.open);
+    });
+
+    test('carries the Wilayat through to the port', () async {
+      final adapter = FakeCommunityAdapter();
+      await CommunityRepository(adapter).createCommunity(
+        name: 'A',
+        joinPolicy: JoinPolicy.open,
+        wilayatCode: 7,
+      );
+
+      expect(adapter.lastWilayatCode, 7);
+    });
+
+    test('the owner moves a community with the one setter', () async {
+      final adapter = FakeCommunityAdapter();
+      await CommunityRepository(adapter).setCommunityWilayat('c1', 52);
+
+      expect(adapter.wilayatChanges, [('c1', 52)]);
     });
 
     test('a description of nothing is stored as no description', () async {
@@ -160,11 +179,17 @@ void main() {
       final repository = CommunityRepository(adapter);
 
       await repository.createCommunity(
-          name: 'A', description: '   ', joinPolicy: JoinPolicy.open);
+          name: 'A',
+          description: '   ',
+          joinPolicy: JoinPolicy.open,
+          wilayatCode: 7);
       expect(adapter.lastDescription, isNull);
 
       await repository.createCommunity(
-          name: 'A', description: null, joinPolicy: JoinPolicy.open);
+          name: 'A',
+          description: null,
+          joinPolicy: JoinPolicy.open,
+          wilayatCode: 7);
       expect(adapter.lastDescription, isNull);
     });
 
@@ -174,6 +199,7 @@ void main() {
         name: 'A',
         description: '  Weekly game  ',
         joinPolicy: JoinPolicy.codeRequired,
+        wilayatCode: 7,
       );
 
       expect(adapter.lastDescription, 'Weekly game');
@@ -788,6 +814,14 @@ void main() {
 // to a port should break these fakes loudly rather than pass silently.
 
 class FakeCommunityAdapter implements CommunityAdapter {
+  int? lastWilayatCode;
+  final wilayatChanges = <(String, int)>[];
+
+  @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) async {
+    wilayatChanges.add((communityId, wilayatCode));
+  }
+
   FakeCommunityAdapter({
     this.mine = const [],
     this.all = const [],
@@ -816,10 +850,12 @@ class FakeCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) async {
     lastName = name;
     lastDescription = description;
     lastJoinPolicy = joinPolicy;
+    lastWilayatCode = wilayatCode;
     return 'created';
   }
 
@@ -993,6 +1029,10 @@ class FakeProfileAdapter implements ProfileAdapter {
   int avatarUploads = 0;
   int avatarRemovals = 0;
   String? lastFileExtension;
+
+  @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
 
   @override
   Future<PlayerProfile> fetchMyProfile() async => profile;

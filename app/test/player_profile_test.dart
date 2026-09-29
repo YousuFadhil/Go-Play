@@ -743,6 +743,10 @@ class FakeProfileAdapter implements ProfileAdapter {
   ProfilePrivacy? savedPrivacy;
 
   @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<PlayerProfile> fetchMyProfile() async {
     readCount++;
     if (readFailure != null) throw readFailure!;

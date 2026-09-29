@@ -17,7 +17,14 @@ PublicCommunity publicCommunityFromRow(Map<String, dynamic> row) =>
       logoUrl: row['logo_url'] as String?,
       memberCount: row['member_count'] as int,
       upcomingMatchCount: row['upcoming_match_count'] as int,
+      // Both arrive from migration `0094` and are absent from a row that
+      // predates it: no Wilayat and no activity, which orders as non-local.
+      wilayatCode: row['wilayat_code'] as int?,
+      lastActivityAt: _optionalInstant(row['last_activity_at']),
     );
+
+DateTime? _optionalInstant(Object? value) =>
+    value == null ? null : DateTime.parse(value as String).toLocal();
 
 /// Reads a public match row.
 ///
@@ -34,6 +41,9 @@ PublicMatch publicMatchFromRow(Map<String, dynamic> row) => PublicMatch(
       startingPlayers: row['starting_players'] as int,
       openSlots: row['open_slots'] as int,
       title: row['title'] as String?,
+      // The view carries it; `public_match_detail` does not, and a match read
+      // through it is one the reader has already chosen to open.
+      wilayatCode: row['wilayat_code'] as int?,
     );
 
 /// Reads one row of `public_recent_results` / `public_community_recent_results`

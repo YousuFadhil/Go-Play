@@ -221,6 +221,10 @@ class _CountingProfileAdapter implements ProfileAdapter {
   int playerProfileReads = 0;
 
   @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<PlayerProfile> fetchMyProfile() async {
     myProfileReads++;
     return const PlayerProfile(

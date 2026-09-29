@@ -1071,5 +1071,26 @@
   "completeProfileTitle": "Complete your player profile",
   "completeProfileBody": "One last step before you play: tell us a little about yourself.",
   "completeProfileSubmit": "Continue",
-  "profileDetailsInvalid": "Please check your details and try again."
+  "profileDetailsInvalid": "Please check your details and try again.",
+  "nearChipLabel": "Near: {wilayat}",
+  "@nearChipLabel": {
+    "placeholders": {
+      "wilayat": {
+        "type": "String"
+      }
+    }
+  },
+  "nearChipChoose": "Near: choose Wilayat",
+  "wilayatPickerTitle": "Choose a Wilayat",
+  "wilayatSearchHint": "Search by Wilayat or village",
+  "wilayatSearchEmpty": "No Wilayat matches your search.",
+  "wilayatRequired": "Choose a Wilayat",
+  "wilayatNotSet": "Not set",
+  "communityWilayatLabel": "Wilayat",
+  "communityWilayatSaved": "Community Wilayat updated.",
+  "defaultLocationLabel": "Default location",
+  "defaultLocationHelp": "Used for Near in Discover. Only you can see it.",
+  "defaultLocationSaved": "Default location updated.",
+  "defaultLocationClear": "Clear default location",
+  "matchLiveBadge": "LIVE"
 }

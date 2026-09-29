@@ -9,6 +9,8 @@ import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import '../auth/auth_models.dart';
 import '../auth/auth_service.dart';
+import '../locations/wilayat_picker.dart';
+import '../locations/wilayat_repository.dart';
 import 'current_user.dart';
 import 'profile_models.dart';
 import 'profile_repository.dart';
@@ -36,12 +38,16 @@ class EditProfileScreen extends StatefulWidget {
     this.repository,
     this.authService,
     this.imagePicker,
+    this.wilayatRepository,
   });
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final ProfileRepository? repository;
   final AuthService? authService;
   final ImagePicker? imagePicker;
+
+  /// The Wilayat reference data; defaults to the app-wide cached instance.
+  final WilayatRepository? wilayatRepository;
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -52,6 +58,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       widget.repository ?? ProfileRepository();
   late final AuthService _auth = widget.authService ?? AuthService();
   late final ImagePicker _picker = widget.imagePicker ?? ImagePicker();
+  late final WilayatRepository _wilayats =
+      widget.wilayatRepository ?? WilayatRepository.shared;
 
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
@@ -64,6 +72,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _loadFailed = false;
   bool _saving = false;
   bool _avatarBusy = false;
+  bool _locationBusy = false;
+
+  /// The player's Default Location. Saved the moment it is chosen, like the
+  /// picture, and not with the form's Save: it needs none of the form's
+  /// required fields, and an account that has not entered a date of birth yet
+  /// must still be able to say where it plays.
+  int? _defaultWilayatCode;
 
   DateTime? _dateOfBirth;
   PlayerPosition? _primaryPosition;
@@ -74,6 +89,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _load();
+    _wilayats.load().then((_) {
+      if (mounted) setState(() {});
+    }, onError: (_) {});
   }
 
   @override
@@ -97,6 +115,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _primaryPosition = profile.primaryPosition;
         _secondaryPosition = profile.secondaryPosition;
         _avatarUrl = profile.avatarUrl;
+        _defaultWilayatCode = profile.defaultWilayatCode;
         _fullNameController.text = profile.fullName;
         _phoneController.text = _localPhoneOf(profile.phone);
         _loading = false;
@@ -211,6 +230,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // --- The Default Location --------------------------------------------------
+
+  /// Picks the Default Location and stores it. Explicit and immediate: this is
+  /// the only place the column is ever written, and Discover's Near -- which
+  /// only overrides it for a session -- never comes through here.
+  Future<void> _chooseDefaultLocation() async {
+    if (_locationBusy) return;
+    final picked = await showWilayatPicker(
+      context,
+      repository: _wilayats,
+      selectedCode: _defaultWilayatCode,
+    );
+    if (picked == null || picked == _defaultWilayatCode || !mounted) return;
+    await _saveDefaultLocation(picked);
+  }
+
+  Future<void> _saveDefaultLocation(int? code) async {
+    final l10n = context.l10n;
+    setState(() => _locationBusy = true);
+    try {
+      await _profiles.saveMyDefaultWilayat(code);
+      if (!mounted) return;
+      setState(() => _defaultWilayatCode = code);
+      // The header and Discover read the profile the session holds.
+      await CurrentUser.instance.refresh();
+      _showMessage(l10n.defaultLocationSaved);
+    } on Failure catch (failure) {
+      _showMessage(_failureMessage(l10n, failure, l10n.profileSaveFailed));
+    } catch (_) {
+      _showMessage(l10n.genericError);
+    } finally {
+      if (mounted) setState(() => _locationBusy = false);
+    }
   }
 
   // --- The picture -----------------------------------------------------------
@@ -537,6 +591,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               leading: const Icon(Icons.cake_outlined),
               title: Text(l10n.ageLabel),
               subtitle: Text(age == null ? '—' : l10n.ageYears(age)),
+            ),
+
+            const SizedBox(height: 8),
+            // Optional, and the only thing here that is private by design: no
+            // other player is ever sent it.
+            WilayatField(
+              key: const Key('editProfileDefaultLocation'),
+              label: l10n.defaultLocationLabel,
+              helperText: l10n.defaultLocationHelp,
+              valueText: _defaultWilayatCode == null
+                  ? null
+                  : _wilayats.cached?.nameOf(
+                        _defaultWilayatCode,
+                        arabic: wilayatArabic(context),
+                      ) ??
+                      '—',
+              emptyText: l10n.wilayatNotSet,
+              busy: _locationBusy,
+              onTap: _chooseDefaultLocation,
+              onClear: _defaultWilayatCode == null
+                  ? null
+                  : () => _saveDefaultLocation(null),
+              clearTooltip: l10n.defaultLocationClear,
             ),
 
             const SizedBox(height: 16),

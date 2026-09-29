@@ -21,10 +21,15 @@ abstract interface class CommunityAdapter {
   Future<Community> fetchCommunity(String communityId);
 
   /// Creates a community with the caller as owner. Returns its id.
+  ///
+  /// [wilayatCode] is required here although the database accepts none: the
+  /// product requires a Wilayat for a *new* community, and the column stays
+  /// nullable only so a build that predates it keeps working.
   Future<String> createCommunity({
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   });
 
   /// Joins a community whose policy is open. Returns the community id.
@@ -37,6 +42,11 @@ abstract interface class CommunityAdapter {
     String communityId, {
     required JoinPolicy joinPolicy,
   });
+
+  /// Moves the community to another Wilayat. Owner only, refused for anybody
+  /// else with an `AuthorizationFailure`; the server also refuses an unknown or
+  /// retired code with a `ValidationFailure`.
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode);
 
   /// The community's join code, for an owner or an admin.
   ///

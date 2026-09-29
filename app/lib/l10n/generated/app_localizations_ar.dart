@@ -2609,4 +2609,49 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileDetailsInvalid => 'تحقق من بياناتك ثم حاول مرة أخرى.';
+
+  @override
+  String nearChipLabel(String wilayat) {
+    return 'قريب من: $wilayat';
+  }
+
+  @override
+  String get nearChipChoose => 'قريب من: اختر الولاية';
+
+  @override
+  String get wilayatPickerTitle => 'اختر الولاية';
+
+  @override
+  String get wilayatSearchHint => 'ابحث بالولاية أو القرية';
+
+  @override
+  String get wilayatSearchEmpty => 'لا توجد ولاية مطابقة للبحث.';
+
+  @override
+  String get wilayatRequired => 'اختر الولاية';
+
+  @override
+  String get wilayatNotSet => 'غير محددة';
+
+  @override
+  String get communityWilayatLabel => 'الولاية';
+
+  @override
+  String get communityWilayatSaved => 'حُدّثت ولاية المجتمع.';
+
+  @override
+  String get defaultLocationLabel => 'الموقع الافتراضي';
+
+  @override
+  String get defaultLocationHelp =>
+      'يُستخدم في «قريب من» في الاستكشاف. لا يراه غيرك.';
+
+  @override
+  String get defaultLocationSaved => 'حُدّث الموقع الافتراضي.';
+
+  @override
+  String get defaultLocationClear => 'إزالة الموقع الافتراضي';
+
+  @override
+  String get matchLiveBadge => 'مباشر';
 }

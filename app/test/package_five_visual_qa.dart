@@ -700,6 +700,10 @@ class _Profiles implements ProfileAdapter {
   final PlayerProfile? profile;
 
   @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<PlayerProfile> fetchMyProfile() async => profile!;
 
   @override
@@ -825,6 +829,10 @@ class _Football implements FootballAdapter {
 class _Joined implements CommunityAdapter {
   @override
   Future<List<Community>> fetchMyCommunities() async => const [];
+
+  @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();

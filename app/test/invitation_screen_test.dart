@@ -244,6 +244,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   final List<String> joinedCodes = [];
 
   @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<String> fetchJoinCode(String communityId) async =>
       throw UnimplementedError();
 
@@ -274,6 +278,7 @@ class _FakeCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       throw UnimplementedError();
 

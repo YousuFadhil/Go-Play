@@ -411,3 +411,36 @@ the arrangement has a starting position left, rather than by the community count
 migration `0045` uses. That branch is what stops the next community player to
 register from displacing a Professional Guest the administrator deliberately put
 in the starting lineup.
+
+## 8. Nearby discovery by Wilayat (migration `0094`)
+
+Reference data, two nullable columns and no new entity for a match.
+
+| Object | Meaning |
+|---|---|
+| `governorates` | 11 rows. `code smallint` = the Ministry of Interior Region Code, `name_ar`, `name_en`, `sort_order` |
+| `wilayats` | 63 rows. `code smallint` = the Ministry Wilayat Code (Sohar = 7), `governorate_code`, `name_ar`, `name_en`, `search_terms text[]` (aliases such as `مجيس` / `Majees`), `sort_order`, `is_active` |
+| `communities.wilayat_code` | Where the community plays. Nullable in the database for backward compatibility; required for a new community in the app. The existing community is Sohar |
+| `users.default_wilayat_code` | The player's optional Default Location. **Private:** not in the column-level SELECT grant on `users` |
+
+Both reference tables have RLS on, a public `select` policy and every write
+privilege revoked from `anon` and `authenticated`. `matches` gains nothing: a
+match is discovered where its community is, and `matches.location` stays free
+display text.
+
+- **`set_community_wilayat(uuid, smallint)`** — owner only; session, active
+  account (`0064`), role, then the locked community row (`0065`), then an active
+  code (`INVALID_WILAYAT`). Modelled on `set_community_logo`.
+- **`create_community(text, text, text, smallint default null)`** — replaces the
+  three-argument function; never an overload (PostgREST `PGRST203`).
+- **`my_profile()`** — gains `default_wilayat_code`; still no user-id argument.
+  The player writes the column directly under a column-level `UPDATE` grant.
+- **`v_public_upcoming_matches`** gains `wilayat_code`; **`v_public_communities`**
+  gains `wilayat_code` and `last_activity_at` (the latest completed match's
+  `start_at`, else `created_at`; completed is `status = 'completed' or end_at <= now()`).
+  Both append columns at the end. `public_recent_results` and the football views
+  are untouched.
+
+The codes are the Ministry's own and are never renumbered. The migration must be
+applied before the client that reads `wilayat_code`; the rollback file deletes
+the assignments and says so.

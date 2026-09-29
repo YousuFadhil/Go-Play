@@ -61,6 +61,7 @@ class Community {
     required this.joinPolicy,
     this.description,
     this.logoUrl,
+    this.wilayatCode,
   });
 
   final String id;
@@ -84,6 +85,12 @@ class Community {
   /// the community's id the way an avatar's path can be derived from a player's.
   final String? logoUrl;
 
+  /// The Wilayat the community plays in (migration `0094`), or null for one that
+  /// has none. The owner changes it through
+  /// [CommunityAdapter.setCommunityWilayat]; it decides where the community is
+  /// discovered and never what anybody may do.
+  final int? wilayatCode;
+
   /// The same community with a different picture, or with none.
   ///
   /// Only the logo, because only the logo can be changed without generic
@@ -97,6 +104,18 @@ class Community {
         joinPolicy: joinPolicy,
         description: description,
         logoUrl: url,
+        wilayatCode: wilayatCode,
+      );
+
+  /// The same community in another Wilayat.
+  Community withWilayat(int? code) => Community(
+        id: id,
+        ownerId: ownerId,
+        name: name,
+        joinPolicy: joinPolicy,
+        description: description,
+        logoUrl: logoUrl,
+        wilayatCode: code,
       );
 }
 

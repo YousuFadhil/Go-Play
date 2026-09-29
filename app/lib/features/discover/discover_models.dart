@@ -23,11 +23,26 @@ class PublicCommunity {
     required this.upcomingMatchCount,
     this.description,
     this.logoUrl,
+    this.wilayatCode,
+    this.lastActivityAt,
   });
 
   final String id;
   final String name;
   final String? description;
+
+  /// The Wilayat the community plays in, or null for one that has none yet.
+  ///
+  /// Null is a value of its own and not a gap: the database keeps the column
+  /// nullable so older builds keep creating communities, and a community with no
+  /// Wilayat is discovered as non-local -- ordered like any other, never hidden.
+  final int? wilayatCode;
+
+  /// When the community last did something worth surfacing: the start of its
+  /// latest completed match, or its creation when it has none. Computed by the
+  /// database (`v_public_communities`, migration `0094`) so the client ranks on
+  /// the same answer everywhere; null only where a read did not carry it.
+  final DateTime? lastActivityAt;
 
   /// The community's picture, when it has one.
   ///
@@ -103,6 +118,7 @@ class PublicMatch {
     required this.startingPlayers,
     required this.openSlots,
     this.title,
+    this.wilayatCode,
   });
 
   final String id;
@@ -111,6 +127,16 @@ class PublicMatch {
   final String location;
   final DateTime startAt;
   final DateTime endAt;
+
+  /// The **community's current** Wilayat. A match has none of its own: it is
+  /// discovered where its community is, and moves with it. [location] stays the
+  /// free-text pitch or venue and is never read as a place.
+  final int? wilayatCode;
+
+  /// In play right now: `start_at <= now < end_at`. A state a card badges, not a
+  /// way of sorting -- upcoming matches are ordered by start, which already
+  /// puts a match in play ahead of one that has not begun.
+  bool isLiveAt(DateTime now) => !startAt.isAfter(now) && endAt.isAfter(now);
 
   /// The playing capacity, which is what [openSlots] counts down from. Not the
   /// maximum registration: that is the starting players plus the global reserve

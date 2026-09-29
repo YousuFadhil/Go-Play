@@ -930,5 +930,26 @@
   "completeProfileTitle": "أكمل ملفك كلاعب",
   "completeProfileBody": "خطوة أخيرة قبل أن تلعب: أخبرنا قليلاً عن نفسك.",
   "completeProfileSubmit": "متابعة",
-  "profileDetailsInvalid": "تحقق من بياناتك ثم حاول مرة أخرى."
+  "profileDetailsInvalid": "تحقق من بياناتك ثم حاول مرة أخرى.",
+  "nearChipLabel": "قريب من: {wilayat}",
+  "@nearChipLabel": {
+    "placeholders": {
+      "wilayat": {
+        "type": "String"
+      }
+    }
+  },
+  "nearChipChoose": "قريب من: اختر الولاية",
+  "wilayatPickerTitle": "اختر الولاية",
+  "wilayatSearchHint": "ابحث بالولاية أو القرية",
+  "wilayatSearchEmpty": "لا توجد ولاية مطابقة للبحث.",
+  "wilayatRequired": "اختر الولاية",
+  "wilayatNotSet": "غير محددة",
+  "communityWilayatLabel": "الولاية",
+  "communityWilayatSaved": "حُدّثت ولاية المجتمع.",
+  "defaultLocationLabel": "الموقع الافتراضي",
+  "defaultLocationHelp": "يُستخدم في «قريب من» في الاستكشاف. لا يراه غيرك.",
+  "defaultLocationSaved": "حُدّث الموقع الافتراضي.",
+  "defaultLocationClear": "إزالة الموقع الافتراضي",
+  "matchLiveBadge": "مباشر"
 }

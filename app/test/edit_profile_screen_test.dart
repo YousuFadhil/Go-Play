@@ -8,12 +8,14 @@ import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
+import 'package:go_play/features/locations/wilayat_repository.dart';
 import 'package:go_play/features/profile/current_user.dart';
 import 'package:go_play/features/profile/profile_adapter.dart';
 import 'package:go_play/features/profile/profile_models.dart';
 import 'package:go_play/features/profile/profile_repository.dart';
 import 'package:go_play/features/profile/edit_profile_screen.dart';
 import 'auth_adapter_defaults.dart';
+import 'wilayat_fixtures.dart';
 
 /// The Edit Profile form against fake ports.
 ///
@@ -53,6 +55,7 @@ void main() {
     FakeAuthAdapter? auth,
     Locale locale = const Locale('en'),
     bool settle = true,
+    WilayatRepository? wilayats,
   }) async {
     // A surface tall enough for the whole form; the default leaves the button
     // below the fold.
@@ -73,6 +76,7 @@ void main() {
       home: EditProfileScreen(
         repository: ProfileRepository(adapter),
         authService: AuthService(auth ?? FakeAuthAdapter()),
+        wilayatRepository: wilayats,
       ),
     ));
     if (settle) await tester.pumpAndSettle();
@@ -533,6 +537,138 @@ void main() {
     });
   });
 
+  group('the Default Location', () {
+    const inSohar = PlayerProfile(
+      fullName: 'Salim Al Harthy',
+      phone: '+96890123456',
+      primaryPosition: PlayerPosition.mid,
+      defaultWilayatCode: 7,
+    );
+
+    final field = find.byKey(const Key('editProfileDefaultLocation'));
+
+    WilayatRepository catalog() => WilayatRepository(FakeWilayatAdapter());
+
+    Future<void> choose(WidgetTester tester, int code) async {
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('wilayat_$code')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('an account with none shows that it has none', (tester) async {
+      await pumpProfile(tester, FakeProfileAdapter(), wilayats: catalog());
+
+      expect(find.text('Default location'), findsOneWidget);
+      expect(find.descendant(of: field, matching: find.text('Not set')),
+          findsOneWidget);
+      expect(find.text('Used for Near in Discover. Only you can see it.'),
+          findsOneWidget);
+    });
+
+    testWidgets('an account with one shows it', (tester) async {
+      await pumpProfile(
+        tester,
+        FakeProfileAdapter(profile: inSohar),
+        wilayats: catalog(),
+      );
+
+      expect(find.descendant(of: field, matching: find.text('Sohar')),
+          findsOneWidget);
+    });
+
+    testWidgets('choosing one saves it at once, and the session sees it',
+        (tester) async {
+      final adapter = FakeProfileAdapter();
+      await pumpProfile(tester, adapter, wilayats: catalog());
+
+      await choose(tester, 7);
+
+      expect(adapter.defaultWilayatWrites, [7]);
+      expect(find.descendant(of: field, matching: find.text('Sohar')),
+          findsOneWidget);
+      expect(find.text('Default location updated.'), findsOneWidget);
+      // The header and Discover read the profile the session holds, which was
+      // re-read after the write.
+      expect(CurrentUser.instance.profile.value?.defaultWilayatCode, 7);
+    });
+
+    testWidgets('it does not wait for the rest of the form', (tester) async {
+      // An account with no date of birth cannot save the form, and must still be
+      // able to say where it plays.
+      final adapter = FakeProfileAdapter(profile: unfinished);
+      await pumpProfile(tester, adapter, wilayats: catalog());
+
+      await choose(tester, 51);
+
+      expect(adapter.defaultWilayatWrites, [51]);
+      expect(adapter.writes, 0);
+      expect(adapter.accountWrites, 0);
+    });
+
+    testWidgets('choosing what is already set writes nothing', (tester) async {
+      final adapter = FakeProfileAdapter(profile: inSohar);
+      await pumpProfile(tester, adapter, wilayats: catalog());
+
+      await choose(tester, 7);
+
+      expect(adapter.defaultWilayatWrites, isEmpty);
+    });
+
+    testWidgets('it can be cleared, back to no preference', (tester) async {
+      final adapter = FakeProfileAdapter(profile: inSohar);
+      await pumpProfile(tester, adapter, wilayats: catalog());
+
+      await tester.tap(find.byTooltip('Clear default location'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.defaultWilayatWrites, [null]);
+      expect(find.descendant(of: field, matching: find.text('Not set')),
+          findsOneWidget);
+    });
+
+    testWidgets('Save is unchanged: it never writes the Default Location',
+        (tester) async {
+      final adapter = FakeProfileAdapter(profile: complete);
+      await pumpProfile(tester, adapter, wilayats: catalog());
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.writes, 1);
+      expect(adapter.defaultWilayatWrites, isEmpty);
+    });
+
+    testWidgets('a refused write says so and keeps the old value',
+        (tester) async {
+      final adapter = FakeProfileAdapter(
+        profile: inSohar,
+        writeFailure: const NetworkFailure(),
+      );
+      await pumpProfile(tester, adapter, wilayats: catalog());
+
+      await choose(tester, 51);
+
+      expect(adapter.defaultWilayatWrites, isEmpty);
+      expect(find.descendant(of: field, matching: find.text('Sohar')),
+          findsOneWidget);
+      expect(find.text('Default location updated.'), findsNothing);
+    });
+
+    testWidgets('it reads in Arabic', (tester) async {
+      await pumpProfile(
+        tester,
+        FakeProfileAdapter(profile: inSohar),
+        locale: const Locale('ar'),
+        wilayats: catalog(),
+      );
+
+      expect(find.text('الموقع الافتراضي'), findsOneWidget);
+      expect(find.descendant(of: field, matching: find.text('صحار')),
+          findsOneWidget);
+    });
+  });
+
   group('localization', () {
     testWidgets('Arabic renders the screen in Arabic', (tester) async {
       await pumpProfile(tester, FakeProfileAdapter(profile: complete),
@@ -591,12 +727,32 @@ class FakeProfileAdapter implements ProfileAdapter {
   int avatarRemovals = 0;
   String? lastFileExtension;
 
+  /// Every Default Location written through this port, in order.
+  final defaultWilayatWrites = <int?>[];
+
+  @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) async {
+    if (writeFailure != null) throw writeFailure!;
+    defaultWilayatWrites.add(wilayatCode);
+  }
+
   @override
   Future<PlayerProfile> fetchMyProfile() async {
     reads++;
     if (gate != null) await gate;
     if (readFailure != null) throw readFailure!;
-    return profile;
+    if (defaultWilayatWrites.isEmpty) return profile;
+    // What the store now holds, so a re-read sees the write.
+    return PlayerProfile(
+      fullName: profile.fullName,
+      phone: profile.phone,
+      primaryPosition: profile.primaryPosition,
+      dateOfBirth: profile.dateOfBirth,
+      secondaryPosition: profile.secondaryPosition,
+      avatarUrl: profile.avatarUrl,
+      privacy: profile.privacy,
+      defaultWilayatCode: defaultWilayatWrites.last,
+    );
   }
 
   @override

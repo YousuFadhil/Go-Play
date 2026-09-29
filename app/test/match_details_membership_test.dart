@@ -958,6 +958,10 @@ class FakeCommunityAdapter implements CommunityAdapter {
   String? joinedCommunityId;
 
   @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<String> joinCommunity(String communityId) async {
     if (joinFailure != null) throw joinFailure!;
     joinedCommunityId = communityId;
@@ -983,6 +987,7 @@ class FakeCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       throw UnimplementedError();
 
