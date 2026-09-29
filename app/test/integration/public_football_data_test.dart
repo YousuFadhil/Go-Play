@@ -60,12 +60,9 @@ void main() {
     Future<String> playedMatch({required int daysAgo}) async {
       final id = await createMatch(owner, communityId,
           startsIn: Duration(days: -daysAgo), startingPlayers: 4);
-      for (final user in [owner, player]) {
-        await owner.client.rpc('admin_add_player_to_match', params: {
-          'p_match_id': id,
-          'p_user_id': user.id,
-        });
-      }
+      // Played already, so nobody may register into it any more (0091):
+      // the roster is seated as it would have been, before the end.
+      await seatOnPlayedMatch(owner, id, [owner, player]);
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': id,
         // Played already, so the lineup is the record of who played (0071).

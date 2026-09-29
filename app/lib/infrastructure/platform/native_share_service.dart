@@ -52,11 +52,10 @@ class NativeShareService implements ShareService {
     try {
       final result = await _sheet(
         ShareParams(
-          // The words and the link, already composed into one body by
-          // [ShareMessage] — so what a test reads here is what leaves the
-          // phone, and the composition is not a second rule living inside an
-          // adapter. Null when the caller had nothing to say, which is the
-          // image-only share this class has always done.
+          // The words, as [ShareMessage] composed them — so what a test reads
+          // here is what leaves the phone. A message carries no link by
+          // construction. Null when the caller had nothing to say, which is
+          // the image-only share this class has always done.
           text: message?.body,
           files: [
             XFile.fromData(

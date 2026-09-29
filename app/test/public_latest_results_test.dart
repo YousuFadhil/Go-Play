@@ -73,9 +73,10 @@ void main() {
   }
 
   group('a guest gets the results on Discover', () {
-    testWidgets('it is a tab, and the results are behind it', (tester) async {
-      // The approved Discover is three tabs, not three stacked sections: a
-      // guest opens on Upcoming and reaches results by asking for them.
+    testWidgets('it is the first tab, and a guest opens on it', (tester) async {
+      // The approved Discover is three tabs, not three stacked sections, and
+      // since UAT round 1 Latest Results is the first of them: a guest sees
+      // what has been played the moment the page opens.
       await pumpDiscover(
         tester,
         _Discover(
@@ -85,12 +86,12 @@ void main() {
       );
 
       expect(find.byType(DiscoverTabs), findsOneWidget);
-      expect(find.byType(PublicResultCard), findsNothing);
+      expect(find.byType(PublicResultCard), findsOneWidget);
 
-      await tester.tap(find.text('Latest results'));
+      await tester.tap(find.text('Upcoming matches'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(PublicResultCard), findsOneWidget);
+      expect(find.byType(PublicResultCard), findsNothing);
     });
 
     testWidgets('nothing played yet is said, not hidden', (tester) async {
@@ -114,10 +115,11 @@ void main() {
       // The approved presentation, and the reason it changed: a section headed
       // "what has just been played" showing a single card under it read as
       // though the rest had failed to arrive.
+      // Seven played, six asked for: the window is the approved six.
       await pumpDiscover(
         tester,
         _Discover(results: [
-          for (var i = 1; i <= 5; i++) result('m$i'),
+          for (var i = 1; i <= 7; i++) result('m$i'),
         ]),
       );
       await tester.tap(find.text('Latest results'));
@@ -131,7 +133,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Every result already in memory, and no second read to get them.
-      expect(find.byType(PublicResultCard), findsNWidgets(5));
+      expect(find.byType(PublicResultCard), findsNWidgets(6));
       expect(find.text('Show fewer'), findsOneWidget);
     });
 
@@ -152,7 +154,7 @@ void main() {
     testWidgets('expanding, then collapsing again', (tester) async {
       await pumpDiscover(
         tester,
-        _Discover(results: [for (var i = 1; i <= 5; i++) result('m$i')]),
+        _Discover(results: [for (var i = 1; i <= 6; i++) result('m$i')]),
       );
       await tester.tap(find.text('Latest results'));
       await tester.pumpAndSettle();
@@ -160,7 +162,7 @@ void main() {
       await tester
           .tap(find.byKey(const Key('discoverPublicPreviousResultsToggle')));
       await tester.pumpAndSettle();
-      expect(find.byType(PublicResultCard), findsNWidgets(5));
+      expect(find.byType(PublicResultCard), findsNWidgets(6));
 
       await tester
           .tap(find.byKey(const Key('discoverPublicPreviousResultsToggle')));
@@ -338,7 +340,7 @@ class _Discover implements DiscoverAdapter {
   @override
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,
-    int limit = 5,
+    int limit = 6,
   }) async {
     recentResultsRequests.add(communityId);
     return [

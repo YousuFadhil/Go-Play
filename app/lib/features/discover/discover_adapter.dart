@@ -49,6 +49,25 @@ abstract interface class DiscoverAdapter {
   /// public.
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,
-    int limit = 5,
+    int limit = 6,
   });
+
+  /// One active community's football record, from the narrow contract
+  /// migration `0093` grants `anon`.
+  ///
+  /// **Not `v_football_community_stats`.** That view is one of a closed family
+  /// granted to `authenticated` only, and widening it would expose more than a
+  /// community page draws. A signed-in non-member reads this same contract, so
+  /// both audiences see one record.
+  Future<PublicCommunityFootballRecord> fetchCommunityFootballRecord(
+    String communityId,
+  );
+
+  /// One active community's Top Players -- at most eleven, best first.
+  ///
+  /// The ranking is the database's (rating, then goals, then MVPs, then name)
+  /// and the list arrives in that order; a caller renders it as given.
+  Future<List<PublicCommunityTopPlayer>> fetchCommunityTopPlayers(
+    String communityId,
+  );
 }

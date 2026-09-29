@@ -85,6 +85,28 @@ The invitation link is unchanged under either policy: it carries the join code,
 and a code is accepted whichever policy is set. That is what a code is — the
 credential, not the policy.
 
+## Near (Discover)
+
+Discover keeps its three tabs — Latest Results, Upcoming Matches, Communities —
+and the tab it opens on. The one addition is a control, `Near: [Wilayat]`
+(`قريب من: [الولاية]`), shown over Upcoming Matches and Communities and not over
+Latest Results, which it does not affect. It is drawn as a button, not a status
+chip.
+
+- Tapping it opens one grouped, searchable picker: Wilayats under their
+  Governorates. Search ignores hamza, taa marbuta and tatweel and finds a village
+  by its alias (`مجيس` finds Sohar).
+- Near starts from the account's Default Location. Choosing another Wilayat is a
+  session-only override and saves nothing. A guest's choice is kept on the
+  device. With no Near the control invites a choice.
+- Local cards come first, then the rest, with no message and no empty state
+  caused by location.
+- The Wilayat name shows on Upcoming Matches and Communities cards only — never
+  on Latest Results. A match in play carries a LIVE badge.
+- The same picker chooses a new community's Wilayat (required), the owner's
+  change (community menu, beside Joining) and the Default Location (Edit Profile,
+  saved at once, clearable).
+
 ## Time
 
 Clock times follow the device, not the app: `formatTime` and `formatTimeRange`

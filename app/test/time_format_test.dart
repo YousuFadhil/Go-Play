@@ -109,6 +109,93 @@ void main() {
     });
   });
 
+  group('Oman time, for the Platform Admin', () {
+    // The live UAT case: stored 2026-09-28 16:51:45+00, read in Muscat.
+    final stored = DateTime.utc(2026, 9, 28, 16, 51);
+    // After 20:00 UTC the Muscat calendar day has already turned.
+    final lateUtc = DateTime.utc(2026, 9, 28, 22, 30);
+
+    testWidgets('UTC 16:51 reads 8:51 PM in Oman', (tester) async {
+      final text = await render(tester,
+          use24Hour: false,
+          locale: const Locale('en'),
+          build: (context) => formatMuscatTime(context, stored));
+
+      expect(plain(text), '8:51 PM');
+      expect(text, isNot(contains('4:51')));
+    });
+
+    testWidgets('UTC 22:30 is 2:30 AM on the next Oman day', (tester) async {
+      final time = await render(tester,
+          use24Hour: false,
+          locale: const Locale('en'),
+          build: (context) => formatMuscatTime(context, lateUtc));
+      final day = await render(tester,
+          use24Hour: false,
+          locale: const Locale('en'),
+          build: (context) => formatMuscatMatchDay(context, lateUtc));
+
+      expect(plain(time), '2:30 AM');
+      expect(day, 'Tue, Sep 29, 2026');
+      expect(day, isNot(contains('28')));
+    });
+
+    testWidgets('the device 24-hour preference changes nothing',
+        (tester) async {
+      final twelve = await render(tester,
+          use24Hour: false,
+          locale: const Locale('en'),
+          build: (context) => formatMuscatTime(context, stored));
+      final twentyFour = await render(tester,
+          use24Hour: true,
+          locale: const Locale('en'),
+          build: (context) => formatMuscatTime(context, stored));
+
+      expect(twentyFour, twelve);
+      expect(twentyFour, isNot(contains('20:51')));
+    });
+
+    testWidgets('the device time zone changes nothing', (tester) async {
+      // The same instant handed over as UTC and as this device's local time:
+      // the Oman reading is the instant's, not the device's.
+      final fromUtc = await render(tester,
+          use24Hour: false,
+          locale: const Locale('en'),
+          build: (context) =>
+              '${formatMuscatMatchDay(context, lateUtc)} '
+              '${formatMuscatTime(context, lateUtc)}');
+      final fromLocal = await render(tester,
+          use24Hour: false,
+          locale: const Locale('en'),
+          build: (context) =>
+              '${formatMuscatMatchDay(context, lateUtc.toLocal())} '
+              '${formatMuscatTime(context, lateUtc.toLocal())}');
+
+      expect(fromLocal, fromUtc);
+    });
+
+    testWidgets('Arabic stays localized, and 12-hour', (tester) async {
+      final text = await render(tester,
+          use24Hour: true,
+          locale: const Locale('ar'),
+          build: (context) => formatMuscatTime(context, stored));
+
+      expect(text, contains('8:51'));
+      expect(text, contains('م'));
+      expect(text, isNot(contains('PM')));
+    });
+
+    testWidgets('the general formatters are unchanged', (tester) async {
+      // Only the Admin helpers read Oman time; everything else still formats
+      // the DateTime it is given.
+      final text = await render(tester,
+          use24Hour: false,
+          locale: const Locale('en'),
+          build: (context) => formatTime(context, evening));
+      expect(plain(text), '8:30 PM');
+    });
+  });
+
   group('formatTimeRange', () {
     testWidgets('reads start then end, isolated left-to-right',
         (tester) async {

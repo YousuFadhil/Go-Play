@@ -17,7 +17,14 @@ PublicCommunity publicCommunityFromRow(Map<String, dynamic> row) =>
       logoUrl: row['logo_url'] as String?,
       memberCount: row['member_count'] as int,
       upcomingMatchCount: row['upcoming_match_count'] as int,
+      // Both arrive from migration `0094` and are absent from a row that
+      // predates it: no Wilayat and no activity, which orders as non-local.
+      wilayatCode: row['wilayat_code'] as int?,
+      lastActivityAt: _optionalInstant(row['last_activity_at']),
     );
+
+DateTime? _optionalInstant(Object? value) =>
+    value == null ? null : DateTime.parse(value as String).toLocal();
 
 /// Reads a public match row.
 ///
@@ -34,6 +41,9 @@ PublicMatch publicMatchFromRow(Map<String, dynamic> row) => PublicMatch(
       startingPlayers: row['starting_players'] as int,
       openSlots: row['open_slots'] as int,
       title: row['title'] as String?,
+      // The view carries it; `public_match_detail` does not, and a match read
+      // through it is one the reader has already chosen to open.
+      wilayatCode: row['wilayat_code'] as int?,
     );
 
 /// Reads one row of `public_recent_results` / `public_community_recent_results`
@@ -116,4 +126,40 @@ PublicLineupEntry publicLineupEntryFromRow(
       goals: row['goals'] as int? ?? 0,
       isMvp: row['is_mvp'] as bool? ?? false,
       playerId: row['player_id'] as String?,
+    );
+
+/// Reads the one row of `public_community_football_record` (migration `0093`).
+PublicCommunityFootballRecord publicCommunityFootballRecordFromRow(
+  Map<String, dynamic> row,
+) =>
+    PublicCommunityFootballRecord(
+      communityId: row['community_id'] as String,
+      completedMatches: row['completed_matches'] as int? ?? 0,
+      players: row['players'] as int? ?? 0,
+      goals: row['goals'] as int? ?? 0,
+      mvpCount: row['mvp_count'] as int? ?? 0,
+    );
+
+/// Reads one row of `public_community_top_players` (migration `0093`).
+///
+/// A missing rating falls back to the 5.0 every player starts on, which is
+/// also what the function itself substitutes; `numeric` may arrive as a number
+/// or as a string, so both are read.
+PublicCommunityTopPlayer publicCommunityTopPlayerFromRow(
+  Map<String, dynamic> row, {
+  required String? Function(String? path) avatarUrl,
+}) =>
+    PublicCommunityTopPlayer(
+      communityId: row['community_id'] as String,
+      userId: row['user_id'] as String,
+      displayName: row['display_name'] as String? ?? '',
+      avatarUrl: avatarUrl(row['avatar_path'] as String?),
+      overallRating: switch (row['overall_rating']) {
+        final num n => n.toDouble(),
+        final String s => double.tryParse(s) ?? 5.0,
+        _ => 5.0,
+      },
+      matchesPlayed: row['matches_played'] as int? ?? 0,
+      goals: row['goals'] as int? ?? 0,
+      mvpCount: row['mvp_count'] as int? ?? 0,
     );

@@ -411,7 +411,9 @@ means somebody verified it, not that it is usually fine.
       line — a `^` continuation silently drops the defines and the app starts
       with "Supabase configuration missing" (`SETUP.md` §4).
 - [ ] Auth settings unchanged and correct: Email provider enabled, **Confirm
-      email disabled** (`SETUP.md` §1.3).
+      email disabled** (`SETUP.md` §1.3) — until the deferred activation in
+      [§10](#10-authentication-configuration-activation-deferred) is carried out,
+      after which the settings listed there are the correct ones.
 
 **Backup**
 
@@ -459,6 +461,180 @@ document.
 | **`GAP-2`** | `.gitignore` has no rule excluding database dumps. Nothing currently produces one inside the working tree, so nothing is at risk today; the rule should exist before the first dump is written there. |
 | **`GAP-3`** | Supabase Storage is unused — no bucket, no upload path, no bucket policies. [§5](#5-storage-guidelines) is pre-emptive, and [§3.6](#36-storage-objects-are-not-in-a-database-dump) has nothing to cover yet. |
 | **`GAP-4`** | The integration suite and production share one project (`Docs/12-Testing.md`), and four permanent test accounts live in production data. The Free plan allows a second project, which would separate them. |
+
+---
+
+## 10. Authentication Configuration (activation deferred)
+
+The authentication modernization — Google sign-in, email confirmation for new
+registrations, password recovery and the player-profile onboarding step —
+ships as code and as migration `0092` that work under **both** Auth
+configurations. **Nothing in this section is enabled by that change, and nothing
+here has been changed on the live project.** Each step below is a Dashboard
+setting the Product Owner applies deliberately, after the code and the migration
+have been reviewed, in the order given.
+
+> **Staging and production share one Supabase project**
+> (`Docs/12-Testing.md`, `GAP-4`). Every setting below applies to
+> both front ends at once; there is no "try it on staging first" for Dashboard
+> configuration. Verify with a throwaway address, not a real player.
+
+**1. Apply migration `0092` first.** Back up first ([§3](#3-backup-strategy)). The
+new client asks `get_my_account_state()` and fails closed — an "account status
+unavailable" screen — against a database that does not have it. The previous
+client is unaffected by the migration.
+
+**2. Redirect URLs.** *Authentication → URL Configuration → Redirect URLs* must
+contain **every** form the app sends, or Auth ignores the parameter and falls
+back to the Site URL, which is not an address that reopens the app. There are two
+callbacks per platform: the **ordinary** one, for sign-up confirmation and the
+return from Google, and the **recovery** one, which is the ordinary one with
+`/recovery` after it. Password-recovery emails use the second, and that address is
+how the app recognises a recovery — so it is not optional, and an allow-list
+holding only the ordinary forms sends recovery emails to the Site URL:
+
+| Form | Ordinary callback | Recovery callback |
+|---|---|---|
+| Native (Android) | `goplay://login-callback` | `goplay://login-callback/recovery` |
+| Web, production | `https://go-play-44y.pages.dev/login-callback` | `https://go-play-44y.pages.dev/login-callback/recovery` |
+| Web, staging | `https://go-play-staging.pages.dev/login-callback` | `https://go-play-staging.pages.dev/login-callback/recovery` |
+| Web, local run | `http://localhost:<port>/login-callback` | `http://localhost:<port>/login-callback/recovery` |
+
+(Local runs only while developing against this project. A wildcard entry such as
+`goplay://login-callback/**` would cover both forms; the exact entries above are
+the ones the app sends.)
+
+The web value is derived from the running page's origin (`AuthService`), so a new
+web host needs its own two rows before it can complete any of these flows. The app
+is a single page: Cloudflare Pages serves `index.html` for any path that matches
+no file, so `/login-callback` and `/login-callback/recovery` both reach it. The
+Android manifest's `login-callback` filter names the host and restricts no path,
+so `/recovery` is already accepted (asserted in
+`app/test/auth_recovery_persistence_test.dart`); iOS is not configured for either
+and is not a supported target of this change.
+
+**3. Google provider.** *Authentication → Sign In / Providers → Google.* Create
+an OAuth client of type *Web application* in Google Cloud, add
+`https://<project-ref>.supabase.co/auth/v1/callback` as its authorised redirect
+URI, and paste the client ID and secret into Supabase before switching the
+provider on. The app uses Supabase's own redirect flow — there is no Google SDK
+and no key in the app. **Enable the provider before serving a build that shows
+"Continue with Google"**: the button is always drawn, and against a project with
+the provider off Auth answers the browser with a raw error page.
+
+**4. Email confirmation.** *Sign In / Providers → Email → Confirm email → on.*
+A new email registration then produces an account and **no session**. The app
+shows *Verify your email to complete registration* and asks for the **six-digit
+code** the confirmation email carries (`OtpType.signup`); once it is accepted the
+person is signed in and the auth gate carries on through the usual account-state
+and profile checks. A person who closes the app before entering the code is not
+stranded: signing in later with the correct password is refused by Auth with
+`email_not_confirmed` -- which it raises only *after* checking the password -- and
+the login screen resumes the same code screen for the address typed, with *Send a
+new code* available at once (it is the sign-up resend). A wrong password or an
+address nobody registered gets the ordinary "login failed", so that path cannot be
+used to find out who is registered. Existing accounts are not asked to confirm
+anything. `SETUP.md` §1 and the integration suite were written for confirmation
+**off** (they sign up and expect an immediate session); once it is on, provision
+any new test accounts by hand.
+
+**5. SMTP.** Supabase's built-in email service is for evaluation only: it is
+heavily rate-limited and is not meant to deliver to real players. **Production
+auth email requires a configured SMTP provider** (*Authentication → Emails →
+SMTP Settings*) before Confirm email is switched on, or new players will not
+receive their code. Password recovery depends on it equally. The app respects the
+provider's limits: *Send a new code* is held back for a minute and a 429 is
+reported as "too many attempts" rather than retried.
+
+**Rollout order for the email codes.** Email verification and password recovery
+are **six-digit code flows**: for the app to show a code, the *Confirm signup* and
+*Reset password* emails must carry `{{ .Token }}`. Staging and production share
+one project, and the production client that is live today understands **links
+only**, so the order matters and is not to be reversed. For these settings this
+list, not the numbering of the steps above, is the order to follow:
+
+1. **Deploy the code-capable client to production**, with *Confirm email* still
+   **off**, the email templates **unchanged**, and the old recovery link still
+   accepted (the link handling has **not** been removed -- that is the
+   backward-compatibility period). Nothing a player sees changes yet: the new
+   client's "Send code" screen still delivers the link email, which works as
+   before.
+2. **Configure custom SMTP** (step 5), with the templates still unchanged.
+3. **Verify real auth-email delivery through the custom SMTP**, using the flow as
+   it still is: request a password recovery for a throwaway address that has a
+   real inbox, and confirm the link email arrives and works.
+4. **Switch the *Reset password* and *Confirm signup* templates to six-digit
+   `{{ .Token }}` content.**
+5. **Verify password recovery by code end to end**, with *Confirm email* still
+   **off**: request, code, new password, sign in.
+6. **Only after explicit Product Owner approval, turn *Confirm email* on**
+   (step 4).
+7. **Verify a throwaway new email/password registration end to end through the
+   sign-up code**: register, code, signed in -- and the closed-app case, where
+   signing in later resumes the code screen.
+
+**Why SMTP comes before the templates.** Changing SMTP first is
+backward-compatible: the emails keep the content the deployed clients already
+handle, so a misconfigured SMTP shows up as a delivery problem and nothing else
+has changed. Changing the *Reset password* template before delivery is known to be
+reliable would change the recovery experience for existing users at once -- a
+code where they expect a link -- while the emails carrying it might not arrive
+(the built-in service is rate-limited and not meant for real players).
+
+Code-based recovery does not depend on which browser asked for it, which is what
+the web workaround under step 6 exists to achieve for links; once production has
+the code screens, the link handling and that workaround can be retired as a
+separate change.
+
+**6. What is deliberately not done.**
+
+- **Existing accounts are not migrated, recreated or forced to verify.** Most
+  legacy addresses are not real inboxes: password recovery cannot reach them,
+  and Google cannot match them, until the player changes the address through
+  *Edit Profile* and confirms it. That is by design.
+- **A Google account whose verified email matches an existing account** is
+  linked to it by Auth under its own automatic-linking rules; the application
+  does nothing to cause or prevent it and does not hard-code any account.
+- **A brand-new Google account has no player profile.** Migration `0092` stops
+  `handle_new_user()` inventing one; the app shows *Complete your player
+  profile* and the account is neither active nor suspended until it is done.
+- **A recovery session never becomes an ordinary one.** The application keeps a
+  small durable record on the device (local storage, `PasswordRecoveryState`):
+  set by the launch or resume that came from the recovery callback, by
+  verifying a recovery code (written *before* Auth is asked, so no recovery
+  session exists without it) and, as a backup, by Auth's recovery event; read by the auth gate before anything else
+  about a signed-in account; cleared by finishing or cancelling (both sign the
+  session out first) or when it is found with no session behind it. It is not
+  derived from Auth's event, because that event can be emitted before the app is
+  listening and a restored session carries no memory of how it began. The one
+  case it cannot see is a recovery whose callback the platform hands over in a
+  shape not recognised *and* whose event was also missed; such a session is then
+  an ordinary one.
+- **On the web, a recovery link redeems in any browser** (temporary: see the
+  rollout order above, which replaces links with codes). The app's Auth flow is
+  PKCE, which stores a one-time verifier in the browser that made the request and
+  can only be redeemed there. That suits a redirect that returns to the page it
+  started from and fails for an email: a phone opens the link in whatever its mail
+  app uses, which is often not the browser the person asked in. (The first Staging
+  UAT hit exactly this: requested in iPhone Safari, opened in iPhone Chrome. The
+  provider's logs showed `/verify` succeeding and then *no* `/token` request,
+  because the SDK refuses the exchange client-side when the verifier is absent.)
+  So on the web the recovery email is requested **without a PKCE challenge**
+  (`SupabaseAuthAdapter.requestPasswordReset`): the link returns to
+  `<origin>/login-callback/recovery#access_token=…&type=recovery`, which the app's
+  own client already exchanges for a session, and the SDK removes from the address
+  as soon as it has read it. Nothing about the project's configuration changes:
+  the Redirect URLs and the email template are the same. Sign-up, Google and
+  recovery on Android stay PKCE. The cost is tokens in a URL fragment for one
+  redirect. A link that carries no session in the URL at all (`token_hash`, from a
+  custom "Reset Password" email template that points at the app) would avoid it
+  and would also be browser-independent; that is a template change and a client
+  handler, and is a candidate follow-up rather than something assumed here.
+- **Acquisition attribution is not carried across these redirects.** A sign-up
+  completed through Google or an email-confirmation link leaves the app and
+  returns to it, and may not count as the same-session anonymous signup
+  conversion that a plain registration does. This is a known and accepted
+  limitation: no persistent tracking or cookie is added to work around it.
 
 ---
 

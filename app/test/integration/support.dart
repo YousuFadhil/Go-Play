@@ -157,6 +157,47 @@ Future<String> createMatch(
   return row['id'] as String;
 }
 
+/// Seats [players] on a match whose end has already passed.
+///
+/// Since migration `0091` a played match takes no new registration from
+/// anybody, an organizer included -- who played is corrected through the
+/// completed-match paths instead. A fixture that needs a *played roster* seats
+/// it the way it could have happened: the organizer returns the row to the
+/// future by the same direct write [createMatch] inserts it with, adds the
+/// players through `admin_add_player_to_match`, and restores the original
+/// times. The stored status is then settled to `completed`, which is what
+/// adding them after the end used to leave behind (`recompute_match_status`).
+Future<void> seatOnPlayedMatch(
+  TestUser organizer,
+  String matchId,
+  List<TestUser> players,
+) async {
+  final row = await organizer.client
+      .from('matches')
+      .select('start_at, end_at')
+      .eq('id', matchId)
+      .single();
+  final ahead = DateTime.now().toUtc().add(const Duration(days: 60));
+  await organizer.client.from('matches').update({
+    'start_at': ahead.toIso8601String(),
+    'end_at': ahead.add(const Duration(hours: 2)).toIso8601String(),
+  }).eq('id', matchId);
+  try {
+    for (final user in players) {
+      await organizer.client.rpc('admin_add_player_to_match', params: {
+        'p_match_id': matchId,
+        'p_user_id': user.id,
+      });
+    }
+  } finally {
+    await organizer.client.from('matches').update({
+      'start_at': row['start_at'],
+      'end_at': row['end_at'],
+      'status': 'completed',
+    }).eq('id', matchId);
+  }
+}
+
 /// Removes a community and everything under it. Safe to call twice.
 Future<void> disposeCommunity(TestUser owner, String? communityId) async {
   if (communityId == null) return;
@@ -199,6 +240,9 @@ const _codes = <String>[
   'MATCH_CLOSED',
   'MATCH_LOCKED',
   'MATCH_COMPLETED',
+  // Migrations 0054 and 0091.
+  'MATCH_HISTORICAL',
+  'MATCH_ALREADY_ENDED',
   'ALREADY_REGISTERED',
   'NOT_REGISTERED',
   'REGISTRATION_CLOSED',

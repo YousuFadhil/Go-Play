@@ -5,12 +5,15 @@ import '../../core/design.dart';
 import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
 import '../../core/tokens.dart';
+import '../analytics/acquisition_analytics.dart';
+import '../profile/profile_screen.dart';
 import '../results/result_card.dart';
+import '../sharing/public_link.dart';
 import '../auth/auth_prompt.dart';
 import '../auth/auth_service.dart';
-import 'discover_models.dart';
 import 'discover_repository.dart';
 import 'discover_widgets.dart';
+import 'public_community_tabs.dart';
 import 'public_match_screen.dart';
 
 /// A community, as a visitor sees it before signing in.
@@ -23,10 +26,11 @@ import 'public_match_screen.dart';
 /// answers it completely.
 ///
 /// What a guest is shown is therefore the whole of what this screen has: the
-/// community, how big it is, and what it has scheduled. Who the members are is
-/// not here, and neither is the join code — a code is the credential that a
-/// CODE_REQUIRED community is entered with, and publishing it on the page that
-/// invites people to join would make the policy decorative.
+/// community, how big it is, its football record, what it has played, what it
+/// has scheduled and who leads it. Who the members are is not here, and neither
+/// is the join code — a code is the credential that a CODE_REQUIRED community
+/// is entered with, and publishing it on the page that invites people to join
+/// would make the policy decorative.
 ///
 /// **It is the same place, seen by another audience.** The page used to open
 /// with a plain app bar over a centred crest and a column of sections, while a
@@ -35,8 +39,14 @@ import 'public_match_screen.dart';
 /// reader could do there. It is now composed from the primitives the football
 /// community screen uses: [ClubHero] over [ClubSheet], the shared
 /// [CommunityIdentity] row, [ClubHeroCount] figures, and the one [ResultCard]
-/// this product draws a played match with. What is *on* the page is unchanged:
-/// the same public reads, the same four things, and no member content anywhere.
+/// this product draws a played match with.
+///
+/// **Under the hero it is [PublicCommunityTabs]**, the same widget a signed-in
+/// non-member's community page is built from: the football record, then Latest
+/// Results, Upcoming Matches and Top Players, opening on Latest Results. A
+/// guest and a signed-in reader who is not a member therefore see one page, and
+/// what a session changes is what a tap does — here, joining and registering
+/// ask for an account, and nothing else about the page is different.
 class PublicCommunityScreen extends StatefulWidget {
   const PublicCommunityScreen({
     super.key,
@@ -55,22 +65,69 @@ class PublicCommunityScreen extends StatefulWidget {
   State<PublicCommunityScreen> createState() => _PublicCommunityScreenState();
 }
 
-class _PublicCommunityScreenState extends State<PublicCommunityScreen> {
+class _PublicCommunityScreenState extends State<PublicCommunityScreen>
+    with SingleTickerProviderStateMixin {
   late final DiscoverRepository _repository =
       widget.repository ?? DiscoverRepository();
 
   late Future<PublicCommunityDetails> _future;
 
+  /// The record and the Top Players, held apart from the community: the two
+  /// fail independently, and a football read that fails must not take the
+  /// community's name and its fixtures off the page. Null is that failure.
+  late Future<PublicCommunityFootball?> _football;
+
+  /// Which tab is showing: Latest Results, Upcoming Matches, Top Players, in
+  /// that order. State of this screen and of nothing else -- every fresh page
+  /// opens on Latest Results, index 0, and a pull-to-refresh replaces the
+  /// futures without touching this, so a reader who pulls down on Top Players
+  /// is asking for newer players, not to be sent back to the results.
+  late final TabController _tabs;
+
   @override
   void initState() {
     super.initState();
-    _future = _repository.fetchCommunityDetails(widget.communityId);
+    // Built here rather than lazily: a page that fails to load never builds its
+    // tabs, and a controller first created inside `dispose` is created on a
+    // deactivated element.
+    _tabs = TabController(length: 3, vsync: this);
+    _load();
   }
 
-  void _refresh() {
-    setState(() {
-      _future = _repository.fetchCommunityDetails(widget.communityId);
-    });
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  void _load() {
+    _future = _loadDetails();
+    _football = _loadFootball();
+  }
+
+  void _refresh() => setState(_load);
+
+  /// The football half, failing alone. A value rather than a rejection: this
+  /// future is created before any builder has attached to it, so a rejection
+  /// would escape as an unhandled async error before anything could render it.
+  Future<PublicCommunityFootball?> _loadFootball() async {
+    try {
+      return await _repository.fetchCommunityFootball(widget.communityId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The community, and — only once it has actually loaded — the arrival
+  /// reported to acquisition analytics, which decides whether this is an
+  /// external link arrival worth recording (Wave 3). A failed read reports
+  /// nothing.
+  Future<PublicCommunityDetails> _loadDetails() async {
+    final details = await _repository.fetchCommunityDetails(widget.communityId);
+    AcquisitionAnalytics.instance.externalArrivalLoaded(
+      PublicLinkTarget(PublicLinkKind.community, widget.communityId),
+    );
+    return details;
   }
 
   Future<void> _promptSignIn(String reason) => requireSignIn(
@@ -88,7 +145,12 @@ class _PublicCommunityScreenState extends State<PublicCommunityScreen> {
       body: FutureBuilder<PublicCommunityDetails>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          // A first load, or a retry after a failure, has nothing to show yet.
+          // A refresh does: the page stays up and updates when the read lands,
+          // rather than the hero and the tabs vanishing under the reader's
+          // finger.
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
             return const _CommunitySkeleton();
           }
           if (snapshot.hasError || !snapshot.hasData) {
@@ -182,72 +244,38 @@ class _PublicCommunityScreenState extends State<PublicCommunityScreen> {
               ),
               Expanded(
                 child: ClubSheet(
-                  child: RefreshIndicator(
-                    onRefresh: () async => _refresh(),
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsetsDirectional.only(
-                        bottom: Layout.listBottom,
+                  child: PublicCommunityTabs(
+                    controller: _tabs,
+                    matches: details.matches,
+                    results: details.results,
+                    football: _football,
+                    // Only a guest reaches this screen, so the action is always
+                    // the sheet -- a member opens the real community page
+                    // instead, from the same card on Discover.
+                    matchActionLabel: l10n.joinMatchButton,
+                    onMatchAction: () =>
+                        _promptSignIn(l10n.authRequiredRegisterMatch),
+                    onOpenResult: (result) => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PublicMatchScreen(
+                          matchId: result.matchId,
+                          repository: widget.repository,
+                          authService: widget.authService,
+                        ),
                       ),
-                      children: [
-                        DiscoverSectionHeader(
-                          title: l10n.upcomingMatchesTitle,
-                          subtitle: l10n.discoverMatchesSubtitle,
-                        ),
-                        if (details.matches.isEmpty)
-                          DiscoverEmpty(
-                            icon: Icons.event_outlined,
-                            message: l10n.discoverNoUpcomingMatches,
-                          )
-                        else
-                          for (final match in details.matches)
-                            PublicMatchCard(
-                              match: match,
-                              showCommunityName: false,
-                              // Only a guest reaches this screen, so the
-                              // action is always the sheet -- a member opens
-                              // the real community page instead, from the
-                              // same card on Discover.
-                              actionLabel: l10n.joinMatchButton,
-                              onAction: () =>
-                                  _promptSignIn(l10n.authRequiredRegisterMatch),
-                            ),
-                        // **The football that has already been played.** A
-                        // community with nothing scheduled used to leave a
-                        // visitor with a crest and an empty list; its results
-                        // are public, were always openable by id, and are what
-                        // the page is about the rest of the week.
-                        DiscoverSectionHeader(
-                          title: l10n.latestResultsTitle,
-                          subtitle: l10n.latestResultsSubtitle,
-                        ),
-                        if (details.results.isEmpty)
-                          DiscoverEmpty(
-                            icon: Icons.sports_soccer,
-                            message: l10n.latestResultsEmpty,
-                          )
-                        else
-                          ResultsList<PublicResult>(
-                            results: details.results,
-                            identityOf: (result) => result.matchId,
-                            toggleKey: const Key(
-                                'publicCommunityPreviousResultsToggle'),
-                            itemBuilder: (context, result) => PublicResultCard(
-                              result: result,
-                              showCommunityName: false,
-                              onOpen: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => PublicMatchScreen(
-                                    matchId: result.matchId,
-                                    repository: widget.repository,
-                                    authService: widget.authService,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
                     ),
+                    // The public profile, as a name on a public match page
+                    // already opens it: `asVisitor` reads the public contracts
+                    // only. No new route and no new policy for a guest.
+                    onOpenPlayer: (player) => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProfileScreen(
+                          userId: player.userId,
+                          asVisitor: true,
+                        ),
+                      ),
+                    ),
+                    onRefresh: _refresh,
                   ),
                 ),
               ),

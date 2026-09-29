@@ -8,7 +8,9 @@ import '../../core/l10n.dart';
 import '../../core/skeleton.dart';
 import '../../core/states.dart';
 import '../../core/tokens.dart';
+import '../analytics/acquisition_analytics.dart';
 import '../analytics/analytics_models.dart';
+import '../analytics/analytics_service.dart';
 import '../auth/auth_models.dart';
 import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
@@ -122,10 +124,8 @@ class _ProfileView {
     this.achievements = const [],
   });
 
-  /// Whose record this is. Held because a share needs a public link, and a
-  /// public link needs an id — the screen's own `widget.userId` is null on the
-  /// player's own profile, which is exactly the case that still has to produce
-  /// a shareable address.
+  /// Whose record this is. Held because the screen's own `widget.userId` is
+  /// null on the player's own profile, which still has to name its player.
   final String userId;
 
   final String fullName;
@@ -144,7 +144,7 @@ class _ProfileView {
 
   final String? avatarUrl;
 
-  /// The last five completed matches, newest first. Empty is ordinary — a
+  /// The last six completed matches, newest first. Empty is ordinary — a
   /// player who has played none — and never an error.
   final RecentForm form;
 
@@ -168,10 +168,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   late Future<_ProfileView> _future;
 
+  /// Whether this screen has recorded its `profile_viewed`. Once per screen,
+  /// as the other view events are: a refresh is the same visit.
+  bool _viewRecorded = false;
+
   @override
   void initState() {
     super.initState();
     _future = _load();
+  }
+
+  /// Records that a signed-in reader was shown [userId]'s profile.
+  ///
+  /// Called only after the profile loaded, so a failed read records nothing.
+  /// The target is whoever the profile is about -- the reader's own id when it
+  /// is their own -- which is what lets the Admin timeline tell the two apart.
+  /// The visitor reading is never recorded here: a signed-out arrival belongs
+  /// to Wave 3's acquisition path and is not assigned to any account.
+  void _recordView(String userId) {
+    if (_viewRecorded) return;
+    _viewRecorded = true;
+    ProductAnalytics.instance.track(
+      ProductEvent.profileViewed,
+      targetUserId: userId,
+    );
   }
 
   /// Whether this build is the player's own record, with the account's controls
@@ -214,6 +234,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // this — a guessed id learns nothing either way.
     if (record == null) throw const NotFoundFailure();
 
+    // Loaded: reported to acquisition analytics, which records it only when
+    // this profile is the external link arrival of a signed-out reader
+    // (Wave 3). A player previewing their own public page is neither.
+    AcquisitionAnalytics.instance.externalArrivalLoaded(
+      PublicLinkTarget(PublicLinkKind.player, userId),
+    );
+
     return _ProfileView(
       userId: userId,
       fullName: record.profile.fullName,
@@ -246,6 +273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ]);
 
     final profile = results[0] as PlayerProfile;
+    _recordView(userId);
     return _ProfileView(
       userId: userId,
       fullName: profile.fullName,
@@ -276,6 +304,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _records.recentAchievements(userId),
     ]);
     final player = results[0] as PlayerProfileView;
+    _recordView(userId);
     return _ProfileView(
       userId: userId,
       fullName: player.fullName,
@@ -338,7 +367,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // allowed to see, in the same database order, up to the existing
           // five-item profile limit.
           achievements: view.achievements,
-          publicUrl: PublicLink.format(PublicLinkKind.player, view.userId),
         ),
       ),
       message: ShareMessage(
@@ -348,10 +376,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         text: view.isSelf
             ? l10n.shareTextMyProfile
             : l10n.shareTextPlayerProfile(view.fullName),
-        // The public address of this player. It opens the same public profile
-        // for whoever receives it, which is narrower than what a signed-in
-        // reader sees and never wider.
-        url: PublicLink.format(PublicLinkKind.player, view.userId),
       ),
       shareType: ShareType.playerProfile,
       source: ShareSource.playerProfile,

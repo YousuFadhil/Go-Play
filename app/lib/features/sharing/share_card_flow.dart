@@ -24,8 +24,8 @@ import 'widget_share_card_renderer.dart';
 /// );
 /// ```
 ///
-/// [message] is the localized words and public link that travel with the
-/// picture; [shareType] and [source] are what a completed share is recorded as.
+/// [message] is the localized words that travel with the picture — never a
+/// link; [shareType] and [source] are what a completed share is recorded as.
 /// All three are optional and all three are the caller's knowledge: the engine
 /// cannot compose a sentence about a card it deliberately knows nothing about.
 ///

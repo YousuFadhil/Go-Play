@@ -23,11 +23,26 @@ class PublicCommunity {
     required this.upcomingMatchCount,
     this.description,
     this.logoUrl,
+    this.wilayatCode,
+    this.lastActivityAt,
   });
 
   final String id;
   final String name;
   final String? description;
+
+  /// The Wilayat the community plays in, or null for one that has none yet.
+  ///
+  /// Null is a value of its own and not a gap: the database keeps the column
+  /// nullable so older builds keep creating communities, and a community with no
+  /// Wilayat is discovered as non-local -- ordered like any other, never hidden.
+  final int? wilayatCode;
+
+  /// When the community last did something worth surfacing: the start of its
+  /// latest completed match, or its creation when it has none. Computed by the
+  /// database (`v_public_communities`, migration `0094`) so the client ranks on
+  /// the same answer everywhere; null only where a read did not carry it.
+  final DateTime? lastActivityAt;
 
   /// The community's picture, when it has one.
   ///
@@ -103,6 +118,7 @@ class PublicMatch {
     required this.startingPlayers,
     required this.openSlots,
     this.title,
+    this.wilayatCode,
   });
 
   final String id;
@@ -111,6 +127,16 @@ class PublicMatch {
   final String location;
   final DateTime startAt;
   final DateTime endAt;
+
+  /// The **community's current** Wilayat. A match has none of its own: it is
+  /// discovered where its community is, and moves with it. [location] stays the
+  /// free-text pitch or venue and is never read as a place.
+  final int? wilayatCode;
+
+  /// In play right now: `start_at <= now < end_at`. A state a card badges, not a
+  /// way of sorting -- upcoming matches are ordered by start, which already
+  /// puts a match in play ahead of one that has not begun.
+  bool isLiveAt(DateTime now) => !startAt.isAfter(now) && endAt.isAfter(now);
 
   /// The playing capacity, which is what [openSlots] counts down from. Not the
   /// maximum registration: that is the starting players plus the global reserve
@@ -278,4 +304,68 @@ class PublicLineupEntry {
   /// open. Null for a Professional Guest and for a player whose profile is not
   /// available; the database decides both.
   final String? playerId;
+}
+
+/// A community's football record, as a visitor reads it above the tabs.
+///
+/// **The four figures the member's own view of a community already reports**
+/// (`v_football_community_stats`), and nothing more: no community name, no
+/// roster and nothing about any player. They come from
+/// `public_community_football_record` (migration `0093`), a narrow contract of
+/// their own -- the broader football views stay behind a session.
+class PublicCommunityFootballRecord {
+  const PublicCommunityFootballRecord({
+    required this.communityId,
+    required this.completedMatches,
+    required this.players,
+    required this.goals,
+    required this.mvpCount,
+  });
+
+  final String communityId;
+
+  /// Matches played, under the database's completed rule.
+  final int completedMatches;
+
+  /// How many players have an all-time record in this community. Not the
+  /// roster: somebody who has joined but never finished a match has no record
+  /// and is not counted.
+  final int players;
+
+  final int goals;
+  final int mvpCount;
+}
+
+/// One player in a community's public Top Players.
+///
+/// Exactly the columns `public_community_top_players` publishes (migration
+/// `0093`): a name, a picture, the Global Rating and three career counters. The
+/// list arrives already ranked and already capped at eleven, so nothing here
+/// orders or trims it -- and [userId] is only ever a player whose public profile
+/// exists, which is what lets a row lead to `/player/{id}`.
+class PublicCommunityTopPlayer {
+  const PublicCommunityTopPlayer({
+    required this.communityId,
+    required this.userId,
+    required this.displayName,
+    required this.overallRating,
+    required this.matchesPlayed,
+    required this.goals,
+    required this.mvpCount,
+    this.avatarUrl,
+  });
+
+  final String communityId;
+  final String userId;
+  final String displayName;
+
+  /// Their picture, resolved from the `avatar_path` the contract publishes. A
+  /// path is storage knowledge; the adapter turns it into an address.
+  final String? avatarUrl;
+
+  /// The Global Rating, defaulting to the 5.0 everybody starts on.
+  final double overallRating;
+  final int matchesPlayed;
+  final int goals;
+  final int mvpCount;
 }

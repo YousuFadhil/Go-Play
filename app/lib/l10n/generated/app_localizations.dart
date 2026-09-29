@@ -560,6 +560,12 @@ abstract class AppLocalizations {
   /// **'A match already played must have finished before now'**
   String get historicalNotPastError;
 
+  /// No description provided for @matchAlreadyEndedError.
+  ///
+  /// In en, this message translates to:
+  /// **'This match has already ended. Record it as a match already played instead.'**
+  String get matchAlreadyEndedError;
+
   /// No description provided for @recordHistoricalMatchButton.
   ///
   /// In en, this message translates to:
@@ -2120,6 +2126,12 @@ abstract class AppLocalizations {
   /// **'Swap with a player'**
   String get swapPlayerAction;
 
+  /// No description provided for @swapPositionsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap positions'**
+  String get swapPositionsAction;
+
   /// No description provided for @changePositionAction.
   ///
   /// In en, this message translates to:
@@ -2131,6 +2143,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Swap with'**
   String get swapPlayerTitle;
+
+  /// No description provided for @swapPositionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap positions with'**
+  String get swapPositionsTitle;
 
   /// No description provided for @swapNobodyAvailable.
   ///
@@ -2173,6 +2191,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save result'**
   String get saveResultButton;
+
+  /// No description provided for @resultParticipationConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm that this lineup represents the players who actually participated in this match.'**
+  String get resultParticipationConfirmation;
+
+  /// No description provided for @resultParticipationConfirmationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Required before saving the result.'**
+  String get resultParticipationConfirmationHint;
 
   /// No description provided for @resultSaved.
   ///
@@ -2365,6 +2395,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Current rating'**
   String get statCurrentRating;
+
+  /// No description provided for @statWinRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Win rate'**
+  String get statWinRate;
+
+  /// No description provided for @statGoalsPerMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals per match'**
+  String get statGoalsPerMatch;
+
+  /// No description provided for @statRatingTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent rating change'**
+  String get statRatingTrend;
 
   /// No description provided for @statMatchesPlayed.
   ///
@@ -2879,7 +2927,7 @@ abstract class AppLocalizations {
   /// No description provided for @statPeriodRatingNote.
   ///
   /// In en, this message translates to:
-  /// **'The rating is your current rating across every community. It is not a figure for this period.'**
+  /// **'The rating and recent rating change are global across every community. They are not figures for this period.'**
   String get statPeriodRatingNote;
 
   /// No description provided for @statPeriodNoMatches.
@@ -3386,6 +3434,66 @@ abstract class AppLocalizations {
   /// **'Community actions'**
   String get communityActionsTitle;
 
+  /// No description provided for @communityInsightsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Community insights'**
+  String get communityInsightsAction;
+
+  /// No description provided for @communityInsightsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Community insights'**
+  String get communityInsightsTitle;
+
+  /// No description provided for @communityInsightsPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 30 days'**
+  String get communityInsightsPeriod;
+
+  /// No description provided for @communityInsightsActiveMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Active members'**
+  String get communityInsightsActiveMembers;
+
+  /// No description provided for @communityInsightsParticipationRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Participation rate'**
+  String get communityInsightsParticipationRate;
+
+  /// No description provided for @communityInsightsMatchFrequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Match frequency'**
+  String get communityInsightsMatchFrequency;
+
+  /// No description provided for @communityInsightsPerWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'per week'**
+  String get communityInsightsPerWeek;
+
+  /// No description provided for @communityInsightsCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Capacity utilization'**
+  String get communityInsightsCapacity;
+
+  /// No description provided for @communityInsightsGuestDependency.
+  ///
+  /// In en, this message translates to:
+  /// **'Guest dependency'**
+  String get communityInsightsGuestDependency;
+
+  /// No description provided for @communityInsightsProvisionalNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Participation, capacity and guest dependency currently use saved match line-ups as evidence of who played. They will become participation-confirmed once participation confirmation is introduced.'**
+  String get communityInsightsProvisionalNote;
+
   /// No description provided for @moreActionsLabel.
   ///
   /// In en, this message translates to:
@@ -3704,6 +3812,12 @@ abstract class AppLocalizations {
   /// **'Registrations'**
   String get adminMetricRegistrations;
 
+  /// No description provided for @adminMetricTrackedRegistrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracked registrations'**
+  String get adminMetricTrackedRegistrations;
+
   /// No description provided for @adminMetricResults.
   ///
   /// In en, this message translates to:
@@ -3737,7 +3851,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminAnalyticsNotice.
   ///
   /// In en, this message translates to:
-  /// **'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.'**
+  /// **'Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Activity events are kept for 12 months, so tracked counts describe retained activity, not lifetime history; Last seen is kept beyond that window. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.'**
   String get adminAnalyticsNotice;
 
   /// No description provided for @adminAuditTab.
@@ -3827,7 +3941,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminMetricSessions.
   ///
   /// In en, this message translates to:
-  /// **'Sessions'**
+  /// **'Tracked sessions'**
   String get adminMetricSessions;
 
   /// No description provided for @adminMetricPlatforms.
@@ -3853,6 +3967,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Withdrawals'**
   String get adminMetricWithdrawals;
+
+  /// No description provided for @adminMetricTrackedWithdrawals.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracked withdrawals'**
+  String get adminMetricTrackedWithdrawals;
 
   /// No description provided for @adminPlatformWeb.
   ///
@@ -3931,6 +4051,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Public link opened'**
   String get adminEventPublicLinkOpened;
+
+  /// No description provided for @adminEventViewedOwnProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed own profile'**
+  String get adminEventViewedOwnProfile;
+
+  /// No description provided for @adminEventViewedPlayerProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed player profile — {player}'**
+  String adminEventViewedPlayerProfile(String player);
+
+  /// No description provided for @adminEventViewedPlayerStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed player statistics'**
+  String get adminEventViewedPlayerStatistics;
+
+  /// No description provided for @adminEventViewedPlayerStatisticsOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewed player statistics — {player}'**
+  String adminEventViewedPlayerStatisticsOf(String player);
+
+  /// No description provided for @adminEventSharedPlayerProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared player profile'**
+  String get adminEventSharedPlayerProfile;
+
+  /// No description provided for @adminEventSharedPlayerStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared player statistics'**
+  String get adminEventSharedPlayerStatistics;
+
+  /// No description provided for @adminEventSharedCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared community'**
+  String get adminEventSharedCommunity;
+
+  /// No description provided for @adminEventSharedMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared match'**
+  String get adminEventSharedMatch;
+
+  /// No description provided for @adminEventSharedLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared lineup'**
+  String get adminEventSharedLineup;
+
+  /// No description provided for @adminEventSharedResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared result'**
+  String get adminEventSharedResult;
 
   /// No description provided for @adminDrilldownEmpty.
   ///
@@ -4225,6 +4405,264 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{value} PPG'**
   String leaderboardPointsPerGame(String value);
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @authOrDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get authOrDivider;
+
+  /// No description provided for @googleSignInFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start Google sign-in. Please try again.'**
+  String get googleSignInFailed;
+
+  /// No description provided for @forgotPasswordLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPasswordLink;
+
+  /// No description provided for @forgotPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get forgotPasswordTitle;
+
+  /// No description provided for @forgotPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the email you signed up with. If it belongs to an account, we will send a code to choose a new password.'**
+  String get forgotPasswordBody;
+
+  /// No description provided for @forgotPasswordSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get forgotPasswordSend;
+
+  /// No description provided for @backToLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to log in'**
+  String get backToLogin;
+
+  /// No description provided for @tooManyRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Please wait a few minutes and try again.'**
+  String get tooManyRequests;
+
+  /// No description provided for @emailCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your code'**
+  String get emailCodeTitle;
+
+  /// No description provided for @emailCodeRecoveryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code we sent to your email.'**
+  String get emailCodeRecoveryBody;
+
+  /// No description provided for @emailCodeSignupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify your email to complete registration.'**
+  String get emailCodeSignupBody;
+
+  /// No description provided for @emailCodeSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a 6-digit code to {email}.'**
+  String emailCodeSentTo(String email);
+
+  /// No description provided for @emailCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'6-digit code'**
+  String get emailCodeLabel;
+
+  /// No description provided for @emailCodeIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter all 6 digits.'**
+  String get emailCodeIncomplete;
+
+  /// No description provided for @emailCodeVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get emailCodeVerify;
+
+  /// No description provided for @emailCodeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That code is incorrect or has expired. Check it, or ask for a new one.'**
+  String get emailCodeInvalid;
+
+  /// No description provided for @emailCodeResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a new code'**
+  String get emailCodeResend;
+
+  /// No description provided for @emailCodeResent.
+  ///
+  /// In en, this message translates to:
+  /// **'A new code is on its way.'**
+  String get emailCodeResent;
+
+  /// No description provided for @emailCodeResendWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Did not arrive? You can ask for a new code in a minute.'**
+  String get emailCodeResendWait;
+
+  /// No description provided for @resetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password'**
+  String get resetPasswordTitle;
+
+  /// No description provided for @newPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPasswordLabel;
+
+  /// No description provided for @resetPasswordSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Save new password'**
+  String get resetPasswordSubmit;
+
+  /// No description provided for @resetPasswordLinkExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This reset link is no longer valid. Request a new one.'**
+  String get resetPasswordLinkExpired;
+
+  /// No description provided for @passwordResetSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password was changed. Log in with your new password.'**
+  String get passwordResetSuccess;
+
+  /// No description provided for @completeProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete your player profile'**
+  String get completeProfileTitle;
+
+  /// No description provided for @completeProfileBody.
+  ///
+  /// In en, this message translates to:
+  /// **'One last step before you play: tell us a little about yourself.'**
+  String get completeProfileBody;
+
+  /// No description provided for @completeProfileSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get completeProfileSubmit;
+
+  /// No description provided for @profileDetailsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your details and try again.'**
+  String get profileDetailsInvalid;
+
+  /// No description provided for @nearChipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Near: {wilayat}'**
+  String nearChipLabel(String wilayat);
+
+  /// No description provided for @nearChipChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Near: choose Wilayat'**
+  String get nearChipChoose;
+
+  /// No description provided for @wilayatPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a Wilayat'**
+  String get wilayatPickerTitle;
+
+  /// No description provided for @wilayatSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by Wilayat or village'**
+  String get wilayatSearchHint;
+
+  /// No description provided for @wilayatSearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No Wilayat matches your search.'**
+  String get wilayatSearchEmpty;
+
+  /// No description provided for @wilayatRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a Wilayat'**
+  String get wilayatRequired;
+
+  /// No description provided for @wilayatNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get wilayatNotSet;
+
+  /// No description provided for @communityWilayatLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Wilayat'**
+  String get communityWilayatLabel;
+
+  /// No description provided for @communityWilayatSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Community Wilayat updated.'**
+  String get communityWilayatSaved;
+
+  /// No description provided for @defaultLocationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default location'**
+  String get defaultLocationLabel;
+
+  /// No description provided for @defaultLocationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for Near in Discover. Only you can see it.'**
+  String get defaultLocationHelp;
+
+  /// No description provided for @defaultLocationSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Default location updated.'**
+  String get defaultLocationSaved;
+
+  /// No description provided for @defaultLocationClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear default location'**
+  String get defaultLocationClear;
+
+  /// No description provided for @matchLiveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get matchLiveBadge;
 }
 
 class _AppLocalizationsDelegate

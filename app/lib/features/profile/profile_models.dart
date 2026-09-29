@@ -76,6 +76,7 @@ class PlayerProfile {
     this.secondaryPosition,
     this.avatarUrl,
     this.privacy = const ProfilePrivacy.defaults(),
+    this.defaultWilayatCode,
   });
 
   final String fullName;
@@ -105,6 +106,12 @@ class PlayerProfile {
   /// Read here because this is the player's own row; it decides nothing on the
   /// client, and the server refuses a profile the viewer may not open.
   final ProfilePrivacy privacy;
+
+  /// The player's optional Default Location: the Wilayat Discover's Near starts
+  /// from. **Private to its owner** -- it is on this model and on no other,
+  /// because [PlayerProfileView] is what everyone else is sent and the database
+  /// does not put this column in it (migration `0094`). Null is no preference.
+  final int? defaultWilayatCode;
 
   /// Whether the engine would accept this player (§4.1). Only the date of birth
   /// can be absent: the rating and the primary position are `NOT NULL`.

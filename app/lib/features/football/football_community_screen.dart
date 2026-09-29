@@ -10,11 +10,10 @@ import '../communities/community_details_screen.dart';
 import '../communities/join_community_flow.dart';
 import '../discover/discover_repository.dart';
 import '../discover/discover_widgets.dart';
+import '../discover/public_community_tabs.dart';
 import '../profile/player_identity.dart';
 import 'football_match_screen.dart';
-import 'football_models.dart';
 import 'football_repository.dart';
-import 'football_result_card.dart';
 
 /// A community, as a signed-in player who is not in it may read it.
 ///
@@ -32,9 +31,21 @@ import 'football_result_card.dart';
 /// reads that are theirs to make. Duplicating the tabs and hiding half of them
 /// would leave a shell whose behaviour depended on failures.
 ///
-/// Read only. The one action is joining, and it goes through the flow that
-/// already owns that conversation — including asking for the code where the
-/// policy requires one, which is the only way a code ever reaches a client.
+/// **It is the same page a guest reads.** Under the hero it is
+/// [PublicCommunityTabs], the widget `PublicCommunityScreen` is built from: the
+/// football record, then Latest Results, Upcoming Matches and Top Players,
+/// opening on Latest Results. Both audiences are handed the same public reads —
+/// including the record and the Top 11, which come from the narrow contract of
+/// migration `0093` and not from the authenticated football views — so signing
+/// in changes what a tap does, never what the community shows. It used to be a
+/// second page with a different order, a different Top Players list and a
+/// results list that could contain a match nobody had written up yet.
+///
+/// What a session *does* change is what the buttons do: a result opens the
+/// signed-in match screen, a player opens the signed-in profile, and joining
+/// goes through the flow that already owns that conversation — including asking
+/// for the code where the policy requires one, which is the only way a code ever
+/// reaches a client.
 class FootballCommunityScreen extends StatefulWidget {
   const FootballCommunityScreen({
     super.key,
@@ -48,6 +59,9 @@ class FootballCommunityScreen extends StatefulWidget {
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   final DiscoverRepository? discoverRepository;
+
+  /// Only for the signed-in match screen a result opens. The page itself reads
+  /// nothing from it: the football on this page is the public contract.
   final FootballRepository? footballRepository;
   final CommunityRepository? communityRepository;
 
@@ -56,36 +70,44 @@ class FootballCommunityScreen extends StatefulWidget {
       _FootballCommunityScreenState();
 }
 
-/// The public half of the page: identity and what is scheduled. Read through
-/// the anonymous discovery models, which a signed-in reader may also use.
-typedef _PublicPart = PublicCommunityDetails;
-
-/// The football half: the record, what has been played, and who leads.
-///
-/// Held apart from the public half rather than merged into one future, because
-/// the two fail independently and must be seen to. A football read that fails
-/// must not take the community's name and its fixtures off the screen.
-typedef _FootballPart = (
-  CommunityFootballStats,
-  List<CompletedMatch>,
-  List<CommunityPlayerStats>,
-);
-
-class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
+class _FootballCommunityScreenState extends State<FootballCommunityScreen>
+    with SingleTickerProviderStateMixin {
   late final DiscoverRepository _discover =
       widget.discoverRepository ?? DiscoverRepository();
-  late final FootballRepository _football =
-      widget.footballRepository ?? FootballRepository();
   late final CommunityRepository _communities =
       widget.communityRepository ?? CommunityRepository();
 
-  late Future<_PublicPart> _publicFuture;
-  late Future<_FootballPart?> _footballFuture;
+  /// The public half of the page: identity, what is scheduled and what has been
+  /// played.
+  late Future<PublicCommunityDetails> _publicFuture;
+
+  /// The football half: the record and the Top Players.
+  ///
+  /// Held apart from the public half rather than merged into one future,
+  /// because the two fail independently and must be seen to. A football read
+  /// that fails must not take the community's name and its fixtures off the
+  /// screen. Null is the football half failing, and only the football half.
+  late Future<PublicCommunityFootball?> _footballFuture;
+
+  /// Which tab is showing: Latest Results, Upcoming Matches, Top Players, in
+  /// that order. State of this screen and of nothing else — see
+  /// `PublicCommunityScreen`, which holds it the same way for the same reason.
+  late final TabController _tabs;
 
   @override
   void initState() {
     super.initState();
+    // Built here rather than lazily: a page that fails to load never builds its
+    // tabs, and a controller first created inside `dispose` is created on a
+    // deactivated element.
+    _tabs = TabController(length: 3, vsync: this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   void _load() {
@@ -93,34 +115,15 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
     _footballFuture = _loadFootball();
   }
 
-  /// The three football reads, together. They are one section of the page and
-  /// are useless in pieces, so they succeed or fail as one — but separately from
-  /// the public half above them.
-  Future<_FootballPart?> _loadFootball() async {
+  Future<PublicCommunityFootball?> _loadFootball() async {
     try {
-      return await _readFootball();
+      return await _discover.fetchCommunityFootball(widget.communityId);
     } catch (_) {
       // Same reason as Discover: this future is created in `initState`, so a
       // rejection would escape before a builder could render it. Null is the
       // football half failing, and only the football half.
       return null;
     }
-  }
-
-  Future<_FootballPart> _readFootball() async {
-    final results = await Future.wait([
-      _football.fetchCommunityStats(widget.communityId),
-      _football.fetchCompletedMatches(
-        communityId: widget.communityId,
-        limit: 5,
-      ),
-      _football.fetchCommunityPlayerStats(widget.communityId),
-    ]);
-    return (
-      results[0] as CommunityFootballStats,
-      results[1] as List<CompletedMatch>,
-      results[2] as List<CommunityPlayerStats>,
-    );
   }
 
   void _refresh() => setState(_load);
@@ -154,7 +157,10 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
 
   Future<void> _openMatch(String matchId) => Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => FootballMatchScreen(matchId: matchId),
+          builder: (_) => FootballMatchScreen(
+            matchId: matchId,
+            repository: widget.footballRepository,
+          ),
         ),
       );
 
@@ -164,10 +170,13 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
 
     return Scaffold(
       backgroundColor: GoColors.bgHero,
-      body: FutureBuilder<_PublicPart>(
+      body: FutureBuilder<PublicCommunityDetails>(
         future: _publicFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          // A first load, or a retry after a failure, has nothing to show yet.
+          // A refresh does: the page stays up and updates when the read lands.
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError || !snapshot.hasData) {
@@ -185,11 +194,19 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
               SafeArea(
                 bottom: false,
                 child: ClubHero(
+                  // The same ground, and the same crest, as the guest's page:
+                  // this is the same community seen by a reader who happens to
+                  // be signed in, not a different place.
+                  stadium: true,
                   bar: ClubHeroBar(
                     title: l10n.communityTitle,
                     onBack: () => Navigator.of(context).maybePop(),
                   ),
-                  identity: CommunityIdentity(community: community),
+                  identity: CommunityIdentity(
+                    community: community,
+                    crestSize: 72,
+                    onHero: true,
+                  ),
                   counts: Row(
                     children: [
                       Flexible(
@@ -223,276 +240,32 @@ class _FootballCommunityScreenState extends State<FootballCommunityScreen> {
               ),
               Expanded(
                 child: ClubSheet(
-                  child: RefreshIndicator(
-                    onRefresh: () async => _refresh(),
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsetsDirectional.only(
-                        bottom: Layout.listBottom,
-                      ),
-                      children: [
-                        ..._upcomingSection(l10n, details),
-                        // The football half renders under its own builder, so a
-                        // failure here leaves everything above it standing.
-                        FutureBuilder<_FootballPart?>(
-                          future: _footballFuture,
-                          builder: (context, football) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: _footballSections(l10n, football),
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: PublicCommunityTabs(
+                    controller: _tabs,
+                    matches: details.matches,
+                    results: details.results,
+                    football: _footballFuture,
+                    // The card shows what a fixture is; the action is the way
+                    // in.
+                    //
+                    // It used to push `MatchDetailsScreen`, which is
+                    // membership-gated and would have refused this reader —
+                    // sending somebody from a read-only screen into a wall.
+                    // There is no public upcoming-match detail screen and this
+                    // cycle does not add one, so the useful offer is the one
+                    // thing that would change the answer: joining.
+                    matchActionLabel: l10n.joinCommunityButton,
+                    onMatchAction: _join,
+                    onOpenResult: (result) => _openMatch(result.matchId),
+                    onOpenPlayer: (player) =>
+                        openPlayerProfile(context, player.userId),
+                    onRefresh: _refresh,
                   ),
                 ),
               ),
             ],
           );
         },
-      ),
-    );
-  }
-
-  List<Widget> _upcomingSection(AppLocalizations l10n, _PublicPart details) => [
-        DiscoverSectionHeader(
-          title: l10n.upcomingMatchesTitle,
-          subtitle: l10n.discoverMatchesSubtitle,
-        ),
-        if (details.matches.isEmpty)
-          DiscoverEmpty(
-            icon: Icons.event_outlined,
-            message: l10n.discoverNoUpcomingMatches,
-          )
-        else
-          for (final match in details.matches)
-            // The card shows what a fixture is; the action is the way in.
-            //
-            // It used to push `MatchDetailsScreen`, which is membership-gated
-            // and would have refused this reader — sending somebody from a
-            // read-only screen into a wall. There is no public upcoming-match
-            // detail screen and this cycle does not add one, so the useful
-            // offer is the one thing that would change the answer: joining.
-            PublicMatchCard(
-              match: match,
-              showCommunityName: false,
-              actionLabel: l10n.joinCommunityButton,
-              onAction: _join,
-            ),
-      ];
-
-  List<Widget> _footballSections(
-    AppLocalizations l10n,
-    AsyncSnapshot<_FootballPart?> snapshot,
-  ) {
-    if (snapshot.connectionState != ConnectionState.done) {
-      return [
-        DiscoverSectionHeader(title: l10n.footballRecordTitle),
-        const Padding(
-          padding: EdgeInsets.all(Gap.xl),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ];
-    }
-    if (snapshot.hasError || snapshot.data == null) {
-      return [
-        DiscoverSectionHeader(title: l10n.footballRecordTitle),
-        DiscoverEmpty(
-          icon: Icons.cloud_off_outlined,
-          message: l10n.latestResultsFailed,
-        ),
-      ];
-    }
-
-    final (stats, results, players) = snapshot.data!;
-    return [
-      DiscoverSectionHeader(title: l10n.footballRecordTitle),
-      _RecordRow(stats: stats),
-      DiscoverSectionHeader(title: l10n.recentResultsTitle),
-      if (results.isEmpty)
-        DiscoverEmpty(
-          icon: Icons.sports_soccer,
-          message: l10n.latestResultsEmpty,
-        )
-      else
-        for (final match in results)
-          FootballResultCard(
-            match: match,
-            showCommunityName: false,
-            onOpen: () => _openMatch(match.matchId),
-          ),
-      DiscoverSectionHeader(
-        title: l10n.topPlayersTitle,
-        subtitle: l10n.topPlayersSubtitle,
-      ),
-      if (players.isEmpty)
-        DiscoverEmpty(
-          icon: Icons.emoji_events_outlined,
-          message: l10n.topPlayersEmpty,
-        )
-      else
-        for (final player in rankTopPlayers(players))
-          _PlayerRow(player: player),
-    ];
-  }
-}
-
-/// The approved order for Top Players.
-///
-/// Rating first, then goals, then MVPs, then the name. This invents no measure
-/// and weights nothing: every value is one the product already computes, and the
-/// name is there so that two players who are equal on all three do not swap
-/// places between two reads of the same list. A ranking that is not stable is
-/// not a ranking.
-///
-/// Exposed rather than private so the rule can be tested as a rule, without
-/// pumping a screen to find out what order it drew.
-List<CommunityPlayerStats> rankTopPlayers(
-  List<CommunityPlayerStats> players, {
-  int take = 5,
-}) {
-  final ranked = [...players]..sort((a, b) {
-      final byRating = b.overallRating.compareTo(a.overallRating);
-      if (byRating != 0) return byRating;
-      final byGoals = b.goals.compareTo(a.goals);
-      if (byGoals != 0) return byGoals;
-      final byMvp = b.mvpCount.compareTo(a.mvpCount);
-      if (byMvp != 0) return byMvp;
-      return a.displayName.compareTo(b.displayName);
-    });
-  return ranked.take(take).toList();
-}
-
-class _RecordRow extends StatelessWidget {
-  const _RecordRow({required this.stats});
-
-  final CommunityFootballStats stats;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(kPageMargin, 0, kPageMargin, Gap.md),
-      child: Row(
-        children: [
-          _Figure(
-              value: stats.completedMatches, label: l10n.completedMatchesTitle),
-          _Figure(value: stats.players, label: l10n.statPlayersWithRecord),
-          _Figure(value: stats.goals, label: l10n.statGoals),
-          _Figure(value: stats.mvpCount, label: l10n.statMvps),
-        ],
-      ),
-    );
-  }
-}
-
-class _Figure extends StatelessWidget {
-  const _Figure({required this.value, required this.label});
-
-  final int value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            '$value',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: GoColors.primaryDeep,
-            ),
-          ),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One line of the Top Players list.
-///
-/// Every row is a registered player: the statistics relation is keyed by user
-/// and a Professional Guest has no user, so a guest cannot reach this list at
-/// all. The row therefore always opens a profile — there is no guest case to
-/// handle here, and inventing one would suggest guests belong in a ranking.
-class _PlayerRow extends StatelessWidget {
-  const _PlayerRow({required this.player});
-
-  final CommunityPlayerStats player;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-
-    return InkWell(
-      onTap: () => openPlayerProfile(context, player.userId),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: kPageMargin,
-          vertical: Gap.sm,
-        ),
-        child: Row(
-          children: [
-            PlayerAvatar(
-              avatarUrl: player.avatarUrl,
-              fullName: player.displayName,
-              radius: 18,
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    player.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    '${l10n.statMatchesPlayed} ${player.matchesPlayed}'
-                    '  ·  ${l10n.statGoals} ${player.goals}'
-                    '  ·  ${l10n.statMvps} ${player.mvpCount}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: Gap.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Gap.md,
-                vertical: Gap.xs,
-              ),
-              decoration: BoxDecoration(
-                color: GoColors.statusOpenBg,
-                borderRadius: BorderRadius.circular(Radii.pill),
-              ),
-              child: Text(
-                player.overallRating.toStringAsFixed(2),
-                textDirection: TextDirection.ltr,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: GoColors.primaryDeep,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

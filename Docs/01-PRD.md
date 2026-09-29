@@ -23,6 +23,9 @@ An MVP for running amateur football communities and their matches.
 - Balanced team generation (BTGE)
 - Record match results: score, goal scorers and the MVP
 - A system-managed player rating, applied and reversed with each result
+- **Nearby discovery, by Wilayat** — Discover puts communities and matches in the
+  reader's Wilayat first; a community says where it plays and a player may set a
+  private Default Location (`10-Design-Decisions.md`, `DD-20`)
 - **Statistics and leaderboards**, at two levels:
   - **Global** — the player's career, shown on the Player Profile
   - **Community** — per-community statistics, the Community Dashboard, and
@@ -54,6 +57,8 @@ covers player.
 - Analytics — trends, form curves, projections
 - AI recommendations, player comparison, and **Most Improved** boards
 - Global rankings across communities (a career record is not a leaderboard)
+- GPS, coordinates, maps, geocoding and distance ranking: location is a Wilayat
+  and nothing finer
 - Displaying a Community Rating on the Player Profile
 
 The team generator, the rating engine and match results were previously listed

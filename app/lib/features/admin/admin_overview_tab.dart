@@ -36,8 +36,8 @@ class AdminOverviewTab extends StatefulWidget {
 }
 
 class _AdminOverviewTabState extends State<AdminOverviewTab> {
-  late Future<AdminAnalyticsOverview> _future = widget.repository
-      .analyticsOverview();
+  late Future<AdminAnalyticsOverview> _future =
+      widget.repository.analyticsOverview();
 
   /// Opens the records behind one figure.
   ///
@@ -242,21 +242,21 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
                 ),
                 _MetricTile(
                   label:
-                      '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod7d}',
+                      '${l10n.adminMetricTrackedRegistrations} · ${l10n.adminPeriod7d}',
                   value: '${overview.registrations7d}',
                   onTap: () => _openDrilldown(
                     AdminDrilldownMetric.registrations7d,
-                    '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod7d}',
+                    '${l10n.adminMetricTrackedRegistrations} · ${l10n.adminPeriod7d}',
                     '${overview.registrations7d}',
                   ),
                 ),
                 _MetricTile(
                   label:
-                      '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod30d}',
+                      '${l10n.adminMetricTrackedRegistrations} · ${l10n.adminPeriod30d}',
                   value: '${overview.registrations30d}',
                   onTap: () => _openDrilldown(
                     AdminDrilldownMetric.registrations30d,
-                    '${l10n.adminMetricRegistrations} · ${l10n.adminPeriod30d}',
+                    '${l10n.adminMetricTrackedRegistrations} · ${l10n.adminPeriod30d}',
                     '${overview.registrations30d}',
                   ),
                 ),
@@ -330,8 +330,7 @@ class _MetricGrid extends StatelessWidget {
           spacing: Layout.cardGap,
           runSpacing: Layout.cardGap,
           children: [
-            for (final child in children)
-              SizedBox(width: width, child: child),
+            for (final child in children) SizedBox(width: width, child: child),
           ],
         );
       },

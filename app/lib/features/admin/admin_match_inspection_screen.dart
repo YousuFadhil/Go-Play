@@ -127,8 +127,8 @@ class _AdminMatchInspectionScreenState
                 ),
                 AdminDetailRow(
                   label: l10n.adminMetricKickOff,
-                  value: '${formatMatchDay(context, match.startAt)} '
-                      '• ${formatTime(context, match.startAt)}',
+                  value: '${formatMuscatMatchDay(context, match.startAt)} '
+                      '• ${formatMuscatTime(context, match.startAt)}',
                 ),
                 AdminDetailRow(
                   label: l10n.adminMetricLocation,
@@ -140,7 +140,7 @@ class _AdminMatchInspectionScreenState
                 ),
                 AdminDetailRow(
                   label: l10n.adminMetricCreated,
-                  value: formatMatchDay(context, match.createdAt),
+                  value: formatMuscatMatchDay(context, match.createdAt),
                 ),
                 AdminDetailRow(
                   label: l10n.adminMetricCreatedBy,
@@ -181,7 +181,8 @@ class _AdminMatchInspectionScreenState
                   if (match.resultCreatedAt != null)
                     AdminDetailRow(
                       label: l10n.adminMetricResultRecorded,
-                      value: formatMatchDay(context, match.resultCreatedAt!),
+                      value:
+                          formatMuscatMatchDay(context, match.resultCreatedAt!),
                     ),
                 ]),
               ],

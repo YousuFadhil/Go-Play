@@ -6,11 +6,13 @@ import '../../core/skeleton.dart';
 import '../../core/states.dart';
 import '../../core/time_format.dart';
 import '../../core/tokens.dart';
+import '../analytics/acquisition_analytics.dart';
 import '../auth/auth_prompt.dart';
 import '../auth/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
 import '../profile/profile_screen.dart';
+import '../sharing/public_link.dart';
 import '../teams/match_stage.dart';
 import '../teams/match_stage_board.dart';
 import 'discover_models.dart';
@@ -56,13 +58,25 @@ class _PublicMatchScreenState extends State<PublicMatchScreen> {
   late final DiscoverRepository _repository =
       widget.repository ?? DiscoverRepository();
 
-  late Future<PublicMatchDetail?> _future =
-      _repository.fetchMatchDetail(widget.matchId);
+  late Future<PublicMatchDetail?> _future = _load();
 
   void _refresh() {
     setState(() {
-      _future = _repository.fetchMatchDetail(widget.matchId);
+      _future = _load();
     });
+  }
+
+  /// The match, and — only when there is one to show — the arrival reported
+  /// to acquisition analytics (Wave 3). A failed read or a match this reader
+  /// may not see reports nothing.
+  Future<PublicMatchDetail?> _load() async {
+    final detail = await _repository.fetchMatchDetail(widget.matchId);
+    if (detail != null) {
+      AcquisitionAnalytics.instance.externalArrivalLoaded(
+        PublicLinkTarget(PublicLinkKind.match, widget.matchId),
+      );
+    }
+    return detail;
   }
 
   Future<void> _promptSignIn(String reason) => requireSignIn(

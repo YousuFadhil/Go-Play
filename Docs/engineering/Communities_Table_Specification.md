@@ -1247,6 +1247,35 @@ repository, this specification has not been checked against them.
 
 ---
 
+## Addendum: `wilayat_code` (migration `0094`)
+
+A tenth column, added after this specification was written. Nothing above is
+changed by it.
+
+| Name | Type | Nullable | Default | Editable by |
+|---|---|---|---|---|
+| `wilayat_code` | `smallint` | **Yes** | `null` | **Owner, only through `set_community_wilayat`**; System Admin in SQL |
+
+*Purpose.* Where the community plays, so Discover can put local communities and
+their matches first. A match inherits its community's *current* Wilayat.
+
+*Nullable* for backward compatibility: an installed build calls the
+three-argument `create_community` and sends none. The app requires one for a new
+community, and the existing community is Sohar (`7`). A community with none is
+discovered as non-local.
+
+*Key.* Foreign key to `wilayats(code)`, no action on delete or update; the
+reference rows are never deleted. Indexed (partial, `where wilayat_code is not
+null`).
+
+*Access.* Selectable by `authenticated` (granted column by column, like the other
+readable columns) and published by both public views. **Not writable by a direct
+`UPDATE`** — no column privilege is granted, so the owner's setting goes through
+`set_community_wilayat`, which also refuses a suspended account or community and
+an inactive code. `matches` has no such column.
+
+---
+
 ## Related documents
 
 | Document | Relationship |

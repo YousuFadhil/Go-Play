@@ -66,6 +66,12 @@ abstract interface class ProfileAdapter {
     required String fileExtension,
   });
 
+  /// Sets the signed-in player's Default Location, or clears it with null.
+  ///
+  /// The only write of the column, and only ever to the caller's own row -- the
+  /// column-level UPDATE grant says which column and RLS says which row.
+  Future<void> updateMyDefaultWilayat(int? wilayatCode);
+
   /// Removes the signed-in player's picture. A player with none is already in
   /// the state this asks for, so it is not an error.
   Future<void> removeMyAvatar();

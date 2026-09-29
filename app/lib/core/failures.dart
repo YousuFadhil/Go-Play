@@ -94,6 +94,12 @@ enum FailureReason {
   // seen from the creating end, not a new one.
   startInPast,
 
+  // Since migration `0091` an ordinary match may be created while it is
+  // already being played; what is refused is one that has wholly ended, which
+  // belongs on the historical path instead. `startInPast` stays for a database
+  // that predates `0091`.
+  matchAlreadyEnded,
+
   // The other half of the same rule (migration `0054`). A historical match is
   // the record of a fixture that has been played, so its end must have passed;
   // asking to record one that has not is the mirror of scheduling one into the
@@ -190,6 +196,29 @@ enum FailureReason {
 
   // Identity
   emailAlreadyUsed,
+
+  // The provider is refusing further emails or attempts for now. A supporting
+  // service saying "not yet" rather than anything the person entered wrongly, so
+  // it is worded on its own: asking again at once is the one thing that cannot
+  // help, and "something went wrong" would invite exactly that.
+  tooManyRequests,
+
+  // The six-digit code from an email was refused. The provider gives one answer
+  // for a code that is wrong, expired, already used, or asked about an address
+  // with no account -- deliberately, so that entering a code cannot be used to
+  // find out who is registered -- and this is that one answer.
+  invalidEmailCode,
+
+  // A password sign-in was refused because the account exists and the password was
+  // right, but the address has not been verified yet. Only ever the provider's own
+  // `email_not_confirmed`, which it raises after checking the password -- so it
+  // says nothing about an address that has not also been given its password.
+  emailNotConfirmed,
+
+  // Completing a player profile (migration `0092`). The account already has one
+  // - the person tapped twice, or finished it somewhere else - which is a state
+  // the operation ran into, not input they got wrong.
+  profileAlreadyExists,
 
   // Opening another player's profile.
   //

@@ -240,6 +240,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   final Object? error;
 
   @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchMyCommunities() async {
     if (error != null) throw error!;
     return waitingForMyCommunities?.future ?? my;
@@ -264,6 +268,7 @@ class _FakeCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       throw UnimplementedError();
 
@@ -315,6 +320,10 @@ class _StaticProfileAdapter implements ProfileAdapter {
     phone: '+96890123456',
     primaryPosition: PlayerPosition.mid,
   );
+
+  @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
 
   @override
   Future<PlayerProfile> fetchMyProfile() async => _profile;

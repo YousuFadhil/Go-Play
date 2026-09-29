@@ -195,15 +195,17 @@ class AdminUserActivitySummary {
   ///
   /// Null when nothing has been observed. Deliberately **not** a sign-in
   /// timestamp: one of those moves when a token refreshes rather than when a
-  /// person does something.
+  /// person does something. Durable across event retention (migration
+  /// `0091`), unlike the counts beside it.
   final DateTime? lastSeenAt;
 
   /// Distinct local calendar days carrying at least one session.
   final int activeDays7d;
   final int activeDays30d;
 
-  /// Sessions recorded since the analytics release. Never a guess at what came
-  /// before it.
+  /// Sessions among the retained product events -- since the analytics
+  /// release, and within the retention window once cleanup runs (migration
+  /// `0091`). A tracked figure, never lifetime history and never a guess.
   final int sessionsTotal;
 
   /// The platforms this account has actually been seen on -- `web`, `android`,
@@ -237,9 +239,10 @@ class AdminUserActivitySummary {
 /// recorded instead of dropping it.
 ///
 /// The context fields are nullable twice over: an event may never have carried
-/// a community or a match, and one it did carry may since have been deleted --
-/// `product_events` holds no foreign keys. A null [communityName] beside a
-/// non-null [communityId] is exactly that second case.
+/// a community, a match or a viewed player, and one it did carry may since have
+/// been deleted -- `product_events` holds no foreign keys. A null
+/// [communityName] beside a non-null [communityId] is exactly that second case,
+/// and so is a null [targetUserName] beside a non-null [targetUserId].
 class AdminUserActivityEvent {
   const AdminUserActivityEvent({
     required this.eventName,
@@ -250,6 +253,10 @@ class AdminUserActivityEvent {
     this.matchTitle,
     this.platform,
     this.appVersion,
+    this.targetUserId,
+    this.targetUserName,
+    this.shareType,
+    this.source,
   });
 
   final String eventName;
@@ -262,6 +269,16 @@ class AdminUserActivityEvent {
 
   final String? platform;
   final String? appVersion;
+
+  /// Who a `profile_viewed` or `player_statistics_viewed` was about, and their
+  /// current name (migration `0091`).
+  final String? targetUserId;
+  final String? targetUserName;
+
+  /// What a `share_used` shared, as stored -- raw for the same reason
+  /// [eventName] is -- and where it was shared from (migration `0079`).
+  final String? shareType;
+  final String? source;
 }
 
 /// One administrative act, as the audit log sees it.

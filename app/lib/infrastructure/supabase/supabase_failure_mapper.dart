@@ -123,6 +123,9 @@ class SupabaseFailureMapper {
     // a match cannot be created into the state `update_match` then treats as
     // locked forever.
     'START_IN_PAST': ValidationFailure(FailureReason.startInPast),
+    // `create_match` since `0091`: an ordinary match may start in the past but
+    // must not have ended -- a finished fixture is recorded as historical.
+    'MATCH_ALREADY_ENDED': ValidationFailure(FailureReason.matchAlreadyEnded),
     // The historical path's own temporal refusal (migration `0054`): a match
     // being recorded as played must actually have finished.
     'HISTORICAL_NOT_PAST': ValidationFailure(FailureReason.historicalNotPast),
@@ -188,6 +191,20 @@ class SupabaseFailureMapper {
     ),
     'USER_NOT_FOUND': NotFoundFailure(FailureReason.profileNotFound),
 
+    // Completing a player profile (migration `0092`). The first is a state the
+    // operation ran into. The other three are input the caller got wrong - the
+    // screen has already checked all of them, so reaching one means the request
+    // was built some other way, and a plain validation failure says so. The
+    // position outcome is `INVALID_POSITION`, already above.
+    'PROFILE_ALREADY_EXISTS': ConflictFailure(FailureReason.profileAlreadyExists),
+    'INVALID_FULL_NAME': ValidationFailure(),
+    'INVALID_PHONE': ValidationFailure(),
+    'INVALID_DATE_OF_BIRTH': ValidationFailure(),
+
+    // A Wilayat that does not exist or is no longer offered (migration `0094`).
+    // The picker only lists active ones, so reaching this means a stale list.
+    'INVALID_WILAYAT': ValidationFailure(),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),
@@ -226,6 +243,37 @@ class SupabaseFailureMapper {
   static Failure _fromAuth(AuthException error) {
     // The SDK's own signal that the request never reached the server.
     if (error is AuthRetryableFetchException) return const NetworkFailure();
+
+    // The provider limits how often it will send an email or accept an attempt,
+    // and says so with a 429 and one of these codes. It is not a wrong password
+    // and not a taken address, and it is checked first because a rate-limit
+    // message can contain words the checks below would misread.
+    final rateLimited = error.statusCode == '429' ||
+        error.code == 'over_email_send_rate_limit' ||
+        error.code == 'over_request_rate_limit';
+    if (rateLimited) {
+      return const InfrastructureFailure(FailureReason.tooManyRequests);
+    }
+
+    // A six-digit email code the provider refused: `otp_expired`, which it
+    // answers for a wrong code, an expired one, a used one and an address with
+    // no account alike. Checked before the "already" test below, and by code
+    // first because the message is prose that can change.
+    final codeRefused = error.code == 'otp_expired' ||
+        error.message.toLowerCase().contains('expired or is invalid');
+    if (codeRefused) {
+      return const AuthenticationFailure(FailureReason.invalidEmailCode);
+    }
+
+    // The account exists, the password was right, and the address is not
+    // verified yet: `email_not_confirmed`, which the provider raises only after it
+    // has checked the password. **By the structured code and nothing else.** The
+    // sign-in screen acts on this by opening the verification flow, so it must
+    // never be reached from a message that merely resembles it, and a wrong
+    // password or an unknown address (`invalid_credentials`) must not resemble it.
+    if (error.code == 'email_not_confirmed') {
+      return const AuthenticationFailure(FailureReason.emailNotConfirmed);
+    }
 
     final alreadyUsed = error.statusCode == '422' ||
         error.message.toLowerCase().contains('already');

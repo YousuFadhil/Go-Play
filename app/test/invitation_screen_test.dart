@@ -16,6 +16,7 @@ import 'package:go_play/features/communities/community_repository.dart';
 import 'package:go_play/features/invitations/community_invitation_screen.dart';
 import 'package:go_play/features/invitations/invite_landing_screen.dart';
 import 'package:go_play/features/invitations/invite_link.dart';
+import 'auth_adapter_defaults.dart';
 
 void main() {
   const code = '4819';
@@ -243,6 +244,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   final List<String> joinedCodes = [];
 
   @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<String> fetchJoinCode(String communityId) async =>
       throw UnimplementedError();
 
@@ -273,6 +278,7 @@ class _FakeCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       throw UnimplementedError();
 
@@ -310,7 +316,7 @@ class _FakeCommunityAdapter implements CommunityAdapter {
       throw UnimplementedError();
 }
 
-class _FakeAuthAdapter implements AuthAdapter {
+class _FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   _FakeAuthAdapter({this.userId});
 
   final String? userId;
@@ -331,7 +337,7 @@ class _FakeAuthAdapter implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() async => null;
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -339,6 +345,7 @@ class _FakeAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) =>
       throw UnimplementedError();
 

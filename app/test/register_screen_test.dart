@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/features/analytics/acquisition_analytics.dart';
+import 'package:go_play/features/analytics/acquisition_analytics_adapter.dart';
+import 'package:go_play/features/analytics/acquisition_analytics_repository.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
+import 'package:go_play/features/auth/email_code_view.dart';
+import 'package:go_play/features/auth/login_screen.dart';
 import 'package:go_play/features/auth/register_screen.dart';
+import 'package:go_play/features/sharing/public_link.dart';
+import 'auth_adapter_defaults.dart';
 
 /// The registration screen against a fake identity port.
 ///
@@ -84,6 +92,130 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, label));
     await tester.pumpAndSettle();
   }
+
+  group('public-link signup conversion (Wave 3)', () {
+    const target = PublicLinkTarget(
+        PublicLinkKind.player, '3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
+    final previous = AcquisitionAnalytics.instance;
+    late _FakeAcquisitionAdapter acquisition;
+
+    setUp(() {
+      acquisition = _FakeAcquisitionAdapter();
+      AcquisitionAnalytics.instance = AcquisitionAnalytics(
+        repository: AcquisitionAnalyticsRepository(acquisition),
+        isSignedIn: () => false,
+        pendingTarget: ValueNotifier(target),
+      );
+    });
+    tearDown(() => AcquisitionAnalytics.instance = previous);
+
+    /// The visitor arrived through the link and the page was recorded.
+    Future<void> arrive(WidgetTester tester) async {
+      AcquisitionAnalytics.instance.externalArrivalLoaded(target);
+      await tester.pump();
+      expect(acquisition.opens, 1);
+    }
+
+    Future<void> register(WidgetTester tester, FakeAuthAdapter adapter) async {
+      await pumpRegister(tester, adapter);
+      await fillIdentity(tester);
+      await pickDateOfBirth(tester);
+      await choosePrimary(tester, 'Midfielder');
+      await submit(tester);
+    }
+
+    /// What the gate reports once the new session's account is active.
+    Future<void> accountActive(WidgetTester tester) async {
+      AcquisitionAnalytics.instance.accountActive();
+      await tester.pump();
+    }
+
+    testWidgets('a successful registration marks a possible conversion',
+        (tester) async {
+      final adapter = FakeAuthAdapter();
+      await arrive(tester);
+      await register(tester, adapter);
+
+      expect(adapter.signUpCount, 1);
+      expect(acquisition.completions, isEmpty,
+          reason: 'recorded by the gate, once the account is active');
+
+      await accountActive(tester);
+      await accountActive(tester);
+
+      expect(acquisition.completions, ['acq-1'],
+          reason: 'one conversion, then the state is cleared');
+    });
+
+    testWidgets('a failed registration marks none', (tester) async {
+      final adapter = FakeAuthAdapter()
+        ..signUpFailure = const ConflictFailure();
+      await arrive(tester);
+      await register(tester, adapter);
+      await accountActive(tester);
+
+      expect(adapter.signUpCount, 0);
+      expect(acquisition.completions, isEmpty);
+    });
+
+    testWidgets('a registration held for email confirmation marks none',
+        (tester) async {
+      // No session exists, so the flag would outlive this registration and be
+      // still set when somebody else signed in -- and a login must never count
+      // as a signup.
+      final adapter = FakeAuthAdapter()
+        ..signUpOutcome = SignUpOutcome.confirmationRequired;
+      await arrive(tester);
+      await register(tester, adapter);
+      await accountActive(tester);
+
+      expect(adapter.signUpCount, 1);
+      expect(find.byType(EmailCodeView), findsOneWidget);
+      expect(acquisition.completions, isEmpty);
+    });
+
+    testWidgets('logging in to an existing account marks none', (tester) async {
+      final adapter = FakeAuthAdapter();
+      await arrive(tester);
+
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: LoginScreen(authService: AuthService(adapter)),
+      ));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byType(TextFormField).at(0), 'sara@example.com');
+      await tester.enterText(find.byType(TextFormField).at(1), 'password1');
+      await tester.tap(find.widgetWithText(FilledButton, 'Log in'));
+      await tester.pumpAndSettle();
+      await accountActive(tester);
+
+      expect(adapter.signInCount, 1);
+      expect(acquisition.completions, isEmpty,
+          reason: 'an existing account signing in is not a signup');
+    });
+
+    testWidgets('an analytics failure never blocks the registration',
+        (tester) async {
+      final adapter = FakeAuthAdapter();
+      await arrive(tester);
+      acquisition.fail = true;
+
+      await register(tester, adapter);
+      await accountActive(tester);
+
+      expect(adapter.signUpCount, 1);
+      expect(acquisition.completions, ['acq-1'], reason: 'attempted');
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SnackBar), findsNothing,
+          reason: 'nothing about analytics reaches the reader');
+    });
+  });
 
   group('what the form asks for', () {
     testWidgets('the profile fields are on the screen', (tester) async {
@@ -297,7 +429,30 @@ void main() {
 
 /// The identity port, answering from memory and recording what it was handed.
 /// Methods the screen never reaches are left unimplemented on purpose.
-class FakeAuthAdapter implements AuthAdapter {
+class _FakeAcquisitionAdapter implements AcquisitionAnalyticsAdapter {
+  int opens = 0;
+  final completions = <String>[];
+  bool fail = false;
+
+  @override
+  Future<String> recordAnonymousOpen(PublicLinkKind kind) async {
+    opens++;
+    if (fail) throw const NetworkFailure();
+    return 'acq-$opens';
+  }
+
+  @override
+  Future<void> recordSignupCompleted(String acquisitionId) async {
+    completions.add(acquisitionId);
+    if (fail) throw const NetworkFailure();
+  }
+}
+
+class FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
+  /// Refuses the sign-up, as the provider can.
+  Failure? signUpFailure;
+  int signInCount = 0;
+
   int signUpCount = 0;
   String? lastEmail;
   String? lastFullName;
@@ -305,9 +460,41 @@ class FakeAuthAdapter implements AuthAdapter {
   PlayerPosition? lastPosition;
   PlayerPosition? lastSecondaryPosition;
   DateTime? lastDateOfBirth;
+  String? lastRedirectTo;
+
+  /// What the provider says happened to the new account. `signedIn` is the
+  /// project with Email Confirmation off; `confirmationRequired` is it on.
+  SignUpOutcome signUpOutcome = SignUpOutcome.signedIn;
+
+  int resendCount = 0;
+  String? lastResendEmail;
+  String? lastResendRedirectTo;
+  Failure? resendFailure;
+
+  int googleCount = 0;
+  String? lastGoogleRedirectTo;
+  Failure? googleFailure;
 
   @override
-  Future<void> signUp({
+  Future<void> resendSignupConfirmation({
+    required String email,
+    required String redirectTo,
+  }) async {
+    if (resendFailure != null) throw resendFailure!;
+    resendCount++;
+    lastResendEmail = email;
+    lastResendRedirectTo = redirectTo;
+  }
+
+  @override
+  Future<void> signInWithGoogle({required String redirectTo}) async {
+    if (googleFailure != null) throw googleFailure!;
+    googleCount++;
+    lastGoogleRedirectTo = redirectTo;
+  }
+
+  @override
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -315,7 +502,9 @@ class FakeAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) async {
+    if (signUpFailure != null) throw signUpFailure!;
     signUpCount++;
     lastEmail = email;
     lastFullName = fullName;
@@ -323,6 +512,8 @@ class FakeAuthAdapter implements AuthAdapter {
     lastPosition = position;
     lastSecondaryPosition = secondaryPosition;
     lastDateOfBirth = dateOfBirth;
+    lastRedirectTo = redirectTo;
+    return signUpOutcome;
   }
 
   @override
@@ -348,8 +539,9 @@ class FakeAuthAdapter implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() => throw UnimplementedError();
 
   @override
-  Future<void> signIn({required String email, required String password}) =>
-      throw UnimplementedError();
+  Future<void> signIn({required String email, required String password}) async {
+    signInCount++;
+  }
 
   @override
   Future<bool> isCurrentUserActive() async => true;

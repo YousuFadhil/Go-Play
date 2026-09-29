@@ -47,16 +47,21 @@ class CommunityRepository {
       _adapter.fetchJoinCode(communityId);
 
   /// Creates a community and adds the creator as owner. Returns its id.
+  ///
+  /// A Wilayat is required: a community is discovered by where it plays, and one
+  /// created without it would be permanently non-local.
   Future<String> createCommunity({
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) {
     final trimmed = description?.trim();
     return _adapter.createCommunity(
       name: name.trim(),
       description: trimmed == null || trimmed.isEmpty ? null : trimmed,
       joinPolicy: joinPolicy,
+      wilayatCode: wilayatCode,
     );
   }
 
@@ -96,6 +101,10 @@ class CommunityRepository {
     required JoinPolicy joinPolicy,
   }) =>
       _adapter.setJoinPolicy(communityId, joinPolicy: joinPolicy);
+
+  /// Owner only; the database enforces that.
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      _adapter.setCommunityWilayat(communityId, wilayatCode);
 
   /// What a shared invitation offers. Works signed out, which is the point:
   /// someone deciding whether to install the app can see what they are joining.

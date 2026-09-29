@@ -52,6 +52,36 @@ final _unseen = AdminUserActivitySummary(
 
 String _day(DateTime value) => DateFormat.yMMMEd('en').format(value);
 
+/// `_seen`, last observed at [lastSeenAt].
+AdminUserActivitySummary _seenAt(DateTime lastSeenAt) =>
+    AdminUserActivitySummary(
+      userId: _seen.userId,
+      fullName: _seen.fullName,
+      email: _seen.email,
+      createdAt: _seen.createdAt,
+      isActive: true,
+      lastSeenAt: lastSeenAt,
+      activeDays7d: _seen.activeDays7d,
+      activeDays30d: _seen.activeDays30d,
+      sessionsTotal: _seen.sessionsTotal,
+      platforms: _seen.platforms,
+      latestAppVersion: _seen.latestAppVersion,
+      communityCount: _seen.communityCount,
+      trackedRegistrations: _seen.trackedRegistrations,
+      matchesPlayed: _seen.matchesPlayed,
+      trackedWithdrawals: _seen.trackedWithdrawals,
+    );
+
+/// CLDR puts U+202F between a time and its meridiem.
+String _plain(String value) =>
+    value.replaceAll('\u202f', ' ').replaceAll('\u00a0', ' ');
+
+Finder _textReading(String expected) => find.byWidgetPredicate(
+    (widget) => widget is Text && _plain(widget.data ?? '') == expected);
+
+Finder _textContaining(String expected) => find.byWidgetPredicate(
+    (widget) => widget is Text && _plain(widget.data ?? '').contains(expected));
+
 void main() {
   Future<void> pumpDetail(
     WidgetTester tester,
@@ -151,6 +181,40 @@ void main() {
       expect(event.matchTitle, isNull);
     });
 
+    test('an activity row carries the viewed player and the share detail', () {
+      final event = adminActivityEventFromRow(const {
+        'event_name': 'profile_viewed',
+        'created_at': '2026-09-03T18:30:00Z',
+        'target_user_id': 'u9',
+        'target_user_name': '  Noor Al Kindi ',
+        'share_type': null,
+        'source': null,
+      });
+      expect(event.targetUserId, 'u9');
+      expect(event.targetUserName, 'Noor Al Kindi');
+
+      final share = adminActivityEventFromRow(const {
+        'event_name': 'share_used',
+        'created_at': '2026-09-03T18:30:00Z',
+        'share_type': 'lineup',
+        'source': 'teams_screen',
+      });
+      expect(share.shareType, 'lineup');
+      expect(share.source, 'teams_screen');
+      expect(share.targetUserId, isNull);
+    });
+
+    test('a row from a database before 0091 simply has no detail', () {
+      final event = adminActivityEventFromRow(const {
+        'event_name': 'share_used',
+        'created_at': '2026-09-03T18:30:00Z',
+      });
+      expect(event.targetUserId, isNull);
+      expect(event.targetUserName, isNull);
+      expect(event.shareType, isNull);
+      expect(event.source, isNull);
+    });
+
     test('an audit entry keeps its optional fields', () {
       final entry = adminAuditEntryFromRow(const {
         'id': 'a1',
@@ -245,7 +309,8 @@ void main() {
       expect(find.text('4'), findsOneWidget);
       expect(find.text('Active days · 30 days'), findsOneWidget);
       expect(find.text('17'), findsOneWidget);
-      expect(find.text('Sessions'), findsOneWidget);
+      // Retained activity, not lifetime history (migration `0091`).
+      expect(find.text('Tracked sessions'), findsOneWidget);
       expect(find.text('63'), findsOneWidget);
       expect(find.text('Platforms'), findsOneWidget);
       expect(find.text('Android · Web'), findsOneWidget);
@@ -258,11 +323,11 @@ void main() {
 
       expect(find.text('Communities'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
-      expect(find.text('Registrations'), findsOneWidget);
+      expect(find.text('Tracked registrations'), findsOneWidget);
       expect(find.text('22'), findsOneWidget);
       expect(find.text('Matches played'), findsOneWidget);
       expect(find.text('41'), findsOneWidget);
-      expect(find.text('Withdrawals'), findsOneWidget);
+      expect(find.text('Tracked withdrawals'), findsOneWidget);
       expect(find.text('5'), findsOneWidget);
     });
 
@@ -412,6 +477,125 @@ void main() {
       expect(find.text('something_a_later_release_records'), findsOneWidget);
     });
 
+    testWidgets('a view of their own profile reads as their own',
+        (tester) async {
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.profileViewed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 18, 30),
+              // The account the screen is about: `_seen` is u1.
+              targetUserId: 'u1',
+              targetUserName: 'Ali Al Amri',
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('Viewed own profile'), findsOneWidget);
+    });
+
+    testWidgets('a view of another player names them', (tester) async {
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.profileViewed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 18, 30),
+              targetUserId: 'u9',
+              targetUserName: 'Noor Al Kindi',
+            ),
+          ],
+        ),
+      );
+
+      expect(
+          find.text('Viewed player profile — Noor Al Kindi'), findsOneWidget);
+      expect(find.textContaining('u9'), findsNothing);
+    });
+
+    testWidgets('a deleted player keeps the event, named as gone',
+        (tester) async {
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.profileViewed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 18, 30),
+              // The LEFT JOIN found no users row: the account was deleted.
+              targetUserId: 'deadbeef-0000-0000-0000-000000000000',
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('Viewed player profile — No longer available'),
+          findsOneWidget);
+      expect(find.textContaining('deadbeef'), findsNothing);
+    });
+
+    testWidgets('a statistics view reads as one', (tester) async {
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.playerStatisticsViewed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 18, 30),
+              targetUserId: 'u1',
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('Viewed player statistics'), findsOneWidget);
+    });
+
+    testWidgets('a share says what was shared', (tester) async {
+      final labels = {
+        ShareType.playerProfile: 'Shared player profile',
+        ShareType.playerStatistics: 'Shared player statistics',
+        ShareType.community: 'Shared community',
+        ShareType.match: 'Shared match',
+        ShareType.lineup: 'Shared lineup',
+        ShareType.result: 'Shared result',
+      };
+      var minute = 0;
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seen,
+          timeline: [
+            for (final type in labels.keys)
+              AdminUserActivityEvent(
+                eventName: ProductEvent.shareUsed.wireName,
+                createdAt: DateTime.utc(2026, 9, 3, 18, minute++),
+                shareType: type.wireName,
+                source: 'teams_screen',
+              ),
+            // A share recorded before its kind was, keeps the plain label.
+            AdminUserActivityEvent(
+              eventName: ProductEvent.shareUsed.wireName,
+              createdAt: DateTime.utc(2026, 9, 3, 17),
+            ),
+          ],
+        ),
+      );
+
+      for (final label in labels.values) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+      expect(find.text('Share used'), findsOneWidget);
+    });
+
     testWidgets('an account with no activity says so', (tester) async {
       await pumpDetail(tester, FakeAdminAdapter(activitySummary: _seen));
 
@@ -419,6 +603,80 @@ void main() {
         find.text('Nothing has been recorded for this account yet.'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('every timestamp reads in Oman time', () {
+    testWidgets('recent activity and Last Seen: UTC 16:51 is 8:51 PM',
+        (tester) async {
+      final stored = DateTime.utc(2026, 9, 28, 16, 51);
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seenAt(stored),
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.sessionStarted.wireName,
+              createdAt: stored,
+            ),
+          ],
+        ),
+      );
+
+      // The activity row's own clock.
+      expect(_textReading('8:51 PM'), findsOneWidget);
+      // Last Seen, through the same conversion.
+      expect(_textContaining('Mon, Sep 28, 2026 • 8:51 PM'), findsOneWidget);
+      expect(_textContaining('4:51'), findsNothing);
+    });
+
+    testWidgets('after 20:00 UTC the row is dated the next Oman day',
+        (tester) async {
+      final late = DateTime.utc(2026, 9, 28, 22, 30);
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(
+          activitySummary: _seenAt(late),
+          timeline: [
+            AdminUserActivityEvent(
+              eventName: ProductEvent.sessionStarted.wireName,
+              createdAt: late,
+            ),
+          ],
+        ),
+      );
+
+      expect(_textReading('2:30 AM'), findsOneWidget);
+      expect(_textContaining(_day(DateTime.utc(2026, 9, 29))), findsWidgets);
+      expect(_textContaining('Tue, Sep 29, 2026 • 2:30 AM'), findsOneWidget);
+      expect(_textContaining(_day(DateTime.utc(2026, 9, 28))), findsNothing);
+    });
+
+    testWidgets('Joined is the Oman day as well', (tester) async {
+      // 21:00 UTC on 14 Jan is already 15 Jan in Muscat.
+      final summary = AdminUserActivitySummary(
+        userId: 'u3',
+        fullName: 'Late Joiner',
+        email: 'late@example.com',
+        createdAt: DateTime.utc(2026, 1, 14, 21),
+        isActive: true,
+        activeDays7d: 0,
+        activeDays30d: 0,
+        sessionsTotal: 0,
+        platforms: const [],
+        communityCount: 0,
+        trackedRegistrations: 0,
+        matchesPlayed: 0,
+        trackedWithdrawals: 0,
+      );
+      await pumpDetail(
+        tester,
+        FakeAdminAdapter(activitySummary: summary),
+        userId: 'u3',
+      );
+
+      expect(find.text(_day(DateTime.utc(2026, 1, 15))), findsOneWidget);
+      expect(find.text(_day(DateTime.utc(2026, 1, 14))), findsNothing);
     });
   });
 
@@ -451,8 +709,8 @@ void main() {
   });
 
   group('the analytics contract is unchanged', () {
-    test('there are exactly eleven events', () {
-      expect(ProductEvent.values.length, 11);
+    test('there are exactly thirteen events', () {
+      expect(ProductEvent.values.length, 13);
     });
 
     test('an unknown wire name resolves to null rather than throwing', () {

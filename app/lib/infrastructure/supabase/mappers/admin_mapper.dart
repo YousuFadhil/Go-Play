@@ -60,12 +60,15 @@ AdminAnalyticsOverview adminAnalyticsOverviewFromRow(
       wau: _adminCount(row['wau']),
       mau: _adminCount(row['mau']),
       weeklyActiveCommunities: _adminCount(row['weekly_active_communities']),
-      matches7d: _adminCount(row['matches_7d']),
-      matches30d: _adminCount(row['matches_30d']),
-      registrations7d: _adminCount(row['registrations_7d']),
-      registrations30d: _adminCount(row['registrations_30d']),
-      results7d: _adminCount(row['results_7d']),
-      results30d: _adminCount(row['results_30d']),
+      matches7d: _adminCount(row['matches_created_7d'] ?? row['matches_7d']),
+      matches30d: _adminCount(row['matches_created_30d'] ?? row['matches_30d']),
+      registrations7d: _adminCount(
+          row['tracked_registrations_7d'] ?? row['registrations_7d']),
+      registrations30d: _adminCount(
+          row['tracked_registrations_30d'] ?? row['registrations_30d']),
+      results7d: _adminCount(row['results_recorded_7d'] ?? row['results_7d']),
+      results30d:
+          _adminCount(row['results_recorded_30d'] ?? row['results_30d']),
       retentionPreviousWeekUsers:
           _adminCount(row['retention_previous_week_users']),
       retentionReturningUsers: _adminCount(row['retention_returning_users']),
@@ -134,6 +137,12 @@ AdminUserActivityEvent adminActivityEventFromRow(Map<String, dynamic> row) =>
       matchTitle: _adminReason(row['match_title']),
       platform: _adminReason(row['platform']),
       appVersion: _adminReason(row['app_version']),
+      // Absent from a database that predates `0091`, which reads as null: the
+      // row is still shown, as the event it was recorded as.
+      targetUserId: row['target_user_id'] as String?,
+      targetUserName: _adminReason(row['target_user_name']),
+      shareType: _adminReason(row['share_type']),
+      source: _adminReason(row['source']),
     );
 
 AdminAuditEntry adminAuditEntryFromRow(Map<String, dynamic> row) =>

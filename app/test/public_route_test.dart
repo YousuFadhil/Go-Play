@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,7 +7,15 @@ import 'package:go_play/app.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/states.dart';
+import 'package:go_play/features/analytics/acquisition_analytics.dart';
+import 'package:go_play/features/analytics/acquisition_analytics_adapter.dart';
+import 'package:go_play/features/analytics/acquisition_analytics_repository.dart';
+import 'package:go_play/features/analytics/analytics_adapter.dart';
+import 'package:go_play/features/analytics/analytics_models.dart';
+import 'package:go_play/features/analytics/analytics_repository.dart';
+import 'package:go_play/features/analytics/analytics_service.dart';
 import 'package:go_play/features/auth/auth_adapter.dart';
+import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
 import 'package:go_play/features/discover/discover_adapter.dart';
 import 'package:go_play/features/discover/discover_models.dart';
@@ -16,14 +25,19 @@ import 'package:go_play/features/discover/public_community_screen.dart';
 import 'package:go_play/features/discover/public_match_screen.dart';
 import 'package:go_play/features/invitations/invite_landing_screen.dart';
 import 'package:go_play/features/invitations/invite_link.dart';
+import 'package:go_play/features/profile/player_record_models.dart';
 import 'package:go_play/features/profile/player_record_repository.dart';
+import 'package:go_play/features/profile/profile_models.dart';
 import 'package:go_play/features/profile/profile_screen.dart';
+import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/sharing/public_link.dart';
 import 'package:go_play/infrastructure/supabase/mappers/discover_mapper.dart';
+import 'package:go_play/infrastructure/supabase/supabase_failure_mapper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'player_record_fakes.dart';
+import 'auth_adapter_defaults.dart';
 
 /// Public links, from the visitor's side.
 ///
@@ -223,6 +237,385 @@ void main() {
 
       // Different from "not visible" on purpose: this one *can* be retried.
       expect(find.byType(ErrorState), findsOneWidget);
+    });
+  });
+
+  group('public-link acquisition and continuity (Wave 3)', () {
+    late _FakeAcquisitionAdapter acquisition;
+    late _RecordingAnalyticsAdapter events;
+    var readerSignedIn = false;
+    final previousAcquisition = AcquisitionAnalytics.instance;
+    final previousProduct = ProductAnalytics.instance;
+
+    setUp(() {
+      readerSignedIn = false;
+      acquisition = _FakeAcquisitionAdapter();
+      events = _RecordingAnalyticsAdapter();
+      AcquisitionAnalytics.instance = AcquisitionAnalytics(
+        repository: AcquisitionAnalyticsRepository(acquisition),
+        isSignedIn: () => readerSignedIn,
+      );
+      ProductAnalytics.instance =
+          ProductAnalytics(repository: AnalyticsRepository(events));
+    });
+    tearDown(() {
+      AcquisitionAnalytics.instance = previousAcquisition;
+      ProductAnalytics.instance = previousProduct;
+    });
+
+    const community0 = PublicCommunity(
+      id: community,
+      name: 'Al Amerat FC',
+      memberCount: 12,
+      upcomingMatchCount: 1,
+    );
+
+    PlayerProfileView visitorProfile() => const PlayerProfileView(
+          userId: player,
+          fullName: 'Noor Al Kindi',
+          primaryPosition: PlayerPosition.mid,
+          statistics: PlayerStatistics(
+            userId: player,
+            matchesPlayed: 12,
+            wins: 6,
+            losses: 4,
+            draws: 2,
+            goals: 5,
+            mvpCount: 1,
+            currentRating: 6.4,
+          ),
+          isSelf: false,
+        );
+
+    Future<void> pumpScreen(WidgetTester tester, Widget screen) async {
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: screen,
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    Widget playerPage({PublicPlayerRecord? record, Object? thrown}) =>
+        ProfileScreen(
+          userId: player,
+          asVisitor: true,
+          playerRecordRepository: PlayerRecordRepository(
+            FakePlayerRecordAdapter(publicRecord: record, thrown: thrown),
+          ),
+        );
+
+    Widget communityPage({Failure? failure}) => PublicCommunityScreen(
+          communityId: community,
+          repository: DiscoverRepository(
+            _FakeDiscoverAdapter(community: community0, failure: failure),
+          ),
+          authService: AuthService(_FakeAuthAdapter()),
+        );
+
+    Widget matchPage({PublicMatch? found, Failure? failure}) =>
+        PublicMatchScreen(
+          matchId: match,
+          repository: DiscoverRepository(
+            _FakeDiscoverAdapter(match: found, failure: failure),
+          ),
+          authService: AuthService(_FakeAuthAdapter()),
+        );
+
+    Iterable<ProductEvent> authenticatedOpens() =>
+        events.recorded.where((e) => e == ProductEvent.publicLinkOpened);
+
+    group('an external anonymous arrival is recorded once', () {
+      testWidgets('a player link', (tester) async {
+        PendingPublicLink.instance.offer('/player/$player');
+        await pumpScreen(
+            tester, playerPage(record: publicRecordOf(visitorProfile())));
+
+        expect(acquisition.opens, [PublicLinkKind.player]);
+        expect(authenticatedOpens(), isEmpty);
+      });
+
+      testWidgets('a community link', (tester) async {
+        PendingPublicLink.instance.offer('/community/$community');
+        await pumpScreen(tester, communityPage());
+
+        expect(find.text('Al Amerat FC'), findsWidgets);
+        expect(acquisition.opens, [PublicLinkKind.community]);
+      });
+
+      testWidgets('a match link', (tester) async {
+        PendingPublicLink.instance.offer('/match/$match');
+        await pumpScreen(tester, matchPage(found: _publicMatch()));
+
+        expect(acquisition.opens, [PublicLinkKind.match]);
+      });
+    });
+
+    group('nothing is fabricated', () {
+      testWidgets('a destination that fails or is not found records nothing',
+          (tester) async {
+        PendingPublicLink.instance.offer('/match/$match');
+        await pumpScreen(tester, matchPage(failure: const NetworkFailure()));
+        await pumpScreen(tester, const SizedBox.shrink());
+        await pumpScreen(tester, matchPage(found: null));
+
+        PendingPublicLink.instance.offer('/community/$community');
+        await pumpScreen(
+            tester, communityPage(failure: const NetworkFailure()));
+
+        PendingPublicLink.instance.offer('/player/$player');
+        await pumpScreen(tester, playerPage(thrown: const NotFoundFailure()));
+
+        expect(acquisition.opens, isEmpty);
+      });
+
+      testWidgets('a rebuild or a reopened screen is not a new arrival',
+          (tester) async {
+        PendingPublicLink.instance.offer('/match/$match');
+        await pumpScreen(tester, matchPage(found: _publicMatch()));
+        // Rebuilt in place.
+        await pumpScreen(tester, matchPage(found: _publicMatch()));
+        // Torn down and built again, which reloads it.
+        await pumpScreen(tester, const SizedBox.shrink());
+        await pumpScreen(tester, matchPage(found: _publicMatch()));
+
+        expect(acquisition.opens, [PublicLinkKind.match]);
+      });
+
+      testWidgets('navigating inside a public page is not an external arrival',
+          (tester) async {
+        // The visitor came in on the community; the match is a step inside.
+        PendingPublicLink.instance.offer('/community/$community');
+        await pumpScreen(tester, matchPage(found: _publicMatch()));
+
+        // Browsing, with no link at all.
+        PendingPublicLink.instance.clear();
+        await pumpScreen(tester, communityPage());
+
+        expect(acquisition.opens, isEmpty);
+      });
+
+      testWidgets('a signed-in reader is never recorded anonymously',
+          (tester) async {
+        readerSignedIn = true;
+        PendingPublicLink.instance.offer('/community/$community');
+        await pumpScreen(tester, communityPage());
+
+        expect(acquisition.opens, isEmpty);
+      });
+
+      testWidgets('an analytics failure never blocks public reading',
+          (tester) async {
+        acquisition.fail = true;
+        PendingPublicLink.instance.offer('/community/$community');
+        await pumpScreen(tester, communityPage());
+
+        expect(find.text('Al Amerat FC'), findsWidgets);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('a rate-limited open is dropped and the page still reads',
+          (tester) async {
+        // Wave 4's circuit breaker refuses with TELEMETRY_RATE_LIMITED. The
+        // refusal goes through the real failure mapper, as the Supabase
+        // adapter's would, and is swallowed like any other failure.
+        final limited = _RateLimitedAcquisitionAdapter();
+        await expectLater(limited.recordAnonymousOpen(PublicLinkKind.community),
+            throwsA(isA<Failure>()));
+        expect(
+          await AcquisitionAnalyticsRepository(limited)
+              .recordAnonymousOpen(PublicLinkKind.community),
+          isNull,
+        );
+
+        AcquisitionAnalytics.instance = AcquisitionAnalytics(
+          repository: AcquisitionAnalyticsRepository(limited),
+          isSignedIn: () => readerSignedIn,
+        );
+        PendingPublicLink.instance.offer('/community/$community');
+        await pumpScreen(tester, communityPage());
+
+        expect(find.text('Al Amerat FC'), findsWidgets);
+        expect(limited.opens, 3, reason: 'attempted, refused, swallowed');
+        expect(tester.takeException(), isNull);
+      });
+    });
+
+    group('the pending target survives authentication', () {
+      /// The gate, wired to the app exactly as [GoPlayApp] wires it.
+      Future<_FakeAuthAdapter> pumpApp(WidgetTester tester) async {
+        tester.view.physicalSize = const Size(1200, 2400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+
+        final auth = _FakeAuthAdapter();
+        final service = AuthService(auth);
+        final navigatorKey = GlobalKey<NavigatorState>();
+        await tester.pumpWidget(MaterialApp(
+          navigatorKey: navigatorKey,
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: AuthGate(
+            authService: service,
+            onAccountActive: () => openPendingPublicLink(
+              navigatorKey.currentState,
+              signedIn: service.isSignedIn,
+            ),
+          ),
+        ));
+        await tester.pump();
+        return auth;
+      }
+
+      Future<void> authenticate(
+          WidgetTester tester, _FakeAuthAdapter auth) async {
+        readerSignedIn = true;
+        auth.startSession();
+        for (var i = 0; i < 4; i++) {
+          await tester.pump();
+        }
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      Finder signedInProfile() => find.byWidgetPredicate(
+            (w) => w is ProfileScreen && w.userId == player && !w.asVisitor,
+          );
+
+      testWidgets('after a registration, the same player is opened',
+          (tester) async {
+        PendingPublicLink.instance.offer('/player/$player');
+        final auth = await pumpApp(tester);
+        expect(
+          tester.widget<ProfileScreen>(find.byType(ProfileScreen)).asVisitor,
+          isTrue,
+        );
+        // The visitor page loaded and was recorded anonymously.
+        AcquisitionAnalytics.instance.externalArrivalLoaded(
+            const PublicLinkTarget(PublicLinkKind.player, player));
+        await tester.pump();
+        expect(acquisition.opens, [PublicLinkKind.player]);
+
+        // What the registration form does on success, then the session.
+        AcquisitionAnalytics.instance.registrationSucceeded();
+        await authenticate(tester, auth);
+
+        expect(signedInProfile(), findsOneWidget);
+        expect(PendingPublicLink.instance.target.value, isNull);
+        expect(acquisition.completions, ['acq-1'],
+            reason: 'a new registration from a link is one conversion');
+      });
+
+      testWidgets(
+          'after a login, the same target is opened, with no conversion',
+          (tester) async {
+        PendingPublicLink.instance.offer('/player/$player');
+        final auth = await pumpApp(tester);
+        AcquisitionAnalytics.instance.externalArrivalLoaded(
+            const PublicLinkTarget(PublicLinkKind.player, player));
+        await tester.pump();
+
+        await authenticate(tester, auth);
+
+        expect(signedInProfile(), findsOneWidget);
+        expect(PendingPublicLink.instance.target.value, isNull);
+        expect(acquisition.completions, isEmpty,
+            reason: 'an existing account signing in is not a signup');
+      });
+
+      testWidgets('an arrival counted anonymously is not counted again',
+          (tester) async {
+        PendingPublicLink.instance.offer('/player/$player');
+        final auth = await pumpApp(tester);
+        AcquisitionAnalytics.instance.externalArrivalLoaded(
+            const PublicLinkTarget(PublicLinkKind.player, player));
+        await tester.pump();
+
+        await authenticate(tester, auth);
+
+        expect(signedInProfile(), findsOneWidget);
+        expect(acquisition.opens, hasLength(1));
+        expect(authenticatedOpens(), isEmpty,
+            reason: 'one link, opened once, recorded once');
+      });
+
+      testWidgets('an analytics failure never blocks the resume',
+          (tester) async {
+        PendingPublicLink.instance.offer('/player/$player');
+        final auth = await pumpApp(tester);
+        AcquisitionAnalytics.instance.externalArrivalLoaded(
+            const PublicLinkTarget(PublicLinkKind.player, player));
+        await tester.pump();
+
+        // The conversion call itself fails.
+        acquisition.fail = true;
+        AcquisitionAnalytics.instance.registrationSucceeded();
+        await authenticate(tester, auth);
+
+        expect(acquisition.completions, ['acq-1'], reason: 'attempted');
+        expect(signedInProfile(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('a reader already signed in keeps the existing behaviour',
+          (tester) async {
+        readerSignedIn = true;
+        final navigatorKey = GlobalKey<NavigatorState>();
+        await tester.pumpWidget(MaterialApp(
+          navigatorKey: navigatorKey,
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: const SizedBox.shrink(),
+        ));
+        PendingPublicLink.instance.offer('/community/$community');
+
+        unawaited(
+            openPendingPublicLink(navigatorKey.currentState, signedIn: true));
+        await tester.pump();
+
+        expect(events.recorded, [ProductEvent.publicLinkOpened]);
+        expect(events.lastSource, 'public_link');
+        expect(events.lastCommunityId, community);
+        expect(acquisition.opens, isEmpty);
+        expect(PendingPublicLink.instance.target.value, isNull);
+      });
+    });
+
+    test('acquisition code touches no persistent identifier or storage', () {
+      const files = [
+        'lib/features/analytics/acquisition_analytics.dart',
+        'lib/features/analytics/acquisition_analytics_adapter.dart',
+        'lib/features/analytics/acquisition_analytics_repository.dart',
+        'lib/infrastructure/supabase/supabase_acquisition_analytics_adapter.dart',
+      ];
+      for (final path in files) {
+        final code = File(path)
+            .readAsLinesSync()
+            .where((line) => !line.trimLeft().startsWith('//'))
+            .join('\n')
+            .toLowerCase();
+        for (final forbidden in [
+          'shared_preferences',
+          'sharedpreferences',
+          'localstorage',
+          'sessionstorage',
+          'indexeddb',
+          'dart:html',
+          'package:web',
+          'cookie',
+          'secure_storage',
+          'device_info',
+          'fingerprint',
+          'window.',
+        ]) {
+          expect(code, isNot(contains(forbidden)), reason: '$path: $forbidden');
+        }
+      }
     });
   });
 
@@ -473,17 +866,45 @@ PublicMatch _publicMatch() => PublicMatch(
     );
 
 class _FakeDiscoverAdapter implements DiscoverAdapter {
+  /// Nothing recorded and nobody ranked: this suite is not about football.
+  @override
+  Future<PublicCommunityFootballRecord> fetchCommunityFootballRecord(
+    String communityId,
+  ) async =>
+      PublicCommunityFootballRecord(
+        communityId: communityId,
+        completedMatches: 0,
+        players: 0,
+        goals: 0,
+        mvpCount: 0,
+      );
+
+  @override
+  Future<List<PublicCommunityTopPlayer>> fetchCommunityTopPlayers(
+    String communityId,
+  ) async =>
+      const [];
+
   @override
   Future<List<PublicResult>> fetchRecentResults({
     String? communityId,
     int limit = 5,
   }) async =>
       const [];
-  _FakeDiscoverAdapter({this.match, this.completed, this.failure});
+  _FakeDiscoverAdapter({
+    this.match,
+    this.completed,
+    this.failure,
+    this.community,
+  });
 
   final PublicMatch? match;
   final PublicCompletedMatch? completed;
   final Failure? failure;
+
+  /// The community a public community page reads; unset, that read is never
+  /// expected and fails loudly.
+  final PublicCommunity? community;
 
   /// Every lineup read, so a test can prove an upcoming match's roster is never
   /// asked for.
@@ -507,19 +928,90 @@ class _FakeDiscoverAdapter implements DiscoverAdapter {
   Future<List<PublicCommunity>> fetchCommunities() async => const [];
 
   @override
-  Future<PublicCommunity> fetchCommunity(String communityId) =>
-      throw UnimplementedError();
+  Future<PublicCommunity> fetchCommunity(String communityId) async {
+    if (failure != null) throw failure!;
+    final found = community;
+    if (found == null) throw UnimplementedError();
+    return found;
+  }
 
   @override
   Future<List<PublicMatch>> fetchUpcomingMatches({String? communityId}) async =>
       const [];
 }
 
-class _FakeAuthAdapter implements AuthAdapter {
+/// Answers from memory and records what it was asked.
+class _FakeAcquisitionAdapter implements AcquisitionAnalyticsAdapter {
+  final opens = <PublicLinkKind>[];
+  final completions = <String>[];
+
+  /// Makes every call fail, as an unreachable network would.
+  bool fail = false;
+
+  @override
+  Future<String> recordAnonymousOpen(PublicLinkKind kind) async {
+    opens.add(kind);
+    if (fail) throw const NetworkFailure();
+    return 'acq-${opens.length}';
+  }
+
+  @override
+  Future<void> recordSignupCompleted(String acquisitionId) async {
+    completions.add(acquisitionId);
+    if (fail) throw const NetworkFailure();
+  }
+}
+
+/// Refuses every write the way migration 0090's circuit breaker does, through
+/// the same failure mapper the Supabase adapter uses.
+class _RateLimitedAcquisitionAdapter implements AcquisitionAnalyticsAdapter {
+  int opens = 0;
+
+  @override
+  Future<String> recordAnonymousOpen(PublicLinkKind kind) {
+    opens++;
+    return guarded<String>(() async =>
+        throw const PostgrestException(message: 'TELEMETRY_RATE_LIMITED'));
+  }
+
+  @override
+  Future<void> recordSignupCompleted(String acquisitionId) =>
+      guarded(() async =>
+          throw const PostgrestException(message: 'TELEMETRY_RATE_LIMITED'));
+}
+
+class _RecordingAnalyticsAdapter implements AnalyticsAdapter {
+  final recorded = <ProductEvent>[];
+  String? lastSource;
+  String? lastCommunityId;
+
+  @override
+  Future<void> record(
+    ProductEvent event, {
+    String? communityId,
+    String? matchId,
+    ShareType? shareType,
+    String? source,
+    String? targetUserId,
+  }) async {
+    if (event == ProductEvent.sessionStarted) return;
+    recorded.add(event);
+    lastSource = source;
+    lastCommunityId = communityId;
+  }
+}
+
+class _FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   _FakeAuthAdapter({bool signedIn = false}) : _signedIn = signedIn;
 
-  final bool _signedIn;
+  bool _signedIn;
   final _controller = StreamController<bool>.broadcast();
+
+  /// A session appearing, as registration or login produces one.
+  void startSession() {
+    _signedIn = true;
+    _controller.add(true);
+  }
 
   @override
   bool get isSignedIn => _signedIn;

@@ -89,6 +89,7 @@ class CompactMatchShell extends StatelessWidget {
     this.subtitle,
     this.completed = false,
     this.action,
+    this.wilayatLabel,
   });
 
   final VoidCallback onTap;
@@ -96,6 +97,10 @@ class CompactMatchShell extends StatelessWidget {
   final String title;
   final String time;
   final String location;
+
+  /// The Wilayat the match is discovered in, on the cards that show one. Only
+  /// Discover's upcoming matches pass it; every other card is unchanged.
+  final String? wilayatLabel;
 
   /// The status chip or the seat count — whichever this reader's card carries.
   final Widget? badge;
@@ -167,6 +172,13 @@ class CompactMatchShell extends StatelessWidget {
               _CompactLine(icon: Icons.schedule_outlined, text: time),
               const SizedBox(height: Gap.xs),
               _CompactLine(icon: Icons.place_outlined, text: location),
+              if (wilayatLabel != null && wilayatLabel!.trim().isNotEmpty) ...[
+                const SizedBox(height: Gap.xs),
+                _CompactLine(
+                  icon: Icons.location_city_outlined,
+                  text: wilayatLabel!,
+                ),
+              ],
               if (action != null) ...[
                 const SizedBox(height: Gap.md),
                 action!,

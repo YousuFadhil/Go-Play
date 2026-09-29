@@ -249,6 +249,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A match already played must have finished before now';
 
   @override
+  String get matchAlreadyEndedError =>
+      'This match has already ended. Record it as a match already played instead.';
+
+  @override
   String get recordHistoricalMatchButton => 'Record match';
 
   @override
@@ -1172,10 +1176,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get swapPlayerAction => 'Swap with a player';
 
   @override
+  String get swapPositionsAction => 'Swap positions';
+
+  @override
   String get changePositionAction => 'Change position';
 
   @override
   String get swapPlayerTitle => 'Swap with';
+
+  @override
+  String get swapPositionsTitle => 'Swap positions with';
 
   @override
   String get swapNobodyAvailable => 'The other team has nobody to swap with.';
@@ -1199,6 +1209,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get saveResultButton => 'Save result';
+
+  @override
+  String get resultParticipationConfirmation =>
+      'I confirm that this lineup represents the players who actually participated in this match.';
+
+  @override
+  String get resultParticipationConfirmationHint =>
+      'Required before saving the result.';
 
   @override
   String get resultSaved => 'Match result saved successfully';
@@ -1333,6 +1351,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statCurrentRating => 'Current rating';
+
+  @override
+  String get statWinRate => 'Win rate';
+
+  @override
+  String get statGoalsPerMatch => 'Goals per match';
+
+  @override
+  String get statRatingTrend => 'Recent rating change';
 
   @override
   String get statMatchesPlayed => 'Matches played';
@@ -1632,7 +1659,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statPeriodRatingNote =>
-      'The rating is your current rating across every community. It is not a figure for this period.';
+      'The rating and recent rating change are global across every community. They are not figures for this period.';
 
   @override
   String get statPeriodNoMatches =>
@@ -1965,6 +1992,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get communityActionsTitle => 'Community actions';
 
   @override
+  String get communityInsightsAction => 'Community insights';
+
+  @override
+  String get communityInsightsTitle => 'Community insights';
+
+  @override
+  String get communityInsightsPeriod => 'Last 30 days';
+
+  @override
+  String get communityInsightsActiveMembers => 'Active members';
+
+  @override
+  String get communityInsightsParticipationRate => 'Participation rate';
+
+  @override
+  String get communityInsightsMatchFrequency => 'Match frequency';
+
+  @override
+  String get communityInsightsPerWeek => 'per week';
+
+  @override
+  String get communityInsightsCapacity => 'Capacity utilization';
+
+  @override
+  String get communityInsightsGuestDependency => 'Guest dependency';
+
+  @override
+  String get communityInsightsProvisionalNote =>
+      'Participation, capacity and guest dependency currently use saved match line-ups as evidence of who played. They will become participation-confirmed once participation confirmation is introduced.';
+
+  @override
   String get moreActionsLabel => 'More actions';
 
   @override
@@ -2145,6 +2203,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminMetricRegistrations => 'Registrations';
 
   @override
+  String get adminMetricTrackedRegistrations => 'Tracked registrations';
+
+  @override
   String get adminMetricResults => 'Results';
 
   @override
@@ -2163,7 +2224,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminAnalyticsNotice =>
-      'Activity metrics start from this release. Earlier sessions and withdrawals were never recorded and have not been invented, so they are counted from zero. Accounts, matches and results are complete.';
+      'Activity metrics start from this release for sessions, registrations and withdrawals. Earlier events were not invented. Activity events are kept for 12 months, so tracked counts describe retained activity, not lifetime history; Last seen is kept beyond that window. Accounts and recorded football history still come from the business records; imported historical matches are excluded from Product Overview activity windows.';
 
   @override
   String get adminAuditTab => 'Audit Log';
@@ -2209,7 +2270,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminMetricActiveDays => 'Active days';
 
   @override
-  String get adminMetricSessions => 'Sessions';
+  String get adminMetricSessions => 'Tracked sessions';
 
   @override
   String get adminMetricPlatforms => 'Platforms';
@@ -2222,6 +2283,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminMetricWithdrawals => 'Withdrawals';
+
+  @override
+  String get adminMetricTrackedWithdrawals => 'Tracked withdrawals';
 
   @override
   String get adminPlatformWeb => 'Web';
@@ -2261,6 +2325,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminEventPublicLinkOpened => 'Public link opened';
+
+  @override
+  String get adminEventViewedOwnProfile => 'Viewed own profile';
+
+  @override
+  String adminEventViewedPlayerProfile(String player) {
+    return 'Viewed player profile — $player';
+  }
+
+  @override
+  String get adminEventViewedPlayerStatistics => 'Viewed player statistics';
+
+  @override
+  String adminEventViewedPlayerStatisticsOf(String player) {
+    return 'Viewed player statistics — $player';
+  }
+
+  @override
+  String get adminEventSharedPlayerProfile => 'Shared player profile';
+
+  @override
+  String get adminEventSharedPlayerStatistics => 'Shared player statistics';
+
+  @override
+  String get adminEventSharedCommunity => 'Shared community';
+
+  @override
+  String get adminEventSharedMatch => 'Shared match';
+
+  @override
+  String get adminEventSharedLineup => 'Shared lineup';
+
+  @override
+  String get adminEventSharedResult => 'Shared result';
 
   @override
   String get adminDrilldownEmpty => 'No records for this metric.';
@@ -2428,4 +2526,148 @@ class AppLocalizationsEn extends AppLocalizations {
   String leaderboardPointsPerGame(String value) {
     return '$value PPG';
   }
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get authOrDivider => 'or';
+
+  @override
+  String get googleSignInFailed =>
+      'Could not start Google sign-in. Please try again.';
+
+  @override
+  String get forgotPasswordLink => 'Forgot password?';
+
+  @override
+  String get forgotPasswordTitle => 'Reset your password';
+
+  @override
+  String get forgotPasswordBody =>
+      'Enter the email you signed up with. If it belongs to an account, we will send a code to choose a new password.';
+
+  @override
+  String get forgotPasswordSend => 'Send code';
+
+  @override
+  String get backToLogin => 'Back to log in';
+
+  @override
+  String get tooManyRequests =>
+      'Too many attempts. Please wait a few minutes and try again.';
+
+  @override
+  String get emailCodeTitle => 'Enter your code';
+
+  @override
+  String get emailCodeRecoveryBody => 'Enter the code we sent to your email.';
+
+  @override
+  String get emailCodeSignupBody =>
+      'Verify your email to complete registration.';
+
+  @override
+  String emailCodeSentTo(String email) {
+    return 'We sent a 6-digit code to $email.';
+  }
+
+  @override
+  String get emailCodeLabel => '6-digit code';
+
+  @override
+  String get emailCodeIncomplete => 'Enter all 6 digits.';
+
+  @override
+  String get emailCodeVerify => 'Verify';
+
+  @override
+  String get emailCodeInvalid =>
+      'That code is incorrect or has expired. Check it, or ask for a new one.';
+
+  @override
+  String get emailCodeResend => 'Send a new code';
+
+  @override
+  String get emailCodeResent => 'A new code is on its way.';
+
+  @override
+  String get emailCodeResendWait =>
+      'Did not arrive? You can ask for a new code in a minute.';
+
+  @override
+  String get resetPasswordTitle => 'Choose a new password';
+
+  @override
+  String get newPasswordLabel => 'New password';
+
+  @override
+  String get resetPasswordSubmit => 'Save new password';
+
+  @override
+  String get resetPasswordLinkExpired =>
+      'This reset link is no longer valid. Request a new one.';
+
+  @override
+  String get passwordResetSuccess =>
+      'Your password was changed. Log in with your new password.';
+
+  @override
+  String get completeProfileTitle => 'Complete your player profile';
+
+  @override
+  String get completeProfileBody =>
+      'One last step before you play: tell us a little about yourself.';
+
+  @override
+  String get completeProfileSubmit => 'Continue';
+
+  @override
+  String get profileDetailsInvalid =>
+      'Please check your details and try again.';
+
+  @override
+  String nearChipLabel(String wilayat) {
+    return 'Near: $wilayat';
+  }
+
+  @override
+  String get nearChipChoose => 'Near: choose Wilayat';
+
+  @override
+  String get wilayatPickerTitle => 'Choose a Wilayat';
+
+  @override
+  String get wilayatSearchHint => 'Search by Wilayat or village';
+
+  @override
+  String get wilayatSearchEmpty => 'No Wilayat matches your search.';
+
+  @override
+  String get wilayatRequired => 'Choose a Wilayat';
+
+  @override
+  String get wilayatNotSet => 'Not set';
+
+  @override
+  String get communityWilayatLabel => 'Wilayat';
+
+  @override
+  String get communityWilayatSaved => 'Community Wilayat updated.';
+
+  @override
+  String get defaultLocationLabel => 'Default location';
+
+  @override
+  String get defaultLocationHelp =>
+      'Used for Near in Discover. Only you can see it.';
+
+  @override
+  String get defaultLocationSaved => 'Default location updated.';
+
+  @override
+  String get defaultLocationClear => 'Clear default location';
+
+  @override
+  String get matchLiveBadge => 'LIVE';
 }

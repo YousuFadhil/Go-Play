@@ -23,6 +23,7 @@ import 'package:go_play/features/profile/profile_repository.dart';
 import 'package:go_play/features/teams/team_adapter.dart';
 import 'package:go_play/features/teams/team_models.dart';
 import 'package:go_play/features/teams/team_repository.dart';
+import 'auth_adapter_defaults.dart';
 
 /// What the repositories decide once the provider is out of the way (OP-6).
 ///
@@ -148,10 +149,29 @@ void main() {
       await CommunityRepository(adapter).createCommunity(
         name: '  Friday Football  ',
         joinPolicy: JoinPolicy.open,
+        wilayatCode: 7,
       );
 
       expect(adapter.lastName, 'Friday Football');
       expect(adapter.lastJoinPolicy, JoinPolicy.open);
+    });
+
+    test('carries the Wilayat through to the port', () async {
+      final adapter = FakeCommunityAdapter();
+      await CommunityRepository(adapter).createCommunity(
+        name: 'A',
+        joinPolicy: JoinPolicy.open,
+        wilayatCode: 7,
+      );
+
+      expect(adapter.lastWilayatCode, 7);
+    });
+
+    test('the owner moves a community with the one setter', () async {
+      final adapter = FakeCommunityAdapter();
+      await CommunityRepository(adapter).setCommunityWilayat('c1', 52);
+
+      expect(adapter.wilayatChanges, [('c1', 52)]);
     });
 
     test('a description of nothing is stored as no description', () async {
@@ -159,11 +179,17 @@ void main() {
       final repository = CommunityRepository(adapter);
 
       await repository.createCommunity(
-          name: 'A', description: '   ', joinPolicy: JoinPolicy.open);
+          name: 'A',
+          description: '   ',
+          joinPolicy: JoinPolicy.open,
+          wilayatCode: 7);
       expect(adapter.lastDescription, isNull);
 
       await repository.createCommunity(
-          name: 'A', description: null, joinPolicy: JoinPolicy.open);
+          name: 'A',
+          description: null,
+          joinPolicy: JoinPolicy.open,
+          wilayatCode: 7);
       expect(adapter.lastDescription, isNull);
     });
 
@@ -173,6 +199,7 @@ void main() {
         name: 'A',
         description: '  Weekly game  ',
         joinPolicy: JoinPolicy.codeRequired,
+        wilayatCode: 7,
       );
 
       expect(adapter.lastDescription, 'Weekly game');
@@ -787,6 +814,14 @@ void main() {
 // to a port should break these fakes loudly rather than pass silently.
 
 class FakeCommunityAdapter implements CommunityAdapter {
+  int? lastWilayatCode;
+  final wilayatChanges = <(String, int)>[];
+
+  @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) async {
+    wilayatChanges.add((communityId, wilayatCode));
+  }
+
   FakeCommunityAdapter({
     this.mine = const [],
     this.all = const [],
@@ -815,10 +850,12 @@ class FakeCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) async {
     lastName = name;
     lastDescription = description;
     lastJoinPolicy = joinPolicy;
+    lastWilayatCode = wilayatCode;
     return 'created';
   }
 
@@ -994,6 +1031,10 @@ class FakeProfileAdapter implements ProfileAdapter {
   String? lastFileExtension;
 
   @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<PlayerProfile> fetchMyProfile() async => profile;
 
   @override
@@ -1042,7 +1083,7 @@ class FakeProfileAdapter implements ProfileAdapter {
       throw UnimplementedError();
 }
 
-class FakeAuthAdapter implements AuthAdapter {
+class FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   FakeAuthAdapter({this.fullName});
 
   final String? fullName;
@@ -1054,12 +1095,14 @@ class FakeAuthAdapter implements AuthAdapter {
   DateTime? lastDateOfBirth;
   PlayerPosition? lastSecondaryPosition;
   int signUpCount = 0;
+  String? lastSignUpRedirect;
+  SignUpOutcome signUpOutcome = SignUpOutcome.signedIn;
 
   @override
   Future<String?> fetchCurrentUserFullName() async => fullName;
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -1067,6 +1110,7 @@ class FakeAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) async {
     signUpCount++;
     lastEmail = email;
@@ -1075,6 +1119,8 @@ class FakeAuthAdapter implements AuthAdapter {
     lastPosition = position;
     lastDateOfBirth = dateOfBirth;
     lastSecondaryPosition = secondaryPosition;
+    lastSignUpRedirect = redirectTo;
+    return signUpOutcome;
   }
 
   @override

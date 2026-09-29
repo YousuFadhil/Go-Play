@@ -386,3 +386,19 @@ cut at `starting_players`:
 - **Capacity cannot be exceeded.** No operation grants a seat. Starting and
   reserve are derived by cutting the order, and there are only ever
   `starting_players` positions above the cut.
+
+## 8. Wilayat (migration `0094`)
+
+Two reference entities and two nullable foreign keys. `matches` is unchanged.
+
+```
+governorates (1) --< wilayats (1) --< communities      (communities.wilayat_code, NULL allowed)
+                               (1) --< users            (users.default_wilayat_code, private, NULL allowed)
+```
+
+- A community plays in at most one Wilayat; a match has no location of its own
+  and is discovered where its community currently is.
+- A player may name one Default Location, visible to nobody else.
+- `wilayats.code` and `governorates.code` are the Ministry of Interior's numeric
+  codes (Sohar = 7, North Al Batinah = 2). A village is a search alias
+  (`wilayats.search_terms`), never an entity.

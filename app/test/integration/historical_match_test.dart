@@ -91,13 +91,14 @@ void main() {
       expect(match.isCompleted, isTrue);
     });
 
-    test('START_IN_PAST — and refused on the ordinary one', () async {
-      // The identical schedule, with the flag off. Nothing about an accidental
-      // past date is weakened by the historical path existing.
+    test('MATCH_ALREADY_ENDED — and refused on the ordinary one', () async {
+      // The identical schedule, with the flag off. A normal match may be under
+      // way (migration `0091`), but one that has wholly ended belongs on the
+      // historical path, and the ordinary one refuses it.
       await expectLater(
         record(owner, isHistorical: false),
-        throwsA(isA<ValidationFailure>()
-            .having((f) => f.reason, 'reason', FailureReason.startInPast)),
+        throwsA(isA<ValidationFailure>().having(
+            (f) => f.reason, 'reason', FailureReason.matchAlreadyEnded)),
       );
     });
 

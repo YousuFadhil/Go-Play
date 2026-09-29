@@ -48,6 +48,7 @@ class ProductAnalytics {
     String? matchId,
     ShareType? shareType,
     String? source,
+    String? targetUserId,
   }) {
     unawaited(
       _repository.track(
@@ -56,6 +57,7 @@ class ProductAnalytics {
         matchId: matchId,
         shareType: shareType,
         source: source,
+        targetUserId: targetUserId,
       ),
     );
   }

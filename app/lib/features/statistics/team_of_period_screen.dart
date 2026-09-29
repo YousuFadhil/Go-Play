@@ -7,7 +7,6 @@ import '../../core/states.dart';
 import '../../core/time_format.dart';
 import '../sharing/share_card_flow.dart';
 import '../analytics/analytics_models.dart';
-import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import '../teams/pitch_view.dart';
@@ -122,7 +121,6 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
       communityId: widget.communityId,
       message: ShareMessage(
         text: l10n.shareTextTeamOfPeriod(data.communityName),
-        url: PublicLink.format(PublicLinkKind.community, widget.communityId),
       ),
       // The XI is a picture of the community's period, so it is recorded as a
       // community share rather than as a lineup: `lineup` is a match's two

@@ -31,7 +31,6 @@ class PlayerProfileCardData {
     this.avatarUrl,
     this.form = RecentForm.empty,
     this.achievements = const [],
-    this.publicUrl,
   });
 
   final String fullName;
@@ -60,8 +59,8 @@ class PlayerProfileCardData {
   final int draws;
   final int losses;
 
-  /// The last five results, newest first. Empty for a player who has played
-  /// none, and an empty form draws no strip rather than five grey placeholders.
+  /// The last six results, newest first. Empty for a player who has played
+  /// none, and an empty form draws no strip rather than six grey placeholders.
   final RecentForm form;
 
   /// The achievements already visible on the profile, newest first.
@@ -69,11 +68,6 @@ class PlayerProfileCardData {
   /// The profile read is capped at five; the card defensively renders at most
   /// five as well so "what you can see is what you can send" remains true.
   final List<RecentHighlight> achievements;
-
-  /// The public address this card is about — the same link the share message
-  /// carries. Printed at the foot so a picture that has been forwarded past the
-  /// message still says where the profile is.
-  final String? publicUrl;
 }
 
 /// The Player Profile share card: who a player is, as a picture.
@@ -82,7 +76,8 @@ class PlayerProfileCardData {
 /// one: the product's mark, then the player — face, name, position and the
 /// three career figures that describe them — then the rating beside the
 /// win/loss/draw record, then Recent Form, then the same Recent Achievements
-/// the profile shows, and the public address at the foot. The Player Statistics
+/// the profile shows. No address is printed on it: a share is the picture and a
+/// line of text, never a link. The Player Statistics
 /// card leads with a period and gives six counters equal weight; the two are
 /// different pictures
 /// of the same player on purpose, and neither is a variant of the other.
@@ -130,7 +125,6 @@ class PlayerProfileShareCard extends StatelessWidget {
                 const Spacer(),
                 _Panel(data: data),
                 const Spacer(),
-                if (data.publicUrl != null) _Address(url: data.publicUrl!),
               ],
             ),
           ),
@@ -597,13 +591,21 @@ class _FormStrip extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 22),
-        Row(
-          children: [
-            for (final entry in form.entries) ...[
-              if (entry != form.entries.first) const SizedBox(width: 28),
-              _FormBadge(entry: entry),
+        // Six badges fit the panel with their usual scorelines; a run of
+        // double-figure scores can be wider, and the strip then scales down
+        // as one piece rather than overflowing the fixed surface.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final entry in form.entries) ...[
+                if (entry != form.entries.first) const SizedBox(width: 28),
+                _FormBadge(entry: entry),
+              ],
             ],
-          ],
+          ),
         ),
       ],
     );
@@ -812,37 +814,6 @@ class _AchievementRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Where the profile lives, at the foot of the card.
-///
-/// The address itself and nothing standing for it: there is no public-link QR
-/// behaviour in the product, and a code that decodes to nothing would be a
-/// picture of a feature rather than a feature.
-class _Address extends StatelessWidget {
-  const _Address({required this.url});
-
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.center,
-      child: Text(
-        // Left to right in both languages: a URL has one direction.
-        url,
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        style: const TextStyle(
-          color: ShareCardPalette.inkMuted,
-          fontSize: 32,
-          height: 1.2,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
     );
   }
 }

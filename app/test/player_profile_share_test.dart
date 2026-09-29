@@ -28,7 +28,7 @@ import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 
 import 'player_record_fakes.dart';
-import 'product_analytics_test.dart' show FakeAnalyticsAdapter;
+import 'product_analytics_test.dart' show FakeAnalyticsAdapter, RecordedEvent;
 
 /// Sharing a Player Profile: the card, the payload, and who may send one.
 ///
@@ -71,7 +71,6 @@ void main() {
     String? avatarUrl,
     RecentForm form = RecentForm.empty,
     List<RecentHighlight> achievements = const [],
-    String? publicUrl = 'https://go-play-staging.pages.dev/#/player/$userId',
   }) =>
       PlayerProfileCardData(
         fullName: fullName,
@@ -86,7 +85,6 @@ void main() {
         losses: 6,
         form: form,
         achievements: achievements,
-        publicUrl: publicUrl,
       );
 
   // --- the card itself --------------------------------------------------------
@@ -148,17 +146,52 @@ void main() {
       expect(find.text('4'), findsOneWidget);
     });
 
-    testWidgets('carries the public address it is about, and no code for it',
-        (tester) async {
+    testWidgets('prints no address, and no code for one', (tester) async {
       await pumpCard(tester, cardOf());
 
-      // The link itself. There is no public-link QR behaviour in the product,
-      // so a code on the card would stand for a promise nothing keeps.
-      expect(
-        find.text('https://go-play-staging.pages.dev/#/player/$userId'),
-        findsOneWidget,
-      );
+      // The approved share is the picture and a line of text (UAT round 1):
+      // no public address is printed on the card, and there is no public-link
+      // QR behaviour in the product for a code to stand for either.
+      expect(find.textContaining('http'), findsNothing);
+      expect(find.textContaining('pages.dev'), findsNothing);
+      expect(find.textContaining('/player/'), findsNothing);
+      expect(find.textContaining(AppConfig.publicWebBase), findsNothing);
     });
+
+    for (final locale in [const Locale('en'), const Locale('ar')]) {
+      testWidgets('six form badges fit on the card (${locale.languageCode})',
+          (tester) async {
+        await pumpCard(
+          tester,
+          cardOf(
+            form: formOf(
+              [
+                MatchOutcome.win,
+                MatchOutcome.loss,
+                MatchOutcome.draw,
+                MatchOutcome.win,
+                MatchOutcome.win,
+                MatchOutcome.loss,
+              ],
+              scores: [(12, 10), (0, 2), (3, 3), (4, 1), (10, 9), (1, 11)],
+            ),
+          ),
+          locale: locale,
+        );
+
+        expect(tester.takeException(), isNull);
+        for (final scoreline in [
+          '12 - 10',
+          '0 - 2',
+          '3 - 3',
+          '4 - 1',
+          '10 - 9',
+          '1 - 11',
+        ]) {
+          expect(find.text(scoreline), findsOneWidget, reason: scoreline);
+        }
+      });
+    }
 
     testWidgets(
         'every visible achievement is on the card in profile order',
@@ -406,8 +439,9 @@ void main() {
     FakeProfileAdapter? profiles,
     FakePlayerRecordAdapter? records,
     Locale locale = const Locale('en'),
+    Size size = const Size(1200, 2400),
   }) async {
-    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -489,7 +523,7 @@ void main() {
       expect(find.byIcon(Icons.ios_share), findsNothing);
     });
 
-    testWidgets('sharing hands over an image, words and a public link',
+    testWidgets('sharing hands over an image and words, and no link',
         (tester) async {
       final share = await pumpProfile(tester);
 
@@ -502,11 +536,11 @@ void main() {
       final message = share.message;
       expect(message, isNotNull);
       expect(message!.text, 'Noor Al Kindi — player profile on Go Play.');
-      expect(message.url, PublicLink.format(PublicLinkKind.player, userId));
-      // The body is what the sheet is actually handed: the words, then the
-      // link on its own line so every messaging app auto-links it.
-      expect(share.body, '${message.text}\n\n${message.url}');
-      expect(share.body, contains(AppConfig.publicWebBase));
+      // The body is what the sheet is actually handed: the words, and nothing
+      // appended to them (UAT round 1).
+      expect(share.body, message.text);
+      expect(share.body, isNot(contains(AppConfig.publicWebBase)));
+      expect(share.body, isNot(contains('http')));
     });
 
     testWidgets('a player sharing themselves says so', (tester) async {
@@ -539,7 +573,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(share.message!.text, contains('ملف اللاعب'));
-      expect(share.message!.url, isNotNull);
+      expect(share.body, isNot(contains('http')));
     });
 
     testWidgets('a visitor shares the public card, and only that',
@@ -568,9 +602,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // The card was composed from the public record and nothing else, so the
-      // share cannot carry more than the visitor was shown.
-      expect(
-          share.message!.url, PublicLink.format(PublicLinkKind.player, userId));
+      // share cannot carry more than the visitor was shown -- and, like every
+      // share, it carries no link.
+      expect(share.message!.text, 'Noor Al Kindi — player profile on Go Play.');
+      expect(share.body,
+          isNot(contains(PublicLink.format(PublicLinkKind.player, userId))));
     });
 
     testWidgets('a share is recorded with its type and where it came from',
@@ -737,6 +773,133 @@ void main() {
       expect(find.textContaining('last 5 completed matches'), findsNothing);
       expect(find.textContaining('Matches  ·'), findsNothing);
     });
+
+    for (final locale in [const Locale('en'), const Locale('ar')]) {
+      testWidgets(
+          'six results are six badges on a 320px phone '
+          '(${locale.languageCode})', (tester) async {
+        await pumpProfile(
+          tester,
+          locale: locale,
+          size: const Size(320, 2400),
+          records: FakePlayerRecordAdapter(
+            form: formOf(
+              [
+                MatchOutcome.win,
+                MatchOutcome.loss,
+                MatchOutcome.win,
+                MatchOutcome.draw,
+                MatchOutcome.win,
+                MatchOutcome.loss,
+              ],
+              scores: [(2, 1), (0, 2), (3, 0), (1, 1), (4, 1), (10, 12)],
+            ),
+          ),
+        );
+
+        expect(tester.takeException(), isNull);
+        for (final scoreline in [
+          '2 - 1',
+          '0 - 2',
+          '3 - 0',
+          '1 - 1',
+          '4 - 1',
+          '10 - 12',
+        ]) {
+          expect(
+            find.descendant(
+              of: find.byType(RecentFormSection),
+              matching: find.text(scoreline),
+            ),
+            findsOneWidget,
+            reason: scoreline,
+          );
+        }
+      });
+    }
+
+    testWidgets('the profile asks for the approved six', (tester) async {
+      final records = FakePlayerRecordAdapter();
+      await pumpProfile(tester, records: records);
+      expect(records.requestedLimit, 6);
+    });
+  });
+
+  group('what opening a profile records', () {
+    late FakeAnalyticsAdapter analytics;
+
+    setUp(() {
+      analytics = FakeAnalyticsAdapter();
+      ProductAnalytics.instance =
+          ProductAnalytics(repository: AnalyticsRepository(analytics));
+    });
+    tearDown(() => ProductAnalytics.instance = ProductAnalytics());
+
+    List<RecordedEvent> views() => [
+          for (final e in analytics.recorded)
+            if (e.event == ProductEvent.profileViewed) e,
+        ];
+
+    testWidgets('another player\'s profile names them as the target',
+        (tester) async {
+      await pumpProfile(tester, openUserId: 'other-player');
+
+      expect(views(), hasLength(1));
+      expect(views().single.targetUserId, 'other-player');
+      expect(views().single.communityId, isNull);
+      expect(views().single.matchId, isNull);
+    });
+
+    testWidgets('the player\'s own profile names themselves', (tester) async {
+      await pumpProfile(
+        tester,
+        openUserId: null,
+        profiles: FakeProfileAdapter(
+          profile: const PlayerProfile(
+            fullName: 'Salim Al Harthy',
+            phone: '+96890123456',
+            primaryPosition: PlayerPosition.def,
+          ),
+        ),
+      );
+
+      expect(views(), hasLength(1));
+      // The signed-in reader's own id, so the Admin timeline can tell "viewed
+      // own profile" from "viewed somebody else's".
+      expect(views().single.targetUserId, userId);
+    });
+
+    testWidgets('a profile that failed to load records nothing',
+        (tester) async {
+      await pumpProfile(
+        tester,
+        profiles: FakeProfileAdapter(failure: const NetworkFailure()),
+      );
+
+      expect(views(), isEmpty);
+    });
+
+    testWidgets('a signed-out visitor is not recorded against any account',
+        (tester) async {
+      await pumpProfile(
+        tester,
+        asVisitor: true,
+        records: FakePlayerRecordAdapter(
+          publicRecord: publicRecordOf(viewOf()),
+        ),
+      );
+
+      // Wave 3's acquisition path owns that arrival; nothing is written here.
+      expect(views(), isEmpty);
+    });
+
+    testWidgets('a rebuild of the same screen is the same visit',
+        (tester) async {
+      await pumpProfile(tester, openUserId: 'other-player');
+      await pumpProfile(tester, openUserId: 'other-player');
+
+      expect(views(), hasLength(1));
+    });
   });
 }
 
@@ -798,6 +961,10 @@ class FakeProfileAdapter implements ProfileAdapter {
   final PlayerProfile? profile;
   final PlayerProfileView? player;
   final Failure? failure;
+
+  @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
 
   @override
   Future<PlayerProfile> fetchMyProfile() async {

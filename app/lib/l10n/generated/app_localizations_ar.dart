@@ -246,6 +246,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'المباراة السابقة يجب أن تكون قد انتهت قبل الآن';
 
   @override
+  String get matchAlreadyEndedError =>
+      'انتهت هذه المباراة بالفعل. سجّلها كمباراة سابقة بدلاً من ذلك.';
+
+  @override
   String get recordHistoricalMatchButton => 'تسجيل المباراة';
 
   @override
@@ -1147,10 +1151,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get swapPlayerAction => 'تبديل مع لاعب';
 
   @override
+  String get swapPositionsAction => 'تبديل المراكز';
+
+  @override
   String get changePositionAction => 'تغيير المركز';
 
   @override
   String get swapPlayerTitle => 'التبديل مع';
+
+  @override
+  String get swapPositionsTitle => 'تبديل المركز مع';
 
   @override
   String get swapNobodyAvailable =>
@@ -1175,6 +1185,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get saveResultButton => 'حفظ النتيجة';
+
+  @override
+  String get resultParticipationConfirmation =>
+      'أؤكد أن هذه التشكيلة تمثل اللاعبين الذين شاركوا فعليًا في هذه المباراة.';
+
+  @override
+  String get resultParticipationConfirmationHint => 'مطلوب قبل حفظ النتيجة.';
 
   @override
   String get resultSaved => 'تم حفظ نتيجة المباراة بنجاح';
@@ -1315,6 +1332,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statCurrentRating => 'التقييم الحالي';
+
+  @override
+  String get statWinRate => 'نسبة الفوز';
+
+  @override
+  String get statGoalsPerMatch => 'الأهداف لكل مباراة';
+
+  @override
+  String get statRatingTrend => 'تغيّر التقييم مؤخرًا';
 
   @override
   String get statMatchesPlayed => 'المباريات المُلعوبة';
@@ -1614,7 +1640,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statPeriodRatingNote =>
-      'التقييم هو تقييمك الحالي في كل المجتمعات، وليس رقماً خاصاً بهذه الفترة.';
+      'التقييم وتغيّره الأخير عامّان عبر كل المجتمعات، وليسا رقمين خاصين بهذه الفترة.';
 
   @override
   String get statPeriodNoMatches =>
@@ -1950,6 +1976,37 @@ class AppLocalizationsAr extends AppLocalizations {
   String get communityActionsTitle => 'إجراءات المجتمع';
 
   @override
+  String get communityInsightsAction => 'رؤى المجتمع';
+
+  @override
+  String get communityInsightsTitle => 'رؤى المجتمع';
+
+  @override
+  String get communityInsightsPeriod => 'آخر 30 يومًا';
+
+  @override
+  String get communityInsightsActiveMembers => 'الأعضاء النشطون';
+
+  @override
+  String get communityInsightsParticipationRate => 'نسبة المشاركة';
+
+  @override
+  String get communityInsightsMatchFrequency => 'وتيرة المباريات';
+
+  @override
+  String get communityInsightsPerWeek => 'أسبوعيًا';
+
+  @override
+  String get communityInsightsCapacity => 'استغلال السعة';
+
+  @override
+  String get communityInsightsGuestDependency => 'الاعتماد على الضيوف';
+
+  @override
+  String get communityInsightsProvisionalNote =>
+      'تعتمد المشاركة واستغلال السعة والاعتماد على الضيوف حاليًا على التشكيلات المحفوظة بوصفها دليلًا على من لعب، وستصبح مؤكدة بالمشاركة عند إضافة تأكيد المشاركة.';
+
+  @override
   String get moreActionsLabel => 'إجراءات أخرى';
 
   @override
@@ -2130,6 +2187,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminMetricRegistrations => 'التسجيلات';
 
   @override
+  String get adminMetricTrackedRegistrations => 'التسجيلات المتتبَّعة';
+
+  @override
   String get adminMetricResults => 'النتائج';
 
   @override
@@ -2148,7 +2208,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminAnalyticsNotice =>
-      'تبدأ مؤشرات النشاط من هذا الإصدار. الجلسات والانسحابات السابقة لم تُسجَّل ولم تُختلق، لذلك تُحتسب من الصفر. أما الحسابات والمباريات والنتائج فبياناتها كاملة.';
+      'تبدأ مؤشرات النشاط من هذا الإصدار للجلسات والتسجيلات والانسحابات، ولم نختلق أحداثًا سابقة. تُحفظ أحداث النشاط لمدة 12 شهرًا، لذا تصف الأعداد المتتبَّعة النشاط المحفوظ لا السجل الكامل، بينما يبقى «آخر ظهور» محفوظًا بعد تلك المدة. وتبقى الحسابات وسجل كرة القدم المسجَّل من جداول العمل الأصلية، مع استبعاد المباريات التاريخية المستوردة من نوافذ نشاط نظرة المنتج.';
 
   @override
   String get adminAuditTab => 'سجل الإدارة';
@@ -2193,7 +2253,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminMetricActiveDays => 'أيام النشاط';
 
   @override
-  String get adminMetricSessions => 'الجلسات';
+  String get adminMetricSessions => 'الجلسات المتتبَّعة';
 
   @override
   String get adminMetricPlatforms => 'المنصات';
@@ -2206,6 +2266,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminMetricWithdrawals => 'الانسحابات';
+
+  @override
+  String get adminMetricTrackedWithdrawals => 'الانسحابات المتتبَّعة';
 
   @override
   String get adminPlatformWeb => 'الويب';
@@ -2245,6 +2308,40 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminEventPublicLinkOpened => 'فتح رابط عام';
+
+  @override
+  String get adminEventViewedOwnProfile => 'عرض ملفه الشخصي';
+
+  @override
+  String adminEventViewedPlayerProfile(String player) {
+    return 'عرض ملف لاعب — $player';
+  }
+
+  @override
+  String get adminEventViewedPlayerStatistics => 'عرض إحصائيات اللاعب';
+
+  @override
+  String adminEventViewedPlayerStatisticsOf(String player) {
+    return 'عرض إحصائيات لاعب — $player';
+  }
+
+  @override
+  String get adminEventSharedPlayerProfile => 'مشاركة ملف لاعب';
+
+  @override
+  String get adminEventSharedPlayerStatistics => 'مشاركة إحصائيات لاعب';
+
+  @override
+  String get adminEventSharedCommunity => 'مشاركة مجتمع';
+
+  @override
+  String get adminEventSharedMatch => 'مشاركة مباراة';
+
+  @override
+  String get adminEventSharedLineup => 'مشاركة تشكيلة';
+
+  @override
+  String get adminEventSharedResult => 'مشاركة نتيجة';
 
   @override
   String get adminDrilldownEmpty => 'لا توجد سجلات لهذا المؤشر.';
@@ -2415,4 +2512,146 @@ class AppLocalizationsAr extends AppLocalizations {
   String leaderboardPointsPerGame(String value) {
     return '$value نقطة/مباراة';
   }
+
+  @override
+  String get continueWithGoogle => 'المتابعة باستخدام Google';
+
+  @override
+  String get authOrDivider => 'أو';
+
+  @override
+  String get googleSignInFailed =>
+      'تعذّر بدء تسجيل الدخول عبر Google. حاول مرة أخرى.';
+
+  @override
+  String get forgotPasswordLink => 'نسيت كلمة المرور؟';
+
+  @override
+  String get forgotPasswordTitle => 'إعادة تعيين كلمة المرور';
+
+  @override
+  String get forgotPasswordBody =>
+      'أدخل البريد الإلكتروني الذي سجّلت به. إن كان يخص حساباً فسنرسل إليه رمزاً لاختيار كلمة مرور جديدة.';
+
+  @override
+  String get forgotPasswordSend => 'إرسال الرمز';
+
+  @override
+  String get backToLogin => 'العودة إلى تسجيل الدخول';
+
+  @override
+  String get tooManyRequests =>
+      'محاولات كثيرة. انتظر بضع دقائق ثم حاول مرة أخرى.';
+
+  @override
+  String get emailCodeTitle => 'أدخل الرمز';
+
+  @override
+  String get emailCodeRecoveryBody =>
+      'أدخل الرمز الذي أرسلناه إلى بريدك الإلكتروني.';
+
+  @override
+  String get emailCodeSignupBody => 'تحقق من بريدك الإلكتروني لإكمال التسجيل.';
+
+  @override
+  String emailCodeSentTo(String email) {
+    return 'أرسلنا رمزاً من 6 أرقام إلى $email.';
+  }
+
+  @override
+  String get emailCodeLabel => 'الرمز المكوّن من 6 أرقام';
+
+  @override
+  String get emailCodeIncomplete => 'أدخل الأرقام الستة كاملة.';
+
+  @override
+  String get emailCodeVerify => 'تحقق';
+
+  @override
+  String get emailCodeInvalid =>
+      'الرمز غير صحيح أو انتهت صلاحيته. راجعه أو اطلب رمزاً جديداً.';
+
+  @override
+  String get emailCodeResend => 'إرسال رمز جديد';
+
+  @override
+  String get emailCodeResent => 'الرمز الجديد في طريقه إليك.';
+
+  @override
+  String get emailCodeResendWait => 'لم يصل؟ يمكنك طلب رمز جديد بعد دقيقة.';
+
+  @override
+  String get resetPasswordTitle => 'اختر كلمة مرور جديدة';
+
+  @override
+  String get newPasswordLabel => 'كلمة المرور الجديدة';
+
+  @override
+  String get resetPasswordSubmit => 'حفظ كلمة المرور الجديدة';
+
+  @override
+  String get resetPasswordLinkExpired =>
+      'لم يعد رابط إعادة التعيين صالحاً. اطلب رابطاً جديداً.';
+
+  @override
+  String get passwordResetSuccess =>
+      'تم تغيير كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.';
+
+  @override
+  String get completeProfileTitle => 'أكمل ملفك كلاعب';
+
+  @override
+  String get completeProfileBody =>
+      'خطوة أخيرة قبل أن تلعب: أخبرنا قليلاً عن نفسك.';
+
+  @override
+  String get completeProfileSubmit => 'متابعة';
+
+  @override
+  String get profileDetailsInvalid => 'تحقق من بياناتك ثم حاول مرة أخرى.';
+
+  @override
+  String nearChipLabel(String wilayat) {
+    return 'قريب من: $wilayat';
+  }
+
+  @override
+  String get nearChipChoose => 'قريب من: اختر الولاية';
+
+  @override
+  String get wilayatPickerTitle => 'اختر الولاية';
+
+  @override
+  String get wilayatSearchHint => 'ابحث بالولاية أو القرية';
+
+  @override
+  String get wilayatSearchEmpty => 'لا توجد ولاية مطابقة للبحث.';
+
+  @override
+  String get wilayatRequired => 'اختر الولاية';
+
+  @override
+  String get wilayatNotSet => 'غير محددة';
+
+  @override
+  String get communityWilayatLabel => 'الولاية';
+
+  @override
+  String get communityWilayatSaved => 'حُدّثت ولاية المجتمع.';
+
+  @override
+  String get defaultLocationLabel => 'الموقع الافتراضي';
+
+  @override
+  String get defaultLocationHelp =>
+      'يُستخدم في «قريب من» في الاستكشاف. لا يراه غيرك.';
+
+  @override
+  String get defaultLocationSaved => 'حُدّث الموقع الافتراضي.';
+
+  @override
+  String get defaultLocationClear => 'إزالة الموقع الافتراضي';
+
+  @override
+  String get matchLiveBadge => 'مباشر';
 }

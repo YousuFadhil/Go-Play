@@ -8,11 +8,11 @@ import 'supabase_failure_mapper.dart';
 
 /// Supabase implementation of the analytics port.
 ///
-/// One RPC, `record_product_event` (migrations `0067` and `0079`), which is the
+/// One RPC, `record_product_event` (migrations `0067`, `0079`, `0091`), which is the
 /// only way a row reaches `product_events` — no client holds INSERT on that
 /// table, so there is no direct-write path for this class to take even if it
-/// wanted one. `anon` has no execute on it either, which is why a signed-out
-/// visitor's public-link open is not recorded anywhere.
+/// wanted one. `anon` has no execute on it either; a signed-out visitor's
+/// public-link open goes through `SupabaseAcquisitionAnalyticsAdapter` instead.
 class SupabaseAnalyticsAdapter implements AnalyticsAdapter {
   SupabaseAnalyticsAdapter([SupabaseClient? client])
       : _client = client ?? SupabaseBootstrap.client;
@@ -34,6 +34,7 @@ class SupabaseAnalyticsAdapter implements AnalyticsAdapter {
     String? matchId,
     ShareType? shareType,
     String? source,
+    String? targetUserId,
   }) =>
       guarded(
         () async {
@@ -45,6 +46,10 @@ class SupabaseAnalyticsAdapter implements AnalyticsAdapter {
             'p_app_version': BuildInfo.appVersion,
             'p_share_type': shareType?.wireName,
             'p_source': source,
+            // Sent only when there is one. A database that predates `0091`
+            // has no such parameter, and naming it would fail every event
+            // rather than only the two that need it.
+            if (targetUserId != null) 'p_target_user_id': targetUserId,
           });
         },
         operation: 'rpc record_product_event',

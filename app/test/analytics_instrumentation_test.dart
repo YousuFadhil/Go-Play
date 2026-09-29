@@ -26,6 +26,7 @@ import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 
 import 'product_analytics_test.dart' show FakeAnalyticsAdapter;
+import 'auth_adapter_defaults.dart';
 
 /// What the product actually records, and when.
 ///
@@ -445,7 +446,7 @@ final _blankCard = ShareCardImage(
 );
 
 /// A signed-in identity that reaches nothing.
-class _StubAuthAdapter implements AuthAdapter {
+class _StubAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   @override
   bool get isSignedIn => true;
 
@@ -468,7 +469,7 @@ class _StubAuthAdapter implements AuthAdapter {
   Future<void> signOut() => throw UnimplementedError();
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -476,6 +477,7 @@ class _StubAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) =>
       throw UnimplementedError();
 
@@ -542,6 +544,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   final Failure? joinFailure;
 
   @override
+  Future<void> setCommunityWilayat(String communityId, int wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<String> joinCommunity(String communityId) async {
     if (joinFailure != null) throw joinFailure!;
     return joinResult ?? communityId;
@@ -572,6 +578,7 @@ class _FakeCommunityAdapter implements CommunityAdapter {
     required String name,
     String? description,
     required JoinPolicy joinPolicy,
+    required int wilayatCode,
   }) =>
       throw UnimplementedError();
 

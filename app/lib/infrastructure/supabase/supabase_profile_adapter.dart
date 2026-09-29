@@ -141,6 +141,19 @@ class SupabaseProfileAdapter implements ProfileAdapter {
             .eq('id', _currentUserId);
       });
 
+  /// Writes the Default Location, and only that column.
+  ///
+  /// Directly on `users`, like the other profile columns: migration `0094` grants
+  /// UPDATE on `default_wilayat_code` alone and `users_update_own_profile`
+  /// confines the statement to the caller's own row. A null clears it.
+  @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) => guarded(() async {
+        await _client
+            .from('users')
+            .update({'default_wilayat_code': wilayatCode})
+            .eq('id', _currentUserId);
+      });
+
   /// Uploads the picture and points the profile row at it.
   ///
   /// The object name is `<user id>/avatar.<ext>`, which is two things at once:

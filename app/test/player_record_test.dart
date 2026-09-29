@@ -47,22 +47,22 @@ void main() {
       expect(form.goals, 6);
     });
 
-    test('the window the product asks for is five', () {
-      expect(PlayerRecordRepository.formWindow, 5);
+    test('the window the product asks for is six', () {
+      expect(PlayerRecordRepository.formWindow, 6);
     });
 
-    test('a player with more than five gets the five the read returned',
+    test('a player with more than six gets the six the read returned',
         () async {
-      // The cap is the database's — `player_recent_form` clamps it — and the
-      // repository is what names the number. What is asserted here is that the
-      // repository asks for five rather than for everything and trimming.
+      // The cap is the database's — `player_recent_form` clamps it to 10 — and
+      // the repository is what names the number. What is asserted here is that
+      // the repository asks for six rather than for everything and trimming.
       final records = FakePlayerRecordAdapter(
-        form: formOf(List.filled(5, MatchOutcome.win)),
+        form: formOf(List.filled(6, MatchOutcome.win)),
       );
       final form = await PlayerRecordRepository(records).recentForm('u1');
 
-      expect(records.requestedLimit, 5);
-      expect(form.matches, 5);
+      expect(records.requestedLimit, 6);
+      expect(form.matches, 6);
     });
 
     test('the order is the read\'s, newest first, and nothing re-sorts it', () {

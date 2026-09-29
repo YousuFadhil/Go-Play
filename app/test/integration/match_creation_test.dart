@@ -121,18 +121,30 @@ void main() {
   });
 
   group('the refusals', () {
-    test('START_IN_PAST — a match cannot be created already begun', () async {
-      // The rule is not new: `update_match` refuses a match whose start has
-      // passed, so one created that way could never be edited or cancelled.
-      // The insert path allowed exactly that; this is what closed it.
+    test('MATCH_ALREADY_ENDED — a match cannot be created already over',
+        () async {
+      // Since migration `0091` an ordinary match may be created while it is
+      // being played; one that has wholly ended is a record of the past and
+      // belongs on the historical path.
       await expectLater(
-        create(owner, startsIn: const Duration(hours: -2)),
-        throwsA(isA<ValidationFailure>()
-            .having((f) => f.reason, 'reason', FailureReason.startInPast)),
+        create(owner, startsIn: const Duration(hours: -3)),
+        throwsA(isA<ValidationFailure>().having(
+            (f) => f.reason, 'reason', FailureReason.matchAlreadyEnded)),
       );
 
       final matches = await matchesOf(owner).fetchCommunityMatches(communityId);
       expect(matches, isEmpty, reason: 'a refused creation writes nothing');
+    });
+
+    test('a match already under way may be created', () async {
+      // Started an hour ago, ends an hour from now: ACTIVE.
+      await create(owner, startsIn: const Duration(hours: -1));
+
+      final matches = await matchesOf(owner).fetchCommunityMatches(communityId);
+      expect(matches, hasLength(1));
+      expect(matches.single.isLocked, isTrue,
+          reason: 'self-registration is closed from kickoff');
+      expect(matches.single.isCompleted, isFalse);
     });
 
     test('INVALID_TITLE — one character is not a name', () async {

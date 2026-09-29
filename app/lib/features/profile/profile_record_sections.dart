@@ -6,6 +6,7 @@ import '../../core/states.dart';
 import '../../core/time_format.dart';
 import '../../core/tokens.dart';
 import 'player_record_models.dart';
+import 'player_record_repository.dart';
 
 /// A section's own title, on the page ground rather than inside a card.
 ///
@@ -78,7 +79,7 @@ class ProfileSectionHeading extends StatelessWidget {
   }
 }
 
-/// The last five results, and what they add up to.
+/// The last six results, and what they add up to.
 ///
 /// **Newest first, and the order is the read's rather than this widget's.** The
 /// entries arrive in the order the database returned them and are drawn in it;
@@ -100,7 +101,7 @@ class RecentFormSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // No action closes this line. Recent Form is the last five results
+        // No action closes this line. Recent Form is the last six results
         // and nothing more; there is no Match History to open, and a link to
         // the period screen would be a link to a different question.
         ProfileSectionHeading(l10n.recentFormTitle),
@@ -129,10 +130,12 @@ class RecentFormSection extends StatelessWidget {
                     const SizedBox(width: Gap.sm),
                   Expanded(child: _FormTile(entry: entry)),
                 ],
-                // Five slots whatever the window holds, so four results are
-                // four badges at the same width as five rather than four wide
+                // Six slots whatever the window holds, so four results are
+                // four badges at the same width as six rather than four wide
                 // ones.
-                for (var i = form.entries.length; i < 5; i++) ...[
+                for (var i = form.entries.length;
+                    i < PlayerRecordRepository.formWindow;
+                    i++) ...[
                   const SizedBox(width: Gap.sm),
                   const Expanded(child: SizedBox.shrink()),
                 ],

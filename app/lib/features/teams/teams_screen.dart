@@ -15,9 +15,9 @@ import '../results/match_result_card.dart';
 import '../results/result_models.dart';
 import '../results/result_repository.dart';
 import '../sharing/share_card_flow.dart';
-import '../sharing/public_link.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
+import 'generated_lineup_repository.dart';
 import 'match_stage.dart';
 import 'played_participants_sheet.dart';
 import 'match_stage_board.dart';
@@ -43,6 +43,7 @@ class TeamsScreen extends StatefulWidget {
     super.key,
     required this.matchId,
     this.teamRepository,
+    this.generatedLineupRepository,
     this.matchService,
     this.memberRepository,
     this.resultRepository,
@@ -56,6 +57,10 @@ class TeamsScreen extends StatefulWidget {
   /// Left null the screen builds the production ones, so nothing here knows
   /// what a data provider is.
   final TeamRepository? teamRepository;
+
+  /// Where a generation is saved with its evidence (Wave 3). Every manual edit
+  /// still goes through [teamRepository] and records no generation.
+  final GeneratedLineupRepository? generatedLineupRepository;
   final MatchService? matchService;
   final MemberRepository? memberRepository;
 
@@ -76,6 +81,8 @@ class TeamsScreen extends StatefulWidget {
 
 class _TeamsScreenState extends State<TeamsScreen> {
   late final TeamRepository _teams = widget.teamRepository ?? TeamRepository();
+  late final GeneratedLineupRepository _generatedLineups =
+      widget.generatedLineupRepository ?? GeneratedLineupRepository();
   late final MatchService _matches = widget.matchService ?? MatchService();
   late final MemberRepository _members =
       widget.memberRepository ?? MemberRepository();
@@ -238,8 +245,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
   /// Generates the teams and records the result.
   ///
-  /// Two deliberate steps: the engine proposes, and [TeamRepository.saveLineup]
-  /// makes the proposal the match's lineup. Generation stores nothing on its
+  /// Two deliberate steps: the engine proposes, and
+  /// [GeneratedLineupRepository.save] makes the proposal the match's lineup
+  /// while recording the evidence of the run. Generation stores nothing on its
   /// own, so without the second step there would be nothing to come back to.
   /// The screen then re-reads rather than rendering what it holds, which is
   /// what keeps the stored lineup the only source of truth.
@@ -287,7 +295,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     setState(() => _busy = true);
 
     try {
-      final lineup = await _teams.generateTeams(
+      final generated = await _teams.generateTeamsWithEvidence(
         view.match,
         configuration: approvedTeamGeneration,
         historyLookback: approvedHistoryLookback,
@@ -296,7 +304,10 @@ class _TeamsScreenState extends State<TeamsScreen> {
         // instead of the one already on screen.
         avoiding: replacing ? view.lineup : const [],
       );
-      await _teams.saveLineup(widget.matchId, lineup);
+      // One atomic write: the lineup through the existing database rules and
+      // the evidence of the run that produced it (Wave 3). A regeneration is a
+      // new run and appends new evidence; it never rewrites the old.
+      await _generatedLineups.save(widget.matchId, generated);
       _showMessage(l10n.teamsGenerated);
     } on Failure catch (failure) {
       _showMessage(_generationError(l10n, failure));
@@ -405,7 +416,6 @@ class _TeamsScreenState extends State<TeamsScreen> {
       communityId: view.match.communityId,
       message: ShareMessage(
         text: l10n.shareTextMatchLineup(view.match.displayName),
-        url: PublicLink.format(PublicLinkKind.match, widget.matchId),
       ),
       shareType: ShareType.lineup,
       source: ShareSource.teams,
@@ -894,8 +904,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
   // --- Manual Override (§13) -------------------------------------------------
   //
-  // Three operations and nothing else: move a player to the other side, swap
-  // two of them, change the position one is playing. The screen chooses which
+  // Four operations and nothing else: move a player to the other side, swap
+  // two of them across the sides, exchange the positions of two on the same
+  // side, change the position one is playing. The screen chooses which
   // to ask for; `TeamRepository` decides what each one means and writes it, so
   // no lineup reasoning happens here. `BTGE-MO-2` is what makes them possible
   // without the engine, and nothing below reaches for it.
@@ -907,8 +918,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
     TeamAssignment assignment,
   ) async {
     if (_busy) return;
-    // A Professional Guest is offered all four, on the same terms as anybody
-    // else on the pitch.
+    // A Professional Guest is offered the same actions, on the same terms as
+    // anybody else on the pitch -- a position swap included, once they have a
+    // position to exchange.
     //
     // Which side somebody is on and where they stood are both facts about this
     // match rather than about a profile, so both are answerable for a guest.
@@ -919,6 +931,9 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // Removing one means something different from removing a player, and it is
     // routed accordingly — see [_removeParticipant].
     final guest = assignment.isProfessionalGuest;
+    // Offered only when there is somebody to exchange with: a position swap
+    // between two identical positions would be an edit that changes nothing.
+    final canSwapPositions = _positionSwapPartners(view, assignment).isNotEmpty;
     final action = await showDialog<_PlayerAction>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
@@ -929,6 +944,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
               in <(_PlayerAction, String, IconData)>[
             (_PlayerAction.move, l10n.movePlayerAction, Icons.swap_horiz),
             (_PlayerAction.swap, l10n.swapPlayerAction, Icons.swap_vert),
+            if (canSwapPositions)
+              (
+                _PlayerAction.swapPositions,
+                l10n.swapPositionsAction,
+                Icons.compare_arrows,
+              ),
             (
               _PlayerAction.position,
               l10n.changePositionAction,
@@ -970,6 +991,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
         );
       case _PlayerAction.swap:
         await _swap(l10n, view, assignment);
+      case _PlayerAction.swapPositions:
+        await _swapPositions(l10n, view, assignment);
       case _PlayerAction.position:
         await _changePosition(l10n, view, assignment);
       case _PlayerAction.remove:
@@ -1160,6 +1183,73 @@ class _TeamsScreenState extends State<TeamsScreen> {
     );
   }
 
+  /// Who on [assignment]'s own side could exchange positions with them.
+  ///
+  /// Both need an assigned position -- a Professional Guest in an ordinary
+  /// lineup has none, and there is nothing of theirs to exchange -- and the two
+  /// positions must differ, or the exchange would change nothing.
+  List<TeamAssignment> _positionSwapPartners(
+    _TeamsView view,
+    TeamAssignment assignment,
+  ) {
+    final position = assignment.assignedPosition;
+    if (position == null) return const [];
+    return [
+      for (final other in view.lineup)
+        if (other.team == assignment.team &&
+            other.participantId != assignment.participantId &&
+            other.assignedPosition != null &&
+            other.assignedPosition != position)
+          other,
+    ];
+  }
+
+  /// Asks who on the same side to exchange positions with, then exchanges
+  /// them in one save.
+  ///
+  /// Nobody changes side. `TeamRepository.swapAssignedPositions` decides what
+  /// that means for each participant's basis and writes it; this only asks.
+  Future<void> _swapPositions(
+    AppLocalizations l10n,
+    _TeamsView view,
+    TeamAssignment assignment,
+  ) async {
+    final partners = _positionSwapPartners(view, assignment);
+    if (partners.isEmpty) return;
+
+    final partner = await showDialog<TeamAssignment>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: Text(l10n.swapPositionsTitle),
+        children: [
+          for (final other in partners)
+            ListTile(
+              leading: PlayerAvatar(
+                avatarUrl: view.players[other.participantId]?.avatarUrl,
+                fullName: _nameOf(view, other.participantId),
+                isProfessionalGuest: other.isProfessionalGuest,
+              ),
+              title: Text(_nameOf(view, other.participantId)),
+              subtitle:
+                  Text(_positionLabel(l10n, other.assignedPosition!.code)),
+              onTap: () => Navigator.of(dialogContext).pop(other),
+            ),
+        ],
+      ),
+    );
+    if (partner == null || !mounted) return;
+
+    await _runEdit(
+      l10n,
+      () => _teams.swapAssignedPositions(
+        widget.matchId,
+        assignment.participantId,
+        partner.participantId,
+        completedCorrection: view.match.isCompleted,
+      ),
+    );
+  }
+
   /// Asks which of the four positions to use, with [current] marked when the
   /// question is about a player who already has one.
   Future<Position?> _askPosition(
@@ -1281,7 +1371,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
 }
 
 /// What an organizer picked from a player's row.
-enum _PlayerAction { move, swap, position, remove }
+enum _PlayerAction { move, swap, swapPositions, position, remove }
 
 /// Everything one build of the screen needs, read in one pass.
 class _TeamsView {

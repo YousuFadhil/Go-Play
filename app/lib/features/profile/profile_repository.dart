@@ -81,6 +81,11 @@ class ProfileRepository {
     await _adapter.updateMyAccount(fullName: fullName.trim(), phone: phone);
   }
 
+  /// Stores the player's Default Location, or clears it with null. An explicit
+  /// profile action and nothing else: Discover's Near never calls this.
+  Future<void> saveMyDefaultWilayat(int? wilayatCode) =>
+      _adapter.updateMyDefaultWilayat(wilayatCode);
+
   /// Stores [bytes] as the player's picture, returning where it can be fetched.
   Future<String> uploadMyAvatar({
     required Uint8List bytes,

@@ -44,6 +44,7 @@ class AnalyticsRepository {
     String? matchId,
     ShareType? shareType,
     String? source,
+    String? targetUserId,
   }) async {
     try {
       final adapter = _injected ?? (_adapter ??= SupabaseAnalyticsAdapter());
@@ -53,6 +54,7 @@ class AnalyticsRepository {
         matchId: matchId,
         shareType: shareType,
         source: source,
+        targetUserId: targetUserId,
       );
     } catch (_) {
       // Deliberately silent, and deliberately catching everything. See above.

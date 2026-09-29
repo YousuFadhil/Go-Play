@@ -9,13 +9,13 @@ import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/infrastructure/platform/native_share_service.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// The share payload: image, localized text, public URL — and what is recorded
-/// about it.
+/// The share payload: image and localized text — never a URL — and what is
+/// recorded about it.
 ///
 /// The composition is asserted here rather than only through a screen, because
-/// it is one rule that five surfaces depend on: the link goes on its own line
-/// after a blank one, or the messaging apps that auto-link a bare URL at a line
-/// ending will not.
+/// it is one rule that every share surface depends on: since UAT round 1 no
+/// public address travels with a share, and `ShareMessage` has no field that
+/// could carry one.
 void main() {
   ShareCardImage card() => ShareCardImage(
         bytes: Uint8List.fromList(const [1, 2, 3]),
@@ -24,33 +24,22 @@ void main() {
       );
 
   group('composing the message', () {
-    test('words and a link arrive as two blocks', () {
-      const message = ShareMessage(
-        text: 'My player profile on Go Play.',
-        url: 'https://example.test/#/player/x',
-      );
-      expect(
-        message.body,
-        'My player profile on Go Play.\n\nhttps://example.test/#/player/x',
-      );
+    test('the words are the whole message', () {
+      const message = ShareMessage(text: 'My player profile on Go Play.');
+      expect(message.body, 'My player profile on Go Play.');
     });
 
-    test('a card with no public address carries the words alone', () {
-      // A team lineup has no public URL, and a message without one is complete
-      // rather than broken.
-      const message = ShareMessage(text: 'The lineup on Go Play.');
-      expect(message.body, 'The lineup on Go Play.');
-    });
-
-    test('an empty or blank url is the same as none', () {
-      for (final url in ['', '   ']) {
-        expect(ShareMessage(text: 'Words.', url: url).body, 'Words.');
-      }
-    });
-
-    test('a link with no words is still a link', () {
-      const message = ShareMessage(text: '', url: 'https://example.test/');
-      expect(message.body, 'https://example.test/');
+    test('the type has no way to carry a link', () {
+      // Asserted on the source, because the point is what cannot be written:
+      // a constructor with no url parameter and a body that is the text.
+      final code = File('lib/features/sharing/share_service.dart')
+          .readAsLinesSync()
+          .where((line) => !line.trimLeft().startsWith('//'))
+          .join('\n');
+      expect(code, contains('const ShareMessage({required this.text});'));
+      expect(code, contains('String get body => text;'));
+      expect(code, isNot(contains('this.url')));
+      expect(code, isNot(contains('String? url')));
     });
   });
 
@@ -64,15 +53,14 @@ void main() {
 
       final outcome = await service.shareImage(
         card(),
-        message: const ShareMessage(
-          text: 'Words.',
-          url: 'https://example.test/#/match/x',
-        ),
+        message: const ShareMessage(text: 'Words.'),
       );
 
       expect(outcome, ShareOutcome.shared);
       expect(captured!.files, hasLength(1));
-      expect(captured!.text, 'Words.\n\nhttps://example.test/#/match/x');
+      expect(captured!.text, 'Words.');
+      expect(captured!.text, isNot(contains('http')));
+      expect(captured!.uri, isNull);
     });
 
     test('an image-only share is unchanged, and still sends no text', () async {
@@ -149,6 +137,67 @@ void main() {
         // The database truncates at 64; nothing here should come near it.
         expect(source.length, lessThan(64));
       }
+    });
+  });
+
+  group('no share sends a link', () {
+    String read(String path) => File('lib/$path').readAsStringSync();
+
+    const callers = [
+      'features/profile/profile_screen.dart',
+      'features/statistics/community_statistics_tab.dart',
+      'features/statistics/team_of_period_screen.dart',
+      'features/teams/teams_screen.dart',
+      'features/football/football_match_screen.dart',
+    ];
+
+    test('no caller composes a public link into a share', () {
+      for (final path in callers) {
+        final source = read(path);
+        expect(source, isNot(contains('url: PublicLink')), reason: path);
+        expect(source, isNot(contains('publicUrl:')), reason: path);
+        expect(source, isNot(contains('PublicLink.format(')), reason: path);
+      }
+    });
+
+    test('and no caller anywhere hands ShareMessage a url', () {
+      for (final file in Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))) {
+        final source = file.readAsStringSync();
+        expect(RegExp(r'ShareMessage\([^)]*url:').hasMatch(source), isFalse,
+            reason: file.path);
+      }
+    });
+
+    test('the Player Profile card prints no address', () {
+      final source = read('features/profile/player_profile_share_card.dart');
+      expect(source, isNot(contains('publicUrl')));
+      expect(source, isNot(contains('_Address')));
+    });
+
+    test('no share sentence carries an address in either language', () {
+      for (final path in ['lib/l10n/app_en.arb', 'lib/l10n/app_ar.arb']) {
+        final lines = File(path)
+            .readAsLinesSync()
+            .where((line) => line.trimLeft().startsWith('"shareText'));
+        expect(lines, isNotEmpty, reason: path);
+        for (final line in lines) {
+          expect(line, isNot(contains('http')), reason: line);
+          expect(line, isNot(contains('/#/')), reason: line);
+        }
+      }
+    });
+
+    test('public links themselves are still there for routes and arrivals', () {
+      // Only the automatic inclusion was removed. The routing, the external
+      // arrival and its Wave 3 evidence all still read `PublicLink`.
+      expect(
+          File('lib/features/sharing/public_link.dart').existsSync(), isTrue);
+      expect(read('app.dart'), contains('PublicLink'));
+      expect(read('features/analytics/acquisition_analytics.dart'),
+          contains('PublicLinkTarget'));
     });
   });
 

@@ -28,6 +28,7 @@ import 'package:go_play/features/profile/player_record_repository.dart';
 import 'package:go_play/infrastructure/supabase/mappers/profile_mapper.dart';
 
 import 'player_record_fakes.dart';
+import 'auth_adapter_defaults.dart';
 
 /// A player's profile, as another player sees it.
 ///
@@ -742,6 +743,10 @@ class FakeProfileAdapter implements ProfileAdapter {
   ProfilePrivacy? savedPrivacy;
 
   @override
+  Future<void> updateMyDefaultWilayat(int? wilayatCode) =>
+      throw UnimplementedError();
+
+  @override
   Future<PlayerProfile> fetchMyProfile() async {
     readCount++;
     if (readFailure != null) throw readFailure!;
@@ -869,7 +874,7 @@ class _FakeMemberAdapter implements MemberAdapter {
       throw UnimplementedError();
 }
 
-class _StubAuthAdapter implements AuthAdapter {
+class _StubAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   @override
   bool get isSignedIn => true;
 
@@ -886,7 +891,7 @@ class _StubAuthAdapter implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() async => null;
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -894,6 +899,7 @@ class _StubAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) =>
       throw UnimplementedError();
 

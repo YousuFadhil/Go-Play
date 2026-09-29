@@ -1,18 +1,19 @@
-/// The eleven events the product records, and the only eleven it records.
+/// The thirteen events the product records through `record_product_event`,
+/// and the only thirteen it records there.
 ///
 /// **A closed enum, not a string.** The wire name is carried by the value
-/// rather than written at the call site, so a screen cannot invent an
-/// twelfth event by typing one, cannot misspell an approved one, and cannot
-/// drift from the database — where the same ten names are a CHECK constraint on
+/// rather than written at the call site, so a screen cannot invent a
+/// fourteenth event by typing one, cannot misspell an approved one, and cannot
+/// drift from the database — where the same names are a CHECK constraint on
 /// `product_events.event_name` and are restated in `record_product_event`. A
 /// name that is not on this list is refused by the database as
 /// `INVALID_ANALYTICS_EVENT`; this enum is what makes that refusal unreachable
 /// from ordinary code.
 ///
 /// [wireName] must match the CHECK constraint exactly — migration `0067` for
-/// the first ten, migration `0079` for the eleventh, which also restates the
-/// whole list. Static tests assert every one of them against the migration
-/// text.
+/// the first ten, `0079` for the eleventh and `0091` for the two views, each of
+/// which restates the whole list. Static tests assert every one of them against
+/// the migration text.
 enum ProductEvent {
   /// An authenticated, active reader entered the application. Once per session
   /// — not per rebuild, not per resume. See `ProductAnalytics.trackSession`.
@@ -51,15 +52,22 @@ enum ProductEvent {
   /// A public link — `/player/{id}`, `/community/{id}`, `/match/{id}` — was
   /// opened and its destination actually shown.
   ///
-  /// **Recorded for a signed-in reader only, and that is the approved
-  /// boundary rather than an oversight.** `product_events.user_id` is `not
-  /// null` and `record_product_event` takes its actor from `auth.uid()`, so
-  /// there is no path by which a signed-out visitor's open reaches the table —
-  /// and opening one would mean an unauthenticated write, which Package 5
-  /// deliberately does not build. A guest who opens a link and then registers
-  /// records nothing for the open: a back-dated event would be a fabricated
-  /// one.
-  publicLinkOpened('public_link_opened');
+  /// **Through this enum, recorded for a signed-in reader only.**
+  /// `record_product_event` takes its actor from `auth.uid()` and refuses
+  /// `anon`. A signed-out visitor's external arrival is recorded instead by
+  /// Wave 3's narrow anonymous writer (`AcquisitionAnalytics`, migration
+  /// `0089`), never back-dated onto an account.
+  publicLinkOpened('public_link_opened'),
+
+  /// A Player Profile was put in front of a signed-in reader: their own, or
+  /// another player's. Recorded after the profile loaded, with the player it
+  /// is about as the target (migration `0091`). A signed-out visitor's arrival
+  /// stays with Wave 3's acquisition path and is never recorded here.
+  profileViewed('profile_viewed'),
+
+  /// The Player Statistics screen loaded, with the player whose statistics
+  /// they are as the target (migration `0091`).
+  playerStatisticsViewed('player_statistics_viewed');
 
   const ProductEvent(this.wireName);
 
@@ -113,6 +121,16 @@ enum ShareType {
 
   /// The value written to `product_events.share_type`.
   final String wireName;
+
+  /// The kind a stored [wireName] refers to, or null when there is none or
+  /// this build does not know it -- the same honest answer as
+  /// [ProductEvent.fromWireName].
+  static ShareType? fromWireName(String? name) {
+    for (final type in values) {
+      if (type.wireName == name) return type;
+    }
+    return null;
+  }
 }
 
 /// The screens a share or a public-link open is recorded as coming from.

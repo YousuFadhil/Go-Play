@@ -307,7 +307,7 @@ class _UserRow extends StatelessWidget {
           if (user.lastSeenAt != null)
             Text(
               '${l10n.adminMetricLastSeen}: '
-              '${formatMatchDay(context, user.lastSeenAt!)}',
+              '${formatMuscatMatchDay(context, user.lastSeenAt!)}',
             ),
           const SizedBox(height: Gap.xs),
           Wrap(
@@ -370,7 +370,7 @@ class _CommunityRow extends StatelessWidget {
           ),
           if (community.lastActivityAt != null)
             Text('${l10n.adminMetricLastActivity}: '
-                '${formatMatchDay(context, community.lastActivityAt!)}'),
+                '${formatMuscatMatchDay(context, community.lastActivityAt!)}'),
           const SizedBox(height: Gap.xs),
           GoStatusChip(
             label: community.isActive
@@ -422,7 +422,7 @@ class _MatchRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           Text(
-            '${formatMatchDay(context, match.startAt)} · ${match.status}',
+            '${formatMuscatMatchDay(context, match.startAt)} · ${match.status}',
           ),
           if (showScore && match.hasScore) ...[
             const SizedBox(height: Gap.xs),
@@ -481,8 +481,8 @@ class _RegistrationRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           Text(
-            '${formatMatchDay(context, registration.createdAt)} · '
-            '${formatTime(context, registration.createdAt)}',
+            '${formatMuscatMatchDay(context, registration.createdAt)} · '
+            '${formatMuscatTime(context, registration.createdAt)}',
           ),
         ],
       ),

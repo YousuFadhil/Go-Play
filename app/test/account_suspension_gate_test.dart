@@ -20,9 +20,10 @@ import 'package:go_play/features/invitations/invite_landing_screen.dart';
 import 'package:go_play/features/invitations/invite_link.dart';
 
 import 'product_analytics_test.dart' show FakeAnalyticsAdapter;
+import 'auth_adapter_defaults.dart';
 
 /// An identity that answers exactly what a test needs about the account.
-class _FakeAuthAdapter implements AuthAdapter {
+class _FakeAuthAdapter with AuthAdapterDefaults implements AuthAdapter {
   _FakeAuthAdapter({
     bool signedIn = false,
     this.active = true,
@@ -72,7 +73,7 @@ class _FakeAuthAdapter implements AuthAdapter {
   Future<String?> fetchCurrentUserFullName() async => 'Ali';
 
   @override
-  Future<void> signUp({
+  Future<SignUpOutcome> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -80,6 +81,7 @@ class _FakeAuthAdapter implements AuthAdapter {
     required String phone,
     required DateTime dateOfBirth,
     required PlayerPosition? secondaryPosition,
+    required String redirectTo,
   }) =>
       throw UnimplementedError();
 

@@ -251,8 +251,8 @@ void main() {
       'Weekly active communities': AdminDrilldownMetric.weeklyActiveCommunities,
       'Matches · 7 days': AdminDrilldownMetric.matches7d,
       'Matches · 30 days': AdminDrilldownMetric.matches30d,
-      'Registrations · 7 days': AdminDrilldownMetric.registrations7d,
-      'Registrations · 30 days': AdminDrilldownMetric.registrations30d,
+      'Tracked registrations · 7 days': AdminDrilldownMetric.registrations7d,
+      'Tracked registrations · 30 days': AdminDrilldownMetric.registrations30d,
       'Results · 7 days': AdminDrilldownMetric.results7d,
       'Results · 30 days': AdminDrilldownMetric.results30d,
     };
@@ -492,6 +492,91 @@ void main() {
         AdminDrilldownMetric.matches7d,
       );
       expect(find.textContaining('3 - 2'), findsNothing);
+    });
+  });
+
+  group('drill-downs and inspection read in Oman time', () {
+    String plain(String value) =>
+        value.replaceAll('\u202f', ' ').replaceAll('\u00a0', ' ');
+    Finder reading(bool Function(String) test) => find.byWidgetPredicate(
+        (widget) => widget is Text && test(plain(widget.data ?? '')));
+
+    // 22:30 UTC on the 28th is 02:30 on the 29th in Muscat.
+    final late = DateTime.utc(2026, 9, 28, 22, 30);
+
+    testWidgets('a registration after 20:00 UTC is the next Oman day',
+        (tester) async {
+      final adapter = FakeAdminAdapter(
+        pages: {
+          AdminDrilldownMetric.registrations7d: [
+            [
+              AdminDrilldownRegistration(
+                eventId: 'e9',
+                createdAt: late,
+                userId: 'u1',
+                fullName: 'Ali Al Amri',
+                matchId: 'm1',
+                matchTitle: 'Friday Night',
+              ),
+            ]
+          ]
+        },
+      );
+      await pumpDrilldown(
+          tester, adapter, AdminDrilldownMetric.registrations7d);
+
+      expect(reading((text) => text.contains('Tue, Sep 29, 2026 · 2:30 AM')),
+          findsOneWidget);
+      expect(reading((text) => text.contains('Sep 28')), findsNothing);
+    });
+
+    testWidgets('a match and its inspection are dated the Oman day',
+        (tester) async {
+      final adapter = FakeAdminAdapter(
+        pages: {
+          AdminDrilldownMetric.matches7d: [
+            [
+              AdminDrilldownMatch(
+                matchId: 'm1',
+                title: 'Friday Night',
+                communityId: 'c1',
+                communityName: 'Al Amerat FC',
+                location: 'Al Amerat Pitch',
+                startAt: late,
+                status: 'open',
+                matchCreatedAt: DateTime.utc(2026, 8, 30),
+              ),
+            ]
+          ]
+        },
+        matchInspectionResult: AdminMatchInspection(
+          matchId: 'm1',
+          title: 'Friday Night',
+          location: 'Al Amerat Pitch',
+          startAt: late,
+          status: 'open',
+          communityId: 'c1',
+          communityName: 'Al Amerat FC',
+          // 21:00 UTC on the 29th is the 30th in Muscat.
+          createdAt: DateTime.utc(2026, 8, 29, 21),
+          creatorName: 'Organizer',
+          registrationCount: 4,
+          startingPlayers: 10,
+        ),
+      );
+      await pumpDrilldown(tester, adapter, AdminDrilldownMetric.matches7d);
+
+      expect(reading((text) => text.startsWith('Tue, Sep 29, 2026')),
+          findsOneWidget);
+
+      await tester.tap(find.text('Friday Night'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AdminMatchInspectionScreen), findsOneWidget);
+      expect(reading((text) => text == 'Tue, Sep 29, 2026 • 2:30 AM'),
+          findsOneWidget);
+      expect(reading((text) => text == 'Sun, Aug 30, 2026'), findsOneWidget);
+      expect(reading((text) => text.contains('Sep 28')), findsNothing);
     });
   });
 

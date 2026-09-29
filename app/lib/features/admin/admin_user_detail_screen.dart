@@ -19,14 +19,21 @@ import 'admin_repository.dart';
 /// screen reader announcing "dash" tells an administrator nothing.
 const _unknown = '—';
 
-/// What the ten stored event names read as.
+/// What a stored event reads as, with the detail the row carries.
 ///
 /// The mapping goes through [ProductEvent.fromWireName] rather than a list of
 /// string literals here, so the labels cannot drift from the events the product
 /// actually records. **A name this build does not know renders as itself** —
 /// a row written by a newer release is shown rather than dropped or crashed on.
-String _eventLabel(AppLocalizations l10n, String wireName) =>
-    switch (ProductEvent.fromWireName(wireName)) {
+///
+/// [accountId] is the account the screen is about: a view whose target is that
+/// same account is the player looking at themselves.
+String _eventLabel(
+  AppLocalizations l10n,
+  AdminUserActivityEvent event,
+  String accountId,
+) =>
+    switch (ProductEvent.fromWireName(event.eventName)) {
       ProductEvent.sessionStarted => l10n.adminEventSessionStarted,
       ProductEvent.communityViewed => l10n.adminEventCommunityViewed,
       ProductEvent.communityCreated => l10n.adminEventCommunityCreated,
@@ -36,9 +43,34 @@ String _eventLabel(AppLocalizations l10n, String wireName) =>
       ProductEvent.matchWithdrawn => l10n.adminEventMatchWithdrawn,
       ProductEvent.teamsViewed => l10n.adminEventTeamsViewed,
       ProductEvent.resultViewed => l10n.adminEventResultViewed,
-      ProductEvent.shareUsed => l10n.adminEventShareUsed,
+      ProductEvent.shareUsed => _shareLabel(l10n, event.shareType),
       ProductEvent.publicLinkOpened => l10n.adminEventPublicLinkOpened,
-      null => wireName,
+      ProductEvent.profileViewed => event.targetUserId == accountId
+          ? l10n.adminEventViewedOwnProfile
+          : l10n.adminEventViewedPlayerProfile(_targetName(l10n, event)),
+      ProductEvent.playerStatisticsViewed =>
+        event.targetUserId == null || event.targetUserId == accountId
+            ? l10n.adminEventViewedPlayerStatistics
+            : l10n.adminEventViewedPlayerStatisticsOf(_targetName(l10n, event)),
+      null => event.eventName,
+    };
+
+/// Who a view was about, or the "no longer available" every deleted label on
+/// this screen reads as. The uuid is never shown.
+String _targetName(AppLocalizations l10n, AdminUserActivityEvent event) =>
+    event.targetUserName ?? l10n.adminAuditUnavailable;
+
+/// What a share was of. A share recorded without a kind -- or with one this
+/// build does not know -- keeps the plain label it always had.
+String _shareLabel(AppLocalizations l10n, String? shareType) =>
+    switch (ShareType.fromWireName(shareType)) {
+      ShareType.playerProfile => l10n.adminEventSharedPlayerProfile,
+      ShareType.playerStatistics => l10n.adminEventSharedPlayerStatistics,
+      ShareType.community => l10n.adminEventSharedCommunity,
+      ShareType.match => l10n.adminEventSharedMatch,
+      ShareType.lineup => l10n.adminEventSharedLineup,
+      ShareType.result => l10n.adminEventSharedResult,
+      null => l10n.adminEventShareUsed,
     };
 
 /// The two platforms the product reports about itself, said in the reader's
@@ -136,7 +168,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
               SectionCard(children: [
                 _DetailRow(
                   label: l10n.adminMetricJoined,
-                  value: formatMatchDay(context, summary.createdAt),
+                  value: formatMuscatMatchDay(context, summary.createdAt),
                 ),
                 _DetailRow(
                   label: l10n.adminMetricLastSeen,
@@ -145,8 +177,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   // did not state.
                   value: summary.lastSeenAt == null
                       ? _unknown
-                      : '${formatMatchDay(context, summary.lastSeenAt!)} '
-                          '• ${formatTime(context, summary.lastSeenAt!)}',
+                      : '${formatMuscatMatchDay(context, summary.lastSeenAt!)} '
+                          '• ${formatMuscatTime(context, summary.lastSeenAt!)}',
                   unknown: summary.lastSeenAt == null,
                 ),
                 _DetailRow(
@@ -187,7 +219,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   value: '${summary.communityCount}',
                 ),
                 _DetailRow(
-                  label: l10n.adminMetricRegistrations,
+                  label: l10n.adminMetricTrackedRegistrations,
                   value: '${summary.trackedRegistrations}',
                 ),
                 _DetailRow(
@@ -195,7 +227,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   value: '${summary.matchesPlayed}',
                 ),
                 _DetailRow(
-                  label: l10n.adminMetricWithdrawals,
+                  label: l10n.adminMetricTrackedWithdrawals,
                   value: '${summary.trackedWithdrawals}',
                 ),
               ]),
@@ -203,8 +235,9 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
               // The same sentence the Overview closes with, because it is the
               // same fact and two wordings of it would invite the reader to
               // wonder which applied here. Registrations, withdrawals and
-              // sessions above are tracked figures; Matches Played is not, and
-              // is historically complete.
+              // sessions above are tracked figures over retained activity;
+              // Last Seen survives retention; Matches Played is not a tracked
+              // figure, and is historically complete.
               FootNote(l10n.adminAnalyticsNotice),
 
               SectionHeading(title: l10n.adminRecentActivityTitle),
@@ -215,7 +248,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                 )
               else
                 SectionCard(children: [
-                  for (final event in timeline) _ActivityRow(event: event),
+                  for (final event in timeline)
+                    _ActivityRow(event: event, accountId: summary.userId),
                 ]),
             ],
           );
@@ -325,9 +359,12 @@ class _DetailRow extends StatelessWidget {
 
 /// One thing the account did: what, where, and when.
 class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.event});
+  const _ActivityRow({required this.event, required this.accountId});
 
   final AdminUserActivityEvent event;
+
+  /// The account this screen is about, which is what makes a view "own".
+  final String accountId;
 
   @override
   Widget build(BuildContext context) {
@@ -360,7 +397,7 @@ class _ActivityRow extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  _eventLabel(l10n, event.eventName),
+                  _eventLabel(l10n, event, accountId),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -368,7 +405,7 @@ class _ActivityRow extends StatelessWidget {
               ),
               const SizedBox(width: Gap.sm),
               Text(
-                formatTime(context, event.createdAt),
+                formatMuscatTime(context, event.createdAt),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -377,7 +414,8 @@ class _ActivityRow extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            [formatMatchDay(context, event.createdAt), ...context_].join(' · '),
+            [formatMuscatMatchDay(context, event.createdAt), ...context_]
+                .join(' · '),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
