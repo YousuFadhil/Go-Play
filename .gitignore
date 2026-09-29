@@ -9,6 +9,9 @@ Thumbs.db
 
 # Secrets
 *.env
+# Google OAuth client credential exports (client_secret_<id>.apps.googleusercontent.com.json)
+# carry the client secret. Deliberately this filename pattern and not *.json.
+client_secret*.json
 
 # Local tool settings
 .claude/settings.local.json

@@ -550,18 +550,36 @@ reported as "too many attempts" rather than retried.
 are **six-digit code flows**: for the app to show a code, the *Confirm signup* and
 *Reset password* emails must carry `{{ .Token }}`. Staging and production share
 one project, and the production client that is live today understands **links
-only**, so the order matters and is not to be reversed:
+only**, so the order matters and is not to be reversed. For these settings this
+list, not the numbering of the steps above, is the order to follow:
 
-1. Release a client that supports the codes to production. It still accepts the
-   old recovery link (the link handling has **not** been removed) -- that is the
-   backward-compatibility period.
-2. Only then change the *Confirm signup* and *Reset password* templates to
-   `{{ .Token }}`. Changed earlier, every recovery email would carry a code the
-   production client cannot use. Until then the templates stay the defaults
-   (`{{ .ConfirmationURL }}`, so the redirect above is honoured), and the new
-   client's "Send code" screen still delivers a link, which works as before.
-3. Configure custom SMTP (step 5).
-4. Only then turn *Confirm email* on (step 4).
+1. **Deploy the code-capable client to production**, with *Confirm email* still
+   **off**, the email templates **unchanged**, and the old recovery link still
+   accepted (the link handling has **not** been removed -- that is the
+   backward-compatibility period). Nothing a player sees changes yet: the new
+   client's "Send code" screen still delivers the link email, which works as
+   before.
+2. **Configure custom SMTP** (step 5), with the templates still unchanged.
+3. **Verify real auth-email delivery through the custom SMTP**, using the flow as
+   it still is: request a password recovery for a throwaway address that has a
+   real inbox, and confirm the link email arrives and works.
+4. **Switch the *Reset password* and *Confirm signup* templates to six-digit
+   `{{ .Token }}` content.**
+5. **Verify password recovery by code end to end**, with *Confirm email* still
+   **off**: request, code, new password, sign in.
+6. **Only after explicit Product Owner approval, turn *Confirm email* on**
+   (step 4).
+7. **Verify a throwaway new email/password registration end to end through the
+   sign-up code**: register, code, signed in -- and the closed-app case, where
+   signing in later resumes the code screen.
+
+**Why SMTP comes before the templates.** Changing SMTP first is
+backward-compatible: the emails keep the content the deployed clients already
+handle, so a misconfigured SMTP shows up as a delivery problem and nothing else
+has changed. Changing the *Reset password* template before delivery is known to be
+reliable would change the recovery experience for existing users at once -- a
+code where they expect a link -- while the emails carrying it might not arrive
+(the built-in service is rate-limited and not meant for real players).
 
 Code-based recovery does not depend on which browser asked for it, which is what
 the web workaround under step 6 exists to achieve for links; once production has
