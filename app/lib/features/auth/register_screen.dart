@@ -9,7 +9,7 @@ import '../analytics/acquisition_analytics.dart';
 import '../profile/profile_models.dart';
 import 'auth_models.dart';
 import 'auth_service.dart';
-import 'check_email_view.dart';
+import 'email_code_view.dart';
 import 'google_sign_in_button.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -38,7 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   /// Set when the account was created but the provider is holding it for the
   /// address to be confirmed. While it is set the form is replaced by the
-  /// "check your email" state; nothing is signed in.
+  /// email-code state, which asks for the six-digit code; nothing is signed in.
   String? _pendingConfirmationEmail;
 
   @override
@@ -96,13 +96,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         secondaryPosition: _secondaryPosition,
       );
       // The provider is holding the account for the address to be confirmed:
-      // there is no session, so nothing below applies. The person is told to
-      // check their email, and the gate stays where it is.
+      // there is no session, so nothing below applies. The person is asked for
+      // the code in the email, and the gate stays where it is.
       //
       // The acquisition conversion is deliberately not marked here. It is a
       // flag that lives until the gate confirms an active account or the session
       // ends, and with no session there is neither -- it would still be set when
-      // somebody else signed in, and a login must never count as a signup.
+      // somebody else signed in, and a login must never count as a signup. It is
+      // marked when the code is accepted instead: see [_onEmailVerified].
       if (outcome == SignUpOutcome.confirmationRequired) {
         if (mounted) {
           setState(
@@ -131,6 +132,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  /// The code was accepted, so the account is confirmed and signed in, and the
+  /// gate is already on its way to the account check.
+  ///
+  /// This is where the registration counts as a conversion: the account was
+  /// created by this form and only now has a session to be counted against, so it
+  /// is what the immediate-session path above marks, one step later.
+  void _onEmailVerified() {
+    AcquisitionAnalytics.instance.registrationSucceeded();
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -150,9 +162,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              child: CheckEmailView(
+              child: EmailCodeView(
+                purpose: EmailCodePurpose.signup,
                 email: pendingEmail,
                 authService: _authService,
+                onVerified: _onEmailVerified,
               ),
             ),
           ),

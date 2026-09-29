@@ -2,18 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/features/analytics/acquisition_analytics.dart';
+import 'package:go_play/features/analytics/acquisition_analytics_adapter.dart';
+import 'package:go_play/features/analytics/acquisition_analytics_repository.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
-import 'package:go_play/features/auth/check_email_view.dart';
+import 'package:go_play/features/auth/email_code_view.dart';
 import 'package:go_play/features/auth/forgot_password_screen.dart';
 import 'package:go_play/features/auth/login_screen.dart';
+import 'package:go_play/features/auth/password_recovery_state.dart';
 import 'package:go_play/features/auth/register_screen.dart';
+import 'package:go_play/features/sharing/public_link.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_modernization_fakes.dart';
 
 /// The sign-in, registration and password-recovery screens under the
-/// authentication modernization: the email-confirmation state, the Google
-/// action, "Forgot password?", and the neutral reset request.
+/// authentication modernization: the email-code state, the Google action,
+/// "Forgot password?", and the neutral reset request.
 ///
 /// Every screen is driven through the real `AuthService` over a fake identity
 /// port, so the path from a tap to the port is the production one.
@@ -99,7 +105,7 @@ void main() {
       expect(adapter.signUps, hasLength(1));
       expect(find.byType(RegisterScreen), findsNothing,
           reason: 'unwound to the root, where the gate takes over');
-      expect(find.text('Check your email'), findsNothing);
+      expect(find.byType(EmailCodeView), findsNothing);
     });
 
     testWidgets('the platform callback is passed to the provider',
@@ -121,9 +127,12 @@ void main() {
 
       expect(adapter.signUps, hasLength(1));
       expect(adapter.isSignedIn, isFalse);
-      // Still on the registration route, now showing where the email went.
+      // Still on the registration route, now asking for the emailed code.
       expect(find.byType(RegisterScreen), findsOneWidget);
-      expect(find.text('Check your email'), findsOneWidget);
+      expect(find.byType(EmailCodeView), findsOneWidget);
+      expect(find.text('Verify your email to complete registration.'),
+          findsOneWidget,
+          reason: 'not "registration complete": nobody is signed in yet');
       expect(find.textContaining('sara@example.com'), findsOneWidget,
           reason: 'the trimmed address, so the person can see if it is wrong');
       expect(find.byType(TextFormField), findsNothing,
@@ -136,7 +145,7 @@ void main() {
           tester, outcome: SignUpOutcome.confirmationRequired);
       await fillAndSubmit(tester);
 
-      Finder resend() => find.widgetWithText(OutlinedButton, 'Resend email');
+      Finder resend() => find.widgetWithText(OutlinedButton, 'Send a new code');
       expect(tester.widget<OutlinedButton>(resend()).onPressed, isNull,
           reason: 'the sign-up itself just sent one');
       expect(find.textContaining('in a minute'), findsOneWidget);
@@ -154,7 +163,7 @@ void main() {
       expect(adapter.resends.single.email, 'sara@example.com');
       expect(adapter.resends.single.redirectTo,
           AuthService.authCallbackRedirect);
-      expect(find.text('Confirmation email sent again.'), findsOneWidget);
+      expect(find.text('A new code is on its way.'), findsOneWidget);
       expect(tester.widget<OutlinedButton>(resend()).onPressed, isNull,
           reason: 'and the provider\'s limit starts again');
 
@@ -171,7 +180,7 @@ void main() {
       adapter.resendFailure =
           const InfrastructureFailure(FailureReason.tooManyRequests);
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Resend email'));
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Send a new code'));
       await tester.pump();
 
       expect(find.text('Too many attempts. Please wait a few minutes and try '
@@ -180,7 +189,7 @@ void main() {
       expect(
           tester
               .widget<OutlinedButton>(
-                  find.widgetWithText(OutlinedButton, 'Resend email'))
+                  find.widgetWithText(OutlinedButton, 'Send a new code'))
               .onPressed,
           isNull);
 
@@ -194,7 +203,7 @@ void main() {
       await tester.pump(const Duration(seconds: 61));
       adapter.resendFailure = const NetworkFailure();
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Resend email'));
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Send a new code'));
       await tester.pump();
 
       expect(find.text('Could not reach the server. Check your internet '
@@ -208,11 +217,125 @@ void main() {
       await openRegister(tester, outcome: SignUpOutcome.confirmationRequired);
       await fillAndSubmit(tester);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Back to log in'));
+      await tester.tap(find.widgetWithText(TextButton, 'Back to log in'));
       await tester.pumpAndSettle();
 
       expect(find.byType(RegisterScreen), findsNothing);
       expect(find.text('open'), findsOneWidget);
+    });
+
+    testWidgets('the code for a held sign-up is verified as a sign-up code, '
+        'with the trimmed address and the digits, and the screen then leaves '
+        'the rest to the gate', (tester) async {
+      final adapter = await openRegister(
+          tester, outcome: SignUpOutcome.confirmationRequired);
+      await fillAndSubmit(tester);
+
+      await tester.enterText(find.byType(TextField), '482 913');
+      await tester.tap(find.widgetWithText(FilledButton, 'Verify'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.signupVerifications.single,
+          (email: 'sara@example.com', code: '482913'));
+      expect(adapter.recoveryVerifications, isEmpty);
+      expect(adapter.isSignedIn, isTrue);
+      expect(find.byType(RegisterScreen), findsNothing,
+          reason: 'unwound to the root, where the gate takes over');
+    });
+
+    testWidgets('a code the provider refuses keeps the person on the code '
+        'screen and marks no registration', (tester) async {
+      final adapter = await openRegister(
+          tester, outcome: SignUpOutcome.confirmationRequired);
+      adapter.verifyFailure =
+          const AuthenticationFailure(FailureReason.invalidEmailCode);
+      await fillAndSubmit(tester);
+
+      await tester.enterText(find.byType(TextField), '482913');
+      await tester.tap(find.widgetWithText(FilledButton, 'Verify'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RegisterScreen), findsOneWidget);
+      expect(find.byType(EmailCodeView), findsOneWidget);
+      expect(find.textContaining('incorrect or has expired'), findsOneWidget);
+      expect(adapter.isSignedIn, isFalse);
+
+      // Unmount so the resend timer does not outlive the test.
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    group('the registration conversion', () {
+      const target = PublicLinkTarget(
+          PublicLinkKind.player, '3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
+      final previous = AcquisitionAnalytics.instance;
+      late _Acquisitions acquisitions;
+
+      setUp(() {
+        acquisitions = _Acquisitions();
+        AcquisitionAnalytics.instance = AcquisitionAnalytics(
+          repository: AcquisitionAnalyticsRepository(acquisitions),
+          isSignedIn: () => false,
+          pendingTarget: ValueNotifier(target),
+        );
+      });
+      tearDown(() => AcquisitionAnalytics.instance = previous);
+
+      testWidgets('is counted once the code is accepted -- not while the '
+          'sign-up is only held', (tester) async {
+        AcquisitionAnalytics.instance.externalArrivalLoaded(target);
+        await tester.pump();
+        final adapter = await openRegister(
+            tester, outcome: SignUpOutcome.confirmationRequired);
+        await fillAndSubmit(tester);
+
+        // Held: the gate cannot confirm an active account, and nothing marked.
+        AcquisitionAnalytics.instance.accountActive();
+        await tester.pump();
+        expect(acquisitions.completions, isEmpty,
+            reason: 'a held sign-up is not yet a conversion');
+        AcquisitionAnalytics.instance.signedOut();
+        AcquisitionAnalytics.instance.externalArrivalLoaded(target);
+        await tester.pump();
+
+        await tester.enterText(find.byType(TextField), '482913');
+        await tester.tap(find.widgetWithText(FilledButton, 'Verify'));
+        await tester.pumpAndSettle();
+        expect(adapter.isSignedIn, isTrue);
+
+        // The gate, once the new account's state is known to be active.
+        AcquisitionAnalytics.instance.accountActive();
+        await tester.pump();
+
+        expect(acquisitions.completions, ['acq-2'],
+            reason: 'one conversion, from this registration');
+      });
+
+      testWidgets('is not counted for a recovery code, which is not a '
+          'registration', (tester) async {
+        AcquisitionAnalytics.instance.externalArrivalLoaded(target);
+        await tester.pump();
+        // Verifying a recovery code records the recovery durably, so storage
+        // has to exist; and the record is this test's own.
+        SharedPreferences.setMockInitialValues({});
+        final adapter = ScriptedAuthAdapter();
+        final service = AuthService(adapter, PasswordRecoveryState());
+        await open(
+          tester,
+          (_) => ForgotPasswordScreen(authService: service),
+        );
+        await tester.enterText(find.byType(TextFormField), 'sara@example.com');
+        await tester.tap(find.widgetWithText(FilledButton, 'Send code'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), '482913');
+        await tester.tap(find.widgetWithText(FilledButton, 'Verify'));
+        await tester.pumpAndSettle();
+
+        AcquisitionAnalytics.instance.accountActive();
+        await tester.pump();
+
+        expect(acquisitions.completions, isEmpty);
+        await tester.pumpWidget(const SizedBox());
+      });
     });
 
     testWidgets('an address that is already registered still says so',
@@ -225,15 +348,16 @@ void main() {
 
       expect(find.text('This email is already registered.'), findsOneWidget);
       expect(adapter.signUps, isEmpty);
-      expect(find.text('Check your email'), findsNothing);
+      expect(find.byType(EmailCodeView), findsNothing);
     });
 
-    testWidgets('the confirmation state is in Arabic in Arabic',
+    testWidgets('the email-code state is in Arabic in Arabic',
         (tester) async {
       await open(
         tester,
         (_) => Scaffold(
-          body: CheckEmailView(
+          body: EmailCodeView(
+            purpose: EmailCodePurpose.signup,
             email: 'sara@example.com',
             authService: AuthService(ScriptedAuthAdapter()),
           ),
@@ -241,9 +365,12 @@ void main() {
         locale: const Locale('ar'),
       );
 
-      expect(find.text('تحقق من بريدك الإلكتروني'), findsOneWidget);
+      expect(find.text('أدخل الرمز'), findsOneWidget);
+      expect(find.text('تحقق من بريدك الإلكتروني لإكمال التسجيل.'),
+          findsOneWidget);
       expect(find.textContaining('sara@example.com'), findsOneWidget);
-      expect(find.text('إعادة إرسال الرسالة'), findsOneWidget);
+      expect(find.text('الرمز المكوّن من 6 أرقام'), findsOneWidget);
+      expect(find.text('إرسال رمز جديد'), findsOneWidget);
       expect(find.text('العودة إلى تسجيل الدخول'), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 61));
@@ -397,12 +524,11 @@ void main() {
 
     Future<void> send(WidgetTester tester, String email) async {
       await tester.enterText(find.byType(TextFormField), email);
-      await tester.tap(find.widgetWithText(FilledButton, 'Send reset link'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Send code'));
       await tester.pumpAndSettle();
     }
 
-    const neutral = 'If that email belongs to an account, a reset link is on '
-        'its way. Check your inbox and your spam folder.';
+    const neutral = 'Enter the code we sent to your email.';
 
     testWidgets('an empty address is refused before the port', (tester) async {
       final adapter = await openForgot(tester);
@@ -472,7 +598,7 @@ void main() {
       await openForgot(tester);
       await send(tester, 'sara@example.com');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Back to log in'));
+      await tester.tap(find.widgetWithText(TextButton, 'Back to log in'));
       await tester.pumpAndSettle();
 
       expect(find.byType(ForgotPasswordScreen), findsNothing);
@@ -520,13 +646,26 @@ void main() {
 
       expect(find.text('إعادة تعيين كلمة المرور'), findsOneWidget);
       await tester.enterText(find.byType(TextFormField), 'sara@example.com');
-      await tester.tap(find.text('إرسال رابط إعادة التعيين'));
+      await tester.tap(find.text('إرسال الرمز'));
       await tester.pumpAndSettle();
 
-      expect(
-          find.text('إن كان هذا البريد يخص حساباً فقد أُرسل إليه رابط إعادة '
-              'التعيين. تحقق من صندوق الوارد ومن البريد غير المرغوب فيه.'),
+      expect(find.text('أدخل الرمز الذي أرسلناه إلى بريدك الإلكتروني.'),
           findsOneWidget);
+      expect(find.text('الرمز المكوّن من 6 أرقام'), findsOneWidget);
     });
   });
+}
+
+/// What the acquisition port was asked, counted from 1 like a database would.
+class _Acquisitions implements AcquisitionAnalyticsAdapter {
+  int opens = 0;
+  final completions = <String>[];
+
+  @override
+  Future<String> recordAnonymousOpen(PublicLinkKind kind) async =>
+      'acq-${++opens}';
+
+  @override
+  Future<void> recordSignupCompleted(String acquisitionId) async =>
+      completions.add(acquisitionId);
 }

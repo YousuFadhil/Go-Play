@@ -81,6 +81,15 @@ class ScriptedAuthAdapter implements AuthAdapter {
   Object? changePasswordFailure;
   Object? signOutFailure;
 
+  /// What verifying an emailed code raises, for either purpose. Null means the
+  /// code is accepted.
+  Object? verifyFailure;
+
+  /// Called at the moment a code is being verified, **before** the provider
+  /// would create a session, so a test can observe what was already true then --
+  /// for instance, that the durable recovery record was already on disk.
+  void Function()? onVerify;
+
   /// With [signOutFailure] set: the failure happens before the session is
   /// cleared, so the session is still there afterwards.
   bool signOutLeavesSession = false;
@@ -106,6 +115,11 @@ class ScriptedAuthAdapter implements AuthAdapter {
   final resetRequests = <({String email, String redirectTo})>[];
   final completions = <CompletionCall>[];
   final passwordChanges = <String>[];
+
+  /// Every code the port was asked to verify. The tests read these to prove what
+  /// reached the provider; nothing else in the application keeps a code.
+  final recoveryVerifications = <({String email, String code})>[];
+  final signupVerifications = <({String email, String code})>[];
 
   /// Everything that touched the session, in order, so a test can assert that a
   /// password was changed *before* the session was ended.
@@ -231,6 +245,33 @@ class ScriptedAuthAdapter implements AuthAdapter {
   }) async {
     if (resetFailure != null) throw resetFailure!;
     resetRequests.add((email: email, redirectTo: redirectTo));
+  }
+
+  /// Accepting a recovery code is what the provider does for a recovery link: it
+  /// stores the session **and then** says so, both before the call returns.
+  @override
+  Future<void> verifyRecoveryCode({
+    required String email,
+    required String code,
+  }) async {
+    journal.add('verifyRecoveryCode');
+    onVerify?.call();
+    if (verifyFailure != null) throw verifyFailure!;
+    recoveryVerifications.add((email: email, code: code));
+    emit(AuthEvent.passwordRecovery, signedIn: true);
+  }
+
+  /// Accepting a sign-up code confirms the address and signs the account in.
+  @override
+  Future<void> verifySignupCode({
+    required String email,
+    required String code,
+  }) async {
+    journal.add('verifySignupCode');
+    onVerify?.call();
+    if (verifyFailure != null) throw verifyFailure!;
+    signupVerifications.add((email: email, code: code));
+    emit(AuthEvent.signedIn, signedIn: true);
   }
 
   @override

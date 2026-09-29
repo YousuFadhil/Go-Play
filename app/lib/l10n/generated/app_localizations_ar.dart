@@ -2531,14 +2531,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get forgotPasswordBody =>
-      'أدخل البريد الإلكتروني الذي سجّلت به. إن كان يخص حساباً فسنرسل إليه رابطاً لاختيار كلمة مرور جديدة.';
+      'أدخل البريد الإلكتروني الذي سجّلت به. إن كان يخص حساباً فسنرسل إليه رمزاً لاختيار كلمة مرور جديدة.';
 
   @override
-  String get forgotPasswordSend => 'إرسال رابط إعادة التعيين';
-
-  @override
-  String get forgotPasswordSent =>
-      'إن كان هذا البريد يخص حساباً فقد أُرسل إليه رابط إعادة التعيين. تحقق من صندوق الوارد ومن البريد غير المرغوب فيه.';
+  String get forgotPasswordSend => 'إرسال الرمز';
 
   @override
   String get backToLogin => 'العودة إلى تسجيل الدخول';
@@ -2548,21 +2544,41 @@ class AppLocalizationsAr extends AppLocalizations {
       'محاولات كثيرة. انتظر بضع دقائق ثم حاول مرة أخرى.';
 
   @override
-  String get checkEmailTitle => 'تحقق من بريدك الإلكتروني';
+  String get emailCodeTitle => 'أدخل الرمز';
 
   @override
-  String checkEmailBody(String email) {
-    return 'أرسلنا رابط التأكيد إلى $email. افتحه لتفعيل حسابك، ثم سجّل الدخول.';
+  String get emailCodeRecoveryBody =>
+      'أدخل الرمز الذي أرسلناه إلى بريدك الإلكتروني.';
+
+  @override
+  String get emailCodeSignupBody => 'تحقق من بريدك الإلكتروني لإكمال التسجيل.';
+
+  @override
+  String emailCodeSentTo(String email) {
+    return 'أرسلنا رمزاً من 6 أرقام إلى $email.';
   }
 
   @override
-  String get checkEmailResend => 'إعادة إرسال الرسالة';
+  String get emailCodeLabel => 'الرمز المكوّن من 6 أرقام';
 
   @override
-  String get checkEmailResent => 'أُعيد إرسال رسالة التأكيد.';
+  String get emailCodeIncomplete => 'أدخل الأرقام الستة كاملة.';
 
   @override
-  String get checkEmailResendWait => 'لم تصل؟ يمكنك طلب رسالة أخرى بعد دقيقة.';
+  String get emailCodeVerify => 'تحقق';
+
+  @override
+  String get emailCodeInvalid =>
+      'الرمز غير صحيح أو انتهت صلاحيته. راجعه أو اطلب رمزاً جديداً.';
+
+  @override
+  String get emailCodeResend => 'إرسال رمز جديد';
+
+  @override
+  String get emailCodeResent => 'الرمز الجديد في طريقه إليك.';
+
+  @override
+  String get emailCodeResendWait => 'لم يصل؟ يمكنك طلب رمز جديد بعد دقيقة.';
 
   @override
   String get resetPasswordTitle => 'اختر كلمة مرور جديدة';

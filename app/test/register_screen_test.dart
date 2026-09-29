@@ -8,6 +8,7 @@ import 'package:go_play/features/analytics/acquisition_analytics_repository.dart
 import 'package:go_play/features/auth/auth_adapter.dart';
 import 'package:go_play/features/auth/auth_models.dart';
 import 'package:go_play/features/auth/auth_service.dart';
+import 'package:go_play/features/auth/email_code_view.dart';
 import 'package:go_play/features/auth/login_screen.dart';
 import 'package:go_play/features/auth/register_screen.dart';
 import 'package:go_play/features/sharing/public_link.dart';
@@ -169,7 +170,7 @@ void main() {
       await accountActive(tester);
 
       expect(adapter.signUpCount, 1);
-      expect(find.text('Check your email'), findsOneWidget);
+      expect(find.byType(EmailCodeView), findsOneWidget);
       expect(acquisition.completions, isEmpty);
     });
 

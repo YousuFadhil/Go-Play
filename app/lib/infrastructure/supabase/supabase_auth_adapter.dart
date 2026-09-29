@@ -228,6 +228,41 @@ class SupabaseAuthAdapter implements AuthAdapter {
         }
       });
 
+  /// `GoTrueClient.verifyOTP` with [OtpType.recovery] (gotrue 2.26.0).
+  ///
+  /// It is the app's own PKCE client that verifies, not the throwaway used for
+  /// the web request above: the session has to land in the client the rest of the
+  /// application reads, and the SDK then announces
+  /// [AuthChangeEvent.passwordRecovery] on it. How the code was *requested*
+  /// (with or without a PKCE challenge) makes no difference to redeeming it --
+  /// the code is redeemed by email address and digits, not by a stored verifier.
+  @override
+  Future<void> verifyRecoveryCode({
+    required String email,
+    required String code,
+  }) =>
+      guarded(() => _verifyEmailCode(email, code, OtpType.recovery));
+
+  /// `GoTrueClient.verifyOTP` with [OtpType.signup] (gotrue 2.26.0): the type
+  /// that pairs with the `resend(type: OtpType.signup)` above and that only a
+  /// sign-up confirmation code satisfies. [OtpType.email] also exists; it is the
+  /// passwordless-sign-in type, and it would accept a recovery code here too.
+  @override
+  Future<void> verifySignupCode({
+    required String email,
+    required String code,
+  }) =>
+      guarded(() => _verifyEmailCode(email, code, OtpType.signup));
+
+  Future<void> _verifyEmailCode(String email, String code, OtpType type) async {
+    final response = await _auth.verifyOTP(email: email, token: code, type: type);
+    // Accepted but no session came back: nothing the application can use came of
+    // it, so it is the same answer as a refusal rather than a success.
+    if (response.session == null) {
+      throw const AuthenticationFailure(FailureReason.invalidEmailCode);
+    }
+  }
+
   @override
   Future<void> signIn({
     required String email,

@@ -180,6 +180,110 @@ class AuthService {
     );
   }
 
+  /// How many digits an emailed code has.
+  static const int emailCodeLength = 6;
+
+  /// [input] as the digits the provider expects.
+  ///
+  /// Arabic-Indic and Eastern Arabic-Indic digits, which an Arabic keyboard
+  /// types, become ASCII ones; anything else that is not a digit -- the space in
+  /// "123 456" pasted from an email -- is dropped. It is a normalisation, not a
+  /// validation: see [isValidEmailCode].
+  static String normalizeEmailCode(String input) {
+    final digits = StringBuffer();
+    for (final unit in input.runes) {
+      if (unit >= 0x30 && unit <= 0x39) {
+        digits.writeCharCode(unit);
+      } else if (unit >= 0x660 && unit <= 0x669) {
+        digits.writeCharCode(unit - 0x660 + 0x30);
+      } else if (unit >= 0x6F0 && unit <= 0x6F9) {
+        digits.writeCharCode(unit - 0x6F0 + 0x30);
+      }
+    }
+    return digits.toString();
+  }
+
+  /// Whether [input] is, once normalised, exactly [emailCodeLength] digits.
+  static bool isValidEmailCode(String input) =>
+      normalizeEmailCode(input).length == emailCodeLength;
+
+  /// Verifies the code from a password-recovery email and, if it is right, puts
+  /// the application **into the protected recovery state**: the durable record
+  /// is set, so the auth gate shows `ResetPasswordScreen` and nothing else, and
+  /// the session that results never becomes a product session.
+  ///
+  /// **The record is written before the provider is asked, not after.** The
+  /// provider stores the session the moment the code is accepted; a record
+  /// written afterwards leaves a window -- however short -- in which the app can
+  /// be killed holding a recovery session that nothing says is one, and it would
+  /// come back as an ordinary sign-in. Written first, there is no moment at which
+  /// the session exists and the record does not. If the code is refused the
+  /// record is taken back out, because nothing is being protected: with no
+  /// session a record is stale by definition, and the gate drops it anyway.
+  ///
+  /// The provider's own recovery event is not what this relies on. It is a
+  /// backup to the record, as it is for a recovery link, and the record is
+  /// written again once the session is known to exist.
+  ///
+  /// The code itself is used and forgotten: it is passed to the provider and
+  /// nowhere else -- not stored, not logged, not kept in this object.
+  ///
+  /// Throws [ValidationFailure] for something that is not an address or not six
+  /// digits, before anything reaches the provider. A code the provider refuses
+  /// -- wrong, expired, used, or for an address with no account -- is one
+  /// failure, [FailureReason.invalidEmailCode].
+  Future<void> verifyRecoveryCode({
+    required String email,
+    required String code,
+  }) async {
+    final trimmed = email.trim();
+    if (!isValidEmail(trimmed) || !isValidEmailCode(code)) {
+      throw const ValidationFailure();
+    }
+    // With somebody already signed in, a record set now would describe *their*
+    // ordinary session as a recovery. That cannot arise from the screens -- the
+    // gate leaves them when a session appears -- but it is cheap to be certain
+    // of, and the record is set below once the recovery session exists.
+    final armedFirst = !_adapter.isSignedIn;
+    if (armedFirst) await _recovery.begin();
+    try {
+      await _adapter.verifyRecoveryCode(
+        email: trimmed,
+        code: normalizeEmailCode(code),
+      );
+    } catch (_) {
+      // Only a record this call set is taken back, and only if no session came of
+      // it. A session that exists is a recovery session and keeps its record.
+      if (armedFirst && !_adapter.isSignedIn) await _recovery.clear();
+      rethrow;
+    }
+    await _recovery.begin();
+  }
+
+  /// Verifies the code that completes a sign-up. On success the person has an
+  /// ordinary session, and what happens next -- Home, or the player-profile form
+  /// -- is the gate's account-state check like any other sign-in, not something
+  /// decided here.
+  ///
+  /// Nothing about recovery is touched: this session is not one.
+  ///
+  /// Throws [ValidationFailure] for something that is not an address or not six
+  /// digits; a refused code is [FailureReason.invalidEmailCode]. The code is used
+  /// and forgotten, as in [verifyRecoveryCode].
+  Future<void> verifySignupCode({
+    required String email,
+    required String code,
+  }) async {
+    final trimmed = email.trim();
+    if (!isValidEmail(trimmed) || !isValidEmailCode(code)) {
+      throw const ValidationFailure();
+    }
+    await _adapter.verifySignupCode(
+      email: trimmed,
+      code: normalizeEmailCode(code),
+    );
+  }
+
   /// Chooses the new password for a password-recovery session, then ends that
   /// session and the durable record of it.
   ///

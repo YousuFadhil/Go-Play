@@ -4,16 +4,23 @@ import '../../core/design.dart';
 import '../../core/failures.dart';
 import '../../core/l10n.dart';
 import 'auth_service.dart';
+import 'email_code_view.dart';
 
-/// Asking for a password-recovery email.
+/// Asking for a password-recovery email, then for the six-digit code in it.
 ///
 /// **The answer never depends on the address.** Whatever is typed, a request
-/// that reaches the provider ends in the same message — "if that email belongs
-/// to an account, a link is on its way" — because this is a question anybody can
-/// ask without signing in, and a screen that answered differently for a
-/// registered address would be a way of finding out who is registered. The
-/// provider gives the same answer either way and this screen adds nothing of its
-/// own to it.
+/// that reaches the provider ends in the same screen -- the one that asks for the
+/// code -- because this is a question anybody can ask without signing in, and a
+/// screen that answered differently for a registered address would be a way of
+/// finding out who is registered. The provider gives the same answer either way
+/// and this screen adds nothing of its own to it. The code screen does not repeat
+/// the address, and a code that is wrong reads the same as one for an address
+/// nobody registered.
+///
+/// **A link in the email still works.** While the provider's email still carries
+/// a link rather than a code, following it reaches the application the way it
+/// always did -- through the recovery callback, not through this screen -- and the
+/// gate takes over from here. Nothing on this screen has to know either happened.
 ///
 /// What it *does* report is what cannot be about the address: no connection, and
 /// the provider limiting how often it will send.
@@ -45,7 +52,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       TextEditingController(text: widget.initialEmail);
   late final AuthService _authService = widget.authService ?? AuthService();
   bool _isLoading = false;
-  bool _sent = false;
+
+  /// The address the request was made for, once it has been made. Non-null is
+  /// what "the email is on its way" means here.
+  String? _requestedEmail;
 
   @override
   void dispose() {
@@ -60,7 +70,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
     try {
       await _authService.requestPasswordReset(_emailController.text);
-      if (mounted) setState(() => _sent = true);
+      if (mounted) {
+        setState(() => _requestedEmail = _emailController.text.trim());
+      }
     } on Failure catch (failure) {
       _showError(switch (failure) {
         NetworkFailure() => l10n.networkError,
@@ -85,13 +97,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final requested = _requestedEmail;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.forgotPasswordTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, Gap.xl),
-          child: _sent ? _sentView(context) : _formView(context, theme),
+          child: requested == null
+              ? _formView(context, theme)
+              : Padding(
+                  padding: const EdgeInsets.only(top: Gap.xl),
+                  child: EmailCodeView(
+                    purpose: EmailCodePurpose.recovery,
+                    email: requested,
+                    authService: _authService,
+                  ),
+                ),
         ),
       ),
     );
@@ -135,42 +157,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _sentView(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: Gap.xxl),
-        Center(
-          child: Container(
-            padding: const EdgeInsets.all(Gap.lg),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.mark_email_read_outlined,
-              size: 32,
-              color: theme.colorScheme.onPrimaryContainer,
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-        Text(
-          l10n.forgotPasswordSent,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodyLarge,
-        ),
-        const SizedBox(height: Gap.xl),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.backToLogin),
-        ),
-      ],
     );
   }
 }

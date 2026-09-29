@@ -203,6 +203,12 @@ enum FailureReason {
   // help, and "something went wrong" would invite exactly that.
   tooManyRequests,
 
+  // The six-digit code from an email was refused. The provider gives one answer
+  // for a code that is wrong, expired, already used, or asked about an address
+  // with no account -- deliberately, so that entering a code cannot be used to
+  // find out who is registered -- and this is that one answer.
+  invalidEmailCode,
+
   // Completing a player profile (migration `0092`). The account already has one
   // - the person tapped twice, or finished it somewhere else - which is a state
   // the operation ran into, not input they got wrong.

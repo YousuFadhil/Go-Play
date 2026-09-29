@@ -4439,20 +4439,14 @@ abstract class AppLocalizations {
   /// No description provided for @forgotPasswordBody.
   ///
   /// In en, this message translates to:
-  /// **'Enter the email you signed up with. If it belongs to an account, we will send a link to choose a new password.'**
+  /// **'Enter the email you signed up with. If it belongs to an account, we will send a code to choose a new password.'**
   String get forgotPasswordBody;
 
   /// No description provided for @forgotPasswordSend.
   ///
   /// In en, this message translates to:
-  /// **'Send reset link'**
+  /// **'Send code'**
   String get forgotPasswordSend;
-
-  /// No description provided for @forgotPasswordSent.
-  ///
-  /// In en, this message translates to:
-  /// **'If that email belongs to an account, a reset link is on its way. Check your inbox and your spam folder.'**
-  String get forgotPasswordSent;
 
   /// No description provided for @backToLogin.
   ///
@@ -4466,35 +4460,71 @@ abstract class AppLocalizations {
   /// **'Too many attempts. Please wait a few minutes and try again.'**
   String get tooManyRequests;
 
-  /// No description provided for @checkEmailTitle.
+  /// No description provided for @emailCodeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Check your email'**
-  String get checkEmailTitle;
+  /// **'Enter your code'**
+  String get emailCodeTitle;
 
-  /// No description provided for @checkEmailBody.
+  /// No description provided for @emailCodeRecoveryBody.
   ///
   /// In en, this message translates to:
-  /// **'We sent a confirmation link to {email}. Open it to activate your account, then log in.'**
-  String checkEmailBody(String email);
+  /// **'Enter the code we sent to your email.'**
+  String get emailCodeRecoveryBody;
 
-  /// No description provided for @checkEmailResend.
+  /// No description provided for @emailCodeSignupBody.
   ///
   /// In en, this message translates to:
-  /// **'Resend email'**
-  String get checkEmailResend;
+  /// **'Verify your email to complete registration.'**
+  String get emailCodeSignupBody;
 
-  /// No description provided for @checkEmailResent.
+  /// No description provided for @emailCodeSentTo.
   ///
   /// In en, this message translates to:
-  /// **'Confirmation email sent again.'**
-  String get checkEmailResent;
+  /// **'We sent a 6-digit code to {email}.'**
+  String emailCodeSentTo(String email);
 
-  /// No description provided for @checkEmailResendWait.
+  /// No description provided for @emailCodeLabel.
   ///
   /// In en, this message translates to:
-  /// **'Did not arrive? You can ask for another one in a minute.'**
-  String get checkEmailResendWait;
+  /// **'6-digit code'**
+  String get emailCodeLabel;
+
+  /// No description provided for @emailCodeIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter all 6 digits.'**
+  String get emailCodeIncomplete;
+
+  /// No description provided for @emailCodeVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get emailCodeVerify;
+
+  /// No description provided for @emailCodeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That code is incorrect or has expired. Check it, or ask for a new one.'**
+  String get emailCodeInvalid;
+
+  /// No description provided for @emailCodeResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a new code'**
+  String get emailCodeResend;
+
+  /// No description provided for @emailCodeResent.
+  ///
+  /// In en, this message translates to:
+  /// **'A new code is on its way.'**
+  String get emailCodeResent;
+
+  /// No description provided for @emailCodeResendWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Did not arrive? You can ask for a new code in a minute.'**
+  String get emailCodeResendWait;
 
   /// No description provided for @resetPasswordTitle.
   ///

@@ -43,6 +43,20 @@ mixin AuthAdapterDefaults implements AuthAdapter {
       throw UnimplementedError();
 
   @override
+  Future<void> verifyRecoveryCode({
+    required String email,
+    required String code,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> verifySignupCode({
+    required String email,
+    required String code,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> completePlayerProfile({
     required String fullName,
     required String phone,

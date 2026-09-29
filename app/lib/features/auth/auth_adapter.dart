@@ -111,6 +111,28 @@ abstract interface class AuthAdapter {
   /// is a question anybody can ask, so its answer cannot say who is registered.
   Future<void> requestPasswordReset(String email, {required String redirectTo});
 
+  /// Verifies the six-digit code from a password-recovery email and, when it is
+  /// right, opens the **recovery session**: the one that exists to choose a new
+  /// password and nothing else.
+  ///
+  /// This is the same recovery the emailed link produces, reached by typing what
+  /// the email says instead of following it; the provider announces it the same
+  /// way ([AuthEvent.passwordRecovery]), and the caller treats it the same way.
+  /// [code] is the digits only.
+  ///
+  /// A code that is wrong, expired, already used, or asked about an address that
+  /// has no account is one `Failure` with one reason -- the provider does not
+  /// tell them apart and neither may an implementation.
+  Future<void> verifyRecoveryCode({required String email, required String code});
+
+  /// Verifies the six-digit code that completes a sign-up and, when it is right,
+  /// confirms the address and opens an ordinary session.
+  ///
+  /// Nothing about the session says it began here; the caller carries on exactly
+  /// as it does for any sign-in, through the account-state check. Same failure
+  /// contract as [verifyRecoveryCode].
+  Future<void> verifySignupCode({required String email, required String code});
+
   Future<void> signIn({required String email, required String password});
 
   /// Changes the email the account signs in with.

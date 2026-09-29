@@ -2545,14 +2545,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forgotPasswordBody =>
-      'Enter the email you signed up with. If it belongs to an account, we will send a link to choose a new password.';
+      'Enter the email you signed up with. If it belongs to an account, we will send a code to choose a new password.';
 
   @override
-  String get forgotPasswordSend => 'Send reset link';
-
-  @override
-  String get forgotPasswordSent =>
-      'If that email belongs to an account, a reset link is on its way. Check your inbox and your spam folder.';
+  String get forgotPasswordSend => 'Send code';
 
   @override
   String get backToLogin => 'Back to log in';
@@ -2562,22 +2558,42 @@ class AppLocalizationsEn extends AppLocalizations {
       'Too many attempts. Please wait a few minutes and try again.';
 
   @override
-  String get checkEmailTitle => 'Check your email';
+  String get emailCodeTitle => 'Enter your code';
 
   @override
-  String checkEmailBody(String email) {
-    return 'We sent a confirmation link to $email. Open it to activate your account, then log in.';
+  String get emailCodeRecoveryBody => 'Enter the code we sent to your email.';
+
+  @override
+  String get emailCodeSignupBody =>
+      'Verify your email to complete registration.';
+
+  @override
+  String emailCodeSentTo(String email) {
+    return 'We sent a 6-digit code to $email.';
   }
 
   @override
-  String get checkEmailResend => 'Resend email';
+  String get emailCodeLabel => '6-digit code';
 
   @override
-  String get checkEmailResent => 'Confirmation email sent again.';
+  String get emailCodeIncomplete => 'Enter all 6 digits.';
 
   @override
-  String get checkEmailResendWait =>
-      'Did not arrive? You can ask for another one in a minute.';
+  String get emailCodeVerify => 'Verify';
+
+  @override
+  String get emailCodeInvalid =>
+      'That code is incorrect or has expired. Check it, or ask for a new one.';
+
+  @override
+  String get emailCodeResend => 'Send a new code';
+
+  @override
+  String get emailCodeResent => 'A new code is on its way.';
+
+  @override
+  String get emailCodeResendWait =>
+      'Did not arrive? You can ask for a new code in a minute.';
 
   @override
   String get resetPasswordTitle => 'Choose a new password';

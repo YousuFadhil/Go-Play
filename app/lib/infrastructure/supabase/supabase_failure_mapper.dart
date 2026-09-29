@@ -251,6 +251,16 @@ class SupabaseFailureMapper {
       return const InfrastructureFailure(FailureReason.tooManyRequests);
     }
 
+    // A six-digit email code the provider refused: `otp_expired`, which it
+    // answers for a wrong code, an expired one, a used one and an address with
+    // no account alike. Checked before the "already" test below, and by code
+    // first because the message is prose that can change.
+    final codeRefused = error.code == 'otp_expired' ||
+        error.message.toLowerCase().contains('expired or is invalid');
+    if (codeRefused) {
+      return const AuthenticationFailure(FailureReason.invalidEmailCode);
+    }
+
     final alreadyUsed = error.statusCode == '422' ||
         error.message.toLowerCase().contains('already');
     if (alreadyUsed) {
