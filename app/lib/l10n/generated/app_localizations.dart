@@ -1688,6 +1688,36 @@ abstract class AppLocalizations {
   /// **'Share invitation'**
   String get shareInvitation;
 
+  /// No description provided for @shareMatchInvitationAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share match'**
+  String get shareMatchInvitationAction;
+
+  /// No description provided for @shareMatchCreatedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match created'**
+  String get shareMatchCreatedTitle;
+
+  /// No description provided for @shareMatchCreatedPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Share this match to invite players.'**
+  String get shareMatchCreatedPrompt;
+
+  /// No description provided for @shareMatchLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get shareMatchLater;
+
+  /// No description provided for @shareMatchInviteLead.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re invited to a match on Go Play:'**
+  String get shareMatchInviteLead;
+
   /// No description provided for @inviteLinkCopied.
   ///
   /// In en, this message translates to:
@@ -2527,36 +2557,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rating boards rank the player\'s rating in this community for the selected period, from a 5.00 start.'**
   String get leaderboardRatingNote;
-
-  /// No description provided for @shareMatchInvitationAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Share match'**
-  String get shareMatchInvitationAction;
-
-  /// No description provided for @shareMatchCreatedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Match created'**
-  String get shareMatchCreatedTitle;
-
-  /// No description provided for @shareMatchCreatedPrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Share this match to invite players.'**
-  String get shareMatchCreatedPrompt;
-
-  /// No description provided for @shareMatchLater.
-  ///
-  /// In en, this message translates to:
-  /// **'Later'**
-  String get shareMatchLater;
-
-  /// No description provided for @shareMatchInviteLead.
-  ///
-  /// In en, this message translates to:
-  /// **'You\'re invited to a match on Go Play:'**
-  String get shareMatchInviteLead;
 
   /// No description provided for @shareCardTitle.
   ///

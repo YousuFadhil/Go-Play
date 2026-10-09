@@ -909,14 +909,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shareMatchCreatedTitle => 'تم إنشاء المباراة';
 
   @override
-  String get shareMatchCreatedPrompt => 'يمكنك مشاركة المباراة الآن لدعوة اللاعبين.';
+  String get shareMatchCreatedPrompt =>
+      'يمكنك مشاركة المباراة الآن لدعوة اللاعبين.';
 
   @override
   String get shareMatchLater => 'لاحقًا';
 
   @override
   String get shareMatchInviteLead => 'دعوة إلى مباراة عبر Go Play:';
-
 
   @override
   String get inviteLinkCopied => 'نُسخت الدعوة. الصقها حيث تريد مشاركتها.';

@@ -938,7 +938,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get shareMatchInviteLead => 'You\'re invited to a match on Go Play:';
 
-
   @override
   String get inviteLinkCopied =>
       'Invitation copied. Paste it wherever you share it.';
