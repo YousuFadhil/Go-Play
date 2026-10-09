@@ -299,6 +299,26 @@ from (
             from found where proname = 'admin_preview_account_deletion'),
          (select src_compact like '%(''UPCOMING_REGISTRATIONS'',''CONFLICT'',''MATCH''%'
             from found where proname = 'admin_preview_account_deletion')
+
+  union all
+  -- 24. Only a CONFIRMED registration is historical evidence. A reserve registration
+  --     (status 'reserve') says the player was on the waiting list, not in the match;
+  --     a reserve who did play has a lineup place, a goal or a rating entry, which
+  --     are counted on their own. So the status test sits in the registration
+  --     subquery, once, and in none of the other three.
+  select 24, 'only CONFIRMED registrations of a completed match are historical evidence', 'confirmed test in the registration subquery, once',
+         (select case when e.body is null then 'no evidence expression'
+                 else case when e.body like '%public.match_registrationsrjoinpublic.matchesmonm.id=r.match_idwherer.user_id=p_user_idandr.status=''confirmed''and(%'
+                           then 'in the registration subquery' else 'NOT in the registration subquery' end
+                      || ', ' || ((length(e.body) - length(replace(e.body, 'status=''confirmed''', '')))
+                                  / length('status=''confirmed'''))::text || ' time(s)'
+            end
+            from evidence e),
+         (select e.body is not null
+             and e.body like '%public.match_registrationsrjoinpublic.matchesmonm.id=r.match_idwherer.user_id=p_user_idandr.status=''confirmed''and(%'
+             and ((length(e.body) - length(replace(e.body, 'status=''confirmed''', '')))
+                  / length('status=''confirmed''')) = 1
+            from evidence e)
 ) checks
 order by n, check_name;
 

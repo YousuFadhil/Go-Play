@@ -85,9 +85,12 @@
 --     merge's RETAINED account are not a finding: that account is not retired;
 --   * **historical match evidence that deleting the account would erase**
 --     (`HISTORY_WOULD_CASCADE`, deletion only), whenever its count is above zero.
---     That is the record that a match was played and who took part: a
+--     That is the record that a match was played and who took part: a CONFIRMED
 --     registration, a lineup place, a goal or a rating entry belonging to a
---     COMPLETED match. Completed is the application's own rule wherever it decides
+--     COMPLETED match. A reserve registration is not evidence that the player took
+--     part -- a reserve who did play has a lineup place, which counts on its own --
+--     so it is not counted here, only listed. Completed is the application's own
+--     rule wherever it decides
 --     it (0006, 0057, 0073, 0074, 0088): the stored status is 'completed' OR the
 --     end has passed -- the status is stamped lazily, so either can lead. Football
 --     results and participation are preserved when an account is deleted, without
@@ -101,8 +104,11 @@
 --   * community memberships -- operational: who belongs to a community today;
 --   * `player_statistics` and `community_statistics` -- derived: recomputed from
 --     the evidence above, and carrying no match of their own;
+--   * reserve registrations for completed matches -- the player was on the waiting
+--     list, not in the match; listed under `MATCH_REGISTRATIONS` with the rest;
 --   * registrations for matches not yet played -- reported separately, as the
---     CONFLICT `UPCOMING_REGISTRATIONS` (the exact complement of the rule above);
+--     CONFLICT `UPCOMING_REGISTRATIONS` (the exact complement of the rule above),
+--     confirmed and reserve alike;
 --   * lineup places for matches not yet played.
 -- MVP awards are a BLOCKER of their own (`MVP_RESULTS_WOULD_CASCADE`: deleting the
 -- MVP's account would delete the whole result) and are not counted twice.
@@ -776,7 +782,11 @@ begin
   -- ---- historical match evidence: the part of the cascade that blocks -------
   -- `historical_records` above lists everything the deletion erases. Only the
   -- records that say a match WAS PLAYED, and who took part, are evidence: a
-  -- registration, a lineup place, a goal or a rating entry of a COMPLETED match.
+  -- CONFIRMED registration, a lineup place, a goal or a rating entry of a COMPLETED
+  -- match. A reserve registration (status 'reserve') only says the player was on the
+  -- waiting list, so it is listed in MATCH_REGISTRATIONS but not counted here; the
+  -- other three kinds are counted independently of it, so a reserve who really
+  -- played (a lineup place, a goal, a rating) is still blocked by that evidence.
   -- "Completed" is the application's rule (see the header): status 'completed' OR
   -- the end has passed. A registration for a match not yet played is the exact
   -- complement, and is the CONFLICT UPCOMING_REGISTRATIONS instead. Memberships and
@@ -786,6 +796,7 @@ begin
       (select count(*) from public.match_registrations r
          join public.matches m on m.id = r.match_id
         where r.user_id = p_user_id
+          and r.status = 'confirmed'
           and (m.status = 'completed' or m.end_at <= now()))
     + (select count(*) from public.match_team_assignments t
          join public.matches m on m.id = t.match_id

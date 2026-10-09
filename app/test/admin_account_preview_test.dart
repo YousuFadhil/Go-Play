@@ -33,6 +33,9 @@ import 'wilayat_fixtures.dart';
 /// names, with a derived statistics row beside it. "Membership only" is a
 /// community member with nothing else; "statistics only" holds nothing but
 /// derived statistics; "upcoming only" is registered for a match not yet played.
+/// "Confirmed only" and "reserve only" hold one registration of a completed match,
+/// of each status; "reserve lineup", "reserve goal" and "reserve rating" are a
+/// reserve who also has that one kind of evidence.
 const _mergeConflicting =
     r'''{"limit":25,"source":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":1,"goals_total":0,"memberships":4,"push_tokens":1,"audit_entries":1,"notifications":2,"registrations":2,"matches_played":3,"product_events":2,"rating_entries":2,"created_matches":2,"generation_runs":0,"push_preferences":1,"recorded_results":1,"confirmed_lineups":0,"membership_events":1,"memberships_admin":1,"memberships_owner":2,"owned_communities":2,"lineup_assignments":2,"rating_archive_rows":3,"registration_events":1,"team_of_period_awards":2,"player_statistics_rows":1,"upcoming_registrations":1,"user_rating_archive_rows":1,"community_statistics_rows":2,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000002","email":"p2@x.com","full_name":"Source Player","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.778+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.778+04:00","sign_in_providers":["email","google"]}},"version":1,"findings":[{"code":"OWNERSHIP_CONFLICT","count":1,"category":"OWNERSHIP","severity":"BLOCKER"},{"code":"RATING_ARCHIVE_IMMUTABLE","count":4,"category":"ARCHIVE","severity":"BLOCKER"},{"code":"SHARED_MATCH_COLLISION","count":1,"category":"MATCH","severity":"BLOCKER"},{"code":"COMMUNITY_STATISTICS_COLLISION","count":1,"category":"STATISTICS","severity":"CONFLICT"},{"code":"PLAYER_STATISTICS_RECOMPUTE","count":3,"category":"STATISTICS","severity":"CONFLICT"},{"code":"RATING_REPLAY_REQUIRED","count":2,"category":"RATING","severity":"CONFLICT"},{"code":"ROLE_CONFLICT","count":2,"category":"ROLE","severity":"CONFLICT"},{"code":"SHARED_MATCH_PARTICIPATION","count":2,"category":"MATCH","severity":"CONFLICT"},{"code":"SOURCE_CREATED_MATCHES","count":2,"category":"MATCH","severity":"CONFLICT"},{"code":"SOURCE_OWNS_COMMUNITIES","count":1,"category":"OWNERSHIP","severity":"CONFLICT"},{"code":"TEAM_AWARD_COLLISION","count":1,"category":"STATISTICS","severity":"CONFLICT"},{"code":"AUDIT_LOG_NAMES_SOURCE","count":1,"category":"AUDIT","severity":"CONSTRAINT"},{"code":"EVENT_LOGS_NAME_SOURCE","count":4,"category":"HISTORY","severity":"CONSTRAINT"}],"retained":{"counts":{"rating":5,"goal_rows":2,"mvp_awards":0,"goals_total":3,"memberships":3,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":3,"matches_played":5,"product_events":0,"rating_entries":1,"created_matches":2,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":1,"owned_communities":1,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":1,"player_statistics_rows":1,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":1,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000001","email":"p1@x.com","full_name":"Retained Player","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.778+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.778+04:00","sign_in_providers":["email"]}},"has_blockers":true,"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"shared_matches":{"items":[{"title":"Match One","status":"completed","match_id":"00000000-0000-0000-0000-000000000513","start_at":"2026-10-09T20:57:31.787+04:00","collision":true,"is_historical":false,"community_name":"Alpha","source_evidence":["LINEUP","RATING","REGISTRATION"],"retained_evidence":["GOALS","RATING","REGISTRATION"]},{"title":"Match Two","status":"completed","match_id":"00000000-0000-0000-0000-000000000514","start_at":"2026-10-09T20:57:31.787+04:00","collision":false,"is_historical":false,"community_name":"Beta","source_evidence":["LINEUP"],"retained_evidence":["REGISTRATION"]},{"title":"Match Three","status":"completed","match_id":"00000000-0000-0000-0000-000000000515","start_at":"2026-10-09T20:57:31.787+04:00","collision":false,"is_historical":false,"community_name":"Alpha","source_evidence":["MVP","RATING"],"retained_evidence":["GOALS"]}],"total":3,"by_kind":{"goals":0,"lineup":0,"rating":1,"registration":1},"colliding_total":1},"statistics_overlap":{"team_award_collisions":1,"community_statistics_collisions":1},"overlapping_communities":{"items":[{"name":"Alpha","source_owns":true,"source_role":"owner","community_id":"00000000-0000-0000-0000-000000000257","retained_owns":false,"retained_role":"player","role_conflict":true},{"name":"Beta","source_owns":false,"source_role":"admin","community_id":"00000000-0000-0000-0000-000000000258","retained_owns":true,"retained_role":"owner","role_conflict":true},{"name":"Delta","source_owns":false,"source_role":"player","community_id":"00000000-0000-0000-0000-000000000260","retained_owns":false,"retained_role":"player","role_conflict":false}],"total":3,"role_conflicts_total":2,"ownership_conflicts_total":1},"source_owned_communities":{"items":[{"name":"Alpha","community_id":"00000000-0000-0000-0000-000000000257","retained_role":"player","retained_is_member":true},{"name":"Gamma","community_id":"00000000-0000-0000-0000-000000000259","retained_role":null,"retained_is_member":false}],"total":2}}''';
 const _mergeEmpty =
@@ -59,6 +62,16 @@ const _deletionStatisticsOnly =
     r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":0,"matches_played":4,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":1,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":1,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000011","email":"stat@x.com","full_name":"Statistics Only","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.783+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.783+04:00","sign_in_providers":[]}},"version":1,"findings":[],"has_blockers":false,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"COMMUNITY_STATISTICS","records":1,"treatment":"CASCADE_DELETE"},{"code":"PLAYER_STATISTICS","records":1,"treatment":"CASCADE_DELETE"}]}''';
 const _deletionUpcomingOnly =
     r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":1,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":1,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":1,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000013","email":"upc@x.com","full_name":"Upcoming Only","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.784+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.784+04:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"UPCOMING_REGISTRATIONS","count":1,"category":"MATCH","severity":"CONFLICT"}],"has_blockers":false,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"LINEUP_ASSIGNMENTS","records":1,"treatment":"CASCADE_DELETE"},{"code":"MATCH_REGISTRATIONS","records":1,"treatment":"CASCADE_DELETE"}]}''';
+const _deletionConfirmedOnly =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":1,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000015","email":"kreg@x.com","full_name":"Kind Registration","is_active":true,"is_caller":false,"created_at":"2026-10-09T21:37:00.079+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T21:37:00.079+04:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"HISTORY_WOULD_CASCADE","count":1,"category":"HISTORY","severity":"BLOCKER"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"MATCH_REGISTRATIONS","records":1,"treatment":"CASCADE_DELETE"}]}''';
+const _deletionReserveOnly =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":1,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000019","email":"resv@x.com","full_name":"Reserve Only","is_active":true,"is_caller":false,"created_at":"2026-10-09T21:37:00.081+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T21:37:00.081+04:00","sign_in_providers":[]}},"version":1,"findings":[],"has_blockers":false,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"MATCH_REGISTRATIONS","records":1,"treatment":"CASCADE_DELETE"}]}''';
+const _deletionReserveLineup =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":1,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":1,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000020","email":"rline@x.com","full_name":"Reserve Lineup","is_active":true,"is_caller":false,"created_at":"2026-10-09T21:37:00.082+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T21:37:00.082+04:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"HISTORY_WOULD_CASCADE","count":1,"category":"HISTORY","severity":"BLOCKER"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"LINEUP_ASSIGNMENTS","records":1,"treatment":"CASCADE_DELETE"},{"code":"MATCH_REGISTRATIONS","records":1,"treatment":"CASCADE_DELETE"}]}''';
+const _deletionReserveGoal =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":1,"mvp_awards":0,"goals_total":1,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":1,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000021","email":"rgoal@x.com","full_name":"Reserve Goal","is_active":true,"is_caller":false,"created_at":"2026-10-09T21:37:00.082+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T21:37:00.082+04:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"HISTORY_WOULD_CASCADE","count":1,"category":"HISTORY","severity":"BLOCKER"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"GOAL_RECORDS","records":1,"treatment":"CASCADE_DELETE"},{"code":"MATCH_REGISTRATIONS","records":1,"treatment":"CASCADE_DELETE"}]}''';
+const _deletionReserveRating =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":1,"matches_played":0,"product_events":0,"rating_entries":1,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000022","email":"rrate@x.com","full_name":"Reserve Rating","is_active":true,"is_caller":false,"created_at":"2026-10-09T21:37:00.083+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T21:37:00.083+04:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"HISTORY_WOULD_CASCADE","count":1,"category":"HISTORY","severity":"BLOCKER"},{"code":"RATING_HISTORY_IMMUTABLE","count":1,"category":"HISTORY","severity":"CONSTRAINT"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"MATCH_REGISTRATIONS","records":1,"treatment":"CASCADE_DELETE"},{"code":"RATING_HISTORY","records":1,"treatment":"CASCADE_DELETE"}]}''';
 
 Map<String, dynamic> _doc(String json) =>
     jsonDecode(json) as Map<String, dynamic>;
@@ -1415,6 +1428,109 @@ void main() {
         expect(find.byKey(const Key('adminFinding_HISTORY_WOULD_CASCADE')),
             findsNothing);
         expect(find.text('No blockers found in this preview.'), findsOneWidget);
+      });
+    });
+
+    // ---- a reserve registration is on the waiting list, not in the match -------------
+    group('a reserve registration is not historical evidence', () {
+      Map<String, AdminPreviewRecord> erased(AdminDeletionPreview preview) =>
+          {for (final r in preview.historicalRecords) r.code: r};
+
+      List<AdminPreviewFinding> blockers(AdminDeletionPreview preview) =>
+          preview.findingsOf(AdminFindingSeverity.blocker);
+
+      test('a completed reserve-only registration does not create the blocker',
+          () {
+        final preview = _deletion(_deletionReserveOnly);
+
+        expect(preview.findings.where((f) => f.code == 'HISTORY_WOULD_CASCADE'),
+            isEmpty);
+        expect(preview.hasBlockers, isFalse);
+        expect(preview.findings, isEmpty);
+        // Still visible, as erased, in its existing category.
+        expect(erased(preview).keys, ['MATCH_REGISTRATIONS']);
+        expect(erased(preview)['MATCH_REGISTRATIONS']!.records, 1);
+        expect(erased(preview)['MATCH_REGISTRATIONS']!.treatment,
+            'CASCADE_DELETE');
+      });
+
+      test('a completed confirmed registration does', () {
+        final preview = _deletion(_deletionConfirmedOnly);
+
+        expect(blockers(preview).map((f) => f.code), ['HISTORY_WOULD_CASCADE']);
+        expect(blockers(preview).single.count, 1);
+        expect(blockers(preview).single.category, 'HISTORY');
+        expect(preview.hasBlockers, isTrue);
+        // Listed exactly as the reserve one is: the category is the same.
+        expect(erased(preview)['MATCH_REGISTRATIONS']!.records, 1);
+      });
+
+      for (final scenario in <(String, String, String)>[
+        ('lineup place', _deletionReserveLineup, 'LINEUP_ASSIGNMENTS'),
+        ('goal', _deletionReserveGoal, 'GOAL_RECORDS'),
+        ('rating entry', _deletionReserveRating, 'RATING_HISTORY'),
+      ]) {
+        test('a reserve with a genuine ${scenario.$1} remains blocked', () {
+          final preview = _deletion(scenario.$2);
+
+          expect(
+              blockers(preview).map((f) => f.code), ['HISTORY_WOULD_CASCADE']);
+          // One piece of evidence: the reserve registration adds nothing.
+          expect(blockers(preview).single.count, 1);
+          expect(preview.hasBlockers, isTrue);
+          // Both the registration and the evidence are listed.
+          expect(erased(preview)['MATCH_REGISTRATIONS']!.records, 1);
+          expect(erased(preview)[scenario.$3]!.records, 1);
+          expect(erased(preview)[scenario.$3]!.treatment, 'CASCADE_DELETE');
+        });
+      }
+
+      test('the reserve registration is a registration, not another category',
+          () {
+        for (final json in [
+          _deletionReserveOnly,
+          _deletionConfirmedOnly,
+          _deletionReserveLineup,
+        ]) {
+          final preview = _deletion(json);
+          expect(preview.historicalRecords.map((r) => r.code),
+              contains('MATCH_REGISTRATIONS'));
+          expect(preview.preservedRecords.map((r) => r.code),
+              isNot(contains('MATCH_REGISTRATIONS')));
+        }
+      });
+
+      testWidgets('deletion screen: a reserve-only account has no blocker',
+          (tester) async {
+        await openDeletion(tester, _deletion(_deletionReserveOnly));
+
+        expect(find.text('No blockers found in this preview.'), findsOneWidget);
+        expect(find.text('Blocker'), findsNothing);
+        expect(find.byKey(const Key('adminFinding_HISTORY_WOULD_CASCADE')),
+            findsNothing);
+        expect(find.text('Match registrations · 1'), findsOneWidget);
+        expect(find.text('Erased with the account'), findsWidgets);
+        expect(verdictTone(tester), isNot(GoChipTone.danger));
+      });
+
+      testWidgets('deletion screen: a confirmed registration blocks',
+          (tester) async {
+        await openDeletion(tester, _deletion(_deletionConfirmedOnly));
+
+        expect(find.text('1 blocker found.'), findsOneWidget);
+        expect(find.byKey(const Key('adminFinding_HISTORY_WOULD_CASCADE')),
+            findsOneWidget);
+        expect(find.text('Match registrations · 1'), findsOneWidget);
+        expect(verdictTone(tester), GoChipTone.danger);
+      });
+
+      testWidgets('deletion screen: a reserve with a lineup place still blocks',
+          (tester) async {
+        await openDeletion(tester, _deletion(_deletionReserveLineup));
+
+        expect(find.text('1 blocker found.'), findsOneWidget);
+        expect(find.text('Match registrations · 1'), findsOneWidget);
+        expect(find.text('Lineup places · 1'), findsOneWidget);
       });
     });
 

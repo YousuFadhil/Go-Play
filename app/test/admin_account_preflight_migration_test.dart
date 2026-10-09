@@ -483,6 +483,61 @@ void main() {
     });
 
     test(
+        'only a CONFIRMED registration is evidence; lineup, goals and rating are '
+        'counted independently of it', () {
+      final evidence = evidenceExpression();
+      final registrations = evidence.substring(
+          evidence.indexOf('from public.match_registrations'),
+          evidence.indexOf('from public.match_team_assignments'));
+
+      // The registration subquery asks for status = 'confirmed', alongside the
+      // completed-match rule, and a reserve registration is therefore not counted.
+      expect(registrations, contains("and r.status = 'confirmed'"));
+      expect(registrations,
+          contains("(m.status = 'completed' or m.end_at <= now())"));
+      expect(registrations, isNot(contains("'reserve'")));
+      // Nothing else in the expression looks at a registration status, so a reserve
+      // with a lineup place, a goal or a rating entry is still blocked by it.
+      expect("status = 'confirmed'".allMatches(evidence).length, 1);
+      for (final other in [
+        'public.match_team_assignments',
+        'public.match_goals',
+        'public.rating_history'
+      ]) {
+        final from = evidence.indexOf('from $other');
+        final next = evidence.indexOf('+ (select', from);
+        final part =
+            evidence.substring(from, next == -1 ? evidence.length : next);
+        expect(part, isNot(contains("'confirmed'")),
+            reason: '$other is not conditioned on a registration status');
+        expect(part, isNot(contains("'reserve'")), reason: other);
+        expect(part, isNot(contains('match_registrations')), reason: other);
+      }
+    });
+
+    test('reserve registrations stay visible and upcoming ones stay a CONFLICT',
+        () {
+      final body = functionBody(deletion);
+
+      // Listed with the confirmed ones, in the same category, from the total.
+      expect(
+          body,
+          contains(
+              "('MATCH_REGISTRATIONS',      (v_counts->>'registrations')::bigint,             'CASCADE_DELETE', 1)"));
+      expect(functionBody(helper), contains("'registrations',"));
+      expect(
+          functionBody(helper),
+          contains(
+              "(select count(*) from public.match_registrations r where r.user_id = p_user_id)"));
+      // The upcoming rule does not look at the status: confirmed and reserve alike.
+      final upcoming = functionBody(helper).substring(
+          functionBody(helper).indexOf("'upcoming_registrations',"),
+          functionBody(helper).indexOf("'lineup_assignments',"));
+      expect(upcoming, isNot(contains('r.status')));
+      expect(codesOf(body, 'CONFLICT'), contains('UPCOMING_REGISTRATIONS'));
+    });
+
+    test(
         'memberships, the statistics tables and the MVP cascade are NOT part of '
         'the evidence count', () {
       final evidence = evidenceExpression();
@@ -553,6 +608,10 @@ void main() {
           sql.substring(0, sql.indexOf('create or replace function'));
 
       expect(headerText, contains('historical match evidence'));
+      expect(headerText, contains('a CONFIRMED'));
+      expect(headerText, contains('A reserve registration is not evidence'));
+      expect(
+          headerText, contains('reserve registrations for completed matches'));
       expect(headerText, contains("status is 'completed' OR the"));
       expect(headerText, contains('WHAT IS DELETED BUT IS NOT A BLOCKER'));
       for (final line in [
@@ -884,6 +943,17 @@ void main() {
       // Check 23: upcoming registrations stay a separate CONFLICT.
       expect(verify,
           contains("(''UPCOMING_REGISTRATIONS'',''CONFLICT'',''MATCH''"));
+    });
+
+    test('it pins that only confirmed registrations are evidence', () {
+      // Check 24: the status test sits in the registration subquery, once.
+      expect(
+          verify,
+          contains(
+              "public.match_registrationsrjoinpublic.matchesmonm.id=r.match_idwherer.user_id=p_user_idandr.status=''confirmed''and("));
+      expect(verify, contains("'status=''confirmed'''"));
+      expect(verify,
+          contains('only CONFIRMED registrations of a completed match'));
     });
 
     test('the verification order is written down, with the reason', () {
