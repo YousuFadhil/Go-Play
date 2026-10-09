@@ -45,6 +45,11 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   TimeOfDay? _endTime;
   bool _isLoading = false;
 
+  /// Set once create_match has succeeded. The screen stays up while the
+  /// invitation is offered and shared, and a second submit in that window would
+  /// commit a second match.
+  bool _created = false;
+
   /// Whether the organizer is recording a fixture the community has already
   /// played rather than scheduling one (migration `0054`).
   ///
@@ -266,6 +271,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isLoading || _created) return;
     final scheduleError = _validateSchedule();
     final formValid = _formKey.currentState!.validate();
     if (scheduleError != null) {
@@ -303,7 +309,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     if (!mounted) return;
     // Submission has completed. Do not leave the loading spinner animating
     // behind the invitation dialog (which would never settle in widget tests).
-    setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = false;
+      _created = true;
+    });
 
     // Historical fixtures have already been played and cannot accept signups.
     // Only a newly scheduled fixture is offered as a registration invitation.
@@ -554,7 +563,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       ),
       bottomNavigationBar: ClubActionBar(
         child: FilledButton(
-          onPressed: _isLoading ? null : _submit,
+          onPressed: _isLoading || _created ? null : _submit,
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(Layout.buttonHeight),
           ),

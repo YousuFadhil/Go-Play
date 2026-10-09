@@ -148,7 +148,9 @@ void main() {
     await pumpCreate(
       tester,
       adapter: adapter,
-      shareText: (text) async { shared = text; },
+      shareText: (text) async {
+        shared = text;
+      },
     );
     await fillValidForm(tester);
 
@@ -159,8 +161,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(adapter.writes, 1);
-    expect(shared, contains(
-        '/#/match/00000000-0000-4000-8000-000000000001'));
+    expect(shared, contains('/#/match/00000000-0000-4000-8000-000000000001'));
     expect(shared, contains('Location:'));
     expect(find.byType(CreateMatchScreen), findsNothing);
   });
@@ -180,6 +181,39 @@ void main() {
     await tester.tap(find.text('Share match'));
     await tester.pumpAndSettle();
 
+    expect(adapter.writes, 1);
+    expect(find.byType(CreateMatchScreen), findsNothing);
+  });
+
+  testWidgets('a second tap while sharing never creates a second match',
+      (tester) async {
+    final pending = Completer<void>();
+    final adapter = CreateMatchAdapter();
+    await pumpCreate(
+      tester,
+      adapter: adapter,
+      shareText: (_) => pending.future,
+    );
+    await fillValidForm(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Create match'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Share match'));
+    await tester.pump();
+
+    // The OS sheet is open and the form is still on screen beneath it.
+    final pinned = find.descendant(
+      of: find.byType(ClubActionBar),
+      matching: find.byType(FilledButton),
+    );
+    expect(find.byType(CreateMatchScreen), findsOneWidget);
+    expect(tester.widget<FilledButton>(pinned).onPressed, isNull);
+    await tester.tap(pinned, warnIfMissed: false);
+    await tester.pump();
+    expect(adapter.writes, 1);
+
+    pending.complete();
+    await tester.pumpAndSettle();
     expect(adapter.writes, 1);
     expect(find.byType(CreateMatchScreen), findsNothing);
   });

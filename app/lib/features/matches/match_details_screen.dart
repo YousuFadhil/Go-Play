@@ -431,7 +431,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     try {
       await (widget.shareText ?? NativeTextShareService().shareText)(message);
     } catch (_) {
-      _showMessage(context.l10n.genericError);
+      if (mounted) _showMessage(context.l10n.genericError);
     }
   }
 

@@ -37,17 +37,14 @@ void main() {
     expect(message, contains('Friday Football'));
     expect(message, contains('Sohar Pitch'));
     expect(message, contains('8:00'));
-    expect(message, contains(
-        PublicLink.format(PublicLinkKind.match, matchId)));
+    expect(message, contains(PublicLink.format(PublicLinkKind.match, matchId)));
   });
 
-  testWidgets('Arabic invitation retains the same destination',
-      (tester) async {
+  testWidgets('Arabic invitation retains the same destination', (tester) async {
     final message = await messageIn(tester, const Locale('ar'));
     expect(message, contains('دعوة إلى مباراة'));
     expect(message, contains('Sohar Pitch'));
-    expect(message, contains(
-        PublicLink.format(PublicLinkKind.match, matchId)));
+    expect(message, contains(PublicLink.format(PublicLinkKind.match, matchId)));
   });
 
   test('text sharing hands over a link, not an image or an app destination',
