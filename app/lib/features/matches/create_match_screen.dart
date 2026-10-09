@@ -301,6 +301,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       return;
     }
     if (!mounted) return;
+    // Submission has completed. Do not leave the loading spinner animating
+    // behind the invitation dialog (which would never settle in widget tests).
+    setState(() => _isLoading = false);
 
     // Historical fixtures have already been played and cannot accept signups.
     // Only a newly scheduled fixture is offered as a registration invitation.
