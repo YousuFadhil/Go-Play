@@ -129,6 +129,12 @@ final Map<String, NotificationDisplay> notificationDisplays = {
     tone: NotificationTone.neutral,
     label: (l10n) => l10n.notifMatchStartingSoon,
   ),
+  // A one-time cron-produced reminder when no result was recorded.
+  'match_result_reminder': NotificationDisplay(
+    icon: Icons.assignment_late_outlined,
+    tone: NotificationTone.neutral,
+    label: (l10n) => l10n.notifMatchResultReminder,
+  ),
   'match_time_changed': NotificationDisplay(
     icon: Icons.schedule,
     tone: NotificationTone.neutral,

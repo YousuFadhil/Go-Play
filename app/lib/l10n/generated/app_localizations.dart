@@ -860,6 +860,12 @@ abstract class AppLocalizations {
   /// **'Your match starts in less than an hour.'**
   String get notifMatchStartingSoon;
 
+  /// No description provided for @notifMatchResultReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'The match has ended. Please record its result.'**
+  String get notifMatchResultReminder;
+
   /// No description provided for @notifMatchTimeChanged.
   ///
   /// In en, this message translates to:

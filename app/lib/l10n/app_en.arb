@@ -144,6 +144,7 @@
   "notifMatchFull": "The match is now full.",
   "notifTeamsRegenerated": "The teams were regenerated.",
   "notifMatchStartingSoon": "Your match starts in less than an hour.",
+  "notifMatchResultReminder": "The match has ended. Please record its result.",
   "notifMatchTimeChanged": "The match time has changed.",
   "notifCommunityInvitation": "You have been invited to a community.",
   "notifCommunityJoinAccepted": "Your request to join was accepted.",

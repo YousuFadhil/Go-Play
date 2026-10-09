@@ -410,6 +410,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notifMatchStartingSoon => 'تبدأ مباراتك خلال أقل من ساعة.';
 
   @override
+  String get notifMatchResultReminder => 'انتهت المباراة. يرجى تسجيل النتيجة.';
+
+  @override
   String get notifMatchTimeChanged => 'تم تغيير موعد المباراة.';
 
   @override
