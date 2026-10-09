@@ -548,6 +548,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
       throw UnimplementedError();
 
   @override
+  Future<List<Community>> fetchManagedCommunities() =>
+      throw UnimplementedError();
+
+  @override
   Future<String> joinCommunity(String communityId) async {
     if (joinFailure != null) throw joinFailure!;
     return joinResult ?? communityId;

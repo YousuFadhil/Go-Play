@@ -13,6 +13,10 @@ abstract interface class CommunityAdapter {
   /// Communities the signed-in user belongs to.
   Future<List<Community>> fetchMyCommunities();
 
+  /// Communities for which the current member has owner or admin rights.
+  /// Used for picking a match destination; the create_match RPC checks again.
+  Future<List<Community>> fetchManagedCommunities();
+
   /// Every community the signed-in user is allowed to see. The split between
   /// joined and discoverable is a product decision and belongs above this
   /// layer (OP-2).

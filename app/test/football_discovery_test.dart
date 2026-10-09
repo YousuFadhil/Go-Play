@@ -1669,6 +1669,10 @@ class _JoinedAdapter implements CommunityAdapter {
       throw UnimplementedError();
 
   @override
+  Future<List<Community>> fetchManagedCommunities() =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchMyCommunities() async {
     myCommunitiesCalls++;
     if (failure != null) throw failure!;

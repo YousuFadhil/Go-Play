@@ -482,6 +482,18 @@ abstract class AppLocalizations {
   /// **'Create match'**
   String get createMatchButton;
 
+  /// No description provided for @homeChooseCommunityForMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the community for this match'**
+  String get homeChooseCommunityForMatch;
+
+  /// No description provided for @homeNoManagedCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t manage a community where you can create a match. Create a new community to get started.'**
+  String get homeNoManagedCommunities;
+
   /// No description provided for @matchDetailsTitle.
   ///
   /// In en, this message translates to:

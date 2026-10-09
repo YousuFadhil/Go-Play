@@ -207,6 +207,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createMatchButton => 'Create match';
 
   @override
+  String get homeChooseCommunityForMatch =>
+      'Choose the community for this match';
+
+  @override
+  String get homeNoManagedCommunities =>
+      'You don\'t manage a community where you can create a match. Create a new community to get started.';
+
+  @override
   String get matchDetailsTitle => 'Match details';
 
   @override

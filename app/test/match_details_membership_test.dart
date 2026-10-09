@@ -976,6 +976,10 @@ class FakeCommunityAdapter implements CommunityAdapter {
   Future<List<Community>> fetchMyCommunities() => throw UnimplementedError();
 
   @override
+  Future<List<Community>> fetchManagedCommunities() =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchAllCommunities() => throw UnimplementedError();
 
   @override
