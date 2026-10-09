@@ -126,7 +126,8 @@ void main() {
     final port = _ManagedCommunitiesPort([], error: Exception('offline'));
     await _pump(tester, port);
     await tester.tap(find.byKey(const Key('homeCreateMatch')));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
     expect(port.calls, 1);
