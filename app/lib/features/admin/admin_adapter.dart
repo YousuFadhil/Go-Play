@@ -1,3 +1,5 @@
+import '../auth/auth_models.dart' show PlayerPosition;
+import '../profile/profile_models.dart' show ProfileVisibility;
 import 'admin_models.dart';
 
 /// The administration screens' port into the data provider.
@@ -71,6 +73,57 @@ abstract interface class AdminAdapter {
   Future<void> suspendCommunity(String id, String reason);
 
   Future<void> reactivateCommunity(String id);
+
+  /// The signed-in account's id, or null without a session. Reads the session
+  /// and asks the database nothing: it only lets the console leave out an edit
+  /// the database would refuse with `CANNOT_MODIFY_SELF` anyway.
+  String? get currentUserId;
+
+  /// One account's data and settings (migration `0095`). Raises
+  /// `USER_NOT_FOUND` rather than returning nothing.
+  Future<AdminUserAccount> userAccount(String userId);
+
+  /// The five account edits (migration `0095`), one per owner operation. Each
+  /// sets its whole group; there is deliberately no patch call. [reason] is
+  /// optional and arrives already trimmed, or null.
+  ///
+  /// A null [dateOfBirth], [secondaryPosition] or [wilayatCode] clears the
+  /// value; nothing else in any of them may be null.
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  });
+
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  });
+
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  });
+
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  });
+
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  });
 }
 
 // Permanent delete is deliberately absent from this port. The `admin_delete_*`

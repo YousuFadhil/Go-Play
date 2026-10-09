@@ -5,6 +5,9 @@
 // and belongs to the screen (OP-3: what leaves the adapter is a Domain Model,
 // not a pre-formatted view row).
 
+import '../auth/auth_models.dart' show PlayerPosition;
+import '../profile/profile_models.dart' show ProfileVisibility;
+
 /// A user account, as the administration list sees it.
 class AdminUserSummary {
   const AdminUserSummary({
@@ -624,4 +627,85 @@ class AdminMatchInspection {
   final String? mvpName;
 
   bool get hasScore => scoreA != null && scoreB != null;
+}
+
+/// One account's own data and settings, as the Account data section and the
+/// edit screen see it (migration `0095`).
+///
+/// It carries what `admin_get_user_account` returns and nothing more: the
+/// provider names are the names only, never a token or an identity payload, and
+/// the avatar is a URL composed by the adapter, for display -- there is no write
+/// for it.
+///
+/// The three push switches arrive as the database's effective values, so an
+/// account with no preferences row reads as the column defaults rather than as
+/// three unknowns. A null [dateOfBirth] is an ordinary state, not an error: the
+/// column is nullable and an account may never have given one.
+class AdminUserAccount {
+  const AdminUserAccount({
+    required this.id,
+    required this.fullName,
+    required this.phone,
+    required this.email,
+    required this.primaryPosition,
+    required this.profileVisibility,
+    required this.ageVisible,
+    required this.isActive,
+    required this.isSystemAdmin,
+    required this.matchPush,
+    required this.communityPush,
+    required this.muteAll,
+    required this.createdAt,
+    this.dateOfBirth,
+    this.secondaryPosition,
+    this.defaultWilayatCode,
+    this.avatarUrl,
+    this.suspendedAt,
+    this.suspensionReason,
+    this.signInProviders = const [],
+    this.emailConfirmedAt,
+    this.lastSignInAt,
+  });
+
+  final String id;
+  final String fullName;
+
+  /// Stored in E.164 (`+968XXXXXXXX`).
+  final String phone;
+  final String email;
+
+  final DateTime? dateOfBirth;
+  final PlayerPosition primaryPosition;
+  final PlayerPosition? secondaryPosition;
+
+  final ProfileVisibility profileVisibility;
+  final bool ageVisible;
+
+  /// The MOI Wilayat code, or null when the account has no Default Location.
+  final int? defaultWilayatCode;
+
+  /// Where the picture can be fetched, or null when the account has none.
+  /// Display only: nothing in the console writes or removes it.
+  final String? avatarUrl;
+
+  final bool isActive;
+  final DateTime? suspendedAt;
+  final String? suspensionReason;
+  final bool isSystemAdmin;
+
+  final bool matchPush;
+  final bool communityPush;
+  final bool muteAll;
+
+  /// The sign-in methods by name (`email`, `google`), sorted. Empty when the
+  /// account has no identity row.
+  final List<String> signInProviders;
+
+  /// Null when the address has never been confirmed.
+  final DateTime? emailConfirmedAt;
+
+  /// Null when the account has never signed in.
+  final DateTime? lastSignInAt;
+
+  final DateTime createdAt;
 }

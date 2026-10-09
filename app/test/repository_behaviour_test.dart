@@ -920,6 +920,61 @@ class FakeAdminAdapter implements AdminAdapter {
   final bool isAdmin;
   final Object? thrown;
 
+  // The account reads and edits (`0095`) are not what this suite is about; a
+  // call from an unexpected place should fail loudly rather than answer.
+  @override
+  String? get currentUserId => throw UnimplementedError();
+
+  @override
+  Future<AdminUserAccount> userAccount(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
   @override
   Future<bool> isSystemAdmin() async {
     if (thrown != null) throw thrown!;

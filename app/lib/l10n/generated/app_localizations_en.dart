@@ -2670,4 +2670,94 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get matchLiveBadge => 'LIVE';
+
+  @override
+  String get adminAccountDataTitle => 'Account data';
+
+  @override
+  String get adminAccountEditAction => 'Edit account';
+
+  @override
+  String get adminAccountActiveLabel => 'Account active';
+
+  @override
+  String get adminAccountNotSet => 'Not set';
+
+  @override
+  String get adminAccountYes => 'Yes';
+
+  @override
+  String get adminAccountNo => 'No';
+
+  @override
+  String get adminAccountOn => 'On';
+
+  @override
+  String get adminAccountOff => 'Off';
+
+  @override
+  String get adminAccountAgeVisibleLabel => 'Age visible to others';
+
+  @override
+  String get adminAccountProfileVisibilityLabel => 'Profile visibility';
+
+  @override
+  String get adminAccountSignInMethodsLabel => 'Sign-in method';
+
+  @override
+  String get adminProviderGoogle => 'Google';
+
+  @override
+  String get adminAccountEmailConfirmedLabel => 'Email confirmed';
+
+  @override
+  String get adminAccountEmailNotConfirmed => 'Not confirmed';
+
+  @override
+  String get adminAccountLastSignInLabel => 'Last sign-in';
+
+  @override
+  String get adminAccountNeverSignedIn => 'Never signed in';
+
+  @override
+  String get adminEditUnavailableSelf =>
+      'You can\'t edit your own account here.';
+
+  @override
+  String get adminEditUnavailableSystemAdmin =>
+      'System Admin accounts are managed outside the app.';
+
+  @override
+  String get adminEditGroupAccount => 'Name and phone';
+
+  @override
+  String get adminEditGroupPlayer => 'Date of birth and positions';
+
+  @override
+  String get adminEditReasonLabel => 'Reason (optional)';
+
+  @override
+  String get adminEditReasonHelp => 'Recorded in the audit log.';
+
+  @override
+  String get adminEditSaved => 'Saved.';
+
+  @override
+  String get adminEditClearDateOfBirth => 'Clear date of birth';
+
+  @override
+  String get adminEditNotAllowed => 'You can\'t edit this account.';
+
+  @override
+  String get adminEditInvalid =>
+      'One of the values isn\'t valid. Check them and try again.';
+
+  @override
+  String get adminEditUserNotFound => 'This account no longer exists.';
+
+  @override
+  String get adminActionUserProfileUpdated => 'Account updated';
+
+  @override
+  String get adminAccountCreatedLabel => 'Account created';
 }

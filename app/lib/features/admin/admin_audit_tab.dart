@@ -8,7 +8,7 @@ import '../../core/time_format.dart';
 import 'admin_models.dart';
 import 'admin_repository.dart';
 
-/// What the four recorded actions read as.
+/// What the five recorded actions read as.
 ///
 /// **An action this build does not know renders as itself.** The log is
 /// append-only and the database deliberately does not filter it, so a later
@@ -20,6 +20,10 @@ String _actionLabel(AppLocalizations l10n, String action) => switch (action) {
       'USER_REACTIVATED' => l10n.adminActionUserReactivated,
       'COMMUNITY_SUSPENDED' => l10n.adminActionCommunitySuspended,
       'COMMUNITY_REACTIVATED' => l10n.adminActionCommunityReactivated,
+      // Migration `0095`. Label only: `admin_list_audit_log` (`0068`) withholds
+      // `metadata`, so the row cannot say which fields changed. Showing them
+      // would need that RPC to change, which is its own decision.
+      'USER_PROFILE_UPDATED' => l10n.adminActionUserProfileUpdated,
       _ => action,
     };
 

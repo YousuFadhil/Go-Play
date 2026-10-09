@@ -6,6 +6,9 @@ import 'package:go_play/features/admin/admin_adapter.dart';
 import 'package:go_play/features/admin/admin_models.dart';
 import 'package:go_play/features/admin/admin_repository.dart';
 import 'package:go_play/features/admin/admin_screen.dart';
+import 'package:go_play/features/auth/auth_models.dart' show PlayerPosition;
+import 'package:go_play/features/profile/profile_models.dart'
+    show ProfileVisibility;
 
 /// Shared Admin test fixtures.
 ///
@@ -68,6 +71,52 @@ AdminUserSummary adminUser({
       isActive: active,
     );
 
+/// An ordinary player account as `admin_get_user_account` reports it: active,
+/// signed in by email, no preferences row (so the column defaults), no Default
+/// Location and no date of birth.
+AdminUserAccount adminAccount({
+  String id = 'u1',
+  String fullName = 'Account Holder',
+  String phone = '+96891234567',
+  DateTime? dateOfBirth,
+  PlayerPosition primary = PlayerPosition.def,
+  PlayerPosition? secondary,
+  ProfileVisibility visibility = ProfileVisibility.everyone,
+  bool ageVisible = true,
+  int? wilayat,
+  bool isActive = true,
+  bool isSystemAdmin = false,
+  bool matchPush = true,
+  bool communityPush = true,
+  bool muteAll = false,
+  List<String> providers = const ['email'],
+  DateTime? emailConfirmedAt,
+  DateTime? lastSignInAt,
+}) =>
+    AdminUserAccount(
+      id: id,
+      fullName: fullName,
+      phone: phone,
+      email: '$id@example.com',
+      dateOfBirth: dateOfBirth,
+      primaryPosition: primary,
+      secondaryPosition: secondary,
+      profileVisibility: visibility,
+      ageVisible: ageVisible,
+      defaultWilayatCode: wilayat,
+      isActive: isActive,
+      suspendedAt: isActive ? null : DateTime.utc(2026, 8, 1),
+      suspensionReason: isActive ? null : 'Repeated no-shows',
+      isSystemAdmin: isSystemAdmin,
+      matchPush: matchPush,
+      communityPush: communityPush,
+      muteAll: muteAll,
+      signInProviders: providers,
+      emailConfirmedAt: emailConfirmedAt,
+      lastSignInAt: lastSignInAt,
+      createdAt: DateTime.utc(2026, 1, 15, 9),
+    );
+
 /// Answers whatever a test needs, and remembers what it was asked.
 class FakeAdminAdapter implements AdminAdapter {
   FakeAdminAdapter({
@@ -84,6 +133,10 @@ class FakeAdminAdapter implements AdminAdapter {
     this.communityInspectionResult,
     this.matchInspectionResult,
     this.inspectionFailure,
+    this.accountResult,
+    this.accountFailure,
+    this.updateFailure,
+    this.signedInUserId,
   });
 
   List<AdminUserSummary> users;
@@ -115,6 +168,22 @@ class FakeAdminAdapter implements AdminAdapter {
   AdminCommunityInspection? communityInspectionResult;
   AdminMatchInspection? matchInspectionResult;
   Failure? inspectionFailure;
+
+  /// What `userAccount` answers. Null means an ordinary [adminAccount], so the
+  /// Account data section has something to read in tests that are not about it.
+  AdminUserAccount? accountResult;
+
+  /// Set to make the Account data read fail; cleared to let a retry succeed.
+  Failure? accountFailure;
+
+  /// Set to make every account edit fail.
+  Failure? updateFailure;
+
+  /// The signed-in administrator, or null when the session cannot say.
+  String? signedInUserId;
+
+  @override
+  String? get currentUserId => signedInUserId;
 
   final List<String> calls = [];
 
@@ -243,6 +312,69 @@ class FakeAdminAdapter implements AdminAdapter {
   @override
   Future<void> reactivateCommunity(String id) async =>
       calls.add('reactivateCommunity:$id');
+
+  @override
+  Future<AdminUserAccount> userAccount(String userId) async {
+    calls.add('userAccount:$userId');
+    if (accountFailure != null) throw accountFailure!;
+    return accountResult ?? adminAccount(id: userId);
+  }
+
+  /// The calls below record every argument that reaches the port, in the form a
+  /// test asserts on, and fail the way a refusing database would.
+  void _edit(String call) {
+    calls.add(call);
+    if (updateFailure != null) throw updateFailure!;
+  }
+
+  @override
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  }) async =>
+      _edit('updateUserAccount:$userId:$fullName:$phone:$reason');
+
+  @override
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  }) async =>
+      _edit('updateUserPlayerProfile:$userId:'
+          '${dateOfBirth == null ? 'null' : dateOfBirth.toIso8601String().substring(0, 10)}:'
+          '${primaryPosition.name}:${secondaryPosition?.name}:$reason');
+
+  @override
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  }) async =>
+      _edit('updateUserPrivacy:$userId:${visibility.name}:$ageVisible:$reason');
+
+  @override
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  }) async =>
+      _edit('updateUserDefaultWilayat:$userId:$wilayatCode:$reason');
+
+  @override
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  }) async =>
+      _edit('updateUserPushPreferences:$userId:$matchPush:$communityPush:'
+          '$muteAll:$reason');
 }
 
 /// The whole console, on a surface tall enough that nothing under test is

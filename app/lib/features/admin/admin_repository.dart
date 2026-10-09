@@ -1,5 +1,7 @@
 import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_admin_adapter.dart';
+import '../auth/auth_models.dart' show PlayerPosition;
+import '../profile/profile_models.dart' show ProfileVisibility;
 import 'admin_adapter.dart';
 import 'admin_models.dart';
 
@@ -118,4 +120,91 @@ class AdminRepository {
 
   Future<void> reactivateCommunity(String id) =>
       _adapter.reactivateCommunity(id);
+
+  /// The signed-in account's id, for the one question the console asks of it:
+  /// is this account me.
+  String? get currentUserId => _adapter.currentUserId;
+
+  /// One account's data and settings (migration `0095`). A failure is not
+  /// swallowed, for the reason the other reads do not: a section that received
+  /// a blank where the truth was "the request failed" would show an
+  /// administrator a clean, wrong answer instead of a retry.
+  Future<AdminUserAccount> userAccount(String userId) =>
+      _adapter.userAccount(userId);
+
+  /// The five account edits. The reason is optional: it is trimmed here and a
+  /// blank one is sent as no reason, so the database stores an absence rather
+  /// than whitespace. Everything else is passed through; what a valid value is
+  /// stays a database rule, and the edit screen has already checked it.
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  }) =>
+      _adapter.updateUserAccount(
+        userId,
+        fullName: fullName,
+        phone: phone,
+        reason: _reason(reason),
+      );
+
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  }) =>
+      _adapter.updateUserPlayerProfile(
+        userId,
+        dateOfBirth: dateOfBirth,
+        primaryPosition: primaryPosition,
+        secondaryPosition: secondaryPosition,
+        reason: _reason(reason),
+      );
+
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  }) =>
+      _adapter.updateUserPrivacy(
+        userId,
+        visibility: visibility,
+        ageVisible: ageVisible,
+        reason: _reason(reason),
+      );
+
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  }) =>
+      _adapter.updateUserDefaultWilayat(
+        userId,
+        wilayatCode: wilayatCode,
+        reason: _reason(reason),
+      );
+
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  }) =>
+      _adapter.updateUserPushPreferences(
+        userId,
+        matchPush: matchPush,
+        communityPush: communityPush,
+        muteAll: muteAll,
+        reason: _reason(reason),
+      );
+
+  static String? _reason(String? reason) {
+    final trimmed = reason?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
 }

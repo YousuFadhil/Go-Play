@@ -4663,6 +4663,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'LIVE'**
   String get matchLiveBadge;
+
+  /// No description provided for @adminAccountDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account data'**
+  String get adminAccountDataTitle;
+
+  /// No description provided for @adminAccountEditAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit account'**
+  String get adminAccountEditAction;
+
+  /// No description provided for @adminAccountActiveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account active'**
+  String get adminAccountActiveLabel;
+
+  /// No description provided for @adminAccountNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get adminAccountNotSet;
+
+  /// No description provided for @adminAccountYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get adminAccountYes;
+
+  /// No description provided for @adminAccountNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get adminAccountNo;
+
+  /// No description provided for @adminAccountOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get adminAccountOn;
+
+  /// No description provided for @adminAccountOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get adminAccountOff;
+
+  /// No description provided for @adminAccountAgeVisibleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Age visible to others'**
+  String get adminAccountAgeVisibleLabel;
+
+  /// No description provided for @adminAccountProfileVisibilityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile visibility'**
+  String get adminAccountProfileVisibilityLabel;
+
+  /// No description provided for @adminAccountSignInMethodsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in method'**
+  String get adminAccountSignInMethodsLabel;
+
+  /// No description provided for @adminProviderGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Google'**
+  String get adminProviderGoogle;
+
+  /// No description provided for @adminAccountEmailConfirmedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email confirmed'**
+  String get adminAccountEmailConfirmedLabel;
+
+  /// No description provided for @adminAccountEmailNotConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not confirmed'**
+  String get adminAccountEmailNotConfirmed;
+
+  /// No description provided for @adminAccountLastSignInLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Last sign-in'**
+  String get adminAccountLastSignInLabel;
+
+  /// No description provided for @adminAccountNeverSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Never signed in'**
+  String get adminAccountNeverSignedIn;
+
+  /// No description provided for @adminEditUnavailableSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t edit your own account here.'**
+  String get adminEditUnavailableSelf;
+
+  /// No description provided for @adminEditUnavailableSystemAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'System Admin accounts are managed outside the app.'**
+  String get adminEditUnavailableSystemAdmin;
+
+  /// No description provided for @adminEditGroupAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Name and phone'**
+  String get adminEditGroupAccount;
+
+  /// No description provided for @adminEditGroupPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of birth and positions'**
+  String get adminEditGroupPlayer;
+
+  /// No description provided for @adminEditReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (optional)'**
+  String get adminEditReasonLabel;
+
+  /// No description provided for @adminEditReasonHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded in the audit log.'**
+  String get adminEditReasonHelp;
+
+  /// No description provided for @adminEditSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved.'**
+  String get adminEditSaved;
+
+  /// No description provided for @adminEditClearDateOfBirth.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear date of birth'**
+  String get adminEditClearDateOfBirth;
+
+  /// No description provided for @adminEditNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t edit this account.'**
+  String get adminEditNotAllowed;
+
+  /// No description provided for @adminEditInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'One of the values isn\'t valid. Check them and try again.'**
+  String get adminEditInvalid;
+
+  /// No description provided for @adminEditUserNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This account no longer exists.'**
+  String get adminEditUserNotFound;
+
+  /// No description provided for @adminActionUserProfileUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Account updated'**
+  String get adminActionUserProfileUpdated;
+
+  /// No description provided for @adminAccountCreatedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account created'**
+  String get adminAccountCreatedLabel;
 }
 
 class _AppLocalizationsDelegate

@@ -146,6 +146,37 @@ void main() {
               (f) => f.reason, 'reason', FailureReason.profileNotFound));
     });
 
+    test('editing an account: who may be edited is a permission refusal', () {
+      // The console words it once, because it already knows whether the account
+      // is the administrator's own or a System Admin's.
+      expect(map(raised('CANNOT_MODIFY_SELF')), isA<AuthorizationFailure>());
+      expect(map(raised('CANNOT_MODIFY_SYSTEM_ADMIN')),
+          isA<AuthorizationFailure>());
+      // And neither is mistaken for the membership refusals they resemble.
+      expect(map(raised('CANNOT_MODIFY_SELF')).reason,
+          isNot(FailureReason.cannotRemoveSelf));
+      expect(map(raised('CANNOT_MODIFY_SYSTEM_ADMIN')).reason, isNull);
+    });
+
+    test('editing an account: every value the database refuses is input', () {
+      for (final token in [
+        'INVALID_FULL_NAME',
+        'INVALID_PHONE',
+        'INVALID_DATE_OF_BIRTH',
+        'INVALID_POSITION',
+        'INVALID_WILAYAT',
+        'INVALID_SETTINGS',
+      ]) {
+        expect(map(raised(token)), isA<ValidationFailure>(), reason: token);
+      }
+      // The new token carries no reason: the console words it for the group.
+      expect(map(raised('INVALID_SETTINGS')).reason, isNull);
+    });
+
+    test('editing an account: an unknown id is not found', () {
+      expect(map(raised('USER_NOT_FOUND')), isA<NotFoundFailure>());
+    });
+
     test('joining refusals keep their reason', () {
       expect(map(raised('JOIN_CODE_REQUIRED')).reason,
           FailureReason.joinCodeRequired);

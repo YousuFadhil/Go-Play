@@ -3,7 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/failures.dart';
 import '../../features/admin/admin_adapter.dart';
 import '../../features/admin/admin_models.dart';
+import '../../features/auth/auth_models.dart' show PlayerPosition;
+import '../../features/profile/profile_models.dart' show ProfileVisibility;
 import 'mappers/admin_mapper.dart';
+import 'supabase_avatars.dart';
 import 'supabase_bootstrap.dart';
 import 'supabase_failure_mapper.dart';
 
@@ -305,5 +308,153 @@ class SupabaseAdminAdapter implements AdminAdapter {
           });
         },
         operation: 'rpc admin_reactivate_community',
+      );
+
+  /// The id of the session, which is all the console asks of it. No request.
+  @override
+  String? get currentUserId => _client.auth.currentUser?.id;
+
+  /// One account's data and settings, through `0095`.
+  ///
+  /// `returns table` with one row, so a one-element list arrives. The function
+  /// raises `USER_NOT_FOUND` rather than returning nothing, so an empty result
+  /// is not a state it can reach -- checked anyway, so a surprise becomes a
+  /// mapped failure and the section's retry rather than a range error.
+  @override
+  Future<AdminUserAccount> userAccount(String userId) => guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_get_user_account',
+            params: {'p_user_id': userId},
+          );
+          final rows = (result as List<dynamic>).cast<Map<String, dynamic>>();
+          if (rows.isEmpty) throw const InfrastructureFailure();
+          final row = rows.first;
+          return adminUserAccountFromRow(
+            row,
+            avatarUrl: SupabaseAvatars.publicUrl(
+              _client,
+              row['avatar_path'] as String?,
+            ),
+          );
+        },
+        operation: 'rpc admin_get_user_account',
+      );
+
+  /// The five account edits, through `0095`. Each checks `is_system_admin()`
+  /// server-side and refuses the caller themselves and any System Admin; each
+  /// is a no-op, with no audit event, when nothing it carries would change.
+  /// Nothing here is authorization and nothing here decides what a valid value
+  /// is.
+  @override
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_account',
+            params: adminUpdateAccountParams(
+              userId,
+              fullName: fullName,
+              phone: phone,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_account',
+      );
+
+  @override
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_player_profile',
+            params: adminUpdatePlayerProfileParams(
+              userId,
+              dateOfBirth: dateOfBirth,
+              primaryPosition: primaryPosition,
+              secondaryPosition: secondaryPosition,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_player_profile',
+      );
+
+  @override
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_privacy',
+            params: adminUpdatePrivacyParams(
+              userId,
+              visibility: visibility,
+              ageVisible: ageVisible,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_privacy',
+      );
+
+  @override
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_default_wilayat',
+            params: adminUpdateDefaultWilayatParams(
+              userId,
+              wilayatCode: wilayatCode,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_default_wilayat',
+      );
+
+  @override
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_push_preferences',
+            params: adminUpdatePushPreferencesParams(
+              userId,
+              matchPush: matchPush,
+              communityPush: communityPush,
+              muteAll: muteAll,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_push_preferences',
       );
 }

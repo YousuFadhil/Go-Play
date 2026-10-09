@@ -205,6 +205,19 @@ class SupabaseFailureMapper {
     // The picker only lists active ones, so reaching this means a stale list.
     'INVALID_WILAYAT': ValidationFailure(),
 
+    // Editing an account from the administration console (migration `0095`). The
+    // first two are who may be edited -- a permission refusal, which the type
+    // says and the console words on its own, since it already knows whether the
+    // account is the administrator's own or a System Admin's. The third is a
+    // visibility that is not one of the two tokens, or a null switch, in the
+    // privacy and push-preference edits: input, with the same plain validation
+    // failure as the other edit outcomes. Those are `INVALID_FULL_NAME`,
+    // `INVALID_PHONE`, `INVALID_DATE_OF_BIRTH`, `INVALID_POSITION` and
+    // `INVALID_WILAYAT`, all mapped above.
+    'CANNOT_MODIFY_SELF': AuthorizationFailure(),
+    'CANNOT_MODIFY_SYSTEM_ADMIN': AuthorizationFailure(),
+    'INVALID_SETTINGS': ValidationFailure(),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),

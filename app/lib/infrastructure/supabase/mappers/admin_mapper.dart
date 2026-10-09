@@ -1,4 +1,8 @@
 import '../../../features/admin/admin_models.dart';
+import '../../../features/auth/auth_models.dart' show PlayerPosition;
+import '../../../features/profile/profile_models.dart' show ProfileVisibility;
+import 'auth_mapper.dart';
+import 'profile_mapper.dart';
 
 // Conversion from the `admin_list_*` RPC rows to the administration Domain
 // Models. Counts arrive as numbers and are read as such; how a row is worded
@@ -307,3 +311,127 @@ AdminMatchInspection adminMatchInspectionFromRow(Map<String, dynamic> row) =>
       resultCreatedAt: _adminTimestamp(row['result_created_at']),
       mvpName: _adminReason(row['mvp_name']),
     );
+
+/// One account's data and settings (`admin_get_user_account`, migration `0095`).
+///
+/// Every column the RPC returns is read here and nowhere else (OP-3). The
+/// booleans fall back to the column defaults -- an account that is active, shows
+/// its age, wants both kinds of push and has not muted -- so a row that somehow
+/// arrives without one is treated as the ordinary account rather than as a
+/// suspended or muted one. A null date of birth, secondary position and Default
+/// Location stay null: they are states the schema allows, not gaps to fill.
+///
+/// `sign_in_providers` is read with the same tolerance as the platforms list: a
+/// list the screen can always iterate, with anything that is not a string
+/// dropped rather than stringified.
+///
+/// [avatarUrl] is composed by the adapter from `avatar_path`, because the bucket
+/// and the host are provider knowledge and a row does not carry them.
+AdminUserAccount adminUserAccountFromRow(
+  Map<String, dynamic> row, {
+  String? avatarUrl,
+}) {
+  final dateOfBirth = row['date_of_birth'];
+  final secondary = row['secondary_position'] as String?;
+  return AdminUserAccount(
+    id: row['id'] as String,
+    fullName: row['full_name'] as String? ?? '',
+    phone: row['phone'] as String? ?? '',
+    email: row['email'] as String? ?? '',
+    dateOfBirth: dateOfBirth is String ? DateTime.tryParse(dateOfBirth) : null,
+    primaryPosition: playerPositionFromDb(row['primary_position'] as String),
+    secondaryPosition:
+        secondary == null ? null : playerPositionFromDb(secondary),
+    profileVisibility:
+        profileVisibilityFromDb(row['profile_visibility'] as String?),
+    ageVisible: row['age_visible'] as bool? ?? true,
+    defaultWilayatCode: (row['default_wilayat_code'] as num?)?.toInt(),
+    avatarUrl: avatarUrl,
+    isActive: row['is_active'] as bool? ?? true,
+    suspendedAt: _adminTimestamp(row['suspended_at']),
+    suspensionReason: _adminReason(row['suspension_reason']),
+    isSystemAdmin: row['is_system_admin'] as bool? ?? false,
+    matchPush: row['match_push'] as bool? ?? true,
+    communityPush: row['community_push'] as bool? ?? true,
+    muteAll: row['mute_all'] as bool? ?? false,
+    signInProviders: _adminPlatforms(row['sign_in_providers']),
+    emailConfirmedAt: _adminTimestamp(row['email_confirmed_at']),
+    lastSignInAt: _adminTimestamp(row['last_sign_in_at']),
+    createdAt: _adminRequiredTimestamp(row['created_at']),
+  );
+}
+
+/// The arguments of the five account edits (migration `0095`).
+///
+/// One builder per RPC, so a payload cannot carry a column its RPC does not own:
+/// the name and phone call cannot also send a date of birth. Each group is sent
+/// whole -- a null in it means "clear" only for the three columns the schema
+/// lets be empty. A date of birth travels as a date, never an instant.
+Map<String, dynamic> adminUpdateAccountParams(
+  String userId, {
+  required String fullName,
+  required String phone,
+  String? reason,
+}) =>
+    {
+      'p_user_id': userId,
+      'p_full_name': fullName,
+      'p_phone': phone,
+      'p_reason': reason,
+    };
+
+Map<String, dynamic> adminUpdatePlayerProfileParams(
+  String userId, {
+  required DateTime? dateOfBirth,
+  required PlayerPosition primaryPosition,
+  required PlayerPosition? secondaryPosition,
+  String? reason,
+}) =>
+    {
+      'p_user_id': userId,
+      'p_date_of_birth': dateOfBirth == null ? null : dateOnlyToDb(dateOfBirth),
+      'p_primary_position': playerPositionToDb(primaryPosition),
+      'p_secondary_position': secondaryPosition == null
+          ? null
+          : playerPositionToDb(secondaryPosition),
+      'p_reason': reason,
+    };
+
+Map<String, dynamic> adminUpdatePrivacyParams(
+  String userId, {
+  required ProfileVisibility visibility,
+  required bool ageVisible,
+  String? reason,
+}) =>
+    {
+      'p_user_id': userId,
+      'p_profile_visibility': profileVisibilityToDb(visibility),
+      'p_age_visible': ageVisible,
+      'p_reason': reason,
+    };
+
+Map<String, dynamic> adminUpdateDefaultWilayatParams(
+  String userId, {
+  required int? wilayatCode,
+  String? reason,
+}) =>
+    {
+      'p_user_id': userId,
+      'p_wilayat_code': wilayatCode,
+      'p_reason': reason,
+    };
+
+Map<String, dynamic> adminUpdatePushPreferencesParams(
+  String userId, {
+  required bool matchPush,
+  required bool communityPush,
+  required bool muteAll,
+  String? reason,
+}) =>
+    {
+      'p_user_id': userId,
+      'p_match_push': matchPush,
+      'p_community_push': communityPush,
+      'p_mute_all': muteAll,
+      'p_reason': reason,
+    };

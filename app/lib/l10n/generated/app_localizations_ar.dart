@@ -2654,4 +2654,92 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get matchLiveBadge => 'مباشر';
+
+  @override
+  String get adminAccountDataTitle => 'بيانات الحساب';
+
+  @override
+  String get adminAccountEditAction => 'تعديل الحساب';
+
+  @override
+  String get adminAccountActiveLabel => 'الحساب نشط';
+
+  @override
+  String get adminAccountNotSet => 'غير محدد';
+
+  @override
+  String get adminAccountYes => 'نعم';
+
+  @override
+  String get adminAccountNo => 'لا';
+
+  @override
+  String get adminAccountOn => 'مفعّل';
+
+  @override
+  String get adminAccountOff => 'متوقف';
+
+  @override
+  String get adminAccountAgeVisibleLabel => 'إظهار العمر للآخرين';
+
+  @override
+  String get adminAccountProfileVisibilityLabel => 'ظهور الملف الشخصي';
+
+  @override
+  String get adminAccountSignInMethodsLabel => 'طريقة تسجيل الدخول';
+
+  @override
+  String get adminProviderGoogle => 'Google';
+
+  @override
+  String get adminAccountEmailConfirmedLabel => 'تأكيد البريد الإلكتروني';
+
+  @override
+  String get adminAccountEmailNotConfirmed => 'غير مؤكد';
+
+  @override
+  String get adminAccountLastSignInLabel => 'آخر تسجيل دخول';
+
+  @override
+  String get adminAccountNeverSignedIn => 'لم يسجّل الدخول بعد';
+
+  @override
+  String get adminEditUnavailableSelf => 'لا يمكنك تعديل حسابك من هنا.';
+
+  @override
+  String get adminEditUnavailableSystemAdmin =>
+      'حسابات مديري النظام تُدار خارج التطبيق.';
+
+  @override
+  String get adminEditGroupAccount => 'الاسم والجوال';
+
+  @override
+  String get adminEditGroupPlayer => 'تاريخ الميلاد والمراكز';
+
+  @override
+  String get adminEditReasonLabel => 'السبب (اختياري)';
+
+  @override
+  String get adminEditReasonHelp => 'يُسجَّل في سجل التدقيق.';
+
+  @override
+  String get adminEditSaved => 'تم الحفظ.';
+
+  @override
+  String get adminEditClearDateOfBirth => 'مسح تاريخ الميلاد';
+
+  @override
+  String get adminEditNotAllowed => 'لا يمكنك تعديل هذا الحساب.';
+
+  @override
+  String get adminEditInvalid => 'إحدى القيم غير صالحة. راجعها وحاول مرة أخرى.';
+
+  @override
+  String get adminEditUserNotFound => 'هذا الحساب لم يعد موجوداً.';
+
+  @override
+  String get adminActionUserProfileUpdated => 'تعديل بيانات حساب';
+
+  @override
+  String get adminAccountCreatedLabel => 'تاريخ إنشاء الحساب';
 }
