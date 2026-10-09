@@ -806,13 +806,14 @@ void main() {
       });
 
       test('hands the browser the provider\'s Google authorize address, '
-          'with the callback', () async {
+          'with the callback and the account chooser', () async {
         await adapter.signInWithGoogle(redirectTo: 'goplay://login-callback');
 
         final uri = Uri.parse(launched.single);
         expect(uri.path, '/auth/v1/authorize');
         expect(uri.queryParameters['provider'], 'google');
         expect(uri.queryParameters['redirect_to'], 'goplay://login-callback');
+        expect(uri.queryParameters['prompt'], 'select_account');
       });
 
       test('names no Google SDK: it is the provider\'s own redirect flow, so '

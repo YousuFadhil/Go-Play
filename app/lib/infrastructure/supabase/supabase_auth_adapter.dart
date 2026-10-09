@@ -178,6 +178,9 @@ class SupabaseAuthAdapter implements AuthAdapter {
         final launched = await _auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: redirectTo,
+          // Always show Google's account chooser, even when the browser already
+          // holds a signed-in Google session.
+          queryParams: const {'prompt': 'select_account'},
         );
         if (!launched) throw const AuthenticationFailure();
       });
