@@ -15,6 +15,7 @@ void main() {
   Future<void> pumpCreate(
     WidgetTester tester, {
     CreateMatchAdapter? adapter,
+    Future<void> Function(String)? shareText,
     Locale locale = const Locale('en'),
     Size size = const Size(412, 900),
   }) async {
@@ -31,6 +32,7 @@ void main() {
           communityId: 'c1',
           matchService:
               adapter == null ? null : MatchService(adapter),
+          shareText: shareText,
         ),
       ),
     );
@@ -131,6 +133,53 @@ void main() {
 
     gate.complete();
     await tester.pumpAndSettle();
+    expect(adapter.writes, 1);
+    expect(find.text('Match created'), findsOneWidget);
+
+    await tester.tap(find.text('Later'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CreateMatchScreen), findsNothing);
+  });
+
+  testWidgets('new match offers an invitation with the exact returned link',
+      (tester) async {
+    final adapter = CreateMatchAdapter();
+    String? shared;
+    await pumpCreate(
+      tester,
+      adapter: adapter,
+      shareText: (text) async => shared = text,
+    );
+    await fillValidForm(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Create match'));
+    await tester.pumpAndSettle();
+    expect(find.text('Match created'), findsOneWidget);
+    await tester.tap(find.text('Share match'));
+    await tester.pumpAndSettle();
+
+    expect(adapter.writes, 1);
+    expect(shared, contains(
+        '/#/match/00000000-0000-4000-8000-000000000001'));
+    expect(shared, contains('Location:'));
+    expect(find.byType(CreateMatchScreen), findsNothing);
+  });
+
+  testWidgets('optional share failure does not turn creation into a failure',
+      (tester) async {
+    final adapter = CreateMatchAdapter();
+    await pumpCreate(
+      tester,
+      adapter: adapter,
+      shareText: (_) async => throw Exception('no share sheet'),
+    );
+    await fillValidForm(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Create match'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Share match'));
+    await tester.pumpAndSettle();
+
     expect(adapter.writes, 1);
     expect(find.byType(CreateMatchScreen), findsNothing);
   });
