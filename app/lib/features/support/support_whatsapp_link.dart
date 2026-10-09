@@ -22,6 +22,13 @@ abstract final class SupportWhatsAppLink {
       throw const FormatException('Invalid support destination or message');
     }
     final content = 'Go Play — ${reason.trim()}\n${message.trim()}';
-    return Uri.https('wa.me', '/$digits', {'text': content});
+    // Percent-encoded by hand: Uri.https(queryParameters) writes a space as '+',
+    // while WhatsApp's documented links use %20, which every reader accepts.
+    return Uri(
+      scheme: 'https',
+      host: 'wa.me',
+      path: '/$digits',
+      query: 'text=${Uri.encodeComponent(content)}',
+    );
   }
 }

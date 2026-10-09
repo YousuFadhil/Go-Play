@@ -95,6 +95,9 @@ class _AdminSupportPhoneScreenState extends State<AdminSupportPhoneScreen> {
               TextField(
                 controller: _phone,
                 keyboardType: TextInputType.phone,
+                // A phone number reads left to right even in an RTL layout;
+                // otherwise the leading '+' is drawn after the digits.
+                textDirection: TextDirection.ltr,
                 decoration: InputDecoration(
                   labelText: l10n.supportPhoneLabel,
                   hintText: '+968XXXXXXXX',

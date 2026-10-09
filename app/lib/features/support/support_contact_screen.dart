@@ -108,7 +108,7 @@ class _SupportContactScreenState extends State<SupportContactScreen> {
               ),
               const SizedBox(height: Gap.lg),
               DropdownButtonFormField<int>(
-                value: _reason,
+                initialValue: _reason,
                 decoration:
                     InputDecoration(labelText: l10n.supportCategoryLabel),
                 items: [
@@ -135,16 +135,16 @@ class _SupportContactScreenState extends State<SupportContactScreen> {
                   padding: const EdgeInsets.only(bottom: Gap.md),
                   child: Text(
                     l10n.supportPhoneNotConfigured,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                 ),
               FilledButton.icon(
                 key: const Key('openWhatsAppSupport'),
-                onPressed: _opening ||
-                        phone == null ||
-                        _message.text.trim().isEmpty
-                    ? null
-                    : () => _open(phone),
+                onPressed:
+                    _opening || phone == null || _message.text.trim().isEmpty
+                        ? null
+                        : () => _open(phone),
                 icon: const Icon(Icons.open_in_new),
                 label: Text(l10n.supportOpenWhatsApp),
               ),
