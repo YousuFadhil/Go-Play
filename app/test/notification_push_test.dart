@@ -69,6 +69,7 @@ void main() {
       'match_full',
       'teams_regenerated',
       'match_starting_soon',
+      'match_result_reminder',
       'match_time_changed',
     ];
 

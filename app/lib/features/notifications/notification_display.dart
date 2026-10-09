@@ -10,7 +10,7 @@ import '../../core/l10n.dart';
 /// same vocabulary, and adding a type means adding a row to each.
 ///
 /// A map rather than a switch, and the reason is the failure it prevents. Three
-/// switches over sixteen types — text, icon, colour — drift: a type gets a case
+/// switches over seventeen types — text, icon, colour — drift: a type gets a case
 /// in one and is forgotten in the others, and nothing says so. One entry per
 /// type cannot be half-added.
 class NotificationDisplay {
