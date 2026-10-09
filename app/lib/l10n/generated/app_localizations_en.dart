@@ -1990,7 +1990,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get supportContactAction => 'Contact us on WhatsApp';
 
   @override
-  String get supportContactIntro => 'Choose a topic and write your message. WhatsApp will open so you can send it yourself.';
+  String get supportContactIntro =>
+      'Choose a topic and write your message. WhatsApp will open so you can send it yourself.';
 
   @override
   String get supportCategoryLabel => 'Topic';
@@ -2011,7 +2012,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get supportMessageLabel => 'Your message';
 
   @override
-  String get supportPhoneNotConfigured => 'The support number is not configured yet. Please try again later.';
+  String get supportPhoneNotConfigured =>
+      'The support number is not configured yet. Please try again later.';
 
   @override
   String get supportOpenWhatsApp => 'Open WhatsApp';
@@ -2023,13 +2025,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get supportAdminPhoneTitle => 'Support phone settings';
 
   @override
-  String get supportAdminPhoneHelp => 'Enter the international WhatsApp number with country code. Leave it blank to disable support contact temporarily.';
+  String get supportAdminPhoneHelp =>
+      'Enter the international WhatsApp number with country code. Leave it blank to disable support contact temporarily.';
 
   @override
   String get supportPhoneLabel => 'Support WhatsApp number';
 
   @override
-  String get supportPhoneInvalid => 'Enter a valid international phone number (8–15 digits).';
+  String get supportPhoneInvalid =>
+      'Enter a valid international phone number (8–15 digits).';
 
   @override
   String get supportSavePhone => 'Save support number';

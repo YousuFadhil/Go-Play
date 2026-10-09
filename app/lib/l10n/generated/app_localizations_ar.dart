@@ -1975,7 +1975,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get supportContactAction => 'التواصل عبر واتساب';
 
   @override
-  String get supportContactIntro => 'اختر نوع طلبك واكتب رسالتك. سيتم فتح واتساب لإرسالها بنفسك.';
+  String get supportContactIntro =>
+      'اختر نوع طلبك واكتب رسالتك. سيتم فتح واتساب لإرسالها بنفسك.';
 
   @override
   String get supportCategoryLabel => 'نوع الطلب';
@@ -1996,7 +1997,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get supportMessageLabel => 'اكتب رسالتك';
 
   @override
-  String get supportPhoneNotConfigured => 'رقم الدعم غير متاح حاليًا. حاول لاحقًا.';
+  String get supportPhoneNotConfigured =>
+      'رقم الدعم غير متاح حاليًا. حاول لاحقًا.';
 
   @override
   String get supportOpenWhatsApp => 'فتح واتساب';
@@ -2008,13 +2010,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get supportAdminPhoneTitle => 'إعداد رقم الدعم';
 
   @override
-  String get supportAdminPhoneHelp => 'أدخل رقم واتساب الدولي مع رمز الدولة. اترك الحقل فارغًا لتعطيل التواصل مؤقتًا.';
+  String get supportAdminPhoneHelp =>
+      'أدخل رقم واتساب الدولي مع رمز الدولة. اترك الحقل فارغًا لتعطيل التواصل مؤقتًا.';
 
   @override
   String get supportPhoneLabel => 'رقم واتساب للدعم';
 
   @override
-  String get supportPhoneInvalid => 'أدخل رقمًا دوليًا صحيحًا (من 8 إلى 15 رقمًا).';
+  String get supportPhoneInvalid =>
+      'أدخل رقمًا دوليًا صحيحًا (من 8 إلى 15 رقمًا).';
 
   @override
   String get supportSavePhone => 'حفظ رقم الدعم';
