@@ -1969,6 +1969,64 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsTitle => 'الإعدادات';
 
   @override
+  String get supportContactTitle => 'التواصل مع الدعم';
+
+  @override
+  String get supportContactAction => 'التواصل عبر واتساب';
+
+  @override
+  String get supportContactIntro =>
+      'اختر نوع طلبك واكتب رسالتك. سيتم فتح واتساب لإرسالها بنفسك.';
+
+  @override
+  String get supportCategoryLabel => 'نوع الطلب';
+
+  @override
+  String get supportReasonTechnical => 'مشكلة تقنية';
+
+  @override
+  String get supportReasonSuggestion => 'اقتراح';
+
+  @override
+  String get supportReasonQuestion => 'استفسار';
+
+  @override
+  String get supportReasonOther => 'أخرى';
+
+  @override
+  String get supportMessageLabel => 'اكتب رسالتك';
+
+  @override
+  String get supportPhoneNotConfigured =>
+      'رقم الدعم غير متاح حاليًا. حاول لاحقًا.';
+
+  @override
+  String get supportOpenWhatsApp => 'فتح واتساب';
+
+  @override
+  String get supportOpenFailed => 'تعذّر فتح واتساب. حاول مجددًا.';
+
+  @override
+  String get supportAdminPhoneTitle => 'إعداد رقم الدعم';
+
+  @override
+  String get supportAdminPhoneHelp =>
+      'أدخل رقم واتساب الدولي مع رمز الدولة. اترك الحقل فارغًا لتعطيل التواصل مؤقتًا.';
+
+  @override
+  String get supportPhoneLabel => 'رقم واتساب للدعم';
+
+  @override
+  String get supportPhoneInvalid =>
+      'أدخل رقمًا دوليًا صحيحًا (من 8 إلى 15 رقمًا).';
+
+  @override
+  String get supportSavePhone => 'حفظ رقم الدعم';
+
+  @override
+  String get supportPhoneSaved => 'تم حفظ رقم الدعم.';
+
+  @override
   String get settingsLanguageSection => 'اللغة';
 
   @override
