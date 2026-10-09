@@ -386,7 +386,7 @@ class CreateMatchAdapter implements MatchAdapter {
   final List<String> communityMatchesFor = [];
 
   @override
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,
@@ -397,6 +397,7 @@ class CreateMatchAdapter implements MatchAdapter {
   }) async {
     writes++;
     if (gate != null) await gate;
+    return '00000000-0000-4000-8000-000000000001';
   }
 
   @override
