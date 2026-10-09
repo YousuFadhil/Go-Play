@@ -78,12 +78,38 @@
 --
 -- ## PRIVILEGES
 --
--- All six are `security definer` with `search_path = public`, revoked from
--- `anon` and `public`, and granted to `authenticated` and `service_role` exactly
--- as `0066` and `0068` grant the existing admin RPCs. Authorization is not the
--- grant: an ordinary account reaches these functions and is refused inside them.
--- `record_admin_audit` is reached from inside, as it is from `0064`; its own
--- grant is untouched and it remains executable by no client role.
+-- All six are `security definer`, revoked from `anon` and `public`, and granted
+-- to `authenticated` and `service_role` exactly as `0066` and `0068` grant the
+-- existing admin RPCs. Authorization is not the grant: an ordinary account
+-- reaches these functions and is refused inside them. `record_admin_audit` is
+-- reached from inside, as it is from `0064`; its own grant is untouched and it
+-- remains executable by no client role.
+--
+-- ## SEARCH PATH, AND WHO THE CALLER IS
+--
+-- A `security definer` function runs with its owner's rights, so what its
+-- unqualified names resolve to matters. With `search_path = public` alone,
+-- PostgreSQL still searches the session's temporary schema FIRST for relations,
+-- so any signed-in account (which may create temporary tables) could create a
+-- temp table called `system_admins` or `users` and have a definer function read
+-- that instead of the real one. Two things close this, both confined to the six
+-- new functions:
+--
+--   * `set search_path = public, pg_temp` -- `pg_temp` named explicitly and
+--     LAST, which is the only way to move the temporary schema to the end;
+--   * every table, function and row type is written with its schema
+--     (`public.users`, `public.system_admins`, `public.wilayats`,
+--     `public.notification_push_preferences`, `public.is_system_admin()`,
+--     `public.record_admin_audit(...)`, `auth.users`, `auth.identities`), so a
+--     lookup does not depend on the path at all.
+--
+-- `is_system_admin()` (`0017`) is not changed and is still called first. It has
+-- `search_path = public` only, so on its own it can be told "yes" by a temp
+-- table named `system_admins`. Each function therefore ALSO asks, in the same
+-- first statement, whether `auth.uid()` is in `public.system_admins`, and
+-- refuses with the same `NOT_AUTHORIZED` unless both agree. For a real System
+-- Admin both are true and nothing changes; for everyone else, including a caller
+-- with no session (`auth.uid()` is null), it is a refusal as before.
 
 
 -- ============================================================================
@@ -148,12 +174,16 @@ returns table (
 language plpgsql
 security definer
 stable
-set search_path = public
+set search_path = public, pg_temp
 as $$
 begin
-  if not is_system_admin() then raise exception 'NOT_AUTHORIZED'; end if;
+  if not public.is_system_admin()
+     or not exists (select 1 from public.system_admins sa
+                     where sa.user_id = auth.uid()) then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
 
-  if not exists (select 1 from users u where u.id = p_user_id) then
+  if not exists (select 1 from public.users u where u.id = p_user_id) then
     raise exception 'USER_NOT_FOUND';
   end if;
 
@@ -172,7 +202,7 @@ begin
            u.is_active,
            u.suspended_at,
            u.suspension_reason,
-           exists (select 1 from system_admins sa where sa.user_id = u.id),
+           exists (select 1 from public.system_admins sa where sa.user_id = u.id),
            coalesce(np.match_push, true),
            coalesce(np.community_push, true),
            coalesce(np.mute_all, false),
@@ -184,9 +214,9 @@ begin
            au.email_confirmed_at,
            au.last_sign_in_at,
            u.created_at
-    from users u
+    from public.users u
     join auth.users au on au.id = u.id
-    left join notification_push_preferences np on np.user_id = u.id
+    left join public.notification_push_preferences np on np.user_id = u.id
     where u.id = p_user_id;
 end;
 $$;
@@ -222,26 +252,28 @@ create or replace function public.admin_update_user_account(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
-  v_user users%rowtype;
+  v_user public.users%rowtype;
   v_name text := btrim(coalesce(p_full_name, ''));
   v_phone text := btrim(coalesce(p_phone, ''));
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
   v_changed text[] := array[]::text[];
 begin
-  if not is_system_admin() then
+  if not public.is_system_admin()
+     or not exists (select 1 from public.system_admins sa
+                     where sa.user_id = auth.uid()) then
     raise exception 'NOT_AUTHORIZED';
   end if;
   if p_user_id = auth.uid() then
     raise exception 'CANNOT_MODIFY_SELF';
   end if;
-  if exists (select 1 from system_admins sa where sa.user_id = p_user_id) then
+  if exists (select 1 from public.system_admins sa where sa.user_id = p_user_id) then
     raise exception 'CANNOT_MODIFY_SYSTEM_ADMIN';
   end if;
 
-  select * into v_user from users u where u.id = p_user_id for update;
+  select * into v_user from public.users u where u.id = p_user_id for update;
   if not found then
     raise exception 'USER_NOT_FOUND';
   end if;
@@ -263,12 +295,12 @@ begin
     return;
   end if;
 
-  update users set
+  update public.users set
     full_name = v_name,
     phone     = v_phone
   where id = p_user_id;
 
-  perform record_admin_audit(
+  perform public.record_admin_audit(
     'USER_PROFILE_UPDATED',
     'USER',
     p_user_id,
@@ -311,27 +343,29 @@ create or replace function public.admin_update_user_player_profile(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
-  v_user users%rowtype;
+  v_user public.users%rowtype;
   v_primary text := btrim(coalesce(p_primary_position, ''));
   v_secondary text := nullif(btrim(coalesce(p_secondary_position, '')), '');
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
   v_today date := (now() at time zone 'Asia/Muscat')::date;
   v_changed text[] := array[]::text[];
 begin
-  if not is_system_admin() then
+  if not public.is_system_admin()
+     or not exists (select 1 from public.system_admins sa
+                     where sa.user_id = auth.uid()) then
     raise exception 'NOT_AUTHORIZED';
   end if;
   if p_user_id = auth.uid() then
     raise exception 'CANNOT_MODIFY_SELF';
   end if;
-  if exists (select 1 from system_admins sa where sa.user_id = p_user_id) then
+  if exists (select 1 from public.system_admins sa where sa.user_id = p_user_id) then
     raise exception 'CANNOT_MODIFY_SYSTEM_ADMIN';
   end if;
 
-  select * into v_user from users u where u.id = p_user_id for update;
+  select * into v_user from public.users u where u.id = p_user_id for update;
   if not found then
     raise exception 'USER_NOT_FOUND';
   end if;
@@ -362,13 +396,13 @@ begin
     return;
   end if;
 
-  update users set
+  update public.users set
     date_of_birth      = p_date_of_birth,
     primary_position   = v_primary,
     secondary_position = v_secondary
   where id = p_user_id;
 
-  perform record_admin_audit(
+  perform public.record_admin_audit(
     'USER_PROFILE_UPDATED',
     'USER',
     p_user_id,
@@ -412,24 +446,26 @@ create or replace function public.admin_update_user_privacy(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
-  v_user users%rowtype;
+  v_user public.users%rowtype;
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
   v_changed text[] := array[]::text[];
 begin
-  if not is_system_admin() then
+  if not public.is_system_admin()
+     or not exists (select 1 from public.system_admins sa
+                     where sa.user_id = auth.uid()) then
     raise exception 'NOT_AUTHORIZED';
   end if;
   if p_user_id = auth.uid() then
     raise exception 'CANNOT_MODIFY_SELF';
   end if;
-  if exists (select 1 from system_admins sa where sa.user_id = p_user_id) then
+  if exists (select 1 from public.system_admins sa where sa.user_id = p_user_id) then
     raise exception 'CANNOT_MODIFY_SYSTEM_ADMIN';
   end if;
 
-  select * into v_user from users u where u.id = p_user_id for update;
+  select * into v_user from public.users u where u.id = p_user_id for update;
   if not found then
     raise exception 'USER_NOT_FOUND';
   end if;
@@ -450,12 +486,12 @@ begin
     return;
   end if;
 
-  update users set
+  update public.users set
     profile_visibility = p_profile_visibility,
     age_visible        = p_age_visible
   where id = p_user_id;
 
-  perform record_admin_audit(
+  perform public.record_admin_audit(
     'USER_PROFILE_UPDATED',
     'USER',
     p_user_id,
@@ -497,29 +533,31 @@ create or replace function public.admin_update_user_default_wilayat(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
-  v_user users%rowtype;
+  v_user public.users%rowtype;
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
 begin
-  if not is_system_admin() then
+  if not public.is_system_admin()
+     or not exists (select 1 from public.system_admins sa
+                     where sa.user_id = auth.uid()) then
     raise exception 'NOT_AUTHORIZED';
   end if;
   if p_user_id = auth.uid() then
     raise exception 'CANNOT_MODIFY_SELF';
   end if;
-  if exists (select 1 from system_admins sa where sa.user_id = p_user_id) then
+  if exists (select 1 from public.system_admins sa where sa.user_id = p_user_id) then
     raise exception 'CANNOT_MODIFY_SYSTEM_ADMIN';
   end if;
 
-  select * into v_user from users u where u.id = p_user_id for update;
+  select * into v_user from public.users u where u.id = p_user_id for update;
   if not found then
     raise exception 'USER_NOT_FOUND';
   end if;
 
   if p_wilayat_code is not null
-     and not exists (select 1 from wilayats w where w.code = p_wilayat_code) then
+     and not exists (select 1 from public.wilayats w where w.code = p_wilayat_code) then
     raise exception 'INVALID_WILAYAT';
   end if;
 
@@ -527,9 +565,9 @@ begin
     return;
   end if;
 
-  update users set default_wilayat_code = p_wilayat_code where id = p_user_id;
+  update public.users set default_wilayat_code = p_wilayat_code where id = p_user_id;
 
-  perform record_admin_audit(
+  perform public.record_admin_audit(
     'USER_PROFILE_UPDATED',
     'USER',
     p_user_id,
@@ -577,11 +615,11 @@ create or replace function public.admin_update_user_push_preferences(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
-  v_user users%rowtype;
-  v_prefs notification_push_preferences%rowtype;
+  v_user public.users%rowtype;
+  v_prefs public.notification_push_preferences%rowtype;
   v_has_row boolean;
   v_current_match boolean;
   v_current_community boolean;
@@ -589,17 +627,19 @@ declare
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
   v_changed text[] := array[]::text[];
 begin
-  if not is_system_admin() then
+  if not public.is_system_admin()
+     or not exists (select 1 from public.system_admins sa
+                     where sa.user_id = auth.uid()) then
     raise exception 'NOT_AUTHORIZED';
   end if;
   if p_user_id = auth.uid() then
     raise exception 'CANNOT_MODIFY_SELF';
   end if;
-  if exists (select 1 from system_admins sa where sa.user_id = p_user_id) then
+  if exists (select 1 from public.system_admins sa where sa.user_id = p_user_id) then
     raise exception 'CANNOT_MODIFY_SYSTEM_ADMIN';
   end if;
 
-  select * into v_user from users u where u.id = p_user_id for update;
+  select * into v_user from public.users u where u.id = p_user_id for update;
   if not found then
     raise exception 'USER_NOT_FOUND';
   end if;
@@ -609,7 +649,7 @@ begin
   end if;
 
   select * into v_prefs
-    from notification_push_preferences np
+    from public.notification_push_preferences np
    where np.user_id = p_user_id
    for update;
   v_has_row := found;
@@ -632,7 +672,7 @@ begin
     return;
   end if;
 
-  insert into notification_push_preferences (
+  insert into public.notification_push_preferences (
     user_id, match_push, community_push, mute_all
   )
   values (p_user_id, p_match_push, p_community_push, p_mute_all)
@@ -641,7 +681,7 @@ begin
     community_push = excluded.community_push,
     mute_all       = excluded.mute_all;
 
-  perform record_admin_audit(
+  perform public.record_admin_audit(
     'USER_PROFILE_UPDATED',
     'USER',
     p_user_id,

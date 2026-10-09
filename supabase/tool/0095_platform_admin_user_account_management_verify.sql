@@ -35,6 +35,9 @@ expected(fn, args) as (
 ),
 found as (
   select p.oid, p.proname, p.prosecdef, p.proconfig, p.provolatile,
+         -- The body with every space and newline removed, so a check on it does
+         -- not depend on how the migration was formatted when it was applied.
+         regexp_replace(p.prosrc, '\s+', '', 'g') as src_compact,
          pg_get_function_identity_arguments(p.oid) as args,
          exists (
            select 1
@@ -113,9 +116,11 @@ from (
          (select count(*) = 6 from found where prosecdef)
 
   union all
-  select 5, 'all six have search_path = public', '6',
-         (select count(*)::text from found where proconfig = array['search_path=public']),
-         (select count(*) = 6 from found where proconfig = array['search_path=public'])
+  -- 5. pg_temp named, and last: the temporary schema is otherwise searched
+  --    first for relations, so a temp table could stand in for a real one.
+  select 5, 'all six have search_path = public, pg_temp (pg_temp last)', '6',
+         (select count(*)::text from found where proconfig = array['search_path=public, pg_temp']),
+         (select count(*) = 6 from found where proconfig = array['search_path=public, pg_temp'])
 
   union all
   -- 6. The read is stable; the five writes are not.
@@ -267,5 +272,27 @@ from (
             join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
            where d.adrelid = 'public.notification_push_preferences'::regclass
              and a.attname in ('match_push', 'community_push', 'mute_all'))
+
+  union all
+  -- 22. Each body asks, besides the helper, whether auth.uid() is in
+  --     public.system_admins itself. `is_system_admin()` (0017) has only
+  --     search_path = public, so on its own a temp table could answer it.
+  select 22, 'all six independently check public.system_admins for auth.uid()', '6',
+         (select count(*)::text from found
+           where src_compact like '%public.is_system_admin()%'
+             and src_compact like '%notexists(select1frompublic.system_adminssawheresa.user_id=auth.uid())%'),
+         (select count(*) = 6 from found
+           where src_compact like '%public.is_system_admin()%'
+             and src_compact like '%notexists(select1frompublic.system_adminssawheresa.user_id=auth.uid())%')
+
+  union all
+  -- 23. And none still reaches a shared table or function by a bare name.
+  select 23, 'no body names users, system_admins, wilayats, notification_push_preferences, is_system_admin or record_admin_audit without public.', '0',
+         (select count(*)::text from found
+           where src_compact ~ '(from|join|update|into)(users|system_admins|wilayats|notification_push_preferences)'
+              or src_compact ~ '(perform|ifnot)(is_system_admin|record_admin_audit)\('),
+         (select count(*) = 0 from found
+           where src_compact ~ '(from|join|update|into)(users|system_admins|wilayats|notification_push_preferences)'
+              or src_compact ~ '(perform|ifnot)(is_system_admin|record_admin_audit)\(')
 ) checks
 order by n, check_name;

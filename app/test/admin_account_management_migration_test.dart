@@ -195,24 +195,32 @@ void main() {
 
     test('the gate is the first statement and USER_NOT_FOUND follows it', () {
       final at = positions(body, [
-        'if not is_system_admin() then raise exception \'NOT_AUTHORIZED\'',
+        'if not public.is_system_admin()',
+        'where sa.user_id = auth.uid()',
+        "raise exception 'NOT_AUTHORIZED'",
         "raise exception 'USER_NOT_FOUND'",
         'return query',
       ]);
-      expect(at[0] < at[1] && at[1] < at[2], isTrue);
+      for (var i = 1; i < at.length; i++) {
+        expect(at[i - 1] < at[i], isTrue,
+            reason: 'step $i follows step ${i - 1}');
+      }
     });
 
     test('it writes nothing and has no self or System Admin restriction', () {
       for (final forbidden in [
         'insert into',
-        'update users',
+        'update public.users',
         'delete from',
         'record_admin_audit',
         'CANNOT_MODIFY',
-        'auth.uid()',
+        'p_user_id = auth.uid()',
       ]) {
         expect(body, isNot(contains(forbidden)), reason: forbidden);
       }
+      // `auth.uid()` appears once, in the caller's own membership check, and
+      // nowhere as a comparison with the account being read.
+      expect('auth.uid()'.allMatches(body).length, 1);
       expect(body, contains('stable'));
     });
 
@@ -254,7 +262,8 @@ void main() {
       expect(body, contains('coalesce(np.match_push, true)'));
       expect(body, contains('coalesce(np.community_push, true)'));
       expect(body, contains('coalesce(np.mute_all, false)'));
-      expect(body, contains('left join notification_push_preferences np'));
+      expect(
+          body, contains('left join public.notification_push_preferences np'));
     });
 
     test('it returns the agreed columns in the agreed order', () {
@@ -310,7 +319,7 @@ void main() {
             "raise exception 'CANNOT_MODIFY_SYSTEM_ADMIN'",
             "raise exception 'USER_NOT_FOUND'",
             noopTest,
-            'perform record_admin_audit(',
+            'perform public.record_admin_audit(',
           ]);
           for (var i = 1; i < at.length; i++) {
             expect(at[i - 1] < at[i], isTrue,
@@ -322,7 +331,7 @@ void main() {
           final begin = body.indexOf('\nbegin\n');
           expect(
             body.substring(begin + 7).trimLeft(),
-            startsWith('if not is_system_admin() then'),
+            startsWith('if not public.is_system_admin()'),
           );
         });
 
@@ -330,14 +339,14 @@ void main() {
           expect(body, contains('if p_user_id = auth.uid() then'));
           expect(
             body,
-            contains('exists (select 1 from system_admins sa '
+            contains('exists (select 1 from public.system_admins sa '
                 'where sa.user_id = p_user_id)'),
           );
           // Locked, so two administrators cannot interleave.
           expect(
               body,
               contains(
-                  'select * into v_user from users u where u.id = p_user_id for update'));
+                  'select * into v_user from public.users u where u.id = p_user_id for update'));
         });
 
         test('validation sits between the lock and the no-op test', () {
@@ -352,18 +361,18 @@ void main() {
         test('nothing changed: it returns before any UPDATE or audit row', () {
           final noop = body.indexOf(noopTest);
           final write = [
-            body.indexOf('update users set'),
-            body.indexOf('insert into notification_push_preferences'),
+            body.indexOf('update public.users set'),
+            body.indexOf('insert into public.notification_push_preferences'),
           ].where((i) => i >= 0).reduce((a, b) => a < b ? a : b);
-          final audit = body.indexOf('perform record_admin_audit(');
+          final audit = body.indexOf('perform public.record_admin_audit(');
           expect(body.substring(noop, noop + 120), contains('return;'));
           expect(noop < write, isTrue);
           expect(write < audit, isTrue);
         });
 
         test('the audit metadata is changed_fields and nothing else', () {
-          final audit =
-              body.substring(body.indexOf('perform record_admin_audit('));
+          final audit = body
+              .substring(body.indexOf('perform public.record_admin_audit('));
           final keys = RegExp(r"jsonb_build_object\(\s*'(\w+)'")
               .allMatches(audit)
               .map((m) => m.group(1))
@@ -455,7 +464,7 @@ void main() {
       expect(
           body,
           contains(
-              'not exists (select 1 from wilayats w where w.code = p_wilayat_code)'));
+              'not exists (select 1 from public.wilayats w where w.code = p_wilayat_code)'));
       expect(body, contains("raise exception 'INVALID_WILAYAT'"));
       expect(
           body,
@@ -493,6 +502,107 @@ void main() {
     });
   });
 
+  group('the search path and who the caller is', () {
+    // A security definer function runs with its owner's rights. With
+    // `search_path = public` alone, PostgreSQL still searches the session's
+    // temporary schema first for relations, so a signed-in account could shadow
+    // `system_admins` or `users` with a temp table of its own. Two things close
+    // that for these six functions, and neither is a change to a shared helper.
+    for (final name in [reader, ...writers]) {
+      group(name, () {
+        final body = functionBody(name);
+
+        test('pg_temp is named, and it is last', () {
+          final configured = RegExp(r'set search_path = ([^\n]+)\n')
+              .allMatches(body)
+              .map((m) => m.group(1)!)
+              .toList();
+          expect(configured, ['public, pg_temp']);
+          final path =
+              configured.single.split(',').map((p) => p.trim()).toList();
+          expect(path.last, 'pg_temp');
+          expect(path.indexOf('pg_temp'), path.length - 1);
+        });
+
+        test(
+            'the caller is checked twice: the helper, then public.system_admins',
+            () {
+          // The same refusal either way; for a real System Admin both are true.
+          final gate = RegExp(
+            r'if not public\.is_system_admin\(\)\s+'
+            r'or not exists \(select 1 from public\.system_admins sa\s+'
+            r'where sa\.user_id = auth\.uid\(\)\) then\s+'
+            r"(?:raise exception 'NOT_AUTHORIZED';\s+end if;)",
+          );
+          expect(gate.hasMatch(body), isTrue);
+        });
+
+        test('that check is the first statement and nothing precedes it', () {
+          final begin = body.indexOf('\nbegin\n');
+          expect(
+            body.substring(begin + 7).trimLeft(),
+            startsWith('if not public.is_system_admin()'),
+          );
+          expect(
+            body.indexOf('public.system_admins sa'),
+            lessThan(body.indexOf("raise exception 'NOT_AUTHORIZED'")),
+          );
+        });
+
+        test('every relation, function and row type carries its schema', () {
+          // `select ... into v_user from ...` and `do update set` are not
+          // relations; everything else after from / join / update / into is.
+          final references =
+              RegExp(r'\b(?:from|join|update|into)\s+([a-z_][\w.]*)')
+                  .allMatches(
+                    body.replaceAll(RegExp("'[^']*'"), "''"),
+                  )
+                  .map((m) => m.group(1)!)
+                  .where((n) => !n.startsWith('v_') && n != 'set')
+                  .toList();
+          expect(references, isNotEmpty);
+          for (final reference in references) {
+            expect(
+              reference.startsWith('public.') || reference.startsWith('auth.'),
+              isTrue,
+              reason: '$name: "$reference" is not schema-qualified',
+            );
+          }
+
+          for (final rowType in RegExp(r'([\w.]+)%rowtype').allMatches(body)) {
+            expect(rowType.group(1)!.startsWith('public.'), isTrue,
+                reason: '$name: ${rowType.group(0)} is not schema-qualified');
+          }
+          // The two functions it calls are named with their schema as well.
+          expect(
+            RegExp(r'(?<![.\w])(?:is_system_admin|record_admin_audit)\(')
+                .hasMatch(body.replaceAll(RegExp("'[^']*'"), "''")),
+            isFalse,
+            reason: '$name calls an unqualified shared function',
+          );
+        });
+      });
+    }
+
+    test('no temporary-schema name is ever written out as a lookup', () {
+      // Nothing asks for pg_temp in a query; it appears only in the six
+      // `set search_path` lines.
+      expect('pg_temp'.allMatches(executable).length, 6);
+    });
+
+    test('the shared helpers are called, never replaced', () {
+      expect(
+        statements,
+        isNot(contains('create or replace function public.is_system_admin')),
+      );
+      expect(
+        statements,
+        isNot(contains('create or replace function public.record_admin_audit')),
+      );
+      expect(statements, isNot(contains('alter function')));
+    });
+  });
+
   group('push preferences with no row', () {
     final body = functionBody('admin_update_user_push_preferences');
 
@@ -525,7 +635,8 @@ void main() {
     });
 
     test('a change is an upsert, which is also how a row comes to exist', () {
-      expect(body, contains('insert into notification_push_preferences'));
+      expect(
+          body, contains('insert into public.notification_push_preferences'));
       expect(body, contains('on conflict (user_id) do update set'));
     });
   });
@@ -556,10 +667,12 @@ void main() {
         );
       });
 
-      test('${entry.key} is security definer with search_path = public', () {
+      test(
+          '${entry.key} is security definer with search_path = public, pg_temp',
+          () {
         final body = functionBody(entry.key);
         expect(body, contains('security definer'));
-        expect(body, contains('set search_path = public'));
+        expect(body, contains('set search_path = public, pg_temp\nas \$\$'));
       });
 
       test('${entry.key} has a comment', () {
@@ -572,8 +685,11 @@ void main() {
     }
 
     test('no privilege is granted to anon, to public, or to a table', () {
-      expect(executable, isNot(contains('to anon')));
-      expect(executable, isNot(contains('to public')));
+      // A grant, specifically: `insert into public.…` is not one.
+      expect(
+        RegExp(r'\bgrant\b[^;]*\bto\s+(?:anon|public)\b').hasMatch(executable),
+        isFalse,
+      );
       expect(
         RegExp(r'grant\s+(?!execute)').hasMatch(executable),
         isFalse,
