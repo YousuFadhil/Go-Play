@@ -434,6 +434,43 @@ class SupabaseAdminAdapter implements AdminAdapter {
         operation: 'rpc admin_update_user_default_wilayat',
       );
 
+  /// The two read-only previews, through `0096`. Each returns one jsonb
+  /// document, which PostgREST sends as a JSON object; anything else is a
+  /// surprise and becomes a mapped failure and the screen's retry. Nothing is
+  /// written, and no audit event is recorded.
+  @override
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  }) =>
+      guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_preview_account_merge',
+            params: {
+              'p_retained_user_id': retainedUserId,
+              'p_source_user_id': sourceUserId,
+            },
+          );
+          if (result is! Map) throw const InfrastructureFailure();
+          return adminMergePreviewFromJson(result.cast<String, dynamic>());
+        },
+        operation: 'rpc admin_preview_account_merge',
+      );
+
+  @override
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId) => guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_preview_account_deletion',
+            params: {'p_user_id': userId},
+          );
+          if (result is! Map) throw const InfrastructureFailure();
+          return adminDeletionPreviewFromJson(result.cast<String, dynamic>());
+        },
+        operation: 'rpc admin_preview_account_deletion',
+      );
+
   @override
   Future<void> updateUserPushPreferences(
     String userId, {

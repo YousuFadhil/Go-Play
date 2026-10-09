@@ -177,6 +177,13 @@ void main() {
       expect(map(raised('USER_NOT_FOUND')), isA<NotFoundFailure>());
     });
 
+    test('previewing a merge: the same account twice is input, not a fault', () {
+      // Migration 0096. The screen never offers the same account twice, so
+      // reaching this means the request was built some other way.
+      expect(map(raised('SAME_ACCOUNT')), isA<ValidationFailure>());
+      expect(map(raised('SAME_ACCOUNT')).reason, isNull);
+    });
+
     test('joining refusals keep their reason', () {
       expect(map(raised('JOIN_CODE_REQUIRED')).reason,
           FailureReason.joinCodeRequired);

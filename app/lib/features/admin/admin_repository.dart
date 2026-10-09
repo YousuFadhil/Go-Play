@@ -203,6 +203,26 @@ class AdminRepository {
         reason: _reason(reason),
       );
 
+  /// The read-only previews (migration `0096`). Reads, so a failure is not
+  /// swallowed: a preview that failed must show as failed, never as "nothing in
+  /// the way".
+  ///
+  /// The same account twice is not a merge. It is refused here, as a rejected
+  /// Future like every other failure in this layer, so the database is not asked.
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  }) async {
+    if (retainedUserId == sourceUserId) throw const ValidationFailure();
+    return _adapter.previewAccountMerge(
+      retainedUserId: retainedUserId,
+      sourceUserId: sourceUserId,
+    );
+  }
+
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId) =>
+      _adapter.previewAccountDeletion(userId);
+
   static String? _reason(String? reason) {
     final trimmed = reason?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;

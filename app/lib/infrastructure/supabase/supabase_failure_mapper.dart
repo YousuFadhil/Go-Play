@@ -218,6 +218,11 @@ class SupabaseFailureMapper {
     'CANNOT_MODIFY_SYSTEM_ADMIN': AuthorizationFailure(),
     'INVALID_SETTINGS': ValidationFailure(),
 
+    // The merge preview named one account twice (migration `0096`). The screen
+    // does not let that be chosen, so reaching it means the request was built
+    // some other way: plain input the caller got wrong.
+    'SAME_ACCOUNT': ValidationFailure(),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),

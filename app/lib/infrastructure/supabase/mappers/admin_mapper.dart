@@ -435,3 +435,195 @@ Map<String, dynamic> adminUpdatePushPreferencesParams(
       'p_mute_all': muteAll,
       'p_reason': reason,
     };
+
+// ---------------------------------------------------------------------------
+// Account preflight (`admin_preview_account_merge` / `_deletion`, migration
+// `0096`). Both return one jsonb document. Every reader below is tolerant in
+// the way the rest of this file is: a missing key reads as empty or zero, and a
+// value of an unexpected type is dropped rather than failing the whole preview.
+// A finding code or severity this build does not know is kept (the screen shows
+// a code it cannot word), never discarded.
+// ---------------------------------------------------------------------------
+
+Map<String, dynamic> _previewMap(Object? value) =>
+    value is Map ? value.cast<String, dynamic>() : const {};
+
+List<Map<String, dynamic>> _previewRows(Object? value) => value is List
+    ? [
+        for (final row in value)
+          if (row is Map) row.cast<String, dynamic>()
+      ]
+    : const [];
+
+List<String> _previewStrings(Object? value) => value is List
+    ? [
+        for (final entry in value)
+          if (entry is String && entry.isNotEmpty) entry
+      ]
+    : const [];
+
+Map<String, int> _previewCounts(Object? value) => {
+      for (final entry in _previewMap(value).entries)
+        if (entry.value is num) entry.key: (entry.value as num).toInt(),
+    };
+
+AdminFindingSeverity _previewSeverity(Object? value) => switch (value) {
+      'BLOCKER' => AdminFindingSeverity.blocker,
+      'CONSTRAINT' => AdminFindingSeverity.constraint,
+      // 'CONFLICT', and anything newer: asking for attention is the safer
+      // reading of a severity this build does not know.
+      _ => AdminFindingSeverity.conflict,
+    };
+
+List<AdminPreviewFinding> _previewFindings(Object? value) => [
+      for (final row in _previewRows(value))
+        AdminPreviewFinding(
+          code: row['code'] as String? ?? '',
+          severity: _previewSeverity(row['severity']),
+          category: row['category'] as String? ?? '',
+          count: _adminCount(row['count']),
+        ),
+    ];
+
+List<AdminPreviewRecord> _previewRecords(Object? value) => [
+      for (final row in _previewRows(value))
+        AdminPreviewRecord(
+          code: row['code'] as String? ?? '',
+          records: _adminCount(row['records']),
+          treatment: row['treatment'] as String?,
+        ),
+    ];
+
+/// Whether a preview has blockers. **Understating them is the one mistake a
+/// safety screen cannot make**, so this is true unless the database said, in so
+/// many words, that there are none -- a missing or malformed flag reads as
+/// blocked -- and it is true whenever any finding is a blocker, whatever the
+/// flag says.
+bool _previewHasBlockers(Object? flag, List<AdminPreviewFinding> findings) =>
+    (flag is bool ? flag : true) ||
+    findings.any((f) => f.severity == AdminFindingSeverity.blocker);
+
+AdminPreviewList<T> _previewList<T>(
+  Object? value,
+  T Function(Map<String, dynamic> row) read,
+) {
+  final map = _previewMap(value);
+  return AdminPreviewList(
+    total: _adminCount(map['total']),
+    items: [for (final row in _previewRows(map['items'])) read(row)],
+  );
+}
+
+/// One account of a preview: the `{account, counts}` document the database's
+/// snapshot helper builds.
+AdminPreviewAccount adminPreviewAccountFromJson(Map<String, dynamic> json) {
+  final account = _previewMap(json['account']);
+  final counts = _previewMap(json['counts']);
+  return AdminPreviewAccount(
+    id: account['id'] as String? ?? '',
+    fullName: account['full_name'] as String? ?? '',
+    email: account['email'] as String? ?? '',
+    isActive: account['is_active'] as bool? ?? true,
+    isSystemAdmin: account['is_system_admin'] as bool? ?? false,
+    isCaller: account['is_caller'] as bool? ?? false,
+    createdAt: _adminRequiredTimestamp(account['created_at']),
+    lastSignInAt: _adminTimestamp(account['last_sign_in_at']),
+    signInProviders: _previewStrings(account['sign_in_providers']),
+    counts: _previewCounts(counts)..remove('rating'),
+    rating: (counts['rating'] as num?)?.toDouble(),
+  );
+}
+
+AdminMergePreview adminMergePreviewFromJson(Map<String, dynamic> json) {
+  final findings = _previewFindings(json['findings']);
+  final overlap = _previewMap(json['overlapping_communities']);
+  final shared = _previewMap(json['shared_matches']);
+  final statistics = _previewMap(json['statistics_overlap']);
+  return AdminMergePreview(
+    retained: adminPreviewAccountFromJson(_previewMap(json['retained'])),
+    source: adminPreviewAccountFromJson(_previewMap(json['source'])),
+    overlappingCommunities: _previewList(
+      overlap,
+      (row) => AdminCommunityOverlap(
+        communityId: row['community_id'] as String? ?? '',
+        name: row['name'] as String? ?? '',
+        retainedRole: row['retained_role'] as String? ?? '',
+        sourceRole: row['source_role'] as String? ?? '',
+        roleConflict: row['role_conflict'] as bool? ?? false,
+        sourceOwns: row['source_owns'] as bool? ?? false,
+        retainedOwns: row['retained_owns'] as bool? ?? false,
+      ),
+    ),
+    roleConflictsTotal: _adminCount(overlap['role_conflicts_total']),
+    ownershipConflictsTotal: _adminCount(overlap['ownership_conflicts_total']),
+    sourceOwnedCommunities: _previewList(
+      json['source_owned_communities'],
+      (row) => AdminSourceOwnedCommunity(
+        communityId: row['community_id'] as String? ?? '',
+        name: row['name'] as String? ?? '',
+        retainedIsMember: row['retained_is_member'] as bool? ?? false,
+        retainedRole: row['retained_role'] as String?,
+      ),
+    ),
+    sharedMatches: _previewList(
+      shared,
+      (row) => AdminSharedMatch(
+        matchId: row['match_id'] as String? ?? '',
+        title: row['title'] as String? ?? '',
+        communityName: row['community_name'] as String?,
+        startAt: _adminTimestamp(row['start_at']),
+        status: row['status'] as String? ?? '',
+        isHistorical: row['is_historical'] as bool? ?? false,
+        retainedEvidence: _previewStrings(row['retained_evidence']),
+        sourceEvidence: _previewStrings(row['source_evidence']),
+        collision: row['collision'] as bool? ?? false,
+      ),
+    ),
+    collidingMatchesTotal: _adminCount(shared['colliding_total']),
+    collisionsByKind: _previewCounts(shared['by_kind']),
+    communityStatisticsCollisions:
+        _adminCount(statistics['community_statistics_collisions']),
+    teamAwardCollisions: _adminCount(statistics['team_award_collisions']),
+    findings: findings,
+    hasBlockers: _previewHasBlockers(json['has_blockers'], findings),
+    coverageNotes: _previewStrings(json['coverage_notes']),
+  );
+}
+
+AdminDeletionPreview adminDeletionPreviewFromJson(Map<String, dynamic> json) {
+  final findings = _previewFindings(json['findings']);
+  final created = _previewMap(json['created_matches']);
+  return AdminDeletionPreview(
+    account: adminPreviewAccountFromJson(_previewMap(json['account'])),
+    personalData: _previewRecords(json['personal_data']),
+    ownedCommunities: _previewList(
+      json['owned_communities'],
+      (row) => AdminOwnedCommunity(
+        communityId: row['community_id'] as String? ?? '',
+        name: row['name'] as String? ?? '',
+        isActive: row['is_active'] as bool? ?? true,
+        memberCount: _adminCount(row['member_count']),
+        otherAdminCount: _adminCount(row['other_admin_count']),
+        matchCount: _adminCount(row['match_count']),
+      ),
+    ),
+    createdMatches: _previewList(
+      created,
+      (row) => AdminCreatedMatch(
+        matchId: row['match_id'] as String? ?? '',
+        title: row['title'] as String? ?? '',
+        communityName: row['community_name'] as String?,
+        startAt: _adminTimestamp(row['start_at']),
+        status: row['status'] as String? ?? '',
+        isHistorical: row['is_historical'] as bool? ?? false,
+        hasResult: row['has_result'] as bool? ?? false,
+      ),
+    ),
+    createdMatchesByStatus: _previewCounts(created['by_status']),
+    historicalRecords: _previewRecords(json['historical_records']),
+    preservedRecords: _previewRecords(json['preserved_records']),
+    findings: findings,
+    hasBlockers: _previewHasBlockers(json['has_blockers'], findings),
+    coverageNotes: _previewStrings(json['coverage_notes']),
+  );
+}

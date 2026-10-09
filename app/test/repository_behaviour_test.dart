@@ -975,6 +975,19 @@ class FakeAdminAdapter implements AdminAdapter {
   }) =>
       throw UnimplementedError();
 
+  // The account previews (`0096`) are not what this suite is about; a call from
+  // an unexpected place should fail loudly rather than answer.
+  @override
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId) =>
+      throw UnimplementedError();
+
   @override
   Future<bool> isSystemAdmin() async {
     if (thrown != null) throw thrown!;

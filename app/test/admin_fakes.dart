@@ -137,6 +137,9 @@ class FakeAdminAdapter implements AdminAdapter {
     this.accountFailure,
     this.updateFailure,
     this.signedInUserId,
+    this.mergePreview,
+    this.deletionPreview,
+    this.previewFailure,
   });
 
   List<AdminUserSummary> users;
@@ -181,6 +184,15 @@ class FakeAdminAdapter implements AdminAdapter {
 
   /// The signed-in administrator, or null when the session cannot say.
   String? signedInUserId;
+
+  /// What the read-only previews (migration `0096`) answer. Null means no test
+  /// asked for one, and a call is then a mistake worth failing loudly on.
+  AdminMergePreview? mergePreview;
+  AdminDeletionPreview? deletionPreview;
+
+  /// Set to make both previews fail (a refusal, a dropped connection, a database
+  /// that does not have the RPC yet); cleared to let a retry succeed.
+  Failure? previewFailure;
 
   @override
   String? get currentUserId => signedInUserId;
@@ -364,6 +376,23 @@ class FakeAdminAdapter implements AdminAdapter {
     String? reason,
   }) async =>
       _edit('updateUserDefaultWilayat:$userId:$wilayatCode:$reason');
+
+  @override
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  }) async {
+    calls.add('previewAccountMerge:$retainedUserId:$sourceUserId');
+    if (previewFailure != null) throw previewFailure!;
+    return mergePreview!;
+  }
+
+  @override
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId) async {
+    calls.add('previewAccountDeletion:$userId');
+    if (previewFailure != null) throw previewFailure!;
+    return deletionPreview!;
+  }
 
   @override
   Future<void> updateUserPushPreferences(

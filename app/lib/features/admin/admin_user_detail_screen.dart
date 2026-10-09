@@ -13,7 +13,9 @@ import '../locations/wilayat_models.dart';
 import '../locations/wilayat_picker.dart' show wilayatArabic;
 import '../locations/wilayat_repository.dart';
 import '../profile/profile_models.dart' show ProfileVisibility;
+import 'admin_deletion_preview_screen.dart';
 import 'admin_detail_row.dart';
+import 'admin_merge_preview_screen.dart';
 import 'admin_models.dart';
 import 'admin_repository.dart';
 import 'admin_user_edit_screen.dart';
@@ -171,6 +173,37 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     if (mounted) _reloadAccount();
   }
 
+  /// The read-only merge preview, with this account offered as the one to keep.
+  /// Nothing is reloaded afterwards: a preview changes nothing.
+  void _previewMerge(AdminUserAccount account) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdminMergePreviewScreen(
+          retained: AdminUserSummary(
+            id: account.id,
+            fullName: account.fullName,
+            email: account.email,
+            isSystemAdmin: account.isSystemAdmin,
+            isActive: account.isActive,
+          ),
+          repository: _repository,
+        ),
+      ),
+    );
+  }
+
+  /// The read-only deletion preview for this account.
+  void _previewDeletion(AdminUserAccount account) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdminDeletionPreviewScreen(
+          userId: account.id,
+          repository: _repository,
+        ),
+      ),
+    );
+  }
+
   /// Both RPCs, issued together and failing together.
   ///
   /// One future rather than two, so the screen has one loading state and one
@@ -225,6 +258,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                 currentUserId: _repository.currentUserId,
                 wilayats: _wilayats,
                 onEdit: _edit,
+                onPreviewMerge: _previewMerge,
+                onPreviewDeletion: _previewDeletion,
                 onRetry: _reloadAccount,
               ),
 
@@ -501,6 +536,8 @@ class _AccountSection extends StatelessWidget {
     required this.currentUserId,
     required this.wilayats,
     required this.onEdit,
+    required this.onPreviewMerge,
+    required this.onPreviewDeletion,
     required this.onRetry,
   });
 
@@ -513,6 +550,8 @@ class _AccountSection extends StatelessWidget {
 
   final WilayatRepository wilayats;
   final void Function(AdminUserAccount account) onEdit;
+  final void Function(AdminUserAccount account) onPreviewMerge;
+  final void Function(AdminUserAccount account) onPreviewDeletion;
   final VoidCallback onRetry;
 
   @override
@@ -559,6 +598,8 @@ class _AccountSection extends StatelessWidget {
               isSelf: currentUserId != null && currentUserId == account.id,
               wilayats: wilayats,
               onEdit: () => onEdit(account),
+              onPreviewMerge: () => onPreviewMerge(account),
+              onPreviewDeletion: () => onPreviewDeletion(account),
             );
           },
         ),
@@ -574,12 +615,16 @@ class _AccountData extends StatelessWidget {
     required this.isSelf,
     required this.wilayats,
     required this.onEdit,
+    required this.onPreviewMerge,
+    required this.onPreviewDeletion,
   });
 
   final AdminUserAccount account;
   final bool isSelf;
   final WilayatRepository wilayats;
   final VoidCallback onEdit;
+  final VoidCallback onPreviewMerge;
+  final VoidCallback onPreviewDeletion;
 
   /// A moment, as the Users screens write one: the Oman day and time.
   String _moment(BuildContext context, DateTime value) =>
@@ -732,6 +777,33 @@ class _AccountData extends StatelessWidget {
                 ? l10n.adminEditUnavailableSelf
                 : l10n.adminEditUnavailableSystemAdmin,
           ),
+        // Read-only previews (migration `0096`). Offered for every account,
+        // including the administrator's own and a System Admin's: seeing why a
+        // deletion or merge is blocked is the point, and they change nothing.
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: kPageMargin,
+            vertical: Gap.xs,
+          ),
+          child: OutlinedButton.icon(
+            key: const Key('adminAccountPreviewMerge'),
+            onPressed: onPreviewMerge,
+            icon: const Icon(Icons.merge_type),
+            label: Text(l10n.adminPreviewMergeAction),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: kPageMargin,
+            vertical: Gap.xs,
+          ),
+          child: OutlinedButton.icon(
+            key: const Key('adminAccountPreviewDeletion'),
+            onPressed: onPreviewDeletion,
+            icon: const Icon(Icons.person_remove_outlined),
+            label: Text(l10n.adminPreviewDeletionAction),
+          ),
+        ),
       ],
     );
   }

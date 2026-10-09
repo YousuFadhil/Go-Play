@@ -2742,4 +2742,371 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminAccountCreatedLabel => 'تاريخ إنشاء الحساب';
+
+  @override
+  String get adminPreviewMergeAction => 'معاينة الدمج';
+
+  @override
+  String get adminPreviewDeletionAction => 'معاينة الحذف';
+
+  @override
+  String get adminPreviewMergeTitle => 'معاينة دمج الحسابات';
+
+  @override
+  String get adminPreviewDeletionTitle => 'معاينة حذف الحساب';
+
+  @override
+  String get adminPreviewReadOnlyNote =>
+      'للعرض فقط. لا يُدمج ولا يُحذف ولا يتغيّر أي شيء من هذه الشاشة، وهذه المعاينة لا تجعل الدمج أو الحذف متاحاً أو مصرّحاً به.';
+
+  @override
+  String get adminMergeRetainedLabel => 'الحساب المُبقى';
+
+  @override
+  String get adminMergeSourceLabel => 'الحساب المراد دمجه';
+
+  @override
+  String get adminMergeChoose => 'اختر حساباً';
+
+  @override
+  String get adminMergeSwap => 'تبديل الحسابين';
+
+  @override
+  String get adminMergeSearchHint => 'ابحث بالاسم أو البريد الإلكتروني';
+
+  @override
+  String get adminMergePreviewButton => 'معاينة';
+
+  @override
+  String get adminMergeNeedTwo => 'اختر حسابين مختلفين للمعاينة.';
+
+  @override
+  String get adminPickerNoResults => 'لا توجد حسابات.';
+
+  @override
+  String get adminPreviewVerdictClear => 'لا توجد عوائق في هذه المعاينة.';
+
+  @override
+  String adminPreviewVerdictBlocked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'عدد العوائق: $count.',
+      two: 'عائقان.',
+      one: 'عائق واحد.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminPreviewFindingsTitle => 'النتائج';
+
+  @override
+  String get adminPreviewNothingInTheWay => 'لا شيء يعترض.';
+
+  @override
+  String get adminSeverityBlocker => 'عائق';
+
+  @override
+  String get adminSeverityConflict => 'يحتاج قاعدة';
+
+  @override
+  String get adminSeverityConstraint => 'لا يمكن تغييره';
+
+  @override
+  String get adminPreviewAccountsTitle => 'الحسابات';
+
+  @override
+  String get adminPreviewActivityTitle => 'ما يرتبط بالحسابين';
+
+  @override
+  String get adminPreviewRetainedColumn => 'المُبقى';
+
+  @override
+  String get adminPreviewSourceColumn => 'المدمج';
+
+  @override
+  String get adminPreviewOverlapTitle => 'مجتمعات ينتمي إليها الحسابان';
+
+  @override
+  String get adminPreviewSourceOwnedTitle => 'مجتمعات يملكها الحساب المدمج';
+
+  @override
+  String get adminPreviewSharedMatchesTitle => 'مباريات يظهر فيها الحسابان';
+
+  @override
+  String get adminPreviewStatisticsTitle => 'إحصاءات ستتعارض';
+
+  @override
+  String get adminPreviewPersonalTitle => 'البيانات الشخصية المحفوظة';
+
+  @override
+  String get adminPreviewOwnedTitle => 'مجتمعات يملكها الحساب';
+
+  @override
+  String get adminPreviewCreatedTitle => 'مباريات أنشأها الحساب';
+
+  @override
+  String get adminPreviewHistoricalTitle => 'السجل الكروي';
+
+  @override
+  String get adminPreviewPreservedTitle => 'سجلات لا يمكن لأحد تعديلها';
+
+  @override
+  String get adminPreviewCoverageTitle => 'غير مشمول بهذه المعاينة';
+
+  @override
+  String adminPreviewShowing(int shown, int total) {
+    return 'عرض $shown من $total';
+  }
+
+  @override
+  String adminPreviewOwnedRow(int members, int admins, int matches) {
+    return '$members أعضاء · $admins مشرفون آخرون · $matches مباريات';
+  }
+
+  @override
+  String get adminPreviewTagRoleConflict => 'أدوار مختلفة';
+
+  @override
+  String get adminPreviewTagSourceOwns => 'الحساب المدمج يملكه';
+
+  @override
+  String get adminPreviewTagRetainedOwns => 'الحساب المُبقى يملكه';
+
+  @override
+  String get adminPreviewRetainedNotMember => 'الحساب المُبقى ليس عضواً';
+
+  @override
+  String get adminPreviewCollision => 'تعارض';
+
+  @override
+  String get adminPreviewHasResult => 'له نتيجة مسجّلة';
+
+  @override
+  String get adminPreviewRating => 'التقييم العام';
+
+  @override
+  String get adminEvidenceRegistration => 'تسجيل';
+
+  @override
+  String get adminEvidenceLineup => 'التشكيلة';
+
+  @override
+  String get adminEvidenceGoals => 'أهداف';
+
+  @override
+  String get adminEvidenceMvp => 'أفضل لاعب';
+
+  @override
+  String get adminEvidenceRating => 'تقييم';
+
+  @override
+  String get adminTreatmentCascadeDelete => 'يُمحى مع الحساب';
+
+  @override
+  String get adminTreatmentDetach => 'يُزال الربط ويبقى السجل';
+
+  @override
+  String get adminTreatmentRetainedId => 'يبقى دون حساب يشير إليه';
+
+  @override
+  String get adminCountMemberships => 'عضويات المجتمعات';
+
+  @override
+  String get adminCountOwned => 'مجتمعات يملكها';
+
+  @override
+  String get adminCountCreated => 'مباريات أنشأها';
+
+  @override
+  String get adminCountRegistrations => 'تسجيلات المباريات';
+
+  @override
+  String get adminCountUpcoming => 'تسجيلات في مباريات قادمة';
+
+  @override
+  String get adminCountLineup => 'أماكن في التشكيلات';
+
+  @override
+  String get adminCountGoals => 'الأهداف المسجّلة';
+
+  @override
+  String get adminCountGoalRows => 'سجلات الأهداف';
+
+  @override
+  String get adminCountMvp => 'جوائز أفضل لاعب';
+
+  @override
+  String get adminCountCareerStats => 'المباريات الملعوبة (المسيرة)';
+
+  @override
+  String get adminCountRatingEntries => 'سجلات التقييم';
+
+  @override
+  String get adminCountRatingArchive => 'صفوف أرشيف التقييم';
+
+  @override
+  String get adminCountCommunityStatistics => 'صفوف إحصاءات المجتمع';
+
+  @override
+  String get adminCountTeamAwards => 'جوائز تشكيلة الفترة';
+
+  @override
+  String get adminCountNotifications => 'الإشعارات';
+
+  @override
+  String get adminCountPushTokens => 'رموز إشعارات الجوال';
+
+  @override
+  String get adminCountActivityEvents => 'أحداث النشاط';
+
+  @override
+  String get adminCountAuditEntries => 'سجلات التدقيق';
+
+  @override
+  String get adminPersonalProfile => 'الملف الشخصي';
+
+  @override
+  String get adminPersonalIdentities => 'هويات تسجيل الدخول';
+
+  @override
+  String get adminPersonalAvatar => 'الصورة الشخصية';
+
+  @override
+  String get adminPersonalPushPreferences => 'تفضيلات الإشعارات';
+
+  @override
+  String get adminHistRecordedResults => 'نتائج سجّلها';
+
+  @override
+  String get adminHistGuestsAdded => 'لاعبون محترفون أضافهم';
+
+  @override
+  String get adminHistRegistrationEvents => 'أحداث التسجيل';
+
+  @override
+  String get adminHistMembershipEvents => 'أحداث العضوية';
+
+  @override
+  String get adminHistGenerationRuns => 'عمليات توليد التشكيلات';
+
+  @override
+  String get adminHistConfirmedLineups => 'تشكيلات أكّدها';
+
+  @override
+  String get adminHistRatingHistoryArchive => 'أرشيف سجل التقييم';
+
+  @override
+  String get adminHistUserRatingArchive => 'أرشيف التقييم (لكل حساب)';
+
+  @override
+  String get adminCoverageGenerationEvidence =>
+      'أرقام اللاعبين المضمّنة في بيانات توليد التشكيلات المحفوظة لا تُفحص.';
+
+  @override
+  String get adminCoverageStorage => 'ملف الصورة الشخصية في التخزين لا يُفحص.';
+
+  @override
+  String get adminCoverageSessions => 'جلسات تسجيل الدخول والرموز لا تُفحص.';
+
+  @override
+  String get adminFindingSourceIsCaller => 'الحساب المراد دمجه هو حسابك';
+
+  @override
+  String get adminFindingRetainedIsCaller => 'الحساب المُبقى هو حسابك';
+
+  @override
+  String get adminFindingSourceIsSystemAdmin => 'الحساب المراد دمجه مدير نظام';
+
+  @override
+  String get adminFindingRetainedIsSystemAdmin => 'الحساب المُبقى مدير نظام';
+
+  @override
+  String get adminFindingOwnershipConflict =>
+      'مجتمعات يملكها الحساب المدمج والحساب المُبقى عضو فيها أصلاً';
+
+  @override
+  String get adminFindingSharedMatchCollision =>
+      'مباريات يحمل فيها الحسابان النوع نفسه من السجلات';
+
+  @override
+  String get adminFindingSourceOwnsCommunities =>
+      'مجتمعات يملكها الحساب المدمج تحتاج مالكاً جديداً';
+
+  @override
+  String get adminFindingRoleConflict => 'مجتمعات للحسابين فيها أدوار مختلفة';
+
+  @override
+  String get adminFindingSharedMatchParticipation =>
+      'مباريات يظهر فيها الحسابان دون النوع نفسه من السجلات';
+
+  @override
+  String get adminFindingSourceCreatedMatches => 'مباريات أنشأها الحساب المدمج';
+
+  @override
+  String get adminFindingCommunityStatisticsCollision =>
+      'صفوف إحصاءات يملكها الحسابان معاً';
+
+  @override
+  String get adminFindingTeamAwardCollision =>
+      'جوائز تشكيلة فترة يملكها الحسابان معاً';
+
+  @override
+  String get adminFindingPlayerStatisticsRecompute =>
+      'ستلزم إعادة احتساب إحصاءات المسيرة (المباريات الملعوبة)';
+
+  @override
+  String get adminFindingRatingReplayRequired =>
+      'سيلزم إعادة تشغيل سجل التقييم (السجلات)';
+
+  @override
+  String get adminFindingRatingArchiveImmutable =>
+      'صفوف أرشيف التقييم تذكر هذا الحساب ولا يمكن نقلها أو حذفها، ولم يثبت بعد أن إيقافه آمن';
+
+  @override
+  String get adminFindingEventLogsNameSource =>
+      'سجلات أحداث تذكر الحساب المدمج تبقى كما هي';
+
+  @override
+  String get adminFindingAuditLogNamesSource =>
+      'سجلات تدقيق تذكر الحساب المدمج تبقى كما هي';
+
+  @override
+  String get adminFindingTargetIsCaller => 'هذا حسابك';
+
+  @override
+  String get adminFindingTargetIsSystemAdmin => 'هذا الحساب مدير نظام';
+
+  @override
+  String get adminFindingOwnsCommunities =>
+      'يملك مجتمعات: يجب نقل الملكية أولاً';
+
+  @override
+  String get adminFindingCreatedMatches =>
+      'أنشأ مباريات: يجب إعادة إسنادها أولاً';
+
+  @override
+  String get adminFindingMvpResultsWouldCascade =>
+      'الحذف سيمحو نتائج المباريات التي هذا اللاعب أفضل لاعب فيها';
+
+  @override
+  String get adminFindingHistoryWouldCascade => 'سجل كروي سيُمحى مع الحساب';
+
+  @override
+  String get adminFindingUpcomingRegistrations => 'مسجّل في مباريات قادمة';
+
+  @override
+  String get adminFindingRatingHistoryImmutable => 'سجل التقييم لا يمكن تعديله';
+
+  @override
+  String get adminFindingAuditLogAppendOnly =>
+      'سجلات التدقيق تُحفظ بالأسماء والبريد كما كُتبت';
+
+  @override
+  String get adminFindingEventLogsNameAccount =>
+      'سجلات أحداث تذكر هذا الحساب تبقى كما هي';
+
+  @override
+  String get adminHistCareerStatistics => 'إحصاءات المسيرة';
 }

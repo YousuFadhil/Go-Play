@@ -4837,6 +4837,678 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account created'**
   String get adminAccountCreatedLabel;
+
+  /// No description provided for @adminPreviewMergeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview merge'**
+  String get adminPreviewMergeAction;
+
+  /// No description provided for @adminPreviewDeletionAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview deletion'**
+  String get adminPreviewDeletionAction;
+
+  /// No description provided for @adminPreviewMergeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge preview'**
+  String get adminPreviewMergeTitle;
+
+  /// No description provided for @adminPreviewDeletionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletion preview'**
+  String get adminPreviewDeletionTitle;
+
+  /// No description provided for @adminPreviewReadOnlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Read only. Nothing is merged, deleted or changed from this screen, and this preview does not make a merge or deletion available or authorised.'**
+  String get adminPreviewReadOnlyNote;
+
+  /// No description provided for @adminMergeRetainedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account to keep'**
+  String get adminMergeRetainedLabel;
+
+  /// No description provided for @adminMergeSourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account to merge in'**
+  String get adminMergeSourceLabel;
+
+  /// No description provided for @adminMergeChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an account'**
+  String get adminMergeChoose;
+
+  /// No description provided for @adminMergeSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap accounts'**
+  String get adminMergeSwap;
+
+  /// No description provided for @adminMergeSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name or email'**
+  String get adminMergeSearchHint;
+
+  /// No description provided for @adminMergePreviewButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get adminMergePreviewButton;
+
+  /// No description provided for @adminMergeNeedTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose two different accounts to preview.'**
+  String get adminMergeNeedTwo;
+
+  /// No description provided for @adminPickerNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts found.'**
+  String get adminPickerNoResults;
+
+  /// No description provided for @adminPreviewVerdictClear.
+  ///
+  /// In en, this message translates to:
+  /// **'No blockers found in this preview.'**
+  String get adminPreviewVerdictClear;
+
+  /// No description provided for @adminPreviewVerdictBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 blocker found.} other{{count} blockers found.}}'**
+  String adminPreviewVerdictBlocked(int count);
+
+  /// No description provided for @adminPreviewFindingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Findings'**
+  String get adminPreviewFindingsTitle;
+
+  /// No description provided for @adminPreviewNothingInTheWay.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in the way.'**
+  String get adminPreviewNothingInTheWay;
+
+  /// No description provided for @adminSeverityBlocker.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocker'**
+  String get adminSeverityBlocker;
+
+  /// No description provided for @adminSeverityConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs a rule'**
+  String get adminSeverityConflict;
+
+  /// No description provided for @adminSeverityConstraint.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot be changed'**
+  String get adminSeverityConstraint;
+
+  /// No description provided for @adminPreviewAccountsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get adminPreviewAccountsTitle;
+
+  /// No description provided for @adminPreviewActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What names the accounts'**
+  String get adminPreviewActivityTitle;
+
+  /// No description provided for @adminPreviewRetainedColumn.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get adminPreviewRetainedColumn;
+
+  /// No description provided for @adminPreviewSourceColumn.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge in'**
+  String get adminPreviewSourceColumn;
+
+  /// No description provided for @adminPreviewOverlapTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities both belong to'**
+  String get adminPreviewOverlapTitle;
+
+  /// No description provided for @adminPreviewSourceOwnedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities the merged-in account owns'**
+  String get adminPreviewSourceOwnedTitle;
+
+  /// No description provided for @adminPreviewSharedMatchesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches both appear in'**
+  String get adminPreviewSharedMatchesTitle;
+
+  /// No description provided for @adminPreviewStatisticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics that would collide'**
+  String get adminPreviewStatisticsTitle;
+
+  /// No description provided for @adminPreviewPersonalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal data held'**
+  String get adminPreviewPersonalTitle;
+
+  /// No description provided for @adminPreviewOwnedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities owned'**
+  String get adminPreviewOwnedTitle;
+
+  /// No description provided for @adminPreviewCreatedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches created'**
+  String get adminPreviewCreatedTitle;
+
+  /// No description provided for @adminPreviewHistoricalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Football history'**
+  String get adminPreviewHistoricalTitle;
+
+  /// No description provided for @adminPreviewPreservedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot be changed by anyone'**
+  String get adminPreviewPreservedTitle;
+
+  /// No description provided for @adminPreviewCoverageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not covered by this preview'**
+  String get adminPreviewCoverageTitle;
+
+  /// No description provided for @adminPreviewShowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total}'**
+  String adminPreviewShowing(int shown, int total);
+
+  /// No description provided for @adminPreviewOwnedRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{members} members · {admins} other admins · {matches} matches'**
+  String adminPreviewOwnedRow(int members, int admins, int matches);
+
+  /// No description provided for @adminPreviewTagRoleConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Different roles'**
+  String get adminPreviewTagRoleConflict;
+
+  /// No description provided for @adminPreviewTagSourceOwns.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged-in account owns it'**
+  String get adminPreviewTagSourceOwns;
+
+  /// No description provided for @adminPreviewTagRetainedOwns.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept account owns it'**
+  String get adminPreviewTagRetainedOwns;
+
+  /// No description provided for @adminPreviewRetainedNotMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept account is not a member'**
+  String get adminPreviewRetainedNotMember;
+
+  /// No description provided for @adminPreviewCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'Collision'**
+  String get adminPreviewCollision;
+
+  /// No description provided for @adminPreviewHasResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Has a recorded result'**
+  String get adminPreviewHasResult;
+
+  /// No description provided for @adminPreviewRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Overall rating'**
+  String get adminPreviewRating;
+
+  /// No description provided for @adminEvidenceRegistration.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration'**
+  String get adminEvidenceRegistration;
+
+  /// No description provided for @adminEvidenceLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup'**
+  String get adminEvidenceLineup;
+
+  /// No description provided for @adminEvidenceGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get adminEvidenceGoals;
+
+  /// No description provided for @adminEvidenceMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'MVP'**
+  String get adminEvidenceMvp;
+
+  /// No description provided for @adminEvidenceRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get adminEvidenceRating;
+
+  /// No description provided for @adminTreatmentCascadeDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Erased with the account'**
+  String get adminTreatmentCascadeDelete;
+
+  /// No description provided for @adminTreatmentDetach.
+  ///
+  /// In en, this message translates to:
+  /// **'Link removed, record kept'**
+  String get adminTreatmentDetach;
+
+  /// No description provided for @adminTreatmentRetainedId.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept, pointing at no account'**
+  String get adminTreatmentRetainedId;
+
+  /// No description provided for @adminCountMemberships.
+  ///
+  /// In en, this message translates to:
+  /// **'Community memberships'**
+  String get adminCountMemberships;
+
+  /// No description provided for @adminCountOwned.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities owned'**
+  String get adminCountOwned;
+
+  /// No description provided for @adminCountCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches created'**
+  String get adminCountCreated;
+
+  /// No description provided for @adminCountRegistrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Match registrations'**
+  String get adminCountRegistrations;
+
+  /// No description provided for @adminCountUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming registrations'**
+  String get adminCountUpcoming;
+
+  /// No description provided for @adminCountLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup places'**
+  String get adminCountLineup;
+
+  /// No description provided for @adminCountGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals scored'**
+  String get adminCountGoals;
+
+  /// No description provided for @adminCountGoalRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal records'**
+  String get adminCountGoalRows;
+
+  /// No description provided for @adminCountMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'MVP awards'**
+  String get adminCountMvp;
+
+  /// No description provided for @adminCountCareerStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches played (career)'**
+  String get adminCountCareerStats;
+
+  /// No description provided for @adminCountRatingEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating entries'**
+  String get adminCountRatingEntries;
+
+  /// No description provided for @adminCountRatingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive rows'**
+  String get adminCountRatingArchive;
+
+  /// No description provided for @adminCountCommunityStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Community statistics rows'**
+  String get adminCountCommunityStatistics;
+
+  /// No description provided for @adminCountTeamAwards.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the period awards'**
+  String get adminCountTeamAwards;
+
+  /// No description provided for @adminCountNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get adminCountNotifications;
+
+  /// No description provided for @adminCountPushTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Push tokens'**
+  String get adminCountPushTokens;
+
+  /// No description provided for @adminCountActivityEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity events'**
+  String get adminCountActivityEvents;
+
+  /// No description provided for @adminCountAuditEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit log entries'**
+  String get adminCountAuditEntries;
+
+  /// No description provided for @adminPersonalProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get adminPersonalProfile;
+
+  /// No description provided for @adminPersonalIdentities.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in identities'**
+  String get adminPersonalIdentities;
+
+  /// No description provided for @adminPersonalAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile picture'**
+  String get adminPersonalAvatar;
+
+  /// No description provided for @adminPersonalPushPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Push preferences'**
+  String get adminPersonalPushPreferences;
+
+  /// No description provided for @adminHistRecordedResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Results recorded'**
+  String get adminHistRecordedResults;
+
+  /// No description provided for @adminHistGuestsAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Professional guests added'**
+  String get adminHistGuestsAdded;
+
+  /// No description provided for @adminHistRegistrationEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration events'**
+  String get adminHistRegistrationEvents;
+
+  /// No description provided for @adminHistMembershipEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership events'**
+  String get adminHistMembershipEvents;
+
+  /// No description provided for @adminHistGenerationRuns.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup generation runs'**
+  String get adminHistGenerationRuns;
+
+  /// No description provided for @adminHistConfirmedLineups.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineups confirmed'**
+  String get adminHistConfirmedLineups;
+
+  /// No description provided for @adminHistRatingHistoryArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating history archive'**
+  String get adminHistRatingHistoryArchive;
+
+  /// No description provided for @adminHistUserRatingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive (per account)'**
+  String get adminHistUserRatingArchive;
+
+  /// No description provided for @adminCoverageGenerationEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Player ids embedded inside saved lineup-generation data are not scanned.'**
+  String get adminCoverageGenerationEvidence;
+
+  /// No description provided for @adminCoverageStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'The profile picture file in storage is not inspected.'**
+  String get adminCoverageStorage;
+
+  /// No description provided for @adminCoverageSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in sessions and tokens are not inspected.'**
+  String get adminCoverageSessions;
+
+  /// No description provided for @adminFindingSourceIsCaller.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to merge in is your own'**
+  String get adminFindingSourceIsCaller;
+
+  /// No description provided for @adminFindingRetainedIsCaller.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to keep is your own'**
+  String get adminFindingRetainedIsCaller;
+
+  /// No description provided for @adminFindingSourceIsSystemAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to merge in is a System Admin'**
+  String get adminFindingSourceIsSystemAdmin;
+
+  /// No description provided for @adminFindingRetainedIsSystemAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to keep is a System Admin'**
+  String get adminFindingRetainedIsSystemAdmin;
+
+  /// No description provided for @adminFindingOwnershipConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities owned by the merged-in account that the kept account already belongs to'**
+  String get adminFindingOwnershipConflict;
+
+  /// No description provided for @adminFindingSharedMatchCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches where both accounts hold the same kind of record'**
+  String get adminFindingSharedMatchCollision;
+
+  /// No description provided for @adminFindingSourceOwnsCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities owned by the merged-in account need a new owner'**
+  String get adminFindingSourceOwnsCommunities;
+
+  /// No description provided for @adminFindingRoleConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities where the two accounts have different roles'**
+  String get adminFindingRoleConflict;
+
+  /// No description provided for @adminFindingSharedMatchParticipation.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches both accounts appear in, without the same kind of record'**
+  String get adminFindingSharedMatchParticipation;
+
+  /// No description provided for @adminFindingSourceCreatedMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches created by the merged-in account'**
+  String get adminFindingSourceCreatedMatches;
+
+  /// No description provided for @adminFindingCommunityStatisticsCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'Community statistics rows both accounts hold'**
+  String get adminFindingCommunityStatisticsCollision;
+
+  /// No description provided for @adminFindingTeamAwardCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the period awards both accounts hold'**
+  String get adminFindingTeamAwardCollision;
+
+  /// No description provided for @adminFindingPlayerStatisticsRecompute.
+  ///
+  /// In en, this message translates to:
+  /// **'Career statistics would have to be recomputed (matches played)'**
+  String get adminFindingPlayerStatisticsRecompute;
+
+  /// No description provided for @adminFindingRatingReplayRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating history would have to be replayed (entries)'**
+  String get adminFindingRatingReplayRequired;
+
+  /// No description provided for @adminFindingRatingArchiveImmutable.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive rows name this account and cannot be moved or deleted, so retiring it safely is not demonstrated'**
+  String get adminFindingRatingArchiveImmutable;
+
+  /// No description provided for @adminFindingEventLogsNameSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Event logs that name the merged-in account stay as they are'**
+  String get adminFindingEventLogsNameSource;
+
+  /// No description provided for @adminFindingAuditLogNamesSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit log entries that name the merged-in account stay as they are'**
+  String get adminFindingAuditLogNamesSource;
+
+  /// No description provided for @adminFindingTargetIsCaller.
+  ///
+  /// In en, this message translates to:
+  /// **'This is your own account'**
+  String get adminFindingTargetIsCaller;
+
+  /// No description provided for @adminFindingTargetIsSystemAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is a System Admin'**
+  String get adminFindingTargetIsSystemAdmin;
+
+  /// No description provided for @adminFindingOwnsCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Owns communities: ownership must be transferred first'**
+  String get adminFindingOwnsCommunities;
+
+  /// No description provided for @adminFindingCreatedMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Created matches: they must be reassigned first'**
+  String get adminFindingCreatedMatches;
+
+  /// No description provided for @adminFindingMvpResultsWouldCascade.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting would erase the results of matches where this player is the MVP'**
+  String get adminFindingMvpResultsWouldCascade;
+
+  /// No description provided for @adminFindingHistoryWouldCascade.
+  ///
+  /// In en, this message translates to:
+  /// **'Football history that would be erased with the account'**
+  String get adminFindingHistoryWouldCascade;
+
+  /// No description provided for @adminFindingUpcomingRegistrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered for upcoming matches'**
+  String get adminFindingUpcomingRegistrations;
+
+  /// No description provided for @adminFindingRatingHistoryImmutable.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating history cannot be edited'**
+  String get adminFindingRatingHistoryImmutable;
+
+  /// No description provided for @adminFindingAuditLogAppendOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit log entries are kept, with names and emails as they were written'**
+  String get adminFindingAuditLogAppendOnly;
+
+  /// No description provided for @adminFindingEventLogsNameAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Event logs that name this account stay as they are'**
+  String get adminFindingEventLogsNameAccount;
+
+  /// No description provided for @adminHistCareerStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Career statistics'**
+  String get adminHistCareerStatistics;
 }
 
 class _AppLocalizationsDelegate

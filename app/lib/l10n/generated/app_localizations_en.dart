@@ -2760,4 +2760,382 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminAccountCreatedLabel => 'Account created';
+
+  @override
+  String get adminPreviewMergeAction => 'Preview merge';
+
+  @override
+  String get adminPreviewDeletionAction => 'Preview deletion';
+
+  @override
+  String get adminPreviewMergeTitle => 'Merge preview';
+
+  @override
+  String get adminPreviewDeletionTitle => 'Deletion preview';
+
+  @override
+  String get adminPreviewReadOnlyNote =>
+      'Read only. Nothing is merged, deleted or changed from this screen, and this preview does not make a merge or deletion available or authorised.';
+
+  @override
+  String get adminMergeRetainedLabel => 'Account to keep';
+
+  @override
+  String get adminMergeSourceLabel => 'Account to merge in';
+
+  @override
+  String get adminMergeChoose => 'Choose an account';
+
+  @override
+  String get adminMergeSwap => 'Swap accounts';
+
+  @override
+  String get adminMergeSearchHint => 'Search by name or email';
+
+  @override
+  String get adminMergePreviewButton => 'Preview';
+
+  @override
+  String get adminMergeNeedTwo => 'Choose two different accounts to preview.';
+
+  @override
+  String get adminPickerNoResults => 'No accounts found.';
+
+  @override
+  String get adminPreviewVerdictClear => 'No blockers found in this preview.';
+
+  @override
+  String adminPreviewVerdictBlocked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count blockers found.',
+      one: '1 blocker found.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminPreviewFindingsTitle => 'Findings';
+
+  @override
+  String get adminPreviewNothingInTheWay => 'Nothing in the way.';
+
+  @override
+  String get adminSeverityBlocker => 'Blocker';
+
+  @override
+  String get adminSeverityConflict => 'Needs a rule';
+
+  @override
+  String get adminSeverityConstraint => 'Cannot be changed';
+
+  @override
+  String get adminPreviewAccountsTitle => 'Accounts';
+
+  @override
+  String get adminPreviewActivityTitle => 'What names the accounts';
+
+  @override
+  String get adminPreviewRetainedColumn => 'Keep';
+
+  @override
+  String get adminPreviewSourceColumn => 'Merge in';
+
+  @override
+  String get adminPreviewOverlapTitle => 'Communities both belong to';
+
+  @override
+  String get adminPreviewSourceOwnedTitle =>
+      'Communities the merged-in account owns';
+
+  @override
+  String get adminPreviewSharedMatchesTitle => 'Matches both appear in';
+
+  @override
+  String get adminPreviewStatisticsTitle => 'Statistics that would collide';
+
+  @override
+  String get adminPreviewPersonalTitle => 'Personal data held';
+
+  @override
+  String get adminPreviewOwnedTitle => 'Communities owned';
+
+  @override
+  String get adminPreviewCreatedTitle => 'Matches created';
+
+  @override
+  String get adminPreviewHistoricalTitle => 'Football history';
+
+  @override
+  String get adminPreviewPreservedTitle => 'Cannot be changed by anyone';
+
+  @override
+  String get adminPreviewCoverageTitle => 'Not covered by this preview';
+
+  @override
+  String adminPreviewShowing(int shown, int total) {
+    return 'Showing $shown of $total';
+  }
+
+  @override
+  String adminPreviewOwnedRow(int members, int admins, int matches) {
+    return '$members members · $admins other admins · $matches matches';
+  }
+
+  @override
+  String get adminPreviewTagRoleConflict => 'Different roles';
+
+  @override
+  String get adminPreviewTagSourceOwns => 'Merged-in account owns it';
+
+  @override
+  String get adminPreviewTagRetainedOwns => 'Kept account owns it';
+
+  @override
+  String get adminPreviewRetainedNotMember => 'Kept account is not a member';
+
+  @override
+  String get adminPreviewCollision => 'Collision';
+
+  @override
+  String get adminPreviewHasResult => 'Has a recorded result';
+
+  @override
+  String get adminPreviewRating => 'Overall rating';
+
+  @override
+  String get adminEvidenceRegistration => 'Registration';
+
+  @override
+  String get adminEvidenceLineup => 'Lineup';
+
+  @override
+  String get adminEvidenceGoals => 'Goals';
+
+  @override
+  String get adminEvidenceMvp => 'MVP';
+
+  @override
+  String get adminEvidenceRating => 'Rating';
+
+  @override
+  String get adminTreatmentCascadeDelete => 'Erased with the account';
+
+  @override
+  String get adminTreatmentDetach => 'Link removed, record kept';
+
+  @override
+  String get adminTreatmentRetainedId => 'Kept, pointing at no account';
+
+  @override
+  String get adminCountMemberships => 'Community memberships';
+
+  @override
+  String get adminCountOwned => 'Communities owned';
+
+  @override
+  String get adminCountCreated => 'Matches created';
+
+  @override
+  String get adminCountRegistrations => 'Match registrations';
+
+  @override
+  String get adminCountUpcoming => 'Upcoming registrations';
+
+  @override
+  String get adminCountLineup => 'Lineup places';
+
+  @override
+  String get adminCountGoals => 'Goals scored';
+
+  @override
+  String get adminCountGoalRows => 'Goal records';
+
+  @override
+  String get adminCountMvp => 'MVP awards';
+
+  @override
+  String get adminCountCareerStats => 'Matches played (career)';
+
+  @override
+  String get adminCountRatingEntries => 'Rating entries';
+
+  @override
+  String get adminCountRatingArchive => 'Rating archive rows';
+
+  @override
+  String get adminCountCommunityStatistics => 'Community statistics rows';
+
+  @override
+  String get adminCountTeamAwards => 'Team of the period awards';
+
+  @override
+  String get adminCountNotifications => 'Notifications';
+
+  @override
+  String get adminCountPushTokens => 'Push tokens';
+
+  @override
+  String get adminCountActivityEvents => 'Activity events';
+
+  @override
+  String get adminCountAuditEntries => 'Audit log entries';
+
+  @override
+  String get adminPersonalProfile => 'Profile';
+
+  @override
+  String get adminPersonalIdentities => 'Sign-in identities';
+
+  @override
+  String get adminPersonalAvatar => 'Profile picture';
+
+  @override
+  String get adminPersonalPushPreferences => 'Push preferences';
+
+  @override
+  String get adminHistRecordedResults => 'Results recorded';
+
+  @override
+  String get adminHistGuestsAdded => 'Professional guests added';
+
+  @override
+  String get adminHistRegistrationEvents => 'Registration events';
+
+  @override
+  String get adminHistMembershipEvents => 'Membership events';
+
+  @override
+  String get adminHistGenerationRuns => 'Lineup generation runs';
+
+  @override
+  String get adminHistConfirmedLineups => 'Lineups confirmed';
+
+  @override
+  String get adminHistRatingHistoryArchive => 'Rating history archive';
+
+  @override
+  String get adminHistUserRatingArchive => 'Rating archive (per account)';
+
+  @override
+  String get adminCoverageGenerationEvidence =>
+      'Player ids embedded inside saved lineup-generation data are not scanned.';
+
+  @override
+  String get adminCoverageStorage =>
+      'The profile picture file in storage is not inspected.';
+
+  @override
+  String get adminCoverageSessions =>
+      'Sign-in sessions and tokens are not inspected.';
+
+  @override
+  String get adminFindingSourceIsCaller =>
+      'The account to merge in is your own';
+
+  @override
+  String get adminFindingRetainedIsCaller => 'The account to keep is your own';
+
+  @override
+  String get adminFindingSourceIsSystemAdmin =>
+      'The account to merge in is a System Admin';
+
+  @override
+  String get adminFindingRetainedIsSystemAdmin =>
+      'The account to keep is a System Admin';
+
+  @override
+  String get adminFindingOwnershipConflict =>
+      'Communities owned by the merged-in account that the kept account already belongs to';
+
+  @override
+  String get adminFindingSharedMatchCollision =>
+      'Matches where both accounts hold the same kind of record';
+
+  @override
+  String get adminFindingSourceOwnsCommunities =>
+      'Communities owned by the merged-in account need a new owner';
+
+  @override
+  String get adminFindingRoleConflict =>
+      'Communities where the two accounts have different roles';
+
+  @override
+  String get adminFindingSharedMatchParticipation =>
+      'Matches both accounts appear in, without the same kind of record';
+
+  @override
+  String get adminFindingSourceCreatedMatches =>
+      'Matches created by the merged-in account';
+
+  @override
+  String get adminFindingCommunityStatisticsCollision =>
+      'Community statistics rows both accounts hold';
+
+  @override
+  String get adminFindingTeamAwardCollision =>
+      'Team of the period awards both accounts hold';
+
+  @override
+  String get adminFindingPlayerStatisticsRecompute =>
+      'Career statistics would have to be recomputed (matches played)';
+
+  @override
+  String get adminFindingRatingReplayRequired =>
+      'Rating history would have to be replayed (entries)';
+
+  @override
+  String get adminFindingRatingArchiveImmutable =>
+      'Rating archive rows name this account and cannot be moved or deleted, so retiring it safely is not demonstrated';
+
+  @override
+  String get adminFindingEventLogsNameSource =>
+      'Event logs that name the merged-in account stay as they are';
+
+  @override
+  String get adminFindingAuditLogNamesSource =>
+      'Audit log entries that name the merged-in account stay as they are';
+
+  @override
+  String get adminFindingTargetIsCaller => 'This is your own account';
+
+  @override
+  String get adminFindingTargetIsSystemAdmin =>
+      'This account is a System Admin';
+
+  @override
+  String get adminFindingOwnsCommunities =>
+      'Owns communities: ownership must be transferred first';
+
+  @override
+  String get adminFindingCreatedMatches =>
+      'Created matches: they must be reassigned first';
+
+  @override
+  String get adminFindingMvpResultsWouldCascade =>
+      'Deleting would erase the results of matches where this player is the MVP';
+
+  @override
+  String get adminFindingHistoryWouldCascade =>
+      'Football history that would be erased with the account';
+
+  @override
+  String get adminFindingUpcomingRegistrations =>
+      'Registered for upcoming matches';
+
+  @override
+  String get adminFindingRatingHistoryImmutable =>
+      'Rating history cannot be edited';
+
+  @override
+  String get adminFindingAuditLogAppendOnly =>
+      'Audit log entries are kept, with names and emails as they were written';
+
+  @override
+  String get adminFindingEventLogsNameAccount =>
+      'Event logs that name this account stay as they are';
+
+  @override
+  String get adminHistCareerStatistics => 'Career statistics';
 }

@@ -124,6 +124,17 @@ abstract interface class AdminAdapter {
     required bool muteAll,
     String? reason,
   });
+
+  /// The read-only previews of merging two accounts and of deleting one
+  /// (migration `0096`). They describe what each would collide with and write
+  /// nothing, not even an audit event. Neither has an execute counterpart here
+  /// or in the database.
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  });
+
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId);
 }
 
 // Permanent delete is deliberately absent from this port. The `admin_delete_*`
