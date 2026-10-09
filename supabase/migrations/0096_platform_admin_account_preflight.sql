@@ -82,7 +82,26 @@
 --     inferred from anything else -- in particular not from
 --     `rating_rebase_runs.rollback_skipped_rows`, which says a past rollback
 --     skipped some rows, not that skipping them is safe. Archives naming the
---     merge's RETAINED account are not a finding: that account is not retired.
+--     merge's RETAINED account are not a finding: that account is not retired;
+--   * **football history that deleting the account would erase**
+--     (`HISTORY_WOULD_CASCADE`, deletion only), whenever its count is above zero.
+--     Historical football records are preserved when an account is deleted, so a
+--     deletion that would erase them is blocked until they are preserved
+--     (anonymised) instead -- which no phase has built.
+--
+-- ## WHAT `rating_history` IS, AND IS NOT
+--
+-- `rating_history` rejects UPDATE -- a trigger raises `RATING_HISTORY_IMMUTABLE`
+-- -- and nothing else. Its foreign keys to `users` and `matches` (and to itself)
+-- are ON DELETE CASCADE and it has no delete trigger, so DELETING the account
+-- DELETES its entries. It is therefore reported as football history that would
+-- be erased (`historical_records`, treatment `CASCADE_DELETE`, and counted in
+-- `HISTORY_WOULD_CASCADE`), never as a preserved record. The finding that keeps
+-- the trigger's name, `RATING_HISTORY_IMMUTABLE`, says only what the trigger does:
+-- the entries cannot be edited, so they cannot be anonymised in place. It says
+-- nothing about deletion, because there is no protection against it. (The two
+-- archive tables are different: they reject DELETE as well, and are the only
+-- rating records that survive a deletion.)
 --
 -- `retained`, `source` and `account` are `{account: {...identity...}, counts: {...}}`
 -- as the helper builds them.
@@ -718,7 +737,11 @@ begin
     ) as f(code, n, treatment, rank)
    where f.n > 0;
 
-  -- ---- what cannot be changed by anyone, however it is deleted ----------------
+  -- ---- what survives the deletion untouched ----------------------------------
+  -- Only records the deletion cannot reach: the two rating archives (their
+  -- triggers reject UPDATE and DELETE) and the audit log (no foreign key leads
+  -- to it and no client role can write it). `rating_history` is deliberately NOT
+  -- here: it rejects UPDATE only, and the cascade deletes it with the account.
   select coalesce(jsonb_agg(
            jsonb_build_object('code', f.code, 'records', f.n) order by f.code),
            '[]'::jsonb)
@@ -726,7 +749,6 @@ begin
     from (values
       ('RATING_HISTORY_ARCHIVE', (v_counts->>'rating_archive_rows')::bigint),
       ('USER_RATING_ARCHIVE',    (v_counts->>'user_rating_archive_rows')::bigint),
-      ('RATING_HISTORY',         (v_counts->>'rating_entries')::bigint),
       ('ADMIN_AUDIT_LOG',        (v_counts->>'audit_entries')::bigint)
     ) as f(code, n)
    where f.n > 0;
@@ -752,13 +774,13 @@ begin
       ('CREATED_MATCHES', 'BLOCKER', 'MATCH', v_created_total, 1),
       ('MVP_RESULTS_WOULD_CASCADE', 'BLOCKER', 'MATCH',
          (v_counts->>'mvp_awards')::bigint, 1),
-      ('HISTORY_WOULD_CASCADE', 'CONFLICT', 'HISTORY', v_cascade_history, 2),
+      ('HISTORY_WOULD_CASCADE', 'BLOCKER', 'HISTORY', v_cascade_history, 1),
       ('UPCOMING_REGISTRATIONS', 'CONFLICT', 'MATCH',
          (v_counts->>'upcoming_registrations')::bigint, 2),
       ('RATING_ARCHIVE_IMMUTABLE', 'BLOCKER', 'ARCHIVE',
          (v_counts->>'rating_archive_rows')::bigint
            + (v_counts->>'user_rating_archive_rows')::bigint, 1),
-      ('RATING_HISTORY_IMMUTABLE', 'CONSTRAINT', 'ARCHIVE',
+      ('RATING_HISTORY_IMMUTABLE', 'CONSTRAINT', 'HISTORY',
          (v_counts->>'rating_entries')::bigint, 3),
       ('AUDIT_LOG_APPEND_ONLY', 'CONSTRAINT', 'AUDIT',
          (v_counts->>'audit_entries')::bigint, 3),
@@ -796,9 +818,11 @@ $$;
 comment on function public.admin_preview_account_deletion(uuid) is
   'Platform Admin, READ ONLY: what deleting an account would touch -- the '
   'personal-data categories it holds, communities it owns and matches it created '
-  '(both block the delete today), football history the cascade would erase and '
-  'so needs anonymising, and the rating archives (a BLOCKER) and audit log that '
-  'cannot be changed -- with findings graded BLOCKER / CONFLICT / CONSTRAINT. Lists are '
+  '(both block the delete today), football history the cascade would erase (a '
+  'BLOCKER: historical records are preserved), the rating archives (a BLOCKER) '
+  'and the audit log that survive untouched -- with findings graded BLOCKER / '
+  'CONFLICT / CONSTRAINT. rating_history rejects UPDATE only and is deleted with '
+  'the account. Lists are '
   'bounded to 25 with totals. has_blockers says nothing about whether a deletion '
   'is available or authorised: none exists. Writes nothing and records no audit '
   'event. System Admin only (NOT_AUTHORIZED); USER_NOT_FOUND for an unknown '

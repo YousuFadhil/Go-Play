@@ -228,6 +228,31 @@ from (
                   and src_compact like '%(''RETAINED_IS_SYSTEM_ADMIN'',''BLOCKER''%')
               or (proname = 'admin_preview_account_deletion'
                   and src_compact like '%(''TARGET_IS_SYSTEM_ADMIN'',''BLOCKER''%'))
+
+  union all
+  -- 20. rating_history is football history that the deletion ERASES, not a
+  --     preserved record: its foreign keys cascade and only UPDATE is rejected.
+  --     It must sit in the historical list as CASCADE_DELETE and not in the
+  --     preserved list.
+  select 20, 'rating_history is CASCADE_DELETE history, never a preserved record', 'historical yes; preserved no',
+         (select 'historical ' || case when src_compact like '%(''RATING_HISTORY'',(v_counts->>''rating_entries'')::bigint,''CASCADE_DELETE''%' then 'yes' else 'no' end
+                 || '; preserved ' || case when src_compact like '%(''RATING_HISTORY'',(v_counts->>''rating_entries'')::bigint)%' then 'YES' else 'no' end
+            from found where proname = 'admin_preview_account_deletion'),
+         (select src_compact like '%(''RATING_HISTORY'',(v_counts->>''rating_entries'')::bigint,''CASCADE_DELETE''%'
+                 and src_compact not like '%(''RATING_HISTORY'',(v_counts->>''rating_entries'')::bigint)%'
+            from found where proname = 'admin_preview_account_deletion')
+
+  union all
+  -- 21. Football history the deletion would erase is a BLOCKER, and the finding
+  --     that keeps the trigger's name describes UPDATE protection only (a
+  --     constraint of category HISTORY, not an "archive").
+  select 21, 'HISTORY_WOULD_CASCADE is a BLOCKER; RATING_HISTORY_IMMUTABLE is a HISTORY constraint', 'blocker; constraint/HISTORY',
+         (select case when src_compact like '%(''HISTORY_WOULD_CASCADE'',''BLOCKER'',''HISTORY''%' then 'blocker' else 'NOT blocker' end
+                 || '; ' || case when src_compact like '%(''RATING_HISTORY_IMMUTABLE'',''CONSTRAINT'',''HISTORY''%' then 'constraint/HISTORY' else 'WRONG' end
+            from found where proname = 'admin_preview_account_deletion'),
+         (select src_compact like '%(''HISTORY_WOULD_CASCADE'',''BLOCKER'',''HISTORY''%'
+                 and src_compact like '%(''RATING_HISTORY_IMMUTABLE'',''CONSTRAINT'',''HISTORY''%'
+            from found where proname = 'admin_preview_account_deletion')
 ) checks
 order by n, check_name;
 

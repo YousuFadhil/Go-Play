@@ -1002,8 +1002,10 @@ class AdminDeletionPreview {
   /// Football history, each with what the delete would do to it.
   final List<AdminPreviewRecord> historicalRecords;
 
-  /// Rows nobody can change: the rating archives, the immutable rating history
-  /// and the append-only audit log.
+  /// Records the deletion cannot reach: the rating archives (their triggers
+  /// reject UPDATE and DELETE) and the audit log. The rating *history* is not
+  /// among them: it rejects UPDATE only, and is deleted with the account, so it
+  /// is listed under [historicalRecords] as erased.
   final List<AdminPreviewRecord> preservedRecords;
   final List<AdminPreviewFinding> findings;
 

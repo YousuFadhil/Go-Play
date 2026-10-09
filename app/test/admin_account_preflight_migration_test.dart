@@ -420,16 +420,87 @@ void main() {
     });
 
     test(
-        'the deletion blockers are the two NO ACTION foreign keys, the MVP '
-        'cascade, and who the account is', () {
+        'the deletion blockers are the two NO ACTION foreign keys, the cascade '
+        'of football history, and who the account is', () {
       expect(codesOf(functionBody(deletion), 'BLOCKER'), {
         'TARGET_IS_CALLER',
         'TARGET_IS_SYSTEM_ADMIN',
         'OWNS_COMMUNITIES',
         'CREATED_MATCHES',
         'MVP_RESULTS_WOULD_CASCADE',
+        'HISTORY_WOULD_CASCADE',
         'RATING_ARCHIVE_IMMUTABLE',
       });
+    });
+
+    test(
+        'deleting football history is a BLOCKER, never softened to a conflict '
+        'or a constraint', () {
+      final body = functionBody(deletion);
+      expect(codesOf(body, 'BLOCKER'), contains('HISTORY_WOULD_CASCADE'));
+      expect(
+          codesOf(body, 'CONFLICT'), isNot(contains('HISTORY_WOULD_CASCADE')));
+      expect(codesOf(body, 'CONSTRAINT'),
+          isNot(contains('HISTORY_WOULD_CASCADE')));
+      expect(
+          body,
+          contains(
+              "('HISTORY_WOULD_CASCADE', 'BLOCKER', 'HISTORY', v_cascade_history, 1)"));
+      // The blocker counts every cascading football record, rating entries too.
+      final sum = body.substring(body.indexOf('v_cascade_history :='));
+      for (final count in [
+        'memberships',
+        'registrations',
+        'lineup_assignments',
+        'goal_rows',
+        'player_statistics_rows',
+        'community_statistics_rows',
+        'rating_entries',
+      ]) {
+        expect(sum.substring(0, sum.indexOf(';')),
+            contains("(v_counts->>'$count')::bigint"),
+            reason: count);
+      }
+      // Only the previews of a *deletion* can cascade.
+      expect(functionBody(merge), isNot(contains('HISTORY_WOULD_CASCADE')));
+    });
+
+    test(
+        'rating_history is erased by the cascade: listed as history, never as '
+        'a preserved record', () {
+      final body = functionBody(deletion);
+      // Historical: CASCADE_DELETE, like the other rows an account cascades.
+      expect(
+          body,
+          contains(
+              "('RATING_HISTORY',           (v_counts->>'rating_entries')::bigint,            'CASCADE_DELETE', 1)"));
+      // Preserved: the two archives and the audit log, and nothing else.
+      final from = body.indexOf('into v_preserved');
+      final preserved =
+          body.substring(from, body.indexOf(') as f(code, n)', from));
+      final codes = RegExp(r"\('([A-Z_]+)'")
+          .allMatches(preserved)
+          .map((m) => m.group(1))
+          .toSet();
+      expect(codes,
+          {'RATING_HISTORY_ARCHIVE', 'USER_RATING_ARCHIVE', 'ADMIN_AUDIT_LOG'});
+      expect(preserved, isNot(contains('rating_entries')));
+    });
+
+    test(
+        'RATING_HISTORY_IMMUTABLE is history and says UPDATE only -- it is not '
+        'an archive and not a promise that the rows survive', () {
+      final body = functionBody(deletion);
+      expect(body,
+          contains("('RATING_HISTORY_IMMUTABLE', 'CONSTRAINT', 'HISTORY',"));
+      expect(
+          body,
+          isNot(
+              contains("'RATING_HISTORY_IMMUTABLE', 'CONSTRAINT', 'ARCHIVE'")));
+      // The header says what rating_history is, and is not.
+      final headerText =
+          sql.substring(0, sql.indexOf('create or replace function'));
+      expect(headerText, contains('WHAT `rating_history` IS, AND IS NOT'));
     });
 
     test(
@@ -668,6 +739,23 @@ void main() {
       expect(verify, contains("(''RETAINED_IS_SYSTEM_ADMIN'',''BLOCKER''"));
       expect(verify, contains("(''TARGET_IS_SYSTEM_ADMIN'',''BLOCKER''"));
       expect(verify, contains("like '%can_proceed%'"));
+    });
+
+    test('it pins the historical-data corrections', () {
+      // rating_history is CASCADE_DELETE history and is never a preserved record.
+      expect(
+          verify,
+          contains(
+              "(''RATING_HISTORY'',(v_counts->>''rating_entries'')::bigint,''CASCADE_DELETE''"));
+      expect(
+          verify,
+          contains(
+              "(''RATING_HISTORY'',(v_counts->>''rating_entries'')::bigint)%"));
+      // Cascade history is a blocker; the rating-history finding is history.
+      expect(verify,
+          contains("(''HISTORY_WOULD_CASCADE'',''BLOCKER'',''HISTORY''"));
+      expect(verify,
+          contains("(''RATING_HISTORY_IMMUTABLE'',''CONSTRAINT'',''HISTORY''"));
     });
 
     test('the verification order is written down, with the reason', () {

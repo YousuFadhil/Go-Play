@@ -3097,7 +3097,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminFindingUpcomingRegistrations => 'مسجّل في مباريات قادمة';
 
   @override
-  String get adminFindingRatingHistoryImmutable => 'سجل التقييم لا يمكن تعديله';
+  String get adminFindingRatingHistoryImmutable =>
+      'لا يمكن تعديل سجلات التقييم (تُرفض التحديثات)، فلا يمكن إخفاء هوية صاحبها فيها مباشرة، وحذف الحساب يحذفها';
 
   @override
   String get adminFindingAuditLogAppendOnly =>

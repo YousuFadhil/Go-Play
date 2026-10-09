@@ -3126,7 +3126,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminFindingRatingHistoryImmutable =>
-      'Rating history cannot be edited';
+      'Rating entries cannot be edited (updates are rejected), so they cannot be anonymised in place; deleting the account deletes them';
 
   @override
   String get adminFindingAuditLogAppendOnly =>

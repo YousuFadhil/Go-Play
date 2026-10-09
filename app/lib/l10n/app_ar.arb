@@ -1089,7 +1089,7 @@
   "adminFindingMvpResultsWouldCascade": "الحذف سيمحو نتائج المباريات التي هذا اللاعب أفضل لاعب فيها",
   "adminFindingHistoryWouldCascade": "سجل كروي سيُمحى مع الحساب",
   "adminFindingUpcomingRegistrations": "مسجّل في مباريات قادمة",
-  "adminFindingRatingHistoryImmutable": "سجل التقييم لا يمكن تعديله",
+  "adminFindingRatingHistoryImmutable": "لا يمكن تعديل سجلات التقييم (تُرفض التحديثات)، فلا يمكن إخفاء هوية صاحبها فيها مباشرة، وحذف الحساب يحذفها",
   "adminFindingAuditLogAppendOnly": "سجلات التدقيق تُحفظ بالأسماء والبريد كما كُتبت",
   "adminFindingEventLogsNameAccount": "سجلات أحداث تذكر هذا الحساب تبقى كما هي",
   "adminHistCareerStatistics": "إحصاءات المسيرة"

@@ -5489,7 +5489,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminFindingRatingHistoryImmutable.
   ///
   /// In en, this message translates to:
-  /// **'Rating history cannot be edited'**
+  /// **'Rating entries cannot be edited (updates are rejected), so they cannot be anonymised in place; deleting the account deletes them'**
   String get adminFindingRatingHistoryImmutable;
 
   /// No description provided for @adminFindingAuditLogAppendOnly.
