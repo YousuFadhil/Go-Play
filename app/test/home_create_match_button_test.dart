@@ -92,8 +92,7 @@ void main() {
     expect(find.text('Match in two'), findsOneWidget);
   });
 
-  testWidgets('no eligible community offers creating one',
-      (tester) async {
+  testWidgets('no eligible community offers creating one', (tester) async {
     final port = _ManagedCommunitiesPort([]);
     await _pump(tester, port);
     await tester.tap(find.byKey(const Key('homeCreateMatch')));

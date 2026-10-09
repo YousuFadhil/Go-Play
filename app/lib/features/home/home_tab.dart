@@ -10,7 +10,6 @@ import '../../core/tokens.dart';
 import '../admin/admin_repository.dart';
 import '../admin/admin_screen.dart';
 import '../auth/auth_service.dart';
-import 'home_create_match_button.dart';
 import '../communities/community_repository.dart';
 import '../discover/discover_widgets.dart';
 import '../matches/app_settings.dart';
@@ -20,6 +19,7 @@ import '../matches/match_service.dart';
 import '../notifications/notification_service.dart';
 import '../notifications/notifications_screen.dart';
 import '../notifications/push_service.dart';
+import 'home_create_match_button.dart';
 
 typedef _HomeData = ({String firstName, List<Match> matches, int unread});
 
@@ -212,7 +212,10 @@ class _HomeTabState extends State<HomeTab> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              kPageMargin, Gap.xs, kPageMargin, Gap.md,
+              kPageMargin,
+              Gap.xs,
+              kPageMargin,
+              Gap.md,
             ),
             child: Align(
               alignment: AlignmentDirectional.centerStart,
@@ -225,7 +228,10 @@ class _HomeTabState extends State<HomeTab> {
           if (matches.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                kPageMargin, Gap.xl, kPageMargin, 0,
+                kPageMargin,
+                Gap.xl,
+                kPageMargin,
+                0,
               ),
               child: DiscoverEmpty(
                 icon: Icons.sports_soccer,
@@ -233,6 +239,9 @@ class _HomeTabState extends State<HomeTab> {
               ),
             )
           else
+            // Two across. A player's own fixtures are what they open Home
+            // for, and a column of full-width rows put two of them on a
+            // phone before the fold.
             ResponsiveCardGrid(
               maxColumns: 2,
               minCardWidth: GridCard.matchMinWidth,

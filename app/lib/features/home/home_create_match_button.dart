@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design.dart';
 import '../../core/l10n.dart';
-import '../../core/tokens.dart';
 import '../communities/community_models.dart';
 import '../communities/community_repository.dart';
 import '../communities/create_community_screen.dart';
@@ -36,8 +36,12 @@ class _HomeCreateMatchButtonState extends State<HomeCreateMatchButton> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final managed = await widget.communityRepository.fetchManagedCommunities();
+      final managed =
+          await widget.communityRepository.fetchManagedCommunities();
       if (!mounted) return;
+      // The spinner stands for the read only. Dialogs and routes below own
+      // the screen, and a spinner left running under them never settles.
+      setState(() => _busy = false);
 
       if (managed.isEmpty) {
         final wantsCommunity = await showDialog<bool>(
