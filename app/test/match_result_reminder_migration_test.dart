@@ -4,10 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Static migration contract; behavioral SQL tests still run in isolated PG.
 void main() {
-  final sql =
-      File('../supabase/migrations/0099_match_result_reminder.sql')
-          .readAsStringSync()
-          .toLowerCase();
+  final sql = File('../supabase/migrations/0100_match_result_reminder.sql')
+      .readAsStringSync()
+      .toLowerCase();
 
   test('one reminder runs 30 minutes after a future match ends', () {
     expect(sql, contains("interval '30 minutes'"));
@@ -22,6 +21,7 @@ void main() {
     expect(sql, contains('where r.match_id = m.id'));
     expect(sql, contains('c.is_active = true'));
     expect(sql, contains('for update of m skip locked'));
+    expect(sql, contains('r.match_id = v_match.id'));
   });
 
   test('only active owner and community admins are recipients', () {

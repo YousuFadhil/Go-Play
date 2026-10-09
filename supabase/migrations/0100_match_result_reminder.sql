@@ -1,4 +1,6 @@
--- 0099: one medium-priority reminder to the community owner and admins
+-- 0100: one medium-priority reminder to the community owner and admins
+-- (numbered 0100 because 0099 is already applied live for the admin feature).
+-- To stop the job after applying: select cron.unschedule('go-play-missing-match-result-v1');
 -- when a non-historical, future-at-activation match has no saved result
 -- 30 minutes after its end. Runs in PostgreSQL, not in the Flutter client.
 --
@@ -99,6 +101,11 @@ begin
       insert into public.match_result_reminder_dispatches (match_id)
       select v_match.id
       where exists (select 1 from recipients)
+        -- Re-checked here, after the row lock: the scan above ran on an older
+        -- snapshot, and a save committed in between would otherwise be missed.
+        and not exists (
+          select 1 from public.match_results r where r.match_id = v_match.id
+        )
       on conflict (match_id) do nothing
       returning match_id
     )
