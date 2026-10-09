@@ -10,6 +10,7 @@ import '../../core/tokens.dart';
 import '../admin/admin_repository.dart';
 import '../admin/admin_screen.dart';
 import '../auth/auth_service.dart';
+import '../communities/community_repository.dart';
 import '../discover/discover_widgets.dart';
 import '../matches/app_settings.dart';
 import '../matches/compact_match_card.dart';
@@ -18,12 +19,16 @@ import '../matches/match_service.dart';
 import '../notifications/notification_service.dart';
 import '../notifications/notifications_screen.dart';
 import '../notifications/push_service.dart';
+import 'home_create_match_button.dart';
 
 typedef _HomeData = ({String firstName, List<Match> matches, int unread});
 
 /// Home tab: greeting + upcoming matches across all the user's communities.
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key});
+  const HomeTab({super.key, this.communityRepository});
+
+  /// Injectable for widget tests; production uses the normal repository.
+  final CommunityRepository? communityRepository;
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -33,6 +38,8 @@ class _HomeTabState extends State<HomeTab> {
   final _matchService = MatchService();
   final _notificationService = NotificationService();
   final _authService = AuthService();
+  late final CommunityRepository _communityRepository =
+      widget.communityRepository ?? CommunityRepository();
   late Future<_HomeData> _future;
 
   @override
@@ -176,10 +183,6 @@ class _HomeTabState extends State<HomeTab> {
   ) {
     final l10n = context.l10n;
     if (snapshot.connectionState != ConnectionState.done) {
-      // The heading keeps the page margin and the cards take the sheet's
-      // gutters, because that is what the loaded state does — the padding is
-      // no longer shared, so the placeholders stand exactly where the matches
-      // will.
       return const SkeletonFade(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,23 +197,39 @@ class _HomeTabState extends State<HomeTab> {
         ),
       );
     }
-    if (snapshot.hasError) {
-      return ErrorState(onRetry: _refresh);
-    }
+    if (snapshot.hasError) return ErrorState(onRetry: _refresh);
 
     final matches = snapshot.data!.matches;
-
     return RefreshIndicator(
       onRefresh: () async => _refresh(),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsetsDirectional.only(bottom: Layout.listBottom),
         children: [
+          DiscoverSectionHeader(
+            title: l10n.upcomingMatchesTitle,
+            subtitle: l10n.homeUpcomingSubtitle,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              kPageMargin,
+              Gap.xs,
+              kPageMargin,
+              Gap.md,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: HomeCreateMatchButton(
+                communityRepository: _communityRepository,
+                onCreated: _refresh,
+              ),
+            ),
+          ),
           if (matches.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 kPageMargin,
-                Gap.xxl,
+                Gap.xl,
                 kPageMargin,
                 0,
               ),
@@ -219,11 +238,7 @@ class _HomeTabState extends State<HomeTab> {
                 message: l10n.upcomingMatchesEmpty,
               ),
             )
-          else ...[
-            DiscoverSectionHeader(
-              title: l10n.upcomingMatchesTitle,
-              subtitle: l10n.homeUpcomingSubtitle,
-            ),
+          else
             // Two across. A player's own fixtures are what they open Home
             // for, and a column of full-width rows put two of them on a
             // phone before the fold.
@@ -243,7 +258,6 @@ class _HomeTabState extends State<HomeTab> {
                   ),
               ],
             ),
-          ],
         ],
       ),
     );

@@ -486,7 +486,7 @@ class _CreateAdapter implements MatchAdapter {
   DateTime? lastEndAt;
 
   @override
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,
@@ -499,6 +499,7 @@ class _CreateAdapter implements MatchAdapter {
     lastIsHistorical = isHistorical;
     lastStartAt = startAt;
     lastEndAt = endAt;
+    return '00000000-0000-4000-8000-000000000001';
   }
 
   @override

@@ -204,6 +204,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createMatchButton => 'إنشاء المباراة';
 
   @override
+  String get homeChooseCommunityForMatch =>
+      'اختر المجتمع الذي تريد إنشاء المباراة فيه';
+
+  @override
+  String get homeNoManagedCommunities =>
+      'ليس لديك مجتمع تملك فيه صلاحية إنشاء مباراة. يمكنك إنشاء مجتمع جديد للبدء.';
+
+  @override
   String get matchDetailsTitle => 'تفاصيل المباراة';
 
   @override
@@ -893,6 +901,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get shareInvitation => 'مشاركة دعوة';
+
+  @override
+  String get shareMatchInvitationAction => 'مشاركة المباراة';
+
+  @override
+  String get shareMatchCreatedTitle => 'تم إنشاء المباراة';
+
+  @override
+  String get shareMatchCreatedPrompt =>
+      'يمكنك مشاركة المباراة الآن لدعوة اللاعبين.';
+
+  @override
+  String get shareMatchLater => 'لاحقًا';
+
+  @override
+  String get shareMatchInviteLead => 'دعوة إلى مباراة عبر Go Play:';
 
   @override
   String get inviteLinkCopied => 'نُسخت الدعوة. الصقها حيث تريد مشاركتها.';
@@ -1943,6 +1967,64 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settingsTitle => 'الإعدادات';
+
+  @override
+  String get supportContactTitle => 'التواصل مع الدعم';
+
+  @override
+  String get supportContactAction => 'التواصل عبر واتساب';
+
+  @override
+  String get supportContactIntro =>
+      'اختر نوع طلبك واكتب رسالتك. سيتم فتح واتساب لإرسالها بنفسك.';
+
+  @override
+  String get supportCategoryLabel => 'نوع الطلب';
+
+  @override
+  String get supportReasonTechnical => 'مشكلة تقنية';
+
+  @override
+  String get supportReasonSuggestion => 'اقتراح';
+
+  @override
+  String get supportReasonQuestion => 'استفسار';
+
+  @override
+  String get supportReasonOther => 'أخرى';
+
+  @override
+  String get supportMessageLabel => 'اكتب رسالتك';
+
+  @override
+  String get supportPhoneNotConfigured =>
+      'رقم الدعم غير متاح حاليًا. حاول لاحقًا.';
+
+  @override
+  String get supportOpenWhatsApp => 'فتح واتساب';
+
+  @override
+  String get supportOpenFailed => 'تعذّر فتح واتساب. حاول مجددًا.';
+
+  @override
+  String get supportAdminPhoneTitle => 'إعداد رقم الدعم';
+
+  @override
+  String get supportAdminPhoneHelp =>
+      'أدخل رقم واتساب الدولي مع رمز الدولة. اترك الحقل فارغًا لتعطيل التواصل مؤقتًا.';
+
+  @override
+  String get supportPhoneLabel => 'رقم واتساب للدعم';
+
+  @override
+  String get supportPhoneInvalid =>
+      'أدخل رقمًا دوليًا صحيحًا (من 8 إلى 15 رقمًا).';
+
+  @override
+  String get supportSavePhone => 'حفظ رقم الدعم';
+
+  @override
+  String get supportPhoneSaved => 'تم حفظ رقم الدعم.';
 
   @override
   String get settingsLanguageSection => 'اللغة';

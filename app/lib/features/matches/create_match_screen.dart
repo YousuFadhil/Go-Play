@@ -10,18 +10,24 @@ import '../../core/football_components.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import 'match_service.dart';
+import '../sharing/match_invitation_share.dart';
+import '../../infrastructure/platform/native_text_share_service.dart';
 
 class CreateMatchScreen extends StatefulWidget {
   const CreateMatchScreen({
     super.key,
     required this.communityId,
     this.matchService,
+    this.shareText,
   });
 
   final String communityId;
 
   /// Supplied by widget tests; production construction stays on [MatchService].
   final MatchService? matchService;
+
+  /// Injectable so widget tests do not open a platform share sheet.
+  final ShareMatchText? shareText;
 
   @override
   State<CreateMatchScreen> createState() => _CreateMatchScreenState();
@@ -38,6 +44,11 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   bool _isLoading = false;
+
+  /// Set once create_match has succeeded. The screen stays up while the
+  /// invitation is offered and shared, and a second submit in that window would
+  /// commit a second match.
+  bool _created = false;
 
   /// Whether the organizer is recording a fixture the community has already
   /// played rather than scheduling one (migration `0054`).
@@ -260,6 +271,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isLoading || _created) return;
     final scheduleError = _validateSchedule();
     final formValid = _formKey.currentState!.validate();
     if (scheduleError != null) {
@@ -274,8 +286,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     if (!end.isAfter(start)) end = end.add(const Duration(days: 1));
 
     setState(() => _isLoading = true);
+    String createdMatchId;
     try {
-      await _matchService.createMatch(
+      createdMatchId = await _matchService.createMatch(
         communityId: widget.communityId,
         title: _titleController.text,
         location: _locationController.text,
@@ -284,24 +297,77 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         startingPlayers: int.parse(_startingPlayersController.text),
         isHistorical: _isHistorical,
       );
-      if (mounted) {
-        // A recorded match is only half entered when it is created: nobody is
-        // registered for it and nobody can be, so the organizer is told where
-        // the rest of it is done rather than left on a match with an empty
-        // roster and no way to fill it.
-        if (_isHistorical) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.historicalMatchRecorded)),
-          );
-        }
-        Navigator.of(context).pop(true);
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_createError(context.l10n, e))),
         );
         setState(() => _isLoading = false);
+      }
+      return;
+    }
+    if (!mounted) return;
+    // Submission has completed. Do not leave the loading spinner animating
+    // behind the invitation dialog (which would never settle in widget tests).
+    setState(() {
+      _isLoading = false;
+      _created = true;
+    });
+
+    // Historical fixtures have already been played and cannot accept signups.
+    // Only a newly scheduled fixture is offered as a registration invitation.
+    if (_isHistorical) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.historicalMatchRecorded)),
+      );
+    } else {
+      await _offerShareAfterCreate(createdMatchId, start, end);
+    }
+    if (mounted) Navigator.of(context).pop(true);
+  }
+
+  Future<void> _offerShareAfterCreate(
+    String matchId,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final shareNow = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.shareMatchCreatedTitle),
+        content: Text(dialogContext.l10n.shareMatchCreatedPrompt),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(dialogContext.l10n.shareMatchLater),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            icon: const Icon(Icons.share_outlined),
+            label: Text(dialogContext.l10n.shareMatchInvitationAction),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || shareNow != true) return;
+
+    final message = MatchInvitationShare.message(
+      context,
+      matchId: matchId,
+      title: _titleController.text,
+      location: _locationController.text,
+      startAt: start,
+      endAt: end,
+    );
+    try {
+      await (widget.shareText ?? NativeTextShareService().shareText)(message);
+    } catch (_) {
+      // Sharing is optional; a failed OS sheet must never be called a failed
+      // match creation. The match is already committed in Supabase.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.genericError)),
+        );
       }
     }
   }
@@ -497,7 +563,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       ),
       bottomNavigationBar: ClubActionBar(
         child: FilledButton(
-          onPressed: _isLoading ? null : _submit,
+          onPressed: _isLoading || _created ? null : _submit,
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(Layout.buttonHeight),
           ),

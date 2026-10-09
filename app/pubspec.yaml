@@ -46,6 +46,8 @@ dependencies:
   # `image_downloader_web.dart` names it directly. No version moves: this is the
   # version already locked, and the same reason `http` is declared above.
   web: ^1.1.1
+  # Already locked transitively. Needed only to open the official wa.me URL.
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -99,12 +99,10 @@ class SupabaseMatchAdapter implements MatchAdapter {
   /// `max_registration` is still left to the `matches_set_capacity` trigger —
   /// the function does not compute it, and neither does this.
   ///
-  /// The function returns the new match's id. Nothing above this needs it: the
-  /// create screen pops back to the caller, exactly as it did when the insert
-  /// returned nothing. It is discarded here rather than propagated, which keeps
-  /// the port's contract unchanged.
+  /// Return the authoritative ID produced by create_match so the organizer can
+  /// share the exact newly created fixture without another database read.
   @override
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,
@@ -114,7 +112,7 @@ class SupabaseMatchAdapter implements MatchAdapter {
     bool isHistorical = false,
   }) =>
       guarded(() async {
-        await _client.rpc('create_match', params: {
+        final newId = await _client.rpc('create_match', params: {
           'p_community_id': communityId,
           'p_title': title,
           'p_location': location,
@@ -127,6 +125,7 @@ class SupabaseMatchAdapter implements MatchAdapter {
           // temporal rules it is asking for and says so either way.
           'p_is_historical': isHistorical,
         });
+        return newId as String;
       });
 
   @override
