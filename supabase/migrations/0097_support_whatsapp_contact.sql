@@ -37,7 +37,14 @@ as $$
 declare
   v_phone text := nullif(btrim(p_phone), '');
 begin
-  if auth.uid() is null or not public.is_system_admin() then
+  -- is_system_admin() (0017) uses search_path=public and an unqualified
+  -- table name; independently resolve membership in the real public schema,
+  -- as the existing 0095 admin RPCs do.
+  if auth.uid() is null
+     or not public.is_system_admin()
+     or not exists (
+       select 1 from public.system_admins sa where sa.user_id = auth.uid()
+     ) then
     raise exception 'NOT_SYSTEM_ADMIN';
   end if;
 

@@ -18,6 +18,10 @@ void main() {
 
   test('writer explicitly checks System Admin and limits execution', () {
     expect(sql, contains('public.is_system_admin()'));
+    // Distinct from is_system_admin(): its historic unqualified-table
+    // implementation does not itself rule out temporary-table shadowing.
+    expect(sql, contains('from public.system_admins sa'));
+    expect(sql, contains('sa.user_id = auth.uid()'));;
     expect(
         sql,
         contains(
