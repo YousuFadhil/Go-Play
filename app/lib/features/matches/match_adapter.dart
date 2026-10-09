@@ -28,7 +28,7 @@ abstract interface class MatchAdapter {
   /// [isHistorical] records a fixture that has already been played, and is what
   /// selects the temporal rule the database applies: an ordinary match must
   /// start in the future, a historical one must already have ended.
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,

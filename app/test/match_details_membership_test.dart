@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ import 'package:go_play/features/matches/match_service.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
+import 'package:go_play/features/sharing/public_link.dart';
 import 'auth_adapter_defaults.dart';
 
 /// Opening a match you are not a member of.
@@ -74,6 +76,7 @@ void main() {
     Locale locale = const Locale('en'),
     bool signedIn = true,
     Size size = const Size(900, 1800),
+    Future<void> Function(String)? shareText,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -96,6 +99,7 @@ void main() {
         communityRepository:
             CommunityRepository(communities ?? FakeCommunityAdapter()),
         authService: AuthService(_StubAuthAdapter(signedIn: signedIn)),
+        shareText: shareText,
       ),
     ));
     await tester.pumpAndSettle();
@@ -738,6 +742,81 @@ void main() {
           reason: 'the original failure stands');
     });
   });
+
+  group('sharing the match invitation', () {
+    testWidgets('an upcoming match shares its own public link', (tester) async {
+      String? shared;
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: match, access: memberContext),
+        shareText: (text) async {
+          shared = text;
+        },
+      );
+
+      await tester.tap(find.text('Share match'));
+      await tester.pumpAndSettle();
+
+      final lines = shared!.split('\n');
+      expect(lines.last, PublicLink.format(PublicLinkKind.match, 'm1'));
+      expect(shared, contains('Friday Night'));
+      expect(shared, contains('Al Amerat Pitch'));
+    });
+
+    testWidgets('a match that has started offers no invitation',
+        (tester) async {
+      final started = Match(
+        id: 'm1',
+        communityId: 'c1',
+        createdBy: 'u9',
+        location: 'Al Amerat Pitch',
+        startAt: DateTime.now().subtract(const Duration(hours: 1)),
+        endAt: DateTime.now().add(const Duration(hours: 1)),
+        startingPlayers: 10,
+        maxRegistration: 16,
+        status: MatchStatus.open,
+        title: 'Friday Night',
+      );
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: started, access: memberContext),
+      );
+
+      expect(find.text('Share match'), findsNothing);
+    });
+
+    testWidgets('a failed share is a message, not a crash', (tester) async {
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: match, access: memberContext),
+        shareText: (_) async => throw Exception('no share sheet'),
+      );
+
+      await tester.tap(find.text('Share match'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(MatchDetailsScreen), findsOneWidget);
+    });
+
+    testWidgets('leaving before the share sheet closes is harmless',
+        (tester) async {
+      final pending = Completer<void>();
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: match, access: memberContext),
+        shareText: (_) => pending.future,
+      );
+
+      await tester.tap(find.text('Share match'));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      pending.completeError(Exception('sheet failed after the screen left'));
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+    });
+  });
 }
 
 // --- Fake ports -------------------------------------------------------------
@@ -791,7 +870,7 @@ class FakeMatchAdapter implements MatchAdapter {
   Future<List<Match>> fetchUpcomingMatches() => throw UnimplementedError();
 
   @override
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,
