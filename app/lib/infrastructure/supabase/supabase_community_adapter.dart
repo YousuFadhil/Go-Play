@@ -52,6 +52,23 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
         ];
       });
 
+  /// One membership-filtered request on demand; no per-community role reads.
+  /// This is a UI candidate list, not the authorization authority.
+  @override
+  Future<List<Community>> fetchManagedCommunities() => guarded(() async {
+        final userId = _client.auth.currentUser!.id;
+        final rows = await _client
+            .from('community_members')
+            .select('community:communities($_columns)')
+            .eq('user_id', userId)
+            .inFilter('role', ['owner', 'admin'])
+            .order('created_at', ascending: false);
+        return [
+          for (final row in rows)
+            communityFromRow(row['community'] as Map<String, dynamic>),
+        ];
+      });
+
   @override
   Future<List<Community>> fetchAllCommunities() => guarded(() async {
         final rows = await _client

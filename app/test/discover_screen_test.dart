@@ -1490,6 +1490,10 @@ class _JoinedCommunitiesAdapter implements CommunityAdapter {
   }
 
   @override
+  Future<List<Community>> fetchManagedCommunities() =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchAllCommunities() => throw UnimplementedError();
   @override
   Future<Community> fetchCommunity(String communityId) =>

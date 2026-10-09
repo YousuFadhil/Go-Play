@@ -10,8 +10,12 @@ import '../../core/tokens.dart';
 import '../admin/admin_repository.dart';
 import '../admin/admin_screen.dart';
 import '../auth/auth_service.dart';
+import '../communities/community_models.dart';
+import '../communities/community_repository.dart';
+import '../communities/create_community_screen.dart';
 import '../discover/discover_widgets.dart';
 import '../matches/app_settings.dart';
+import '../matches/create_match_screen.dart';
 import '../matches/compact_match_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
@@ -23,7 +27,10 @@ typedef _HomeData = ({String firstName, List<Match> matches, int unread});
 
 /// Home tab: greeting + upcoming matches across all the user's communities.
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key});
+  const HomeTab({super.key, this.communityRepository});
+
+  /// Injectable for widget tests; production uses the normal repository.
+  final CommunityRepository? communityRepository;
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -33,7 +40,10 @@ class _HomeTabState extends State<HomeTab> {
   final _matchService = MatchService();
   final _notificationService = NotificationService();
   final _authService = AuthService();
+  late final CommunityRepository _communityRepository =
+      widget.communityRepository ?? CommunityRepository();
   late Future<_HomeData> _future;
+  bool _openingCreateMatch = false;
 
   @override
   void initState() {
@@ -78,6 +88,80 @@ class _HomeTabState extends State<HomeTab> {
       MaterialPageRoute(builder: (_) => const NotificationsScreen()),
     );
     _refresh();
+  }
+
+  /// Uses a fresh, one-shot role-filtered read so Home loads unchanged.
+  /// The create_match RPC remains authoritative if a role changes mid-flow.
+  Future<void> _openCreateMatch() async {
+    if (_openingCreateMatch) return;
+    setState(() => _openingCreateMatch = true);
+    try {
+      final managed = await _communityRepository.fetchManagedCommunities();
+      if (!mounted) return;
+
+      if (managed.isEmpty) {
+        final wantsCommunity = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(dialogContext.l10n.createCommunityTitle),
+            content: Text(dialogContext.l10n.homeNoManagedCommunities),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(dialogContext.l10n.cancelButton),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(dialogContext.l10n.createCommunityTitle),
+              ),
+            ],
+          ),
+        );
+        if (!mounted || wantsCommunity != true) return;
+        final created = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(builder: (_) => const CreateCommunityScreen()),
+        );
+        if (mounted && created == true) _refresh();
+        return;
+      }
+
+      var community = managed.first;
+      if (managed.length > 1) {
+        final chosen = await showDialog<Community>(
+          context: context,
+          builder: (dialogContext) => SimpleDialog(
+            title: Text(dialogContext.l10n.homeChooseCommunityForMatch),
+            children: [
+              for (final option in managed)
+                SimpleDialogOption(
+                  onPressed: () => Navigator.of(dialogContext).pop(option),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+                    child: Text(option.name),
+                  ),
+                ),
+            ],
+          ),
+        );
+        if (!mounted || chosen == null) return;
+        community = chosen;
+      }
+
+      final created = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => CreateMatchScreen(communityId: community.id),
+        ),
+      );
+      if (mounted && created == true) _refresh();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.genericError)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _openingCreateMatch = false);
+    }
   }
 
   @override
@@ -176,10 +260,6 @@ class _HomeTabState extends State<HomeTab> {
   ) {
     final l10n = context.l10n;
     if (snapshot.connectionState != ConnectionState.done) {
-      // The heading keeps the page margin and the cards take the sheet's
-      // gutters, because that is what the loaded state does — the padding is
-      // no longer shared, so the placeholders stand exactly where the matches
-      // will.
       return const SkeletonFade(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,39 +274,50 @@ class _HomeTabState extends State<HomeTab> {
         ),
       );
     }
-    if (snapshot.hasError) {
-      return ErrorState(onRetry: _refresh);
-    }
+    if (snapshot.hasError) return ErrorState(onRetry: _refresh);
 
     final matches = snapshot.data!.matches;
-
     return RefreshIndicator(
       onRefresh: () async => _refresh(),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsetsDirectional.only(bottom: Layout.listBottom),
         children: [
+          DiscoverSectionHeader(
+            title: l10n.upcomingMatchesTitle,
+            subtitle: l10n.homeUpcomingSubtitle,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              kPageMargin, Gap.xs, kPageMargin, Gap.md,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: FilledButton.icon(
+                key: const Key('homeCreateMatch'),
+                onPressed: _openingCreateMatch ? null : _openCreateMatch,
+                icon: _openingCreateMatch
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add),
+                label: Text(l10n.createMatchTitle),
+              ),
+            ),
+          ),
           if (matches.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                kPageMargin,
-                Gap.xxl,
-                kPageMargin,
-                0,
+                kPageMargin, Gap.xl, kPageMargin, 0,
               ),
               child: DiscoverEmpty(
                 icon: Icons.sports_soccer,
                 message: l10n.upcomingMatchesEmpty,
               ),
             )
-          else ...[
-            DiscoverSectionHeader(
-              title: l10n.upcomingMatchesTitle,
-              subtitle: l10n.homeUpcomingSubtitle,
-            ),
-            // Two across. A player's own fixtures are what they open Home
-            // for, and a column of full-width rows put two of them on a
-            // phone before the fold.
+          else
             ResponsiveCardGrid(
               maxColumns: 2,
               minCardWidth: GridCard.matchMinWidth,
@@ -243,7 +334,6 @@ class _HomeTabState extends State<HomeTab> {
                   ),
               ],
             ),
-          ],
         ],
       ),
     );

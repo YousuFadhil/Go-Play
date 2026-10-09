@@ -204,6 +204,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createMatchButton => 'إنشاء المباراة';
 
   @override
+  String get homeChooseCommunityForMatch => 'اختر المجتمع الذي تريد إنشاء المباراة فيه';
+
+  @override
+  String get homeNoManagedCommunities => 'ليس لديك مجتمع تملك فيه صلاحية إنشاء مباراة. يمكنك إنشاء مجتمع جديد للبدء.';
+
+  @override
   String get matchDetailsTitle => 'تفاصيل المباراة';
 
   @override
