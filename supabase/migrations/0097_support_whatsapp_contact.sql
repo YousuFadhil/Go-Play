@@ -1,4 +1,7 @@
--- 0095: Go Play WhatsApp support contact (configuration only).
+-- 0097: Go Play WhatsApp support contact (configuration only).
+-- Numbered 0097 because 0095 (platform_admin_user_account_management) is already
+-- applied live and 0096 (platform_admin_account_preflight) is reserved for the
+-- admin feature; this migration is independent of both.
 -- The support number is deliberately unset until a System Admin configures it.
 -- Apply this migration before deploying the matching Flutter client.
 -- No existing settings value, role, policy, or notification is modified.
@@ -14,13 +17,17 @@ alter table public.app_settings
 comment on column public.app_settings.support_whatsapp_phone is
   'Optional WhatsApp support phone in international digits-only form (8-15 digits). NULL disables contact until configured by System Admin.';
 
--- Existing app_settings SELECT policy is authenticated-only. The older settings
--- columns have their own column-level grants; explicitly grant only this read.
+-- The existing app_settings SELECT policy is authenticated-only, and the table
+-- carries Supabase's default table-level grants (so this column grant is
+-- redundant today). It keeps the number readable if table SELECT is ever
+-- narrowed, as 0056 did for communities.
 grant select (support_whatsapp_phone)
   on public.app_settings to authenticated;
 
--- Do not add an UPDATE policy or any direct column UPDATE grant:
--- even administrators change only the support number through the RPC.
+-- Do not add an UPDATE policy to app_settings, and no direct column UPDATE grant:
+-- even administrators change only the support number through the RPC. Writes
+-- are stopped by RLS having no write policy (anon and authenticated hold
+-- table-level UPDATE by default), so a future UPDATE policy would expose it.
 create or replace function public.admin_set_support_whatsapp_phone(p_phone text)
 returns void
 language plpgsql
