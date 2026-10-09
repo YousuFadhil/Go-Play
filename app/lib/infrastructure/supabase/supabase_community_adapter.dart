@@ -59,9 +59,10 @@ class SupabaseCommunityAdapter implements CommunityAdapter {
         final userId = _client.auth.currentUser!.id;
         final rows = await _client
             .from('community_members')
-            .select('community:communities($_columns)')
+            .select('community:communities!inner($_columns)')
             .eq('user_id', userId)
             .inFilter('role', ['owner', 'admin'])
+            .eq('community.is_active', true)
             .order('created_at', ascending: false);
         return [
           for (final row in rows)
