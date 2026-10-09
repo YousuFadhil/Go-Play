@@ -148,7 +148,7 @@ void main() {
     await pumpCreate(
       tester,
       adapter: adapter,
-      shareText: (text) async => shared = text,
+      shareText: (text) async { shared = text; },
     );
     await fillValidForm(tester);
 
