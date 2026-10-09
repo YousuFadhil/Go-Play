@@ -21,7 +21,7 @@ void main() {
     // Distinct from is_system_admin(): its historic unqualified-table
     // implementation does not itself rule out temporary-table shadowing.
     expect(sql, contains('from public.system_admins sa'));
-    expect(sql, contains('sa.user_id = auth.uid()'));;
+    expect(sql, contains('sa.user_id = auth.uid()'));
     expect(
         sql,
         contains(
