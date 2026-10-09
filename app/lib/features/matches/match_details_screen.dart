@@ -28,6 +28,8 @@ import 'match_card.dart';
 import 'match_management_screen.dart';
 import 'match_models.dart';
 import 'match_service.dart';
+import '../sharing/match_invitation_share.dart';
+import '../../infrastructure/platform/native_text_share_service.dart';
 
 /// The Match Details currently on screen, so a notification for that same match
 /// refreshes it instead of stacking a second copy of it.
@@ -128,6 +130,7 @@ class MatchDetailsScreen extends StatefulWidget {
     this.communityRepository,
     this.authService,
     this.footballRepository,
+    this.shareText,
   });
 
   final String matchId;
@@ -140,6 +143,9 @@ class MatchDetailsScreen extends StatefulWidget {
 
   /// Supplied only by tests, exactly as the other ports are.
   final FootballRepository? footballRepository;
+
+  /// Optional platform-share override for widget tests.
+  final ShareMatchText? shareText;
 
   @override
   State<MatchDetailsScreen> createState() => _MatchDetailsScreenState();
@@ -413,6 +419,22 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     }
   }
 
+  Future<void> _shareMatchInvitation(Match match) async {
+    final message = MatchInvitationShare.message(
+      context,
+      matchId: match.id,
+      title: match.displayName,
+      location: match.location,
+      startAt: match.startAt,
+      endAt: match.endAt,
+    );
+    try {
+      await (widget.shareText ?? NativeTextShareService().shareText)(message);
+    } catch (_) {
+      _showMessage(context.l10n.genericError);
+    }
+  }
+
   /// The teams of this match. Reading a lineup is a member's business, so the
   /// way in is offered to everyone who can already see the match; which
   /// controls the Teams screen then shows is its own decision.
@@ -603,6 +625,13 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: _openTeams,
               ),
+              if (match.isOpenForChanges)
+                ListTile(
+                  leading: const Icon(Icons.share_outlined),
+                  title: Text(l10n.shareMatchInvitationAction),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _shareMatchInvitation(match),
+                ),
               if (canManage && match.isCompleted)
                 ListTile(
                   leading: const Icon(Icons.scoreboard_outlined),
