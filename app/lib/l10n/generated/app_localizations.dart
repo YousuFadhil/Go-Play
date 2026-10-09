@@ -491,7 +491,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeNoManagedCommunities.
   ///
   /// In en, this message translates to:
-  /// **'You don't manage a community where you can create a match. Create a new community to get started.'**
+  /// **'You don\'t manage a community where you can create a match. Create a new community to get started.'**
   String get homeNoManagedCommunities;
 
   /// No description provided for @matchDetailsTitle.
