@@ -7,6 +7,7 @@ import '../../core/locale_controller.dart';
 import '../../core/states.dart';
 import '../notifications/notification_settings_screen.dart';
 import '../profile/profile_repository.dart';
+import '../support/support_contact_screen.dart';
 
 /// The app's settings, and the only place the language is chosen.
 ///
@@ -68,6 +69,22 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const NotificationSettingsScreen(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SectionHeading(title: l10n.supportContactTitle),
+          SectionCard(
+            padding: EdgeInsets.zero,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.support_agent_outlined),
+                title: Text(l10n.supportContactAction),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SupportContactScreen(),
                   ),
                 ),
               ),

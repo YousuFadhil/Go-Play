@@ -1984,6 +1984,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
+  String get supportContactTitle => 'Contact support';
+
+  @override
+  String get supportContactAction => 'Contact us on WhatsApp';
+
+  @override
+  String get supportContactIntro => 'Choose a topic and write your message. WhatsApp will open so you can send it yourself.';
+
+  @override
+  String get supportCategoryLabel => 'Topic';
+
+  @override
+  String get supportReasonTechnical => 'Technical issue';
+
+  @override
+  String get supportReasonSuggestion => 'Suggestion';
+
+  @override
+  String get supportReasonQuestion => 'Question';
+
+  @override
+  String get supportReasonOther => 'Other';
+
+  @override
+  String get supportMessageLabel => 'Your message';
+
+  @override
+  String get supportPhoneNotConfigured => 'The support number is not configured yet. Please try again later.';
+
+  @override
+  String get supportOpenWhatsApp => 'Open WhatsApp';
+
+  @override
+  String get supportOpenFailed => 'Couldn\'t open WhatsApp. Please try again.';
+
+  @override
+  String get supportAdminPhoneTitle => 'Support phone settings';
+
+  @override
+  String get supportAdminPhoneHelp => 'Enter the international WhatsApp number with country code. Leave it blank to disable support contact temporarily.';
+
+  @override
+  String get supportPhoneLabel => 'Support WhatsApp number';
+
+  @override
+  String get supportPhoneInvalid => 'Enter a valid international phone number (8–15 digits).';
+
+  @override
+  String get supportSavePhone => 'Save support number';
+
+  @override
+  String get supportPhoneSaved => 'Support number saved.';
+
+  @override
   String get settingsLanguageSection => 'Language';
 
   @override

@@ -3416,6 +3416,114 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsTitle;
 
+  /// No description provided for @supportContactTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact support'**
+  String get supportContactTitle;
+
+  /// No description provided for @supportContactAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact us on WhatsApp'**
+  String get supportContactAction;
+
+  /// No description provided for @supportContactIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a topic and write your message. WhatsApp will open so you can send it yourself.'**
+  String get supportContactIntro;
+
+  /// No description provided for @supportCategoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Topic'**
+  String get supportCategoryLabel;
+
+  /// No description provided for @supportReasonTechnical.
+  ///
+  /// In en, this message translates to:
+  /// **'Technical issue'**
+  String get supportReasonTechnical;
+
+  /// No description provided for @supportReasonSuggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestion'**
+  String get supportReasonSuggestion;
+
+  /// No description provided for @supportReasonQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Question'**
+  String get supportReasonQuestion;
+
+  /// No description provided for @supportReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get supportReasonOther;
+
+  /// No description provided for @supportMessageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your message'**
+  String get supportMessageLabel;
+
+  /// No description provided for @supportPhoneNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'The support number is not configured yet. Please try again later.'**
+  String get supportPhoneNotConfigured;
+
+  /// No description provided for @supportOpenWhatsApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Open WhatsApp'**
+  String get supportOpenWhatsApp;
+
+  /// No description provided for @supportOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open WhatsApp. Please try again.'**
+  String get supportOpenFailed;
+
+  /// No description provided for @supportAdminPhoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Support phone settings'**
+  String get supportAdminPhoneTitle;
+
+  /// No description provided for @supportAdminPhoneHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the international WhatsApp number with country code. Leave it blank to disable support contact temporarily.'**
+  String get supportAdminPhoneHelp;
+
+  /// No description provided for @supportPhoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Support WhatsApp number'**
+  String get supportPhoneLabel;
+
+  /// No description provided for @supportPhoneInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid international phone number (8–15 digits).'**
+  String get supportPhoneInvalid;
+
+  /// No description provided for @supportSavePhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Save support number'**
+  String get supportSavePhone;
+
+  /// No description provided for @supportPhoneSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Support number saved.'**
+  String get supportPhoneSaved;
+
   /// No description provided for @settingsLanguageSection.
   ///
   /// In en, this message translates to:
