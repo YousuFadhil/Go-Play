@@ -315,6 +315,11 @@
   "inviteSignInFirst": "سجّل الدخول أو أنشئ حساباً للانضمام.",
   "inviteAlreadyMemberNote": "أنت عضو في هذا المجتمع بالفعل.",
   "shareInvitation": "مشاركة دعوة",
+  "shareMatchInvitationAction": "مشاركة المباراة",
+  "shareMatchCreatedTitle": "تم إنشاء المباراة",
+  "shareMatchCreatedPrompt": "يمكنك مشاركة المباراة الآن لدعوة اللاعبين.",
+  "shareMatchLater": "لاحقًا",
+  "shareMatchInviteLead": "دعوة إلى مباراة عبر Go Play:",
   "inviteLinkCopied": "نُسخت الدعوة. الصقها حيث تريد مشاركتها.",
   "inviteShareCommunityBody": "انضم إلى {community} على Go Play:\n{link}",
   "@inviteShareCommunityBody": {

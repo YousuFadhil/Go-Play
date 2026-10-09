@@ -355,6 +355,11 @@
   "inviteSignInFirst": "Sign in or create an account to join.",
   "inviteAlreadyMemberNote": "You are already a member of this community.",
   "shareInvitation": "Share invitation",
+  "shareMatchInvitationAction": "Share match",
+  "shareMatchCreatedTitle": "Match created",
+  "shareMatchCreatedPrompt": "Share this match to invite players.",
+  "shareMatchLater": "Later",
+  "shareMatchInviteLead": "You're invited to a match on Go Play:",
   "inviteLinkCopied": "Invitation copied. Paste it wherever you share it.",
   "inviteShareCommunityBody": "Join {community} on Go Play:\n{link}",
   "@inviteShareCommunityBody": {

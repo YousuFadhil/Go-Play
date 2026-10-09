@@ -924,6 +924,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareInvitation => 'Share invitation';
 
   @override
+  String get shareMatchInvitationAction => 'Share match';
+
+  @override
+  String get shareMatchCreatedTitle => 'Match created';
+
+  @override
+  String get shareMatchCreatedPrompt => 'Share this match to invite players.';
+
+  @override
+  String get shareMatchLater => 'Later';
+
+  @override
+  String get shareMatchInviteLead => 'You\'re invited to a match on Go Play:';
+
+
+  @override
   String get inviteLinkCopied =>
       'Invitation copied. Paste it wherever you share it.';
 
