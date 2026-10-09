@@ -16,7 +16,8 @@ void main() {
           .toLowerCase();
 
   test('the existing System Admin predicate is replaced, not dropped', () {
-    expect(sql, contains('create or replace function public.is_system_admin()'));
+    expect(
+        sql, contains('create or replace function public.is_system_admin()'));
     expect(sql, contains('returns boolean'));
     expect(sql, contains('language sql'));
     expect(sql, contains('stable'));
@@ -24,7 +25,8 @@ void main() {
     expect(sql, isNot(contains('drop function')));
   });
 
-  test('only the fully qualified membership table may answer authorization', () {
+  test('only the fully qualified membership table may answer authorization',
+      () {
     expect(sql, contains("set search_path = ''"));
     expect(sql, contains('from public.system_admins sa'));
     expect(sql, contains('sa.user_id = auth.uid()'));
