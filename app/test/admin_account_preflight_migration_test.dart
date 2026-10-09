@@ -434,7 +434,7 @@ void main() {
     });
 
     test(
-        'deleting football history is a BLOCKER, never softened to a conflict '
+        'historical match evidence is a BLOCKER, never softened to a conflict '
         'or a constraint', () {
       final body = functionBody(deletion);
       expect(codesOf(body, 'BLOCKER'), contains('HISTORY_WOULD_CASCADE'));
@@ -445,24 +445,123 @@ void main() {
       expect(
           body,
           contains(
-              "('HISTORY_WOULD_CASCADE', 'BLOCKER', 'HISTORY', v_cascade_history, 1)"));
-      // The blocker counts every cascading football record, rating entries too.
-      final sum = body.substring(body.indexOf('v_cascade_history :='));
-      for (final count in [
-        'memberships',
-        'registrations',
-        'lineup_assignments',
-        'goal_rows',
-        'player_statistics_rows',
-        'community_statistics_rows',
-        'rating_entries',
-      ]) {
-        expect(sum.substring(0, sum.indexOf(';')),
-            contains("(v_counts->>'$count')::bigint"),
-            reason: count);
-      }
+              "('HISTORY_WOULD_CASCADE', 'BLOCKER', 'HISTORY', v_history_evidence, 1)"));
       // Only the previews of a *deletion* can cascade.
       expect(functionBody(merge), isNot(contains('HISTORY_WOULD_CASCADE')));
+    });
+
+    /// The expression `v_history_evidence` is counted from.
+    String evidenceExpression() {
+      final body = functionBody(deletion);
+      final from = body.indexOf('v_history_evidence :=');
+      expect(from, greaterThan(-1), reason: 'the evidence count exists');
+      return body.substring(from, body.indexOf(';', from));
+    }
+
+    test(
+        'HISTORY_WOULD_CASCADE counts registrations, lineup places, goals and '
+        'rating entries of COMPLETED matches, and nothing else', () {
+      final evidence = evidenceExpression();
+
+      for (final table in [
+        'public.match_registrations',
+        'public.match_team_assignments',
+        'public.match_goals',
+        'public.rating_history',
+      ]) {
+        expect(evidence, contains('from $table'), reason: table);
+      }
+      // Each of the four is tied to a match, by the application's own rule for
+      // "completed": the stored status OR the end having passed.
+      const completed = "(m.status = 'completed' or m.end_at <= now())";
+      expect(completed.allMatches(evidence).length, 4);
+      expect(
+          RegExp(r'join public\.matches m on m\.id = ')
+              .allMatches(evidence)
+              .length,
+          4);
+    });
+
+    test(
+        'memberships, the statistics tables and the MVP cascade are NOT part of '
+        'the evidence count', () {
+      final evidence = evidenceExpression();
+
+      for (final notEvidence in [
+        'community_members', // operational
+        'player_statistics', // derived
+        'community_statistics', // derived
+        'match_results', // MVP_RESULTS_WOULD_CASCADE, counted once, there
+        'v_counts', // the old sum of totals
+      ]) {
+        expect(evidence, isNot(contains(notEvidence)), reason: notEvidence);
+      }
+      // The old definition is gone: a sum of the cascading totals.
+      expect(functionBody(deletion), isNot(contains('v_cascade_history')));
+      expect(
+          functionBody(deletion),
+          isNot(contains(
+              "(v_counts->>'memberships')::bigint + (v_counts->>'registrations')::bigint")));
+    });
+
+    test('what is erased but is not evidence stays visible in the preview', () {
+      final body = functionBody(deletion);
+
+      for (final line in [
+        "('COMMUNITY_MEMBERSHIPS',    (v_counts->>'memberships')::bigint,               'CASCADE_DELETE', 1)",
+        "('MATCH_REGISTRATIONS',      (v_counts->>'registrations')::bigint,             'CASCADE_DELETE', 1)",
+        "('LINEUP_ASSIGNMENTS',       (v_counts->>'lineup_assignments')::bigint,        'CASCADE_DELETE', 1)",
+        "('PLAYER_STATISTICS',        (v_counts->>'player_statistics_rows')::bigint,    'CASCADE_DELETE', 1)",
+        "('COMMUNITY_STATISTICS',     (v_counts->>'community_statistics_rows')::bigint, 'CASCADE_DELETE', 1)",
+      ]) {
+        expect(body, contains(line), reason: line);
+      }
+      // ...and none of them is a finding of its own.
+      final findingCodes = {
+        ...codesOf(body, 'BLOCKER'),
+        ...codesOf(body, 'CONFLICT'),
+        ...codesOf(body, 'CONSTRAINT'),
+      };
+      for (final listed in [
+        'COMMUNITY_MEMBERSHIPS',
+        'PLAYER_STATISTICS',
+        'COMMUNITY_STATISTICS',
+      ]) {
+        expect(findingCodes, isNot(contains(listed)), reason: listed);
+      }
+    });
+
+    test(
+        'a registration for a match not yet played stays its own CONFLICT, the '
+        'exact complement of the evidence rule', () {
+      final body = functionBody(deletion);
+
+      expect(codesOf(body, 'CONFLICT'), contains('UPCOMING_REGISTRATIONS'));
+      expect(
+          codesOf(body, 'BLOCKER'), isNot(contains('UPCOMING_REGISTRATIONS')));
+      expect(
+          body,
+          contains(
+              "('UPCOMING_REGISTRATIONS', 'CONFLICT', 'MATCH',\n         (v_counts->>'upcoming_registrations')::bigint, 2)"));
+      // The helper's rule is the negation of the evidence rule.
+      expect(functionBody(helper),
+          contains("and m.end_at > now() and m.status <> 'completed'"));
+    });
+
+    test('the header says what is evidence and what is only deleted', () {
+      final headerText =
+          sql.substring(0, sql.indexOf('create or replace function'));
+
+      expect(headerText, contains('historical match evidence'));
+      expect(headerText, contains("status is 'completed' OR the"));
+      expect(headerText, contains('WHAT IS DELETED BUT IS NOT A BLOCKER'));
+      for (final line in [
+        'community memberships -- operational',
+        '`player_statistics` and `community_statistics` -- derived',
+        'registrations for matches not yet played',
+      ]) {
+        expect(headerText, contains(line), reason: line);
+      }
     });
 
     test(
@@ -571,14 +670,13 @@ void main() {
     });
 
     test('a count that is called a number of records counts records', () {
-      // `matches_played` is games; a statistics row is one record. The cascade
-      // total and the historical list use rows.
+      // `matches_played` is games; a statistics row is one record. The
+      // historical list uses rows.
       final body = functionBody(deletion);
       expect(
           body,
           contains(
               "'PLAYER_STATISTICS',        (v_counts->>'player_statistics_rows')::bigint"));
-      expect(body, contains("+ (v_counts->>'player_statistics_rows')::bigint"));
       expect(
           body,
           isNot(contains(
@@ -756,6 +854,36 @@ void main() {
           contains("(''HISTORY_WOULD_CASCADE'',''BLOCKER'',''HISTORY''"));
       expect(verify,
           contains("(''RATING_HISTORY_IMMUTABLE'',''CONSTRAINT'',''HISTORY''"));
+    });
+
+    test('it pins that the blocker counts completed-match evidence only', () {
+      // Check 22: the four evidence tables, the completed rule four times, and
+      // no memberships, statistics or v_counts in the expression.
+      expect(
+          verify,
+          contains(
+              "substring(f.src_compact from 'v_history_evidence:=([^;]*);')"));
+      expect(verify, contains("'public.match_registrations'"));
+      expect(verify, contains("'public.match_team_assignments'"));
+      expect(verify, contains("'public.match_goals'"));
+      expect(verify, contains("'public.rating_history'"));
+      expect(verify, contains("(m.status=''completed''orm.end_at<=now())"));
+      for (final forbidden in [
+        'community_members',
+        'player_statistics',
+        'community_statistics',
+        'v_counts',
+      ]) {
+        expect(verify, contains("e.body not like '%$forbidden%'"),
+            reason: forbidden);
+      }
+      expect(
+          verify,
+          contains(
+              "(''HISTORY_WOULD_CASCADE'',''BLOCKER'',''HISTORY'',v_history_evidence,1)"));
+      // Check 23: upcoming registrations stay a separate CONFLICT.
+      expect(verify,
+          contains("(''UPCOMING_REGISTRATIONS'',''CONFLICT'',''MATCH''"));
     });
 
     test('the verification order is written down, with the reason', () {

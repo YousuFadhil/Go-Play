@@ -52,6 +52,13 @@ found as (
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.proname like 'admin\_preview\_account\_%'
+),
+-- The expression that HISTORY_WOULD_CASCADE is counted from, cut out of the
+-- compacted deletion body: everything between `v_history_evidence :=` and its `;`.
+evidence as (
+  select substring(f.src_compact from 'v_history_evidence:=([^;]*);') as body
+    from found f
+   where f.proname = 'admin_preview_account_deletion'
 )
 select n, check_name, expected, actual, ok
 from (
@@ -252,6 +259,45 @@ from (
             from found where proname = 'admin_preview_account_deletion'),
          (select src_compact like '%(''HISTORY_WOULD_CASCADE'',''BLOCKER'',''HISTORY''%'
                  and src_compact like '%(''RATING_HISTORY_IMMUTABLE'',''CONSTRAINT'',''HISTORY''%'
+            from found where proname = 'admin_preview_account_deletion')
+
+  union all
+  -- 22. HISTORY_WOULD_CASCADE counts historical MATCH EVIDENCE only: a
+  --     registration, a lineup place, a goal and a rating entry, each tied to a
+  --     COMPLETED match by the application's own rule (status 'completed' OR the end
+  --     has passed). Community memberships and the two statistics tables are deleted
+  --     too and stay listed, but they are not evidence and must not be counted.
+  select 22, 'HISTORY_WOULD_CASCADE counts completed-match evidence only', '4 tables, 4 completed rules; no memberships, statistics or v_counts',
+         (select case when e.body is null then 'no evidence expression'
+                 else (select count(*)::text from (values ('public.match_registrations'), ('public.match_team_assignments'),
+                              ('public.match_goals'), ('public.rating_history')) t(x) where e.body like '%' || t.x || '%')
+                      || ' tables, '
+                      || ((length(e.body) - length(replace(e.body, '(m.status=''completed''orm.end_at<=now())', '')))
+                          / length('(m.status=''completed''orm.end_at<=now())'))::text
+                      || ' completed rules; '
+                      || case when e.body like '%community_members%' or e.body like '%player_statistics%'
+                                or e.body like '%community_statistics%' or e.body like '%v_counts%'
+                              then 'COUNTS MEMBERSHIPS/STATISTICS' else 'no memberships, statistics or v_counts' end
+            end
+            from evidence e),
+         (select e.body is not null
+             and (select count(*) from (values ('public.match_registrations'), ('public.match_team_assignments'),
+                          ('public.match_goals'), ('public.rating_history')) t(x) where e.body like '%' || t.x || '%') = 4
+             and ((length(e.body) - length(replace(e.body, '(m.status=''completed''orm.end_at<=now())', '')))
+                  / length('(m.status=''completed''orm.end_at<=now())')) = 4
+             and e.body not like '%community_members%' and e.body not like '%player_statistics%'
+             and e.body not like '%community_statistics%' and e.body not like '%v_counts%'
+             and (select src_compact like '%(''HISTORY_WOULD_CASCADE'',''BLOCKER'',''HISTORY'',v_history_evidence,1)%'
+                    from found where proname = 'admin_preview_account_deletion')
+            from evidence e)
+
+  union all
+  -- 23. A registration for a match not yet played is its own CONFLICT, separate
+  --     from the evidence blocker.
+  select 23, 'UPCOMING_REGISTRATIONS stays a CONFLICT of its own', 'conflict/MATCH',
+         (select case when src_compact like '%(''UPCOMING_REGISTRATIONS'',''CONFLICT'',''MATCH''%' then 'conflict/MATCH' else 'WRONG' end
+            from found where proname = 'admin_preview_account_deletion'),
+         (select src_compact like '%(''UPCOMING_REGISTRATIONS'',''CONFLICT'',''MATCH''%'
             from found where proname = 'admin_preview_account_deletion')
 ) checks
 order by n, check_name;

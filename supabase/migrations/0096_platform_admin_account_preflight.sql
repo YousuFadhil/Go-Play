@@ -83,11 +83,29 @@
 --     `rating_rebase_runs.rollback_skipped_rows`, which says a past rollback
 --     skipped some rows, not that skipping them is safe. Archives naming the
 --     merge's RETAINED account are not a finding: that account is not retired;
---   * **football history that deleting the account would erase**
+--   * **historical match evidence that deleting the account would erase**
 --     (`HISTORY_WOULD_CASCADE`, deletion only), whenever its count is above zero.
---     Historical football records are preserved when an account is deleted, so a
---     deletion that would erase them is blocked until they are preserved
---     (anonymised) instead -- which no phase has built.
+--     That is the record that a match was played and who took part: a
+--     registration, a lineup place, a goal or a rating entry belonging to a
+--     COMPLETED match. Completed is the application's own rule wherever it decides
+--     it (0006, 0057, 0073, 0074, 0088): the stored status is 'completed' OR the
+--     end has passed -- the status is stamped lazily, so either can lead. Football
+--     results and participation are preserved when an account is deleted, without
+--     revealing who was deleted, so a deletion that would erase them is blocked
+--     until they are anonymised instead -- which no phase has built.
+--
+-- ## WHAT IS DELETED BUT IS NOT A BLOCKER
+--
+-- Erased by the same cascade, listed in `historical_records` all the same, and
+-- not counted by `HISTORY_WOULD_CASCADE`:
+--   * community memberships -- operational: who belongs to a community today;
+--   * `player_statistics` and `community_statistics` -- derived: recomputed from
+--     the evidence above, and carrying no match of their own;
+--   * registrations for matches not yet played -- reported separately, as the
+--     CONFLICT `UPCOMING_REGISTRATIONS` (the exact complement of the rule above);
+--   * lineup places for matches not yet played.
+-- MVP awards are a BLOCKER of their own (`MVP_RESULTS_WOULD_CASCADE`: deleting the
+-- MVP's account would delete the whole result) and are not counted twice.
 --
 -- ## WHAT `rating_history` IS, AND IS NOT
 --
@@ -96,7 +114,8 @@
 -- are ON DELETE CASCADE and it has no delete trigger, so DELETING the account
 -- DELETES its entries. It is therefore reported as football history that would
 -- be erased (`historical_records`, treatment `CASCADE_DELETE`, and counted in
--- `HISTORY_WOULD_CASCADE`), never as a preserved record. The finding that keeps
+-- `HISTORY_WOULD_CASCADE` as evidence of a rated, completed match), never as a
+-- preserved record. The finding that keeps
 -- the trigger's name, `RATING_HISTORY_IMMUTABLE`, says only what the trigger does:
 -- the entries cannot be edited, so they cannot be anonymised in place. It says
 -- nothing about deletion, because there is no protection against it. (The two
@@ -567,8 +586,9 @@ grant execute on function public.admin_preview_account_merge(uuid, uuid)
 -- 3) admin_preview_account_deletion()
 -- ============================================================================
 -- "Delete this account": which personal data it holds, what stops the delete
--- today, which football history would be erased by the cascade and so has to be
--- anonymised instead, and what cannot be touched at all.
+-- today, which football history would be erased by the cascade (and which part of
+-- it is historical match evidence, which blocks), and what cannot be touched at
+-- all.
 --
 -- What the foreign keys actually do on `public.users` today (live, 2026-10-09):
 --   NO ACTION  communities.owner_id, matches.created_by          -> BLOCKERS
@@ -608,7 +628,7 @@ declare
   v_historical jsonb;
   v_preserved jsonb;
   v_findings jsonb;
-  v_cascade_history bigint;
+  v_history_evidence bigint;
   v_identities bigint;
 begin
   if not public.is_system_admin()
@@ -753,11 +773,32 @@ begin
     ) as f(code, n)
    where f.n > 0;
 
-  v_cascade_history :=
-      (v_counts->>'memberships')::bigint + (v_counts->>'registrations')::bigint
-    + (v_counts->>'lineup_assignments')::bigint + (v_counts->>'goal_rows')::bigint
-    + (v_counts->>'player_statistics_rows')::bigint + (v_counts->>'community_statistics_rows')::bigint
-    + (v_counts->>'rating_entries')::bigint;
+  -- ---- historical match evidence: the part of the cascade that blocks -------
+  -- `historical_records` above lists everything the deletion erases. Only the
+  -- records that say a match WAS PLAYED, and who took part, are evidence: a
+  -- registration, a lineup place, a goal or a rating entry of a COMPLETED match.
+  -- "Completed" is the application's rule (see the header): status 'completed' OR
+  -- the end has passed. A registration for a match not yet played is the exact
+  -- complement, and is the CONFLICT UPCOMING_REGISTRATIONS instead. Memberships and
+  -- the two statistics tables are not evidence (see the header) and MVP awards are
+  -- counted by MVP_RESULTS_WOULD_CASCADE, so none of them is added here.
+  v_history_evidence :=
+      (select count(*) from public.match_registrations r
+         join public.matches m on m.id = r.match_id
+        where r.user_id = p_user_id
+          and (m.status = 'completed' or m.end_at <= now()))
+    + (select count(*) from public.match_team_assignments t
+         join public.matches m on m.id = t.match_id
+        where t.user_id = p_user_id
+          and (m.status = 'completed' or m.end_at <= now()))
+    + (select count(*) from public.match_goals g
+         join public.matches m on m.id = g.match_id
+        where g.user_id = p_user_id
+          and (m.status = 'completed' or m.end_at <= now()))
+    + (select count(*) from public.rating_history h
+         join public.matches m on m.id = h.match_id
+        where h.user_id = p_user_id
+          and (m.status = 'completed' or m.end_at <= now()));
 
   -- ---- findings ----------------------------------------------------------------
   select coalesce(jsonb_agg(
@@ -774,7 +815,7 @@ begin
       ('CREATED_MATCHES', 'BLOCKER', 'MATCH', v_created_total, 1),
       ('MVP_RESULTS_WOULD_CASCADE', 'BLOCKER', 'MATCH',
          (v_counts->>'mvp_awards')::bigint, 1),
-      ('HISTORY_WOULD_CASCADE', 'BLOCKER', 'HISTORY', v_cascade_history, 1),
+      ('HISTORY_WOULD_CASCADE', 'BLOCKER', 'HISTORY', v_history_evidence, 1),
       ('UPCOMING_REGISTRATIONS', 'CONFLICT', 'MATCH',
          (v_counts->>'upcoming_registrations')::bigint, 2),
       ('RATING_ARCHIVE_IMMUTABLE', 'BLOCKER', 'ARCHIVE',
@@ -818,8 +859,10 @@ $$;
 comment on function public.admin_preview_account_deletion(uuid) is
   'Platform Admin, READ ONLY: what deleting an account would touch -- the '
   'personal-data categories it holds, communities it owns and matches it created '
-  '(both block the delete today), football history the cascade would erase (a '
-  'BLOCKER: historical records are preserved), the rating archives (a BLOCKER) '
+  '(both block the delete today), the historical match evidence of completed '
+  'matches that the cascade would erase (a BLOCKER: football results and '
+  'participation are preserved; memberships, statistics and upcoming '
+  'registrations are listed but do not block), the rating archives (a BLOCKER) '
   'and the audit log that survive untouched -- with findings graded BLOCKER / '
   'CONFLICT / CONSTRAINT. rating_history rejects UPDATE only and is deleted with '
   'the account. Lists are '
