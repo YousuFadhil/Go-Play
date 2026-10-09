@@ -1090,7 +1090,7 @@
   "adminFindingHistoryWouldCascade": "سجل كروي سيُمحى مع الحساب",
   "adminFindingUpcomingRegistrations": "مسجّل في مباريات قادمة",
   "adminFindingRatingHistoryImmutable": "لا يمكن تعديل سجلات التقييم (تُرفض التحديثات)، فلا يمكن إخفاء هوية صاحبها فيها مباشرة، وحذف الحساب يحذفها",
-  "adminFindingAuditLogAppendOnly": "سجلات التدقيق تُحفظ بالأسماء والبريد كما كُتبت",
+  "adminFindingAuditLogAppendOnly": "سجلات التدقيق التي تذكر هذا الحساب لا تُمحى بالحذف، فيبقى اسمه أو بريده الإلكتروني ظاهراً فيها",
   "adminFindingEventLogsNameAccount": "سجلات أحداث تذكر هذا الحساب تبقى كما هي",
   "adminHistCareerStatistics": "إحصاءات المسيرة"
 }

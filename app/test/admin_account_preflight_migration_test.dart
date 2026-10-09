@@ -694,6 +694,10 @@ void main() {
     test(
         'the audit log, the rating history and the event logs stay CONSTRAINTs',
         () {
+      // As 0096 wrote it, and as it is applied. Migration 0099 supersedes the
+      // deletion preview's audit finding with a BLOCKER (see
+      // admin_deletion_audit_privacy_migration_test.dart); the 0096 file is
+      // historical and is not rewritten.
       for (final name in previews) {
         final constraints = codesOf(functionBody(name), 'CONSTRAINT');
         expect(constraints.any((c) => c.startsWith('AUDIT_LOG')), isTrue,

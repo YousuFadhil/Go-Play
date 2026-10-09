@@ -36,12 +36,17 @@ import 'wilayat_fixtures.dart';
 /// "Confirmed only" and "reserve only" hold one registration of a completed match,
 /// of each status; "reserve lineup", "reserve goal" and "reserve rating" are a
 /// reserve who also has that one kind of evidence.
+/// "Audit only" is an account that nothing but the audit log names (as the account
+/// acted on); "audit actor" is a former administrator who authored entries; "audit
+/// both" is actor, target and both of one entry; "admin actor" is the signed-in
+/// System Admin, who authored an entry; "event logs only" is named by an event log
+/// and nothing else. "Merge audit source" is a merge whose source the audit log names.
 const _mergeConflicting =
     r'''{"limit":25,"source":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":1,"goals_total":0,"memberships":4,"push_tokens":1,"audit_entries":1,"notifications":2,"registrations":2,"matches_played":3,"product_events":2,"rating_entries":2,"created_matches":2,"generation_runs":0,"push_preferences":1,"recorded_results":1,"confirmed_lineups":0,"membership_events":1,"memberships_admin":1,"memberships_owner":2,"owned_communities":2,"lineup_assignments":2,"rating_archive_rows":3,"registration_events":1,"team_of_period_awards":2,"player_statistics_rows":1,"upcoming_registrations":1,"user_rating_archive_rows":1,"community_statistics_rows":2,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000002","email":"p2@x.com","full_name":"Source Player","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.778+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.778+04:00","sign_in_providers":["email","google"]}},"version":1,"findings":[{"code":"OWNERSHIP_CONFLICT","count":1,"category":"OWNERSHIP","severity":"BLOCKER"},{"code":"RATING_ARCHIVE_IMMUTABLE","count":4,"category":"ARCHIVE","severity":"BLOCKER"},{"code":"SHARED_MATCH_COLLISION","count":1,"category":"MATCH","severity":"BLOCKER"},{"code":"COMMUNITY_STATISTICS_COLLISION","count":1,"category":"STATISTICS","severity":"CONFLICT"},{"code":"PLAYER_STATISTICS_RECOMPUTE","count":3,"category":"STATISTICS","severity":"CONFLICT"},{"code":"RATING_REPLAY_REQUIRED","count":2,"category":"RATING","severity":"CONFLICT"},{"code":"ROLE_CONFLICT","count":2,"category":"ROLE","severity":"CONFLICT"},{"code":"SHARED_MATCH_PARTICIPATION","count":2,"category":"MATCH","severity":"CONFLICT"},{"code":"SOURCE_CREATED_MATCHES","count":2,"category":"MATCH","severity":"CONFLICT"},{"code":"SOURCE_OWNS_COMMUNITIES","count":1,"category":"OWNERSHIP","severity":"CONFLICT"},{"code":"TEAM_AWARD_COLLISION","count":1,"category":"STATISTICS","severity":"CONFLICT"},{"code":"AUDIT_LOG_NAMES_SOURCE","count":1,"category":"AUDIT","severity":"CONSTRAINT"},{"code":"EVENT_LOGS_NAME_SOURCE","count":4,"category":"HISTORY","severity":"CONSTRAINT"}],"retained":{"counts":{"rating":5,"goal_rows":2,"mvp_awards":0,"goals_total":3,"memberships":3,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":3,"matches_played":5,"product_events":0,"rating_entries":1,"created_matches":2,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":1,"owned_communities":1,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":1,"player_statistics_rows":1,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":1,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000001","email":"p1@x.com","full_name":"Retained Player","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.778+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.778+04:00","sign_in_providers":["email"]}},"has_blockers":true,"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"shared_matches":{"items":[{"title":"Match One","status":"completed","match_id":"00000000-0000-0000-0000-000000000513","start_at":"2026-10-09T20:57:31.787+04:00","collision":true,"is_historical":false,"community_name":"Alpha","source_evidence":["LINEUP","RATING","REGISTRATION"],"retained_evidence":["GOALS","RATING","REGISTRATION"]},{"title":"Match Two","status":"completed","match_id":"00000000-0000-0000-0000-000000000514","start_at":"2026-10-09T20:57:31.787+04:00","collision":false,"is_historical":false,"community_name":"Beta","source_evidence":["LINEUP"],"retained_evidence":["REGISTRATION"]},{"title":"Match Three","status":"completed","match_id":"00000000-0000-0000-0000-000000000515","start_at":"2026-10-09T20:57:31.787+04:00","collision":false,"is_historical":false,"community_name":"Alpha","source_evidence":["MVP","RATING"],"retained_evidence":["GOALS"]}],"total":3,"by_kind":{"goals":0,"lineup":0,"rating":1,"registration":1},"colliding_total":1},"statistics_overlap":{"team_award_collisions":1,"community_statistics_collisions":1},"overlapping_communities":{"items":[{"name":"Alpha","source_owns":true,"source_role":"owner","community_id":"00000000-0000-0000-0000-000000000257","retained_owns":false,"retained_role":"player","role_conflict":true},{"name":"Beta","source_owns":false,"source_role":"admin","community_id":"00000000-0000-0000-0000-000000000258","retained_owns":true,"retained_role":"owner","role_conflict":true},{"name":"Delta","source_owns":false,"source_role":"player","community_id":"00000000-0000-0000-0000-000000000260","retained_owns":false,"retained_role":"player","role_conflict":false}],"total":3,"role_conflicts_total":2,"ownership_conflicts_total":1},"source_owned_communities":{"items":[{"name":"Alpha","community_id":"00000000-0000-0000-0000-000000000257","retained_role":"player","retained_is_member":true},{"name":"Gamma","community_id":"00000000-0000-0000-0000-000000000259","retained_role":null,"retained_is_member":false}],"total":2}}''';
 const _mergeEmpty =
     r'''{"limit":25,"source":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000004","email":"e2@x.com","full_name":"Empty Two","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.779+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.779+04:00","sign_in_providers":[]}},"version":1,"findings":[],"retained":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000003","email":"e1@x.com","full_name":"Empty One","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.779+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.779+04:00","sign_in_providers":[]}},"has_blockers":false,"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"shared_matches":{"items":[],"total":0,"by_kind":{"goals":0,"lineup":0,"rating":0,"registration":0},"colliding_total":0},"statistics_overlap":{"team_award_collisions":0,"community_statistics_collisions":0},"overlapping_communities":{"items":[],"total":0,"role_conflicts_total":0,"ownership_conflicts_total":0},"source_owned_communities":{"items":[],"total":0}}''';
 const _deletionBlocked =
-    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":1,"goals_total":0,"memberships":4,"push_tokens":1,"audit_entries":1,"notifications":2,"registrations":2,"matches_played":3,"product_events":2,"rating_entries":2,"created_matches":2,"generation_runs":0,"push_preferences":1,"recorded_results":1,"confirmed_lineups":0,"membership_events":1,"memberships_admin":1,"memberships_owner":2,"owned_communities":2,"lineup_assignments":2,"rating_archive_rows":3,"registration_events":1,"team_of_period_awards":2,"player_statistics_rows":1,"upcoming_registrations":1,"user_rating_archive_rows":1,"community_statistics_rows":2,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000002","email":"p2@x.com","full_name":"Source Player","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.778+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.778+04:00","sign_in_providers":["email","google"]}},"version":1,"findings":[{"code":"CREATED_MATCHES","count":2,"category":"MATCH","severity":"BLOCKER"},{"code":"HISTORY_WOULD_CASCADE","count":5,"category":"HISTORY","severity":"BLOCKER"},{"code":"MVP_RESULTS_WOULD_CASCADE","count":1,"category":"MATCH","severity":"BLOCKER"},{"code":"OWNS_COMMUNITIES","count":2,"category":"OWNERSHIP","severity":"BLOCKER"},{"code":"RATING_ARCHIVE_IMMUTABLE","count":4,"category":"ARCHIVE","severity":"BLOCKER"},{"code":"UPCOMING_REGISTRATIONS","count":1,"category":"MATCH","severity":"CONFLICT"},{"code":"AUDIT_LOG_APPEND_ONLY","count":1,"category":"AUDIT","severity":"CONSTRAINT"},{"code":"EVENT_LOGS_NAME_ACCOUNT","count":2,"category":"HISTORY","severity":"CONSTRAINT"},{"code":"RATING_HISTORY_IMMUTABLE","count":2,"category":"HISTORY","severity":"CONSTRAINT"}],"has_blockers":true,"personal_data":[{"code":"ACTIVITY_EVENTS","records":2},{"code":"AVATAR","records":1},{"code":"DATE_OF_BIRTH","records":1},{"code":"DEFAULT_LOCATION","records":1},{"code":"EMAIL_ADDRESS","records":1},{"code":"NOTIFICATIONS","records":2},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1},{"code":"PUSH_PREFERENCES","records":1},{"code":"PUSH_TOKENS","records":1},{"code":"SIGN_IN_IDENTITIES","records":2}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[{"title":"Match One","status":"completed","match_id":"00000000-0000-0000-0000-000000000513","start_at":"2026-10-09T20:57:31.787+04:00","has_result":false,"is_historical":false,"community_name":"Alpha"},{"title":"Match Three","status":"completed","match_id":"00000000-0000-0000-0000-000000000515","start_at":"2026-10-09T20:57:31.787+04:00","has_result":true,"is_historical":false,"community_name":"Alpha"}],"total":2,"by_status":{"completed":2}},"owned_communities":{"items":[{"name":"Alpha","is_active":true,"match_count":2,"community_id":"00000000-0000-0000-0000-000000000257","member_count":2,"other_admin_count":0},{"name":"Gamma","is_active":true,"match_count":0,"community_id":"00000000-0000-0000-0000-000000000259","member_count":1,"other_admin_count":0}],"total":2},"preserved_records":[{"code":"ADMIN_AUDIT_LOG","records":1},{"code":"RATING_HISTORY_ARCHIVE","records":3},{"code":"USER_RATING_ARCHIVE","records":1}],"historical_records":[{"code":"COMMUNITY_MEMBERSHIPS","records":4,"treatment":"CASCADE_DELETE"},{"code":"COMMUNITY_STATISTICS","records":2,"treatment":"CASCADE_DELETE"},{"code":"LINEUP_ASSIGNMENTS","records":2,"treatment":"CASCADE_DELETE"},{"code":"MATCH_REGISTRATIONS","records":2,"treatment":"CASCADE_DELETE"},{"code":"MVP_RESULTS","records":1,"treatment":"CASCADE_DELETE"},{"code":"PLAYER_STATISTICS","records":1,"treatment":"CASCADE_DELETE"},{"code":"RATING_HISTORY","records":2,"treatment":"CASCADE_DELETE"},{"code":"RECORDED_RESULTS","records":1,"treatment":"DETACH"},{"code":"ACTIVITY_EVENTS","records":2,"treatment":"RETAINED_ID"},{"code":"MEMBERSHIP_EVENTS","records":1,"treatment":"RETAINED_ID"},{"code":"REGISTRATION_EVENTS","records":1,"treatment":"RETAINED_ID"},{"code":"TEAM_OF_PERIOD_AWARDS","records":2,"treatment":"RETAINED_ID"}]}''';
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":1,"goals_total":0,"memberships":4,"push_tokens":1,"audit_entries":1,"notifications":2,"registrations":2,"matches_played":3,"product_events":2,"rating_entries":2,"created_matches":2,"generation_runs":0,"push_preferences":1,"recorded_results":1,"confirmed_lineups":0,"membership_events":1,"memberships_admin":1,"memberships_owner":2,"owned_communities":2,"lineup_assignments":2,"rating_archive_rows":3,"registration_events":1,"team_of_period_awards":2,"player_statistics_rows":1,"upcoming_registrations":1,"user_rating_archive_rows":1,"community_statistics_rows":2,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000002","email":"p2@x.com","full_name":"Source Player","is_active":true,"is_caller":false,"created_at":"2026-01-15T09:00:00+00:00","is_system_admin":false,"last_sign_in_at":"2026-01-15T09:00:00+00:00","sign_in_providers":["email","google"]}},"version":1,"findings":[{"code":"AUDIT_LOG_APPEND_ONLY","count":1,"category":"AUDIT","severity":"BLOCKER"},{"code":"CREATED_MATCHES","count":2,"category":"MATCH","severity":"BLOCKER"},{"code":"HISTORY_WOULD_CASCADE","count":5,"category":"HISTORY","severity":"BLOCKER"},{"code":"MVP_RESULTS_WOULD_CASCADE","count":1,"category":"MATCH","severity":"BLOCKER"},{"code":"OWNS_COMMUNITIES","count":2,"category":"OWNERSHIP","severity":"BLOCKER"},{"code":"RATING_ARCHIVE_IMMUTABLE","count":4,"category":"ARCHIVE","severity":"BLOCKER"},{"code":"UPCOMING_REGISTRATIONS","count":1,"category":"MATCH","severity":"CONFLICT"},{"code":"EVENT_LOGS_NAME_ACCOUNT","count":2,"category":"HISTORY","severity":"CONSTRAINT"},{"code":"RATING_HISTORY_IMMUTABLE","count":2,"category":"HISTORY","severity":"CONSTRAINT"}],"has_blockers":true,"personal_data":[{"code":"ACTIVITY_EVENTS","records":2},{"code":"AVATAR","records":1},{"code":"DATE_OF_BIRTH","records":1},{"code":"DEFAULT_LOCATION","records":1},{"code":"EMAIL_ADDRESS","records":1},{"code":"NOTIFICATIONS","records":2},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1},{"code":"PUSH_PREFERENCES","records":1},{"code":"PUSH_TOKENS","records":1},{"code":"SIGN_IN_IDENTITIES","records":2}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[{"title":"Match One","status":"completed","match_id":"00000000-0000-0000-0000-000000000513","start_at":"2026-01-15T09:00:00+00:00","has_result":false,"is_historical":false,"community_name":"Alpha"},{"title":"Match Three","status":"completed","match_id":"00000000-0000-0000-0000-000000000515","start_at":"2026-01-15T09:00:00+00:00","has_result":true,"is_historical":false,"community_name":"Alpha"}],"total":2,"by_status":{"completed":2}},"owned_communities":{"items":[{"name":"Alpha","is_active":true,"match_count":2,"community_id":"00000000-0000-0000-0000-000000000257","member_count":2,"other_admin_count":0},{"name":"Gamma","is_active":true,"match_count":0,"community_id":"00000000-0000-0000-0000-000000000259","member_count":1,"other_admin_count":0}],"total":2},"preserved_records":[{"code":"ADMIN_AUDIT_LOG","records":1},{"code":"RATING_HISTORY_ARCHIVE","records":3},{"code":"USER_RATING_ARCHIVE","records":1}],"historical_records":[{"code":"COMMUNITY_MEMBERSHIPS","records":4,"treatment":"CASCADE_DELETE"},{"code":"COMMUNITY_STATISTICS","records":2,"treatment":"CASCADE_DELETE"},{"code":"LINEUP_ASSIGNMENTS","records":2,"treatment":"CASCADE_DELETE"},{"code":"MATCH_REGISTRATIONS","records":2,"treatment":"CASCADE_DELETE"},{"code":"MVP_RESULTS","records":1,"treatment":"CASCADE_DELETE"},{"code":"PLAYER_STATISTICS","records":1,"treatment":"CASCADE_DELETE"},{"code":"RATING_HISTORY","records":2,"treatment":"CASCADE_DELETE"},{"code":"RECORDED_RESULTS","records":1,"treatment":"DETACH"},{"code":"ACTIVITY_EVENTS","records":2,"treatment":"RETAINED_ID"},{"code":"MEMBERSHIP_EVENTS","records":1,"treatment":"RETAINED_ID"},{"code":"REGISTRATION_EVENTS","records":1,"treatment":"RETAINED_ID"},{"code":"TEAM_OF_PERIOD_AWARDS","records":2,"treatment":"RETAINED_ID"}]}''';
 const _deletionEmpty =
     r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000003","email":"e1@x.com","full_name":"Empty One","is_active":true,"is_caller":false,"created_at":"2026-10-09T20:57:31.779+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T20:57:31.779+04:00","sign_in_providers":[]}},"version":1,"findings":[],"has_blockers":false,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[]}''';
 const _mergeSystemAdmins =
@@ -72,6 +77,18 @@ const _deletionReserveGoal =
     r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":1,"mvp_awards":0,"goals_total":1,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":1,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000021","email":"rgoal@x.com","full_name":"Reserve Goal","is_active":true,"is_caller":false,"created_at":"2026-10-09T21:37:00.082+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T21:37:00.082+04:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"HISTORY_WOULD_CASCADE","count":1,"category":"HISTORY","severity":"BLOCKER"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"GOAL_RECORDS","records":1,"treatment":"CASCADE_DELETE"},{"code":"MATCH_REGISTRATIONS","records":1,"treatment":"CASCADE_DELETE"}]}''';
 const _deletionReserveRating =
     r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":1,"matches_played":0,"product_events":0,"rating_entries":1,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000022","email":"rrate@x.com","full_name":"Reserve Rating","is_active":true,"is_caller":false,"created_at":"2026-10-09T21:37:00.083+04:00","is_system_admin":false,"last_sign_in_at":"2026-10-09T21:37:00.083+04:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"HISTORY_WOULD_CASCADE","count":1,"category":"HISTORY","severity":"BLOCKER"},{"code":"RATING_HISTORY_IMMUTABLE","count":1,"category":"HISTORY","severity":"CONSTRAINT"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"MATCH_REGISTRATIONS","records":1,"treatment":"CASCADE_DELETE"},{"code":"RATING_HISTORY","records":1,"treatment":"CASCADE_DELETE"}]}''';
+const _deletionAuditOnly =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":1,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000025","email":"aud@x.com","full_name":"Audit Only","is_active":true,"is_caller":false,"created_at":"2026-01-15T09:00:00+00:00","is_system_admin":false,"last_sign_in_at":"2026-01-15T09:00:00+00:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"AUDIT_LOG_APPEND_ONLY","count":1,"category":"AUDIT","severity":"BLOCKER"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[{"code":"ADMIN_AUDIT_LOG","records":1}],"historical_records":[]}''';
+const _deletionAuditActor =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":3,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000026","email":"former@x.com","full_name":"Former Admin","is_active":true,"is_caller":false,"created_at":"2026-01-15T09:00:00+00:00","is_system_admin":false,"last_sign_in_at":"2026-01-15T09:00:00+00:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"AUDIT_LOG_APPEND_ONLY","count":3,"category":"AUDIT","severity":"BLOCKER"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[{"code":"ADMIN_AUDIT_LOG","records":3}],"historical_records":[]}''';
+const _deletionAuditBoth =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":3,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000027","email":"both@x.com","full_name":"Actor And Target","is_active":true,"is_caller":false,"created_at":"2026-01-15T09:00:00+00:00","is_system_admin":false,"last_sign_in_at":"2026-01-15T09:00:00+00:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"AUDIT_LOG_APPEND_ONLY","count":3,"category":"AUDIT","severity":"BLOCKER"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[{"code":"ADMIN_AUDIT_LOG","records":3}],"historical_records":[]}''';
+const _deletionAdminActor =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":1,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":1,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000161","email":"admin@x.com","full_name":"Admin One","is_active":true,"is_caller":true,"created_at":"2026-01-15T09:00:00+00:00","is_system_admin":true,"last_sign_in_at":"2026-01-15T09:00:00+00:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"AUDIT_LOG_APPEND_ONLY","count":1,"category":"AUDIT","severity":"BLOCKER"},{"code":"TARGET_IS_CALLER","count":1,"category":"IDENTITY","severity":"BLOCKER"},{"code":"TARGET_IS_SYSTEM_ADMIN","count":1,"category":"IDENTITY","severity":"BLOCKER"},{"code":"EVENT_LOGS_NAME_ACCOUNT","count":1,"category":"HISTORY","severity":"CONSTRAINT"}],"has_blockers":true,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[{"code":"ADMIN_AUDIT_LOG","records":1}],"historical_records":[{"code":"MEMBERSHIP_EVENTS","records":1,"treatment":"RETAINED_ID"}]}''';
+const _deletionEventLogsOnly =
+    r'''{"limit":25,"account":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":1,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000028","email":"evt@x.com","full_name":"Event Log Only","is_active":true,"is_caller":false,"created_at":"2026-01-15T09:00:00+00:00","is_system_admin":false,"last_sign_in_at":"2026-01-15T09:00:00+00:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"EVENT_LOGS_NAME_ACCOUNT","count":1,"category":"HISTORY","severity":"CONSTRAINT"}],"has_blockers":false,"personal_data":[{"code":"EMAIL_ADDRESS","records":1},{"code":"PHONE_NUMBER","records":1},{"code":"PROFILE","records":1}],"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"created_matches":{"items":[],"total":0,"by_status":{}},"owned_communities":{"items":[],"total":0},"preserved_records":[],"historical_records":[{"code":"REGISTRATION_EVENTS","records":1,"treatment":"RETAINED_ID"}]}''';
+const _mergeAuditSource =
+    r'''{"limit":25,"source":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":1,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000025","email":"aud@x.com","full_name":"Audit Only","is_active":true,"is_caller":false,"created_at":"2026-01-15T09:00:00+00:00","is_system_admin":false,"last_sign_in_at":"2026-01-15T09:00:00+00:00","sign_in_providers":[]}},"version":1,"findings":[{"code":"AUDIT_LOG_NAMES_SOURCE","count":1,"category":"AUDIT","severity":"CONSTRAINT"}],"retained":{"counts":{"rating":5,"goal_rows":0,"mvp_awards":0,"goals_total":0,"memberships":0,"push_tokens":0,"audit_entries":0,"notifications":0,"registrations":0,"matches_played":0,"product_events":0,"rating_entries":0,"created_matches":0,"generation_runs":0,"push_preferences":0,"recorded_results":0,"confirmed_lineups":0,"membership_events":0,"memberships_admin":0,"memberships_owner":0,"owned_communities":0,"lineup_assignments":0,"rating_archive_rows":0,"registration_events":0,"team_of_period_awards":0,"player_statistics_rows":0,"upcoming_registrations":0,"user_rating_archive_rows":0,"community_statistics_rows":0,"professional_guests_created":0},"account":{"id":"00000000-0000-0000-0000-000000000003","email":"e1@x.com","full_name":"Empty One","is_active":true,"is_caller":false,"created_at":"2026-01-15T09:00:00+00:00","is_system_admin":false,"last_sign_in_at":"2026-01-15T09:00:00+00:00","sign_in_providers":[]}},"has_blockers":false,"coverage_notes":["EMBEDDED_GENERATION_EVIDENCE_NOT_SCANNED","STORAGE_OBJECTS_NOT_INSPECTED","AUTH_SESSIONS_NOT_INSPECTED"],"shared_matches":{"items":[],"total":0,"by_kind":{"goals":0,"lineup":0,"rating":0,"registration":0},"colliding_total":0},"statistics_overlap":{"team_award_collisions":0,"community_statistics_collisions":0},"overlapping_communities":{"items":[],"total":0,"role_conflicts_total":0,"ownership_conflicts_total":0},"source_owned_communities":{"items":[],"total":0}}''';
 
 Map<String, dynamic> _doc(String json) =>
     jsonDecode(json) as Map<String, dynamic>;
@@ -218,6 +235,7 @@ void main() {
       expect(
         preview.findingsOf(AdminFindingSeverity.blocker).map((f) => f.code),
         [
+          'AUDIT_LOG_APPEND_ONLY',
           'CREATED_MATCHES',
           'HISTORY_WOULD_CASCADE',
           'MVP_RESULTS_WOULD_CASCADE',
@@ -425,7 +443,7 @@ void main() {
             'preview does not make a merge or deletion available or authorised.'),
         findsOneWidget,
       );
-      expect(find.text('5 blockers found.'), findsOneWidget);
+      expect(find.text('6 blockers found.'), findsOneWidget);
     });
 
     testWidgets('lists every blocker, conflict and constraint, graded',
@@ -445,9 +463,9 @@ void main() {
         expect(find.byKey(Key('adminFinding_$code')), findsOneWidget,
             reason: code);
       }
-      expect(find.text('Blocker'), findsNWidgets(5));
+      expect(find.text('Blocker'), findsNWidgets(6));
       expect(find.text('Needs a rule'), findsOneWidget);
-      expect(find.text('Cannot be changed'), findsNWidgets(3));
+      expect(find.text('Cannot be changed'), findsNWidgets(2));
       expect(find.text('Owns communities: ownership must be transferred first'),
           findsOneWidget);
       expect(
@@ -527,7 +545,7 @@ void main() {
       await open(tester, json: json);
 
       expect(find.text('SOMETHING_NEW'), findsOneWidget);
-      expect(find.text('6 blockers found.'), findsOneWidget);
+      expect(find.text('7 blockers found.'), findsOneWidget);
     });
 
     testWidgets(
@@ -582,7 +600,7 @@ void main() {
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
 
-      expect(find.text('5 blockers found.'), findsOneWidget);
+      expect(find.text('6 blockers found.'), findsOneWidget);
       expect(adapter.calls,
           ['previewAccountDeletion:u2', 'previewAccountDeletion:u2']);
     });
@@ -608,7 +626,7 @@ void main() {
 
       expect(find.text('معاينة حذف الحساب'), findsOneWidget);
       expect(find.text('يملك مجتمعات: يجب نقل الملكية أولاً'), findsOneWidget);
-      expect(find.text('عائق'), findsNWidgets(5));
+      expect(find.text('عائق'), findsNWidgets(6));
       expect(find.text('يُمحى مع الحساب'), findsWidgets);
     });
   });
@@ -1534,6 +1552,298 @@ void main() {
       });
     });
 
+    // ---- identifiable audit entries outlive a deletion -----------------------------------------
+    group('audit entries that would still identify a deleted account', () {
+      const enWording =
+          'Audit log entries naming this account are not erased by a deletion, '
+          'so its name or email address would stay identifiable in them';
+      const arWording = 'سجلات التدقيق التي تذكر هذا الحساب لا تُمحى بالحذف، '
+          'فيبقى اسمه أو بريده الإلكتروني ظاهراً فيها';
+
+      AdminPreviewFinding? auditOf(AdminDeletionPreview preview) {
+        for (final finding in preview.findings) {
+          if (finding.code == 'AUDIT_LOG_APPEND_ONLY') return finding;
+        }
+        return null;
+      }
+
+      String findingText(WidgetTester tester, String code) => tester
+          .widgetList<Text>(find.descendant(
+              of: find.byKey(Key('adminFinding_$code')),
+              matching: find.byType(Text)))
+          .map((t) => t.data ?? '')
+          .reduce((a, b) => a.length >= b.length ? a : b);
+
+      test('an account only the audit log names is blocked by that alone', () {
+        final preview = _deletion(_deletionAuditOnly);
+
+        expect(preview.findings, hasLength(1));
+        final audit = auditOf(preview)!;
+        expect(audit.severity, AdminFindingSeverity.blocker);
+        expect(audit.category, 'AUDIT');
+        expect(audit.count, 1);
+        expect(preview.hasBlockers, isTrue);
+        // The contract is unchanged: the log is still listed as a preserved record,
+        // because it survives the deletion -- which is the problem.
+        expect({for (final r in preview.preservedRecords) r.code: r.records},
+            {'ADMIN_AUDIT_LOG': 1});
+        expect(preview.historicalRecords, isEmpty);
+        expect(preview.ownedCommunities.total, 0);
+        expect(preview.createdMatches.total, 0);
+      });
+
+      test('an account no audit entry references has no audit finding', () {
+        for (final json in [
+          _deletionEmpty,
+          _deletionArchiveOnly,
+          _deletionHistoryOnly,
+          _deletionMembershipOnly,
+          _deletionStatisticsOnly,
+          _deletionUpcomingOnly,
+          _deletionConfirmedOnly,
+          _deletionReserveOnly,
+          _deletionReserveLineup,
+          _deletionEventLogsOnly,
+        ]) {
+          final preview = _deletion(json);
+          expect(auditOf(preview), isNull);
+          expect(preview.preservedRecords.map((r) => r.code),
+              isNot(contains('ADMIN_AUDIT_LOG')));
+        }
+        // ...so such an account is clear unless something else is in the way.
+        expect(_deletion(_deletionEmpty).hasBlockers, isFalse);
+        expect(_deletion(_deletionMembershipOnly).hasBlockers, isFalse);
+      });
+
+      test(
+          'the administrator who acted is blocked as well as the account acted on',
+          () {
+        // A former administrator: the actor of three entries, a System Admin no more.
+        final actor = _deletion(_deletionAuditActor);
+        expect(actor.findings, hasLength(1));
+        expect(auditOf(actor)!.severity, AdminFindingSeverity.blocker);
+        expect(auditOf(actor)!.count, 3);
+        expect(actor.hasBlockers, isTrue);
+
+        // Actor of one entry, target of another and both of a third: three
+        // entries, each counted once.
+        final both = _deletion(_deletionAuditBoth);
+        expect(auditOf(both)!.count, 3);
+        expect(both.findingsOf(AdminFindingSeverity.blocker), hasLength(1));
+
+        // The signed-in System Admin who authored an entry: blocked three ways.
+        final admin = _deletion(_deletionAdminActor);
+        expect(
+            admin.findingsOf(AdminFindingSeverity.blocker).map((f) => f.code),
+            unorderedEquals([
+              'AUDIT_LOG_APPEND_ONLY',
+              'TARGET_IS_CALLER',
+              'TARGET_IS_SYSTEM_ADMIN',
+            ]));
+        expect(auditOf(admin)!.count, 1);
+      });
+
+      test('the football-history and structural blockers are untouched', () {
+        final preview = _deletion();
+
+        expect(
+          {
+            for (final f in preview.findingsOf(AdminFindingSeverity.blocker))
+              f.code: f.count,
+          },
+          {
+            'AUDIT_LOG_APPEND_ONLY': 1,
+            'CREATED_MATCHES': 2,
+            'HISTORY_WOULD_CASCADE': 5,
+            'MVP_RESULTS_WOULD_CASCADE': 1,
+            'OWNS_COMMUNITIES': 2,
+            'RATING_ARCHIVE_IMMUTABLE': 4,
+          },
+        );
+        expect(
+            preview
+                .findingsOf(AdminFindingSeverity.conflict)
+                .map((f) => f.code),
+            ['UPCOMING_REGISTRATIONS']);
+        // Only the audit finding left the constraints.
+        expect(
+            preview
+                .findingsOf(AdminFindingSeverity.constraint)
+                .map((f) => f.code),
+            ['EVENT_LOGS_NAME_ACCOUNT', 'RATING_HISTORY_IMMUTABLE']);
+        // Blockers first, as the documents have always listed them.
+        expect(preview.findings.first.severity, AdminFindingSeverity.blocker);
+        expect(preview.hasBlockers, isTrue);
+        // Football history on its own still blocks, with no audit finding beside it.
+        expect(
+            _deletion(_deletionHistoryOnly)
+                .findingsOf(AdminFindingSeverity.blocker)
+                .map((f) => f.code),
+            ['HISTORY_WOULD_CASCADE']);
+      });
+
+      test(
+          'has_blockers is exactly "some finding is a BLOCKER", audit included',
+          () {
+        for (final json in [
+          _deletionBlocked,
+          _deletionEmpty,
+          _deletionAuditOnly,
+          _deletionAuditActor,
+          _deletionAuditBoth,
+          _deletionAdminActor,
+          _deletionEventLogsOnly,
+          _deletionSystemAdmin,
+          _deletionArchiveOnly,
+          _deletionUpcomingOnly,
+        ]) {
+          final preview = _deletion(json);
+          expect(
+              preview.hasBlockers,
+              preview.findings
+                  .any((f) => f.severity == AdminFindingSeverity.blocker));
+        }
+        // An account only an event log names is a constraint, and not blocked.
+        final events = _deletion(_deletionEventLogsOnly);
+        expect(events.findings.map((f) => f.code), ['EVENT_LOGS_NAME_ACCOUNT']);
+        expect(
+            events.findings.single.severity, AdminFindingSeverity.constraint);
+        expect(events.hasBlockers, isFalse);
+      });
+
+      test('the merge preview is unchanged: the audit log stays a constraint',
+          () {
+        for (final json in [_mergeAuditSource, _mergeConflicting]) {
+          final merge = _merge(json);
+          final audit = merge.findings
+              .firstWhere((f) => f.code == 'AUDIT_LOG_NAMES_SOURCE');
+          expect(audit.severity, AdminFindingSeverity.constraint);
+          expect(merge.findings.where((f) => f.code == 'AUDIT_LOG_APPEND_ONLY'),
+              isEmpty);
+        }
+        // A merge whose source only the audit log names has nothing in its way.
+        final merge = _merge(_mergeAuditSource);
+        expect(merge.hasBlockers, isFalse);
+        expect(merge.findings.map((f) => f.code), ['AUDIT_LOG_NAMES_SOURCE']);
+      });
+
+      test(
+          'the documents carry how many entries there are, never what they hold',
+          () {
+        const text = '$_deletionBlocked$_deletionAuditOnly$_deletionAuditActor'
+            '$_deletionAuditBoth$_deletionAdminActor$_mergeAuditSource';
+        for (final snapshot in [
+          'audit-secret-target@x.com',
+          'Audit Secret Label',
+          'former-admin-secret@x.com',
+          'both-secret@x.com',
+          'Both Secret Label',
+        ]) {
+          expect(text, isNot(contains(snapshot)), reason: snapshot);
+        }
+      });
+
+      testWidgets(
+          'deletion screen: an audit-only account is blocked, in English',
+          (tester) async {
+        await openDeletion(tester, _deletion(_deletionAuditOnly));
+
+        expect(find.text('1 blocker found.'), findsOneWidget);
+        expect(find.text('Blocker'), findsOneWidget);
+        expect(find.text('Cannot be changed'), findsNothing);
+        expect(find.text('No blockers found in this preview.'), findsNothing);
+        expect(verdictTone(tester), GoChipTone.danger);
+        expect(findingText(tester, 'AUDIT_LOG_APPEND_ONLY'), enWording);
+        expect(find.text('Audit log entries'), findsWidgets);
+      });
+
+      testWidgets('the English wording says the identifying data would remain',
+          (tester) async {
+        await openDeletion(tester, _deletion(_deletionAuditOnly));
+
+        final text = findingText(tester, 'AUDIT_LOG_APPEND_ONLY');
+        expect(text, contains('not erased by a deletion'));
+        expect(text, contains('name or email address'));
+        expect(text, contains('identifiable'));
+        // The old wording read as a reassurance that nothing was wrong.
+        expect(text, isNot(contains('are kept')));
+        expect(text, isNot(contains('as they were written')));
+      });
+
+      testWidgets('deletion screen: the same, in Arabic', (tester) async {
+        await pump(
+          tester,
+          AdminDeletionPreviewScreen(
+            userId: 'u2',
+            repository: AdminRepository(FakeAdminAdapter(
+                deletionPreview: _deletion(_deletionAuditOnly))),
+          ),
+          locale: const Locale('ar'),
+        );
+
+        expect(find.text('عائق'), findsOneWidget);
+        expect(findingText(tester, 'AUDIT_LOG_APPEND_ONLY'), arWording);
+        expect(find.text('لا يمكن تغييره'), findsNothing);
+        expect(verdictTone(tester), GoChipTone.danger);
+      });
+
+      testWidgets('the Arabic wording says the identifying data would remain',
+          (tester) async {
+        await pump(
+          tester,
+          AdminDeletionPreviewScreen(
+            userId: 'u2',
+            repository: AdminRepository(FakeAdminAdapter(
+                deletionPreview: _deletion(_deletionAuditOnly))),
+          ),
+          locale: const Locale('ar'),
+        );
+
+        final text = findingText(tester, 'AUDIT_LOG_APPEND_ONLY');
+        expect(text, contains('لا تُمحى بالحذف'));
+        expect(text, contains('بريده الإلكتروني'));
+        expect(text, contains('ظاهراً'));
+        expect(text, isNot(contains('تُحفظ')));
+      });
+
+      testWidgets(
+          'deletion screen: an account with no audit entries has none of this',
+          (tester) async {
+        await openDeletion(tester, _deletion(_deletionMembershipOnly));
+
+        expect(find.byKey(const Key('adminFinding_AUDIT_LOG_APPEND_ONLY')),
+            findsNothing);
+        expect(find.text('No blockers found in this preview.'), findsOneWidget);
+        expect(find.text('Blocker'), findsNothing);
+      });
+
+      testWidgets(
+          'deletion screen: an event-log-only account is still not blocked',
+          (tester) async {
+        await openDeletion(tester, _deletion(_deletionEventLogsOnly));
+
+        expect(find.text('Cannot be changed'), findsOneWidget);
+        expect(find.text('Blocker'), findsNothing);
+        expect(find.text('No blockers found in this preview.'), findsOneWidget);
+        expect(verdictTone(tester), isNot(GoChipTone.danger));
+      });
+
+      testWidgets('merge screen: the audit entries stay a constraint',
+          (tester) async {
+        await openMerge(tester, _merge(_mergeAuditSource));
+
+        expect(find.byKey(const Key('adminFinding_AUDIT_LOG_NAMES_SOURCE')),
+            findsOneWidget);
+        expect(find.text('Cannot be changed'), findsOneWidget);
+        expect(find.text('Blocker'), findsNothing);
+        expect(find.text('No blockers found in this preview.'), findsOneWidget);
+        expect(
+            find.text(
+                'Audit log entries that name the merged-in account stay as they are'),
+            findsOneWidget);
+      });
+    });
+
     // ---- has_blockers is not permission -------------------------------------------
     group('"no blockers" is not permission', () {
       test('the documents have no can_proceed; they have has_blockers', () {
@@ -1637,7 +1947,7 @@ void main() {
         await openDeletion(tester, _deletion());
 
         expect(verdictTone(tester), GoChipTone.danger);
-        expect(find.text('5 blockers found.'), findsOneWidget);
+        expect(find.text('6 blockers found.'), findsOneWidget);
         expectNoPermissionLanguage(tester);
       });
 

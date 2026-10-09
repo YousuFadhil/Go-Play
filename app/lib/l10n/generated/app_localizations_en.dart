@@ -3130,7 +3130,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminFindingAuditLogAppendOnly =>
-      'Audit log entries are kept, with names and emails as they were written';
+      'Audit log entries naming this account are not erased by a deletion, so its name or email address would stay identifiable in them';
 
   @override
   String get adminFindingEventLogsNameAccount =>

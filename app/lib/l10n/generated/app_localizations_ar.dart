@@ -3102,7 +3102,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminFindingAuditLogAppendOnly =>
-      'سجلات التدقيق تُحفظ بالأسماء والبريد كما كُتبت';
+      'سجلات التدقيق التي تذكر هذا الحساب لا تُمحى بالحذف، فيبقى اسمه أو بريده الإلكتروني ظاهراً فيها';
 
   @override
   String get adminFindingEventLogsNameAccount =>

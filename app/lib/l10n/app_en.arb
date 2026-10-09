@@ -1234,7 +1234,7 @@
   "adminFindingHistoryWouldCascade": "Football history that would be erased with the account",
   "adminFindingUpcomingRegistrations": "Registered for upcoming matches",
   "adminFindingRatingHistoryImmutable": "Rating entries cannot be edited (updates are rejected), so they cannot be anonymised in place; deleting the account deletes them",
-  "adminFindingAuditLogAppendOnly": "Audit log entries are kept, with names and emails as they were written",
+  "adminFindingAuditLogAppendOnly": "Audit log entries naming this account are not erased by a deletion, so its name or email address would stay identifiable in them",
   "adminFindingEventLogsNameAccount": "Event logs that name this account stay as they are",
   "adminHistCareerStatistics": "Career statistics"
 }
