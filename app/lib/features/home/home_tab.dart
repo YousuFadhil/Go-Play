@@ -10,12 +10,10 @@ import '../../core/tokens.dart';
 import '../admin/admin_repository.dart';
 import '../admin/admin_screen.dart';
 import '../auth/auth_service.dart';
-import '../communities/community_models.dart';
+import 'home_create_match_button.dart';
 import '../communities/community_repository.dart';
-import '../communities/create_community_screen.dart';
 import '../discover/discover_widgets.dart';
 import '../matches/app_settings.dart';
-import '../matches/create_match_screen.dart';
 import '../matches/compact_match_card.dart';
 import '../matches/match_models.dart';
 import '../matches/match_service.dart';
@@ -43,7 +41,6 @@ class _HomeTabState extends State<HomeTab> {
   late final CommunityRepository _communityRepository =
       widget.communityRepository ?? CommunityRepository();
   late Future<_HomeData> _future;
-  bool _openingCreateMatch = false;
 
   @override
   void initState() {
@@ -88,80 +85,6 @@ class _HomeTabState extends State<HomeTab> {
       MaterialPageRoute(builder: (_) => const NotificationsScreen()),
     );
     _refresh();
-  }
-
-  /// Uses a fresh, one-shot role-filtered read so Home loads unchanged.
-  /// The create_match RPC remains authoritative if a role changes mid-flow.
-  Future<void> _openCreateMatch() async {
-    if (_openingCreateMatch) return;
-    setState(() => _openingCreateMatch = true);
-    try {
-      final managed = await _communityRepository.fetchManagedCommunities();
-      if (!mounted) return;
-
-      if (managed.isEmpty) {
-        final wantsCommunity = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(dialogContext.l10n.createCommunityTitle),
-            content: Text(dialogContext.l10n.homeNoManagedCommunities),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(dialogContext.l10n.cancelButton),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(dialogContext.l10n.createCommunityTitle),
-              ),
-            ],
-          ),
-        );
-        if (!mounted || wantsCommunity != true) return;
-        final created = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(builder: (_) => const CreateCommunityScreen()),
-        );
-        if (mounted && created == true) _refresh();
-        return;
-      }
-
-      var community = managed.first;
-      if (managed.length > 1) {
-        final chosen = await showDialog<Community>(
-          context: context,
-          builder: (dialogContext) => SimpleDialog(
-            title: Text(dialogContext.l10n.homeChooseCommunityForMatch),
-            children: [
-              for (final option in managed)
-                SimpleDialogOption(
-                  onPressed: () => Navigator.of(dialogContext).pop(option),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-                    child: Text(option.name),
-                  ),
-                ),
-            ],
-          ),
-        );
-        if (!mounted || chosen == null) return;
-        community = chosen;
-      }
-
-      final created = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (_) => CreateMatchScreen(communityId: community.id),
-        ),
-      );
-      if (mounted && created == true) _refresh();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.genericError)),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _openingCreateMatch = false);
-    }
   }
 
   @override
@@ -293,17 +216,9 @@ class _HomeTabState extends State<HomeTab> {
             ),
             child: Align(
               alignment: AlignmentDirectional.centerStart,
-              child: FilledButton.icon(
-                key: const Key('homeCreateMatch'),
-                onPressed: _openingCreateMatch ? null : _openCreateMatch,
-                icon: _openingCreateMatch
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add),
-                label: Text(l10n.createMatchTitle),
+              child: HomeCreateMatchButton(
+                communityRepository: _communityRepository,
+                onCreated: _refresh,
               ),
             ),
           ),
