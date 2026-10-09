@@ -18,9 +18,9 @@ import '../support/support_contact_screen.dart';
 /// belongs, and the app follows the device until somebody comes here and says
 /// otherwise.
 ///
-/// Deliberately thin. Everything on it is a preference held on this device;
-/// nothing here writes to the account except the push preferences, which have
-/// their own screen and keep it.
+/// Deliberately thin. Language is the device-local setting; notifications
+/// and support have their own screens and data sources. Nothing here writes
+/// directly to a player profile or to platform configuration.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, this.profileRepository});
 
