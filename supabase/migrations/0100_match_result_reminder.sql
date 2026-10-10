@@ -71,6 +71,10 @@ begin
       and m.is_historical = false
       and m.end_at > a.activated_at
       and m.end_at + interval '30 minutes' <= now()
+      -- Never send late backlog after an extended outage or reactivation.
+      -- Cron runs once per minute; the five-minute grace window allows
+      -- transient scheduling delays without notifying days afterward.
+      and m.end_at + interval '35 minutes' > now()
       and not exists (
         select 1 from public.match_results r where r.match_id = m.id
       )

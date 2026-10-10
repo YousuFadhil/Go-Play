@@ -10,6 +10,7 @@ void main() {
 
   test('one reminder runs 30 minutes after a future match ends', () {
     expect(sql, contains("interval '30 minutes'"));
+    expect(sql, contains("interval '35 minutes' > now()"));
     expect(sql, contains('m.end_at > a.activated_at'));
     expect(sql, contains('m.is_historical = false'));
     expect(sql, contains('match_result_reminder_activation'));
