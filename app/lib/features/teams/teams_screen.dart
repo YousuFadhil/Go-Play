@@ -366,7 +366,6 @@ class _TeamsScreenState extends State<TeamsScreen> {
   /// [_nameOf] is the screen's rule, applied once, and handed over rather than
   /// re-derived inside a card.
   Future<void> _shareLineup() async {
-    final l10n = context.l10n;
     final view = _shown;
     if (view == null || view.lineup.isEmpty) return;
 
@@ -414,9 +413,6 @@ class _TeamsScreenState extends State<TeamsScreen> {
       // came from. Both are already on screen; nothing is fetched for them.
       matchId: widget.matchId,
       communityId: view.match.communityId,
-      message: ShareMessage(
-        text: l10n.shareTextMatchLineup(view.match.displayName),
-      ),
       shareType: ShareType.lineup,
       source: ShareSource.teams,
       renderer: widget.renderer,

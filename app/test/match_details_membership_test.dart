@@ -22,6 +22,7 @@ import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
 import 'package:go_play/features/sharing/public_link.dart';
+import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'auth_adapter_defaults.dart';
 
 /// Opening a match you are not a member of.
@@ -76,7 +77,7 @@ void main() {
     Locale locale = const Locale('en'),
     bool signedIn = true,
     Size size = const Size(900, 1800),
-    Future<void> Function(String)? shareText,
+    Future<void> Function(String, ShareCardImage)? shareInvitation,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -99,7 +100,8 @@ void main() {
         communityRepository:
             CommunityRepository(communities ?? FakeCommunityAdapter()),
         authService: AuthService(_StubAuthAdapter(signedIn: signedIn)),
-        shareText: shareText,
+        shareInvitation: shareInvitation,
+        invitationRenderer: _InvitationRenderer(),
       ),
     ));
     await tester.pumpAndSettle();
@@ -749,18 +751,16 @@ void main() {
       await pumpDetails(
         tester,
         matches: FakeMatchAdapter(match: match, access: memberContext),
-        shareText: (text) async {
-          shared = text;
+        shareInvitation: (link, image) async {
+          shared = link;
+          expect(image.isShareCardShape, isTrue);
         },
       );
 
       await tester.tap(find.text('Share match'));
       await tester.pumpAndSettle();
 
-      final lines = shared!.split('\n');
-      expect(lines.last, PublicLink.format(PublicLinkKind.match, 'm1'));
-      expect(shared, contains('Friday Night'));
-      expect(shared, contains('Al Amerat Pitch'));
+      expect(shared, PublicLink.format(PublicLinkKind.match, 'm1'));
     });
 
     testWidgets('a match that has started offers no invitation',
@@ -789,7 +789,7 @@ void main() {
       await pumpDetails(
         tester,
         matches: FakeMatchAdapter(match: match, access: memberContext),
-        shareText: (_) async => throw Exception('no share sheet'),
+        shareInvitation: (_, __) async => throw Exception('no share sheet'),
       );
 
       await tester.tap(find.text('Share match'));
@@ -805,7 +805,7 @@ void main() {
       await pumpDetails(
         tester,
         matches: FakeMatchAdapter(match: match, access: memberContext),
-        shareText: (_) => pending.future,
+        shareInvitation: (_, __) => pending.future,
       );
 
       await tester.tap(find.text('Share match'));
@@ -1112,4 +1112,19 @@ class FakeCommunityAdapter implements CommunityAdapter {
   @override
   Future<void> deleteCommunityLogoObject(String logoUrl) =>
       throw UnimplementedError();
+}
+
+/// The platform receives a real 9:16 image; testing the rasterizer is the
+/// responsibility of the image engine, not the Match Details widget.
+class _InvitationRenderer implements ShareCardRenderer {
+  @override
+  Future<ShareCardImage> render(
+    ShareCardTemplate template, {
+    double pixelRatio = 1.0,
+  }) async =>
+      ShareCardImage(
+        bytes: Uint8List.fromList(const [137, 80, 78, 71]),
+        pixelWidth: 1080,
+        pixelHeight: 1920,
+      );
 }

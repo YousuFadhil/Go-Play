@@ -90,7 +90,6 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
   }
 
   Future<void> _share() async {
-    final l10n = context.l10n;
     final view = _shareable;
     final community = widget.communityName;
     if (view == null || community == null) return;
@@ -119,9 +118,6 @@ class _TeamOfPeriodScreenState extends State<TeamOfPeriodScreen> {
       context,
       template: (_) => TeamOfPeriodCard(data: data),
       communityId: widget.communityId,
-      message: ShareMessage(
-        text: l10n.shareTextTeamOfPeriod(data.communityName),
-      ),
       // The XI is a picture of the community's period, so it is recorded as a
       // community share rather than as a lineup: `lineup` is a match's two
       // sides, which is a different card and a different question.
