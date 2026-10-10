@@ -135,6 +135,13 @@ class _ComposingDialog extends StatelessWidget {
   }
 }
 
+/// How long the share flow waits for player photographs before showing
+/// the already-approved card with its existing fallback avatars.
+///
+/// A stalled image request must not block the whole lineup share indefinitely.
+/// Normal, cached and fast-loading images are still composed as before.
+const shareCardFacePrecacheDeadline = Duration(seconds: 8);
+
 /// Loads a card's faces into the image cache before the card is composed.
 ///
 /// **The engine gives a template two frames to settle**, which is ample for
@@ -151,13 +158,33 @@ class _ComposingDialog extends StatelessWidget {
 /// `FlutterError`, turning a missing photograph into an app-level error.
 Future<void> precacheShareCardFaces(
   BuildContext context,
-  Iterable<String> urls,
-) async {
-  final unique = urls.toSet();
+  Iterable<String> urls, {
+  Duration maxWait = shareCardFacePrecacheDeadline,
+  Future<void> Function(String url)? imageLoader,
+}) async {
+  final unique = urls.where((url) => url.trim().isNotEmpty).toSet();
   if (unique.isEmpty) return;
 
-  await Future.wait([
-    for (final url in unique)
-      precacheImage(NetworkImage(url), context, onError: (_, __) {}),
-  ]);
+  // The loader seam is for deterministic tests of a stalled image. Production
+  // always uses Flutter's image cache and the same error/fallback behavior.
+  final load = imageLoader ??
+      (String url) =>
+          precacheImage(NetworkImage(url), context, onError: (_, __) {});
+
+  // Each request owns its failure, including failures that arrive *after*
+  // the deadline. This keeps a single unavailable face from preventing
+  // every other player's image from being composed.
+  Future<void> loadSafely(String url) async {
+    try {
+      await load(url);
+    } catch (_) {
+      // A broken photograph must not prevent the card from being shared.
+    }
+  }
+
+  // Collapsed to Future<void> first: `onTimeout` must return the future's own
+  // type, and a list of nothing is not something to invent here.
+  await Future.wait<void>(unique.map(loadSafely))
+      .then<void>((_) {})
+      .timeout(maxWait, onTimeout: () {});
 }
