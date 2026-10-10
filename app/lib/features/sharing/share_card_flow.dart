@@ -135,6 +135,13 @@ class _ComposingDialog extends StatelessWidget {
   }
 }
 
+/// How long the share flow waits for player photographs before showing
+/// the already-approved card with its existing fallback avatars.
+///
+/// A stalled image request must not block the whole lineup share indefinitely.
+/// Normal, cached and fast-loading images are still composed as before.
+const shareCardFacePrecacheDeadline = Duration(seconds: 8);
+
 /// Loads a card's faces into the image cache before the card is composed.
 ///
 /// **The engine gives a template two frames to settle**, which is ample for
@@ -149,13 +156,6 @@ class _ComposingDialog extends StatelessWidget {
 /// and the pitch already falls back to a plain disc. `onError` is what keeps
 /// that true: without a handler `precacheImage` reports the failure to
 /// `FlutterError`, turning a missing photograph into an app-level error.
-/// How long the share flow waits for player photographs before showing
-/// the already-approved card with its existing fallback avatars.
-///
-/// A stalled image request must not block the whole lineup share indefinitely.
-/// Normal, cached and fast-loading images are still composed as before.
-const shareCardFacePrecacheDeadline = Duration(seconds: 8);
-
 Future<void> precacheShareCardFaces(
   BuildContext context,
   Iterable<String> urls, {
@@ -182,6 +182,9 @@ Future<void> precacheShareCardFaces(
     }
   }
 
+  // Collapsed to Future<void> first: `onTimeout` must return the future's own
+  // type, and a list of nothing is not something to invent here.
   await Future.wait<void>(unique.map(loadSafely))
+      .then<void>((_) {})
       .timeout(maxWait, onTimeout: () {});
 }
