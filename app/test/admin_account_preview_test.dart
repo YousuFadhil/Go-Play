@@ -313,16 +313,13 @@ void main() {
       return adapter;
     }
 
-    testWidgets('says it is read only and gives the verdict', (tester) async {
+    testWidgets('says deleting is permanent and gives the verdict',
+        (tester) async {
       await open(tester);
 
-      expect(find.text('Deletion preview'), findsOneWidget);
-      expect(
-        find.text(
-            'Read only. Nothing is merged, deleted or changed from this screen, and this '
-            'preview does not make a merge or deletion available or authorised.'),
-        findsOneWidget,
-      );
+      expect(find.text('Delete account'), findsOneWidget);
+      expect(find.byKey(const Key('adminDeleteNotice')), findsOneWidget);
+      expect(find.textContaining('Deleting is permanent'), findsOneWidget);
       expect(find.text('6 blockers found.'), findsOneWidget);
     });
 
@@ -428,31 +425,27 @@ void main() {
       expect(find.text('7 blockers found.'), findsOneWidget);
     });
 
-    testWidgets(
-        'has nothing to press: no delete, anonymise, transfer or confirm',
+    testWidgets('offers one destructive control, closed while anything blocks',
         (tester) async {
       final adapter = await open(tester);
 
-      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(FilledButton), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+                find.byKey(const Key('adminDeleteExecuteButton')))
+            .onPressed,
+        isNull,
+      );
+      expect(find.text('Resolve the blockers above first.'), findsOneWidget);
       expect(find.byType(ElevatedButton), findsNothing);
       expect(find.byType(OutlinedButton), findsNothing);
       expect(find.byType(TextButton), findsNothing);
-      // The app header owns a menu; the preview itself has no tappable row.
-      expect(
-        find.descendant(
-            of: find.byType(ListView), matching: find.byType(InkWell)),
-        findsNothing,
-      );
-      for (final word in [
-        'Delete',
-        'Anonymise',
-        'Transfer',
-        'Confirm',
-        'Merge'
-      ]) {
+      for (final word in ['Anonymise', 'Transfer', 'Merge']) {
         expect(find.textContaining(word), findsNothing, reason: word);
       }
       expect(adapter.calls, ['previewAccountDeletion:u2']);
+      expect(adapter.deleteRequests, isEmpty, reason: 'reading deletes nothing');
     });
 
     for (final failure in <Failure>[
@@ -504,7 +497,7 @@ void main() {
     testWidgets('it reads in Arabic', (tester) async {
       await open(tester, locale: const Locale('ar'));
 
-      expect(find.text('معاينة حذف الحساب'), findsOneWidget);
+      expect(find.text('حذف حساب'), findsOneWidget);
       expect(find.text('يملك مجتمعات: يجب نقل الملكية أولاً'), findsOneWidget);
       expect(find.text('عائق'), findsNWidgets(6));
       expect(find.text('يُمحى مع الحساب'), findsWidgets);
@@ -610,7 +603,7 @@ void main() {
       await tester.tap(find.byKey(const Key('adminAccountPreviewDeletion')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Deletion preview'), findsOneWidget);
+      expect(find.text('Delete account'), findsOneWidget);
       expect(adapter.calls, contains('previewAccountDeletion:u1'));
     });
   });
@@ -1377,19 +1370,22 @@ void main() {
       });
 
       testWidgets(
-          'a clear deletion preview says so neutrally and authorises '
-          'nothing', (tester) async {
+          'a clear deletion preview says so neutrally and opens only the one '
+          'control', (tester) async {
         await openDeletion(tester, _deletion(_deletionEmpty));
 
         expect(find.text('No blockers found in this preview.'), findsOneWidget);
-        expect(verdictTone(tester), GoChipTone.neutral);
-        expect(
-          find.textContaining(
-              'does not make a merge or deletion available or authorised'),
-          findsOneWidget,
-        );
+        expect(verdictTone(tester), GoChipTone.neutral,
+            reason: 'not the colour of "open"');
         expectNoPermissionLanguage(tester);
-        expect(find.byType(FilledButton), findsNothing);
+        expect(find.byType(FilledButton), findsOneWidget);
+        expect(
+          tester
+              .widget<FilledButton>(
+                  find.byKey(const Key('adminDeleteExecuteButton')))
+              .onPressed,
+          isNotNull,
+        );
         expect(find.byType(OutlinedButton), findsNothing);
       });
 
@@ -1401,7 +1397,7 @@ void main() {
         expectNoPermissionLanguage(tester);
       });
 
-      testWidgets('and in Arabic, the same disclaimer is there',
+      testWidgets('and in Arabic, the permanence notice is there',
           (tester) async {
         await pump(
           tester,
@@ -1413,9 +1409,7 @@ void main() {
           locale: const Locale('ar'),
         );
 
-        expect(
-            find.textContaining('لا تجعل الدمج أو الحذف متاحاً أو مصرّحاً به'),
-            findsOneWidget);
+        expect(find.textContaining('الحذف نهائي'), findsOneWidget);
         expect(find.text('لا توجد عوائق في هذه المعاينة.'), findsOneWidget);
       });
     });

@@ -55,6 +55,12 @@ class AdminPreviewLabels {
         'AUDIT_LOG_APPEND_ONLY' => l10n.adminFindingAuditLogAppendOnly,
         'EVENT_LOGS_NAME_ACCOUNT' => l10n.adminFindingEventLogsNameAccount,
         // Merging two accounts (migration `0101`).
+        // Deleting an account (migration `0102`): what is kept and what is done is told.
+        'HISTORY_KEPT' => l10n.adminFindingHistoryKept,
+        'CREATED_MATCHES_KEPT' => l10n.adminFindingCreatedMatchesKept,
+        'RATING_ARCHIVE_KEPT' => l10n.adminFindingRatingArchiveKept,
+        'AUDIT_LOG_REDACTED' => l10n.adminFindingAuditLogNamesSource,
+        'STORED_FILES_REMOVED' => l10n.adminFindingStoredFilesRemoved,
         'SHARED_MATCH_NOT_RESOLVABLE' =>
           l10n.adminFindingSharedMatchNotResolvable,
         'SHARED_MATCH_LIMIT_EXCEEDED' =>
@@ -142,6 +148,8 @@ class AdminPreviewLabels {
   static String history(AppLocalizations l10n, String code) => switch (code) {
         'COMMUNITY_MEMBERSHIPS' => l10n.adminCountMemberships,
         'MATCH_REGISTRATIONS' => l10n.adminCountRegistrations,
+        'UPCOMING_REGISTRATIONS' => l10n.adminFindingUpcomingRegistrations,
+        'UPCOMING_LINEUP_PLACES' => l10n.adminHistUpcomingLineup,
         'LINEUP_ASSIGNMENTS' => l10n.adminCountLineup,
         'GOAL_RECORDS' => l10n.adminCountGoalRows,
         'MVP_RESULTS' => l10n.adminCountMvp,
@@ -167,6 +175,8 @@ class AdminPreviewLabels {
         'CASCADE_DELETE' => l10n.adminTreatmentCascadeDelete,
         'DETACH' => l10n.adminTreatmentDetach,
         'RETAINED_ID' => l10n.adminTreatmentRetainedId,
+        'KEPT' => l10n.adminTreatmentKept,
+        'REMOVED' => l10n.adminTreatmentRemoved,
         _ => code ?? '',
       };
 

@@ -103,6 +103,10 @@ class _FakeAdminAdapter implements AdminAdapter {
       throw UnimplementedError();
 
   @override
+  Future<AdminDeletionResult> deleteAccount({required String userId}) =>
+      throw UnimplementedError();
+
+  @override
   Future<bool> isSystemAdmin() async => true;
 
   /// These tests are about the suspension lists, and the Overview tab is not

@@ -231,12 +231,12 @@ enum FailureReason {
   // The id does not name an active player.
   profileNotFound,
 
-  // Merging two accounts (migration `0101`) removes the merged-in account's profile
-  // picture through the Storage API BEFORE the database merge, so a merge that then
-  // fails has still cost that picture. Wording only: it adds a sentence to whatever
-  // failed.
-  mergeAvatarRemoved,
+  // Merging two accounts (0101) and deleting one (0102) both remove the profile picture
+  // through the Storage API BEFORE the database transaction, so one that then fails has
+  // still cost that picture. Wording only: it adds a sentence to whatever failed, and
+  // each screen says it in its own words.
+  avatarRemovedFirst,
 
-  // The picture could not be removed, so the merge was not attempted at all.
-  mergeAvatarCleanupFailed,
+  // The picture could not be removed, so the merge or deletion was not attempted at all.
+  avatarCleanupFailed,
 }

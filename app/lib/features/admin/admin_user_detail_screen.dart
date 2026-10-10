@@ -202,16 +202,20 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     }
   }
 
-  /// The read-only deletion preview for this account.
-  void _previewDeletion(AdminUserAccount account) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
+  /// The deletion screen for this account: what it would do and, when nothing blocks it,
+  /// the deletion. It answers `true` when the account was deleted, and nothing otherwise.
+  /// A deleted account has no screen of its own to come back to, so this one leaves too.
+  Future<void> _previewDeletion(AdminUserAccount account) async {
+    final deleted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
         builder: (_) => AdminDeletionPreviewScreen(
           userId: account.id,
           repository: _repository,
         ),
       ),
     );
+    if (!mounted || deleted != true) return;
+    Navigator.of(context).pop();
   }
 
   /// Both RPCs, issued together and failing together.

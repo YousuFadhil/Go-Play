@@ -240,6 +240,12 @@ class AdminRepository {
     );
   }
 
+  /// The permanent deletion (migration `0102`). **Not a read: a failure is a failure to
+  /// report, never to swallow, and a success is irreversible.** Who may do it, and
+  /// whether anything stands in the way, is the server's to decide.
+  Future<AdminDeletionResult> deleteAccount(String userId) =>
+      _adapter.deleteAccount(userId: userId);
+
   static String? _reason(String? reason) {
     final trimmed = reason?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;

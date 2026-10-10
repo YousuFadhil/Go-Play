@@ -997,6 +997,10 @@ class FakeAdminAdapter implements AdminAdapter {
       throw UnimplementedError();
 
   @override
+  Future<AdminDeletionResult> deleteAccount({required String userId}) =>
+      throw UnimplementedError();
+
+  @override
   Future<bool> isSystemAdmin() async {
     if (thrown != null) throw thrown!;
     return isAdmin;

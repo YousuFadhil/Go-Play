@@ -508,6 +508,31 @@ class SupabaseAdminAdapter implements AdminAdapter {
         operation: 'rpc admin_preview_account_deletion',
       );
 
+  /// The permanent deletion (migration `0102`), requested through the `delete-account`
+  /// Edge Function: it proves the caller is a System Admin, preflights the preview,
+  /// removes the account's profile picture from Storage (which no SQL can do), and only
+  /// then calls `admin_delete_account` -- one database transaction that deletes the Auth
+  /// user itself.
+  ///
+  /// **If the function answered 2xx, the deletion happened.** The result is read
+  /// leniently for that reason: a shape this build does not recognise is reported as a
+  /// deletion with an empty summary, never as a failure.
+  @override
+  Future<AdminDeletionResult> deleteAccount({required String userId}) => guarded(
+        () async {
+          final response = await _client.functions.invoke(
+            'delete-account',
+            body: adminDeleteAccountParams(userId),
+          );
+          final result = response.data;
+          return adminDeletionResultFromJson(
+            result is Map ? result.cast<String, dynamic>() : const {},
+            userId: userId,
+          );
+        },
+        operation: 'function delete-account',
+      );
+
   @override
   Future<void> updateUserPushPreferences(
     String userId, {

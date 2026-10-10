@@ -7,6 +7,8 @@ import '../../core/locale_controller.dart';
 import '../../core/states.dart';
 import '../notifications/notification_settings_screen.dart';
 import '../profile/profile_repository.dart';
+import 'account_deletion_repository.dart';
+import 'delete_account_screen.dart';
 
 /// The app's settings, and the only place the language is chosen.
 ///
@@ -19,9 +21,17 @@ import '../profile/profile_repository.dart';
 ///
 /// Deliberately thin. Everything on it is a preference held on this device;
 /// nothing here writes to the account except the push preferences, which have
-/// their own screen and keep it.
+/// their own screen and keep it, and the one way out of the account, which has
+/// its own screen too and asks twice.
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key, this.profileRepository});
+  const SettingsScreen({
+    super.key,
+    this.profileRepository,
+    this.accountDeletionRepository,
+  });
+
+  /// Supplied only by tests, exactly as the repositories take an optional port.
+  final AccountDeletionRepository? accountDeletionRepository;
 
   /// Supplied only by tests, exactly as the repositories take an optional port.
   ///
@@ -68,6 +78,32 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const NotificationSettingsScreen(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SectionHeading(title: l10n.settingsAccountSection),
+          SectionCard(
+            padding: EdgeInsets.zero,
+            children: [
+              ListTile(
+                key: const Key('settingsDeleteAccount'),
+                leading: Icon(
+                  Icons.delete_forever_outlined,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  l10n.deleteMyAccountTitle,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                subtitle: Text(l10n.deleteMyAccountSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DeleteAccountScreen(
+                      repository: accountDeletionRepository,
+                    ),
                   ),
                 ),
               ),

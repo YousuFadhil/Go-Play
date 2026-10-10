@@ -893,7 +893,7 @@ class _ExecuteSection extends StatelessWidget {
 
   static String failureText(AppLocalizations l10n, Failure failure) {
     // The merge was never attempted: the picture could not be removed first.
-    if (failure.reason == FailureReason.mergeAvatarCleanupFailed) {
+    if (failure.reason == FailureReason.avatarCleanupFailed) {
       return l10n.adminMergeFailedAvatarCleanup;
     }
     final text = switch (failure) {
@@ -907,7 +907,7 @@ class _ExecuteSection extends StatelessWidget {
     };
     // The picture goes before the merge runs, so a merge that failed afterwards has
     // still cost it. Said as a fact on top of the failure, never instead of it.
-    return failure.reason == FailureReason.mergeAvatarRemoved
+    return failure.reason == FailureReason.avatarRemovedFirst
         ? '$text ${l10n.adminMergeAvatarRemovedNote}'
         : text;
   }

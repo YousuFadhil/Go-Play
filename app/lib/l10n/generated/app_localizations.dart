@@ -4859,7 +4859,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminPreviewDeletionTitle.
   ///
   /// In en, this message translates to:
-  /// **'Deletion preview'**
+  /// **'Delete account'**
   String get adminPreviewDeletionTitle;
 
   /// No description provided for @adminPreviewReadOnlyNote.
@@ -5809,6 +5809,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The profile picture of the account to merge in had already been removed.'**
   String get adminMergeAvatarRemovedNote;
+
+  /// No description provided for @adminFindingHistoryKept.
+  ///
+  /// In en, this message translates to:
+  /// **'The football history of matches played is kept and shown as Deleted Player'**
+  String get adminFindingHistoryKept;
+
+  /// No description provided for @adminFindingCreatedMatchesKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches this account created are kept'**
+  String get adminFindingCreatedMatchesKept;
+
+  /// No description provided for @adminFindingRatingArchiveKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive rows keep the old account id and stay as they are'**
+  String get adminFindingRatingArchiveKept;
+
+  /// No description provided for @adminFindingStoredFilesRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'The account has a profile picture in storage. The deletion removes it first; if the deletion then fails, the picture stays removed'**
+  String get adminFindingStoredFilesRemoved;
+
+  /// No description provided for @adminTreatmentKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept, shown as Deleted Player'**
+  String get adminTreatmentKept;
+
+  /// No description provided for @adminTreatmentRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed'**
+  String get adminTreatmentRemoved;
+
+  /// No description provided for @adminHistUpcomingLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup places in upcoming matches'**
+  String get adminHistUpcomingLineup;
+
+  /// No description provided for @adminDeleteNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting is permanent. The account is deleted for good, including its sign-in, its profile data and its profile picture. Its football history stays and is shown as Deleted Player. Nothing happens until you confirm.'**
+  String get adminDeleteNotice;
+
+  /// No description provided for @adminDeleteExecuteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account…'**
+  String get adminDeleteExecuteButton;
+
+  /// No description provided for @adminDeleteAccountConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently?'**
+  String get adminDeleteAccountConfirmTitle;
+
+  /// No description provided for @adminDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be deleted for good, including their sign-in and profile picture. Their football history stays and is shown as Deleted Player. This cannot be undone.'**
+  String adminDeleteConfirmBody(String name);
+
+  /// No description provided for @adminDeleteConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get adminDeleteConfirmAction;
+
+  /// No description provided for @adminDeleteRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting…'**
+  String get adminDeleteRunning;
+
+  /// No description provided for @adminDeleteDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account deleted'**
+  String get adminDeleteDoneTitle;
+
+  /// No description provided for @adminDeleteDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was deleted. Their football history stays and is shown as Deleted Player.'**
+  String adminDeleteDoneBody(String name);
+
+  /// No description provided for @adminDeleteFailedConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'The account was not deleted. Something changed or is in the way. Review the preview again.'**
+  String get adminDeleteFailedConflict;
+
+  /// No description provided for @adminDeleteFailedNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The account no longer exists. If a deletion just ran, it is already gone.'**
+  String get adminDeleteFailedNotFound;
+
+  /// No description provided for @adminDeleteFailedAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'You are not allowed to delete this account.'**
+  String get adminDeleteFailedAuthorization;
+
+  /// No description provided for @adminDeleteFailedValidation.
+  ///
+  /// In en, this message translates to:
+  /// **'The request was not accepted. Nothing was changed.'**
+  String get adminDeleteFailedValidation;
+
+  /// No description provided for @adminDeleteFailedUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'The deletion may or may not have been performed. Check the preview before trying again: if it went through, the account no longer exists.'**
+  String get adminDeleteFailedUncertain;
+
+  /// No description provided for @adminDeleteFailedAvatarCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'The account was not deleted. Its profile picture could not be removed, so nothing else was changed. Try again.'**
+  String get adminDeleteFailedAvatarCleanup;
+
+  /// No description provided for @adminDeleteAvatarRemovedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The account\'s profile picture had already been removed.'**
+  String get adminDeleteAvatarRemovedNote;
+
+  /// No description provided for @settingsAccountSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get settingsAccountSection;
+
+  /// No description provided for @deleteMyAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete my account'**
+  String get deleteMyAccountTitle;
+
+  /// No description provided for @deleteMyAccountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete your account and personal data'**
+  String get deleteMyAccountSubtitle;
+
+  /// No description provided for @deleteAccountIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account is permanent. Your sign-in, profile, picture and notifications are deleted for good, and you are removed from your communities. The matches you played stay in their communities\' history, shown as Deleted Player.'**
+  String get deleteAccountIntro;
+
+  /// No description provided for @deleteAccountOwnsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You own communities'**
+  String get deleteAccountOwnsTitle;
+
+  /// No description provided for @deleteAccountOwnsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer ownership of each community below to another member first. Then you can delete your account.'**
+  String get deleteAccountOwnsBody;
+
+  /// No description provided for @deleteAccountManageMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage members'**
+  String get deleteAccountManageMembers;
+
+  /// No description provided for @deleteAccountOwnedRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{members, plural, =1{1 member} other{{members} members}}'**
+  String deleteAccountOwnedRow(int members);
+
+  /// No description provided for @deleteAccountBlockedAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'System Admin accounts cannot be deleted from the app.'**
+  String get deleteAccountBlockedAdmin;
+
+  /// No description provided for @deleteAccountBlockedSuspended.
+  ///
+  /// In en, this message translates to:
+  /// **'A suspended account cannot be deleted.'**
+  String get deleteAccountBlockedSuspended;
+
+  /// No description provided for @deleteAccountUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{You will be withdrawn from 1 upcoming match.} other{You will be withdrawn from {count} upcoming matches.}}'**
+  String deleteAccountUpcoming(int count);
+
+  /// No description provided for @deleteAccountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete my account…'**
+  String get deleteAccountButton;
+
+  /// No description provided for @deleteAccountConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your account permanently?'**
+  String get deleteAccountConfirmTitle;
+
+  /// No description provided for @deleteAccountConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone. Your account, profile and picture will be deleted and you will be signed out.'**
+  String get deleteAccountConfirmBody;
+
+  /// No description provided for @deleteAccountConfirmWord.
+  ///
+  /// In en, this message translates to:
+  /// **'DELETE'**
+  String get deleteAccountConfirmWord;
+
+  /// No description provided for @deleteAccountConfirmLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type {word} to confirm'**
+  String deleteAccountConfirmLabel(String word);
+
+  /// No description provided for @deleteAccountConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get deleteAccountConfirmAction;
+
+  /// No description provided for @deleteAccountRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account…'**
+  String get deleteAccountRunning;
+
+  /// No description provided for @deleteAccountFailedBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was not deleted. Something is in the way. Check again.'**
+  String get deleteAccountFailedBlocked;
+
+  /// No description provided for @deleteAccountFailedAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'You are not allowed to delete this account.'**
+  String get deleteAccountFailedAuthorization;
+
+  /// No description provided for @deleteAccountFailedGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was not deleted. Nothing was changed. Try again.'**
+  String get deleteAccountFailedGeneric;
+
+  /// No description provided for @deleteAccountFailedUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account may or may not have worked. Sign in again to check: if it did, your account no longer exists.'**
+  String get deleteAccountFailedUncertain;
+
+  /// No description provided for @deleteAccountFailedAvatarCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was not deleted. Your profile picture could not be removed, so nothing else was changed. Try again.'**
+  String get deleteAccountFailedAvatarCleanup;
+
+  /// No description provided for @deleteAccountAvatarRemovedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile picture had already been removed.'**
+  String get deleteAccountAvatarRemovedNote;
+
+  /// No description provided for @deleteAccountDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was deleted'**
+  String get deleteAccountDoneTitle;
+
+  /// No description provided for @deleteAccountDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been signed out. The matches you played stay in their communities, shown as Deleted Player.'**
+  String get deleteAccountDoneBody;
 }
 
 class _AppLocalizationsDelegate

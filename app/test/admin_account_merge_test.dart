@@ -313,6 +313,12 @@ void main() {
         {
           'rating': {'before': 'x', 'after': null}
         },
+        // the leaves, not only the containers, can be of the wrong type
+        {
+          'dropped': {'registrations': 'x', 'lineup_places': []},
+          'rating': {'matches_replayed': 'many'},
+          'moved': {'goal_rows': 'two'},
+        },
       ]) {
         final result = adminMergeResultFromJson(
           doc,
@@ -1133,21 +1139,21 @@ void main() {
     for (final entry in <(String, Failure, String)>[
       (
         'the picture could not be removed, so no merge was attempted',
-        const InfrastructureFailure(FailureReason.mergeAvatarCleanupFailed),
+        const InfrastructureFailure(FailureReason.avatarCleanupFailed),
         'The merge was not performed. The profile picture of the account to '
             'merge in could not be removed, so nothing else was changed. Try '
             'again.'
       ),
       (
         'the database refused after the picture was removed',
-        const ConflictFailure(FailureReason.mergeAvatarRemoved),
+        const ConflictFailure(FailureReason.avatarRemovedFirst),
         'The merge was not performed. Something changed or is in the way. '
             'Review the preview again. The profile picture of the account to '
             'merge in had already been removed.'
       ),
       (
         'the answer was lost after the picture was removed',
-        const InfrastructureFailure(FailureReason.mergeAvatarRemoved),
+        const InfrastructureFailure(FailureReason.avatarRemovedFirst),
         'The merge may or may not have been performed. Check the preview '
             'before trying again: if it went through, the account to merge in '
             'no longer exists. The profile picture of the account to merge in '
@@ -1173,7 +1179,7 @@ void main() {
       await open(
         tester,
         mergeFailure:
-            const InfrastructureFailure(FailureReason.mergeAvatarCleanupFailed),
+            const InfrastructureFailure(FailureReason.avatarCleanupFailed),
       );
 
       await confirm(tester);

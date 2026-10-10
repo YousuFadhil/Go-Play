@@ -125,10 +125,9 @@ abstract interface class AdminAdapter {
     String? reason,
   });
 
-  /// The read-only previews of merging two accounts and of deleting one
-  /// (migration `0096`). They describe what each would collide with and write
-  /// nothing, not even an audit event. Neither has an execute counterpart here
-  /// or in the database.
+  /// The previews of merging two accounts and of deleting one (migrations `0096`,
+  /// `0101`, `0102`). They describe what each would do and write nothing, not even an
+  /// audit event. [mergeAccounts] and [deleteAccount] below are the actions.
   Future<AdminMergePreview> previewAccountMerge({
     required String retainedUserId,
     required String sourceUserId,
@@ -149,13 +148,18 @@ abstract interface class AdminAdapter {
     required String sourceUserId,
     required List<AdminMergeResolution> resolutions,
   });
+
+  /// Deletes [userId] for good -- the sign-in, the profile data, the picture and the
+  /// personal records -- in one database transaction, and keeps the football history
+  /// under "Deleted Player" (migration `0102`). **Permanent and irreversible.**
+  ///
+  /// The database refuses, and changes nothing, while the account owns a community
+  /// and for a System Admin; the administrator's own account is refused too.
+  Future<AdminDeletionResult> deleteAccount({required String userId});
 }
 
-// Permanent delete is deliberately absent from this port. The `admin_delete_*`
-// RPCs still exist in the database and are untouched, but the normal Admin
-// console no longer offers them: suspension is the reversible action the
-// product asks for, and a client method nothing calls is a door left open.
-//
-// `mergeAccounts` above is the one permanent action the console offers, and only
-// because the Product Owner approved it: one account into another, with the source
-// removed in the same transaction, behind a typed confirmation.
+// The legacy `admin_delete_user`, `admin_delete_community` and `admin_delete_match` RPCs
+// still exist in the database and are not called from here: they purge football history.
+// `mergeAccounts` and `deleteAccount` above are the permanent actions the console offers,
+// and only because the Product Owner approved them, each behind a typed confirmation.
+// `deleteAccount` keeps the history; the legacy RPC does not.

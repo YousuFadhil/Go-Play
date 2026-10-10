@@ -2771,7 +2771,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminPreviewMergeTitle => 'Merge accounts';
 
   @override
-  String get adminPreviewDeletionTitle => 'Deletion preview';
+  String get adminPreviewDeletionTitle => 'Delete account';
 
   @override
   String get adminPreviewReadOnlyNote =>
@@ -3332,4 +3332,195 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get adminMergeAvatarRemovedNote =>
       'The profile picture of the account to merge in had already been removed.';
+
+  @override
+  String get adminFindingHistoryKept =>
+      'The football history of matches played is kept and shown as Deleted Player';
+
+  @override
+  String get adminFindingCreatedMatchesKept =>
+      'Matches this account created are kept';
+
+  @override
+  String get adminFindingRatingArchiveKept =>
+      'Rating archive rows keep the old account id and stay as they are';
+
+  @override
+  String get adminFindingStoredFilesRemoved =>
+      'The account has a profile picture in storage. The deletion removes it first; if the deletion then fails, the picture stays removed';
+
+  @override
+  String get adminTreatmentKept => 'Kept, shown as Deleted Player';
+
+  @override
+  String get adminTreatmentRemoved => 'Removed';
+
+  @override
+  String get adminHistUpcomingLineup => 'Lineup places in upcoming matches';
+
+  @override
+  String get adminDeleteNotice =>
+      'Deleting is permanent. The account is deleted for good, including its sign-in, its profile data and its profile picture. Its football history stays and is shown as Deleted Player. Nothing happens until you confirm.';
+
+  @override
+  String get adminDeleteExecuteButton => 'Delete account…';
+
+  @override
+  String get adminDeleteAccountConfirmTitle => 'Delete permanently?';
+
+  @override
+  String adminDeleteConfirmBody(String name) {
+    return '$name will be deleted for good, including their sign-in and profile picture. Their football history stays and is shown as Deleted Player. This cannot be undone.';
+  }
+
+  @override
+  String get adminDeleteConfirmAction => 'Delete permanently';
+
+  @override
+  String get adminDeleteRunning => 'Deleting…';
+
+  @override
+  String get adminDeleteDoneTitle => 'Account deleted';
+
+  @override
+  String adminDeleteDoneBody(String name) {
+    return '$name was deleted. Their football history stays and is shown as Deleted Player.';
+  }
+
+  @override
+  String get adminDeleteFailedConflict =>
+      'The account was not deleted. Something changed or is in the way. Review the preview again.';
+
+  @override
+  String get adminDeleteFailedNotFound =>
+      'The account no longer exists. If a deletion just ran, it is already gone.';
+
+  @override
+  String get adminDeleteFailedAuthorization =>
+      'You are not allowed to delete this account.';
+
+  @override
+  String get adminDeleteFailedValidation =>
+      'The request was not accepted. Nothing was changed.';
+
+  @override
+  String get adminDeleteFailedUncertain =>
+      'The deletion may or may not have been performed. Check the preview before trying again: if it went through, the account no longer exists.';
+
+  @override
+  String get adminDeleteFailedAvatarCleanup =>
+      'The account was not deleted. Its profile picture could not be removed, so nothing else was changed. Try again.';
+
+  @override
+  String get adminDeleteAvatarRemovedNote =>
+      'The account\'s profile picture had already been removed.';
+
+  @override
+  String get settingsAccountSection => 'Account';
+
+  @override
+  String get deleteMyAccountTitle => 'Delete my account';
+
+  @override
+  String get deleteMyAccountSubtitle =>
+      'Permanently delete your account and personal data';
+
+  @override
+  String get deleteAccountIntro =>
+      'Deleting your account is permanent. Your sign-in, profile, picture and notifications are deleted for good, and you are removed from your communities. The matches you played stay in their communities\' history, shown as Deleted Player.';
+
+  @override
+  String get deleteAccountOwnsTitle => 'You own communities';
+
+  @override
+  String get deleteAccountOwnsBody =>
+      'Transfer ownership of each community below to another member first. Then you can delete your account.';
+
+  @override
+  String get deleteAccountManageMembers => 'Manage members';
+
+  @override
+  String deleteAccountOwnedRow(int members) {
+    String _temp0 = intl.Intl.pluralLogic(
+      members,
+      locale: localeName,
+      other: '$members members',
+      one: '1 member',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteAccountBlockedAdmin =>
+      'System Admin accounts cannot be deleted from the app.';
+
+  @override
+  String get deleteAccountBlockedSuspended =>
+      'A suspended account cannot be deleted.';
+
+  @override
+  String deleteAccountUpcoming(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'You will be withdrawn from $count upcoming matches.',
+      one: 'You will be withdrawn from 1 upcoming match.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteAccountButton => 'Delete my account…';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Delete your account permanently?';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'This cannot be undone. Your account, profile and picture will be deleted and you will be signed out.';
+
+  @override
+  String get deleteAccountConfirmWord => 'DELETE';
+
+  @override
+  String deleteAccountConfirmLabel(String word) {
+    return 'Type $word to confirm';
+  }
+
+  @override
+  String get deleteAccountConfirmAction => 'Delete permanently';
+
+  @override
+  String get deleteAccountRunning => 'Deleting your account…';
+
+  @override
+  String get deleteAccountFailedBlocked =>
+      'Your account was not deleted. Something is in the way. Check again.';
+
+  @override
+  String get deleteAccountFailedAuthorization =>
+      'You are not allowed to delete this account.';
+
+  @override
+  String get deleteAccountFailedGeneric =>
+      'Your account was not deleted. Nothing was changed. Try again.';
+
+  @override
+  String get deleteAccountFailedUncertain =>
+      'Deleting your account may or may not have worked. Sign in again to check: if it did, your account no longer exists.';
+
+  @override
+  String get deleteAccountFailedAvatarCleanup =>
+      'Your account was not deleted. Your profile picture could not be removed, so nothing else was changed. Try again.';
+
+  @override
+  String get deleteAccountAvatarRemovedNote =>
+      'Your profile picture had already been removed.';
+
+  @override
+  String get deleteAccountDoneTitle => 'Your account was deleted';
+
+  @override
+  String get deleteAccountDoneBody =>
+      'You have been signed out. The matches you played stay in their communities, shown as Deleted Player.';
 }

@@ -1015,6 +1015,32 @@ class AdminMergePreview {
       ];
 }
 
+/// What the database reports after an administrator deleted an account (migration
+/// `0102`). A deletion that returned is a deletion that happened, so every field
+/// defaults rather than throws: a result this build cannot read must never be
+/// mistaken for a deletion that failed.
+class AdminDeletionResult {
+  const AdminDeletionResult({
+    required this.userId,
+    this.withdrawnRegistrations = 0,
+    this.withdrawnLineupPlaces = 0,
+    this.membershipsRemoved = 0,
+    this.auditEntriesRedacted = 0,
+    this.avatarFilesRemoved = 0,
+  });
+
+  final String userId;
+
+  /// Places in matches not yet played, given up as a cancellation is.
+  final int withdrawnRegistrations;
+  final int withdrawnLineupPlaces;
+  final int membershipsRemoved;
+
+  /// Audit entries that named the account and lost the name or e-mail in them.
+  final int auditEntriesRedacted;
+  final int avatarFilesRemoved;
+}
+
 /// What the database reports after a merge. A merge that returned is a merge that
 /// happened, so every field defaults rather than throws: a result this build cannot
 /// read must never be mistaken for a merge that failed.

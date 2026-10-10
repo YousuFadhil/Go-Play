@@ -2753,7 +2753,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminPreviewMergeTitle => 'دمج الحسابات';
 
   @override
-  String get adminPreviewDeletionTitle => 'معاينة حذف الحساب';
+  String get adminPreviewDeletionTitle => 'حذف حساب';
 
   @override
   String get adminPreviewReadOnlyNote =>
@@ -3301,4 +3301,193 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get adminMergeAvatarRemovedNote =>
       'كانت الصورة الشخصية للحساب المدموج قد أُزيلت بالفعل.';
+
+  @override
+  String get adminFindingHistoryKept =>
+      'يبقى تاريخ المباريات التي لُعبت ويُعرض باسم «لاعب محذوف»';
+
+  @override
+  String get adminFindingCreatedMatchesKept =>
+      'تبقى المباريات التي أنشأها هذا الحساب';
+
+  @override
+  String get adminFindingRatingArchiveKept =>
+      'تحتفظ صفوف أرشيف التقييم بمعرّف الحساب القديم وتبقى كما هي';
+
+  @override
+  String get adminFindingStoredFilesRemoved =>
+      'للحساب صورة شخصية في التخزين. يزيلها الحذف أولاً، وإن فشل الحذف بعد ذلك تبقى الصورة محذوفة';
+
+  @override
+  String get adminTreatmentKept => 'يبقى ويُعرض باسم «لاعب محذوف»';
+
+  @override
+  String get adminTreatmentRemoved => 'يُزال';
+
+  @override
+  String get adminHistUpcomingLineup => 'أماكن في تشكيلات مباريات قادمة';
+
+  @override
+  String get adminDeleteNotice =>
+      'الحذف نهائي. يُحذف الحساب نهائياً مع تسجيل دخوله وبياناته الشخصية وصورته. يبقى تاريخه الكروي ويُعرض باسم «لاعب محذوف». لا يحدث شيء قبل أن تؤكد.';
+
+  @override
+  String get adminDeleteExecuteButton => 'حذف الحساب…';
+
+  @override
+  String get adminDeleteAccountConfirmTitle => 'هل تحذف نهائياً؟';
+
+  @override
+  String adminDeleteConfirmBody(String name) {
+    return 'سيُحذف $name نهائياً مع تسجيل دخوله وصورته الشخصية. يبقى تاريخه الكروي ويُعرض باسم «لاعب محذوف». لا يمكن التراجع.';
+  }
+
+  @override
+  String get adminDeleteConfirmAction => 'احذف نهائياً';
+
+  @override
+  String get adminDeleteRunning => 'جارٍ الحذف…';
+
+  @override
+  String get adminDeleteDoneTitle => 'تم حذف الحساب';
+
+  @override
+  String adminDeleteDoneBody(String name) {
+    return 'حُذف $name. يبقى تاريخه الكروي ويُعرض باسم «لاعب محذوف».';
+  }
+
+  @override
+  String get adminDeleteFailedConflict =>
+      'لم يُحذف الحساب. تغيّر شيء أو ظهر ما يمنع الحذف. راجع المعاينة من جديد.';
+
+  @override
+  String get adminDeleteFailedNotFound =>
+      'الحساب لم يعد موجوداً. إن كان حذف قد جرى للتو فهو محذوف بالفعل.';
+
+  @override
+  String get adminDeleteFailedAuthorization => 'لا تملك صلاحية حذف هذا الحساب.';
+
+  @override
+  String get adminDeleteFailedValidation => 'لم يُقبل الطلب. لم يتغير شيء.';
+
+  @override
+  String get adminDeleteFailedUncertain =>
+      'قد يكون الحذف نُفِّذ وقد لا يكون. تحقق من المعاينة قبل المحاولة من جديد: إن نُفِّذ فلن يبقى الحساب موجوداً.';
+
+  @override
+  String get adminDeleteFailedAvatarCleanup =>
+      'لم يُحذف الحساب. تعذّرت إزالة صورته الشخصية، فلم يتغير أي شيء آخر. حاول من جديد.';
+
+  @override
+  String get adminDeleteAvatarRemovedNote =>
+      'كانت الصورة الشخصية للحساب قد أُزيلت بالفعل.';
+
+  @override
+  String get settingsAccountSection => 'الحساب';
+
+  @override
+  String get deleteMyAccountTitle => 'حذف حسابي';
+
+  @override
+  String get deleteMyAccountSubtitle => 'احذف حسابك وبياناتك الشخصية نهائياً';
+
+  @override
+  String get deleteAccountIntro =>
+      'حذف حسابك نهائي. يُحذف تسجيل دخولك وملفك وصورتك وإشعاراتك نهائياً، وتُزال من مجتمعاتك. تبقى المباريات التي لعبتها في تاريخ مجتمعاتها وتُعرض باسم «لاعب محذوف».';
+
+  @override
+  String get deleteAccountOwnsTitle => 'أنت مالك لمجتمعات';
+
+  @override
+  String get deleteAccountOwnsBody =>
+      'انقل ملكية كل مجتمع أدناه إلى عضو آخر أولاً. بعدها يمكنك حذف حسابك.';
+
+  @override
+  String get deleteAccountManageMembers => 'إدارة الأعضاء';
+
+  @override
+  String deleteAccountOwnedRow(int members) {
+    String _temp0 = intl.Intl.pluralLogic(
+      members,
+      locale: localeName,
+      other: '$members أعضاء',
+      two: 'عضوان',
+      one: 'عضو واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteAccountBlockedAdmin =>
+      'لا يمكن حذف حسابات مدراء النظام من التطبيق.';
+
+  @override
+  String get deleteAccountBlockedSuspended => 'لا يمكن حذف حساب موقوف.';
+
+  @override
+  String deleteAccountUpcoming(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ستُسحب من $count مباريات قادمة.',
+      two: 'ستُسحب من مباراتين قادمتين.',
+      one: 'ستُسحب من مباراة قادمة واحدة.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteAccountButton => 'حذف حسابي…';
+
+  @override
+  String get deleteAccountConfirmTitle => 'هل تحذف حسابك نهائياً؟';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'لا يمكن التراجع. سيُحذف حسابك وملفك وصورتك وسيتم تسجيل خروجك.';
+
+  @override
+  String get deleteAccountConfirmWord => 'حذف';
+
+  @override
+  String deleteAccountConfirmLabel(String word) {
+    return 'اكتب $word للتأكيد';
+  }
+
+  @override
+  String get deleteAccountConfirmAction => 'احذف نهائياً';
+
+  @override
+  String get deleteAccountRunning => 'جارٍ حذف حسابك…';
+
+  @override
+  String get deleteAccountFailedBlocked =>
+      'لم يُحذف حسابك. ثمة ما يمنع الحذف. تحقق من جديد.';
+
+  @override
+  String get deleteAccountFailedAuthorization =>
+      'لا تملك صلاحية حذف هذا الحساب.';
+
+  @override
+  String get deleteAccountFailedGeneric =>
+      'لم يُحذف حسابك. لم يتغير شيء. حاول من جديد.';
+
+  @override
+  String get deleteAccountFailedUncertain =>
+      'قد يكون حذف حسابك نجح وقد لا يكون. سجّل الدخول من جديد للتحقق: إن نجح فلن يبقى حسابك موجوداً.';
+
+  @override
+  String get deleteAccountFailedAvatarCleanup =>
+      'لم يُحذف حسابك. تعذّرت إزالة صورتك الشخصية، فلم يتغير أي شيء آخر. حاول من جديد.';
+
+  @override
+  String get deleteAccountAvatarRemovedNote =>
+      'كانت صورتك الشخصية قد أُزيلت بالفعل.';
+
+  @override
+  String get deleteAccountDoneTitle => 'تم حذف حسابك';
+
+  @override
+  String get deleteAccountDoneBody =>
+      'تم تسجيل خروجك. تبقى المباريات التي لعبتها في مجتمعاتها وتُعرض باسم «لاعب محذوف».';
 }

@@ -144,6 +144,8 @@ class FakeAdminAdapter implements AdminAdapter {
     this.previewFailure,
     this.mergeResult,
     this.mergeFailure,
+    this.deleteResult,
+    this.deleteFailure,
   });
 
   List<AdminUserSummary> users;
@@ -216,6 +218,16 @@ class FakeAdminAdapter implements AdminAdapter {
   /// When set, the merge waits on it, so a test can look at the screen while the
   /// request is in flight and tap again.
   Completer<void>? mergeGate;
+
+  /// What the permanent deletion (migration `0102`) answers, or the failure it raises.
+  AdminDeletionResult? deleteResult;
+  Failure? deleteFailure;
+
+  /// Every deletion requested, in order. A test that taps twice asserts this is one.
+  final List<String> deleteRequests = [];
+
+  /// When set, the deletion waits on it, so a test can look at the screen mid-request.
+  Completer<void>? deleteGate;
 
   @override
   String? get currentUserId => signedInUserId;
@@ -415,6 +427,16 @@ class FakeAdminAdapter implements AdminAdapter {
     calls.add('previewAccountDeletion:$userId');
     if (previewFailure != null) throw previewFailure!;
     return deletionPreview!;
+  }
+
+  @override
+  Future<AdminDeletionResult> deleteAccount({required String userId}) async {
+    calls.add('deleteAccount:$userId');
+    deleteRequests.add(userId);
+    final gate = deleteGate;
+    if (gate != null) await gate.future;
+    if (deleteFailure != null) throw deleteFailure!;
+    return deleteResult!;
   }
 
   @override

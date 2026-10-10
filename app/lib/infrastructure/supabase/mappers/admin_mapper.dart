@@ -620,6 +620,10 @@ Map<String, dynamic> adminMergeAccountsParams({
       'p_resolutions': [for (final r in resolutions) r.toJson()],
     };
 
+/// A count in a result document, or 0 when it is anything else. Total: a cast would throw on a
+/// value of the wrong type, and a throw here would be reported as an action that failed.
+int _resultCount(Object? value) => value is num ? value.toInt() : 0;
+
 /// What `admin_merge_accounts` returned. **Never throws:** a merge that returned
 /// happened, and a result this build cannot fully read must still be reported as a
 /// merge that happened.
@@ -642,12 +646,36 @@ AdminMergeResult adminMergeResultFromJson(
         : retainedUserId,
     sourceUserId:
         sourceId is String && sourceId.isNotEmpty ? sourceId : sourceUserId,
-    droppedRegistrations: _adminCount(dropped['registrations']),
-    droppedLineupPlaces: _adminCount(dropped['lineup_places']),
+    droppedRegistrations: _resultCount(dropped['registrations']),
+    droppedLineupPlaces: _resultCount(dropped['lineup_places']),
     moved: _previewCounts(json['moved']),
     ratingBefore: before is num ? before.toDouble() : null,
     ratingAfter: after is num ? after.toDouble() : null,
-    matchesReplayed: _adminCount(rating['matches_replayed']),
+    matchesReplayed: _resultCount(rating['matches_replayed']),
+  );
+}
+
+/// The body of the `delete-account` request for an administrator: the account to delete.
+/// (Without it the same function deletes the caller's own account.)
+Map<String, dynamic> adminDeleteAccountParams(String userId) =>
+    {'p_user_id': userId};
+
+/// What `delete-account` returned. **Never throws:** a deletion that returned
+/// happened, and a result this build cannot fully read must still be reported as a
+/// deletion that happened.
+AdminDeletionResult adminDeletionResultFromJson(
+  Map<String, dynamic> json, {
+  required String userId,
+}) {
+  final withdrawn = _previewMap(json['withdrawn']);
+  final id = json['user_id'];
+  return AdminDeletionResult(
+    userId: id is String && id.isNotEmpty ? id : userId,
+    withdrawnRegistrations: _resultCount(withdrawn['registrations']),
+    withdrawnLineupPlaces: _resultCount(withdrawn['lineup_places']),
+    membershipsRemoved: _resultCount(json['memberships_removed']),
+    auditEntriesRedacted: _resultCount(json['audit_entries_redacted']),
+    avatarFilesRemoved: _resultCount(json['avatar_files_removed']),
   );
 }
 

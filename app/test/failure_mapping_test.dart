@@ -218,8 +218,28 @@ void main() {
       expect(
         map(raised('AVATAR_CLEANUP_FAILED')),
         isA<InfrastructureFailure>().having(
-            (f) => f.reason, 'reason', FailureReason.mergeAvatarCleanupFailed),
+            (f) => f.reason, 'reason', FailureReason.avatarCleanupFailed),
       );
+    });
+
+    test('deleting an account: what blocks is a state, who may is a permission',
+        () {
+      // Migration 0102.
+      expect(map(raised('DELETE_BLOCKED')), isA<ConflictFailure>());
+      expect(map(raised('DELETE_BLOCKED')).reason, isNull);
+      expect(map(raised('CANNOT_DELETE_SELF')), isA<AuthorizationFailure>());
+      expect(map(raised('ACCOUNT_SUSPENDED')), isA<AuthorizationFailure>());
+    });
+
+    test('deleting an account: the engine checking its own work is a fault', () {
+      for (final token in [
+        'DELETE_OUTCOME_UNKNOWN',
+        'DELETE_EVIDENCE_CHANGED',
+        'DELETE_INVARIANT_BROKEN',
+        'DELETE_RESIDUAL_DATA',
+      ]) {
+        expect(map(raised(token)), isA<InfrastructureFailure>(), reason: token);
+      }
     });
 
     test('merging accounts: the merge checking its own work is a fault', () {
@@ -402,7 +422,7 @@ void main() {
       ]) {
         final failure = answered(500, entry.$1);
         expect(failure.runtimeType, entry.$2);
-        expect(failure.reason, FailureReason.mergeAvatarRemoved);
+        expect(failure.reason, FailureReason.avatarRemovedFirst);
       }
       expect(
         answered(409, {'error': 'MERGE_BLOCKED', 'avatar_removed': false})
@@ -417,7 +437,7 @@ void main() {
         final failure = answered(
             502, {'error': 'AVATAR_CLEANUP_FAILED', 'avatar_removed': removed});
         expect(failure, isA<InfrastructureFailure>());
-        expect(failure.reason, FailureReason.mergeAvatarCleanupFailed);
+        expect(failure.reason, FailureReason.avatarCleanupFailed);
       }
     });
 
@@ -431,6 +451,30 @@ void main() {
           isA<InfrastructureFailure>());
       expect(answered(500, {'message': 'boom'}), isA<InfrastructureFailure>());
       expect(answered(546, null), isA<InfrastructureFailure>());
+    });
+
+    test('the deletion function answers in the same language', () {
+      expect(answered(409, {'error': 'DELETE_BLOCKED', 'detail': 'OWNS_COMMUNITIES'}),
+          isA<ConflictFailure>());
+      expect(answered(403, {'error': 'CANNOT_DELETE_SELF'}),
+          isA<AuthorizationFailure>());
+      expect(answered(403, {'error': 'ACCOUNT_SUSPENDED'}),
+          isA<AuthorizationFailure>());
+      expect(answered(502, {'error': 'DELETE_OUTCOME_UNKNOWN'}),
+          isA<InfrastructureFailure>());
+      expect(answered(404, {'error': 'USER_NOT_FOUND'}), isA<NotFoundFailure>());
+    });
+
+    test('a picture already removed is said on top of a refused deletion', () {
+      final blocked = answered(
+          409, {'error': 'DELETE_BLOCKED', 'avatar_removed': true});
+      expect(blocked, isA<ConflictFailure>());
+      expect(blocked.reason, FailureReason.avatarRemovedFirst);
+
+      final lost = answered(
+          502, {'error': 'DELETE_OUTCOME_UNKNOWN', 'avatar_removed': true});
+      expect(lost, isA<InfrastructureFailure>());
+      expect(lost.reason, FailureReason.avatarRemovedFirst);
     });
 
     test('a token this build does not know falls back to the status', () {

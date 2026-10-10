@@ -253,11 +253,24 @@ class SupabaseFailureMapper {
     // may have committed). The rest it passes through from the database unchanged.
     'SOURCE_FILES_REMAIN': ConflictFailure(),
     'AVATAR_CLEANUP_FAILED':
-        InfrastructureFailure(FailureReason.mergeAvatarCleanupFailed),
+        InfrastructureFailure(FailureReason.avatarCleanupFailed),
     'MERGE_OUTCOME_UNKNOWN': InfrastructureFailure(),
     'PREFLIGHT_FAILED': InfrastructureFailure(),
     'REQUEST_FAILED': InfrastructureFailure(),
     'BAD_REQUEST': ValidationFailure(),
+    // Deleting an account (migration `0102`), through the `delete-account` Edge Function.
+    // What blocks it -- owning a community, being a System Admin -- is a STATE the person
+    // can change, so a conflict; the administrator and the account itself are told
+    // apart by the type, not by a reason. A suspended account cannot use the self route.
+    // The last four are the engine checking its own work before it commits, or an
+    // answer that was lost: the transaction rolled back, or may have committed.
+    'DELETE_BLOCKED': ConflictFailure(),
+    'CANNOT_DELETE_SELF': AuthorizationFailure(),
+    'ACCOUNT_SUSPENDED': AuthorizationFailure(),
+    'DELETE_OUTCOME_UNKNOWN': InfrastructureFailure(),
+    'DELETE_EVIDENCE_CHANGED': InfrastructureFailure(),
+    'DELETE_INVARIANT_BROKEN': InfrastructureFailure(),
+    'DELETE_RESIDUAL_DATA': InfrastructureFailure(),
 
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
@@ -358,7 +371,7 @@ class SupabaseFailureMapper {
         };
     // A picture already removed is said once, on top of whatever else failed.
     if (avatarRemoved && failure.reason == null) {
-      return _withReason(failure, FailureReason.mergeAvatarRemoved);
+      return _withReason(failure, FailureReason.avatarRemovedFirst);
     }
     return failure;
   }
