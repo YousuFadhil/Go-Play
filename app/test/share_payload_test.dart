@@ -204,7 +204,7 @@ void main() {
   group('the instrumented share call sites', () {
     String read(String path) => File('lib/$path').readAsStringSync();
 
-    test('each surface classifies its own card', () {
+    test('each image-only surface classifies its card without a caption', () {
       // The engine cannot tell a profile from a lineup by looking at the
       // picture, so the kind is carried down from the screen that composed it.
       // The Player Statistics screen is deliberately absent: a player shares
@@ -222,7 +222,7 @@ void main() {
         final source = read(path);
         expect(source, contains(type), reason: path);
         expect(source, contains('source: ShareSource.'), reason: path);
-        expect(source, contains('message: ShareMessage('), reason: path);
+        expect(source, isNot(contains('message: ShareMessage(')), reason: path);
       });
 
       // One player-share entry point, and this is what keeps it one.

@@ -337,7 +337,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// the screen: neither `PlayerProfileView` nor `PublicPlayerRecord` carries
   /// one, so there is nothing to leave out.
   Future<void> _share(_ProfileView view) async {
-    final l10n = context.l10n;
 
     // The face is fetched before the card is composed, not while it is: the
     // engine gives a template two frames to settle, which is ample for layout
@@ -368,14 +367,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // five-item profile limit.
           achievements: view.achievements,
         ),
-      ),
-      message: ShareMessage(
-        // Their own profile reads as theirs; somebody else's is named. Both
-        // are localized here, where the screen knows which reading it is —
-        // the engine is handed the finished sentence.
-        text: view.isSelf
-            ? l10n.shareTextMyProfile
-            : l10n.shareTextPlayerProfile(view.fullName),
       ),
       shareType: ShareType.playerProfile,
       source: ShareSource.playerProfile,

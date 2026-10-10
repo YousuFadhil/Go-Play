@@ -166,7 +166,6 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
   /// above is showing; sharing is a picture of the current state rather than a
   /// second query for it.
   Future<void> _share() async {
-    final l10n = context.l10n;
     final statistics = _shown;
     final name = widget.communityName;
     if (statistics == null || name == null) return;
@@ -190,9 +189,6 @@ class _CommunityStatisticsTabState extends State<CommunityStatisticsTab> {
       // The community this card is of. Already held by the tab; nothing is
       // read for it.
       communityId: widget.communityId,
-      message: ShareMessage(
-        text: l10n.shareTextCommunityStatistics(data.communityName),
-      ),
       shareType: ShareType.community,
       source: ShareSource.communityStatistics,
       renderer: widget.renderer,

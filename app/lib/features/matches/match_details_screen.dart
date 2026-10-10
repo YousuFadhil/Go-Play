@@ -29,6 +29,9 @@ import 'match_management_screen.dart';
 import 'match_models.dart';
 import 'match_service.dart';
 import '../sharing/match_invitation_share.dart';
+import '../sharing/match_invitation_preview.dart';
+import '../sharing/share_card_renderer.dart';
+import '../sharing/widget_share_card_renderer.dart';
 import '../../infrastructure/platform/native_text_share_service.dart';
 
 /// The Match Details currently on screen, so a notification for that same match
@@ -130,7 +133,8 @@ class MatchDetailsScreen extends StatefulWidget {
     this.communityRepository,
     this.authService,
     this.footballRepository,
-    this.shareText,
+    this.shareInvitation,
+    this.invitationRenderer,
   });
 
   final String matchId;
@@ -144,8 +148,9 @@ class MatchDetailsScreen extends StatefulWidget {
   /// Supplied only by tests, exactly as the other ports are.
   final FootballRepository? footballRepository;
 
-  /// Optional platform-share override for widget tests.
-  final ShareMatchText? shareText;
+  /// Optional invitation share and renderer overrides for widget tests.
+  final ShareMatchInvitation? shareInvitation;
+  final ShareCardRenderer? invitationRenderer;
 
   @override
   State<MatchDetailsScreen> createState() => _MatchDetailsScreenState();
@@ -420,16 +425,21 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   }
 
   Future<void> _shareMatchInvitation(Match match) async {
-    final message = MatchInvitationShare.message(
-      context,
-      matchId: match.id,
-      title: match.displayName,
-      location: match.location,
-      startAt: match.startAt,
-      endAt: match.endAt,
-    );
+    final link = MatchInvitationShare.link(match.id);
     try {
-      await (widget.shareText ?? NativeTextShareService().shareText)(message);
+      final renderer =
+          widget.invitationRenderer ?? WidgetShareCardRenderer.of(context);
+      final preview = await renderer.render(
+        (_) => MatchInvitationPreview(
+          title: match.displayName,
+          location: match.location,
+          startAt: match.startAt,
+          endAt: match.endAt,
+        ),
+      );
+      if (!mounted) return;
+      await (widget.shareInvitation ??
+          NativeTextShareService().shareInvitation)(link, preview);
     } catch (_) {
       if (mounted) _showMessage(context.l10n.genericError);
     }

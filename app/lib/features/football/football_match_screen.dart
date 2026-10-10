@@ -155,7 +155,6 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
   /// [CompletedMatchPresentation.of] when the match loaded, and the names are
   /// the ones the pitch is already showing.
   Future<void> _shareResult() async {
-    final l10n = context.l10n;
     final view = _shown;
     if (view == null || !view.presentation.hasLineup) return;
 
@@ -187,9 +186,6 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
       // Already loaded and already on screen; nothing is read for these.
       matchId: widget.matchId,
       communityId: match.communityId,
-      message: ShareMessage(
-        text: l10n.shareTextMatchResult(match.displayName),
-      ),
       shareType: ShareType.result,
       source: ShareSource.matchResult,
       renderer: widget.renderer,
