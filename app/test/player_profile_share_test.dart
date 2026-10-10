@@ -22,7 +22,6 @@ import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/results/result_adapter.dart';
 import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
-import 'package:go_play/features/sharing/public_link.dart';
 import 'package:go_play/features/sharing/share_card_canvas.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';

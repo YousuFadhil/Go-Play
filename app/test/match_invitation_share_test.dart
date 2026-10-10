@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/sharing/match_invitation_preview.dart';
 import 'package:go_play/features/sharing/match_invitation_share.dart';
@@ -51,7 +52,7 @@ void main() {
     );
     await expectLater(
       service.shareInvitation(link, preview),
-      throwsA(isA<Exception>()),
+      throwsA(isA<InfrastructureFailure>()),
     );
   });
 

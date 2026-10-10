@@ -4,7 +4,8 @@ import '../../core/failures.dart';
 import '../../features/sharing/share_card_renderer.dart';
 import 'native_share_service.dart';
 
-/// Text-only shares use the same OS share sheet as existing image shares.
+/// Match invitations share one preview image and one match URL in the same
+/// OS sheet request. The existing text-only method remains for compatibility.
 /// WhatsApp may be selected by the user; the app never sends on their behalf.
 class NativeTextShareService {
   NativeTextShareService([ShareSheet? shareSheet])
