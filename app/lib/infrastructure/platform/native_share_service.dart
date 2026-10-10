@@ -52,10 +52,10 @@ class NativeShareService implements ShareService {
     try {
       final result = await _sheet(
         ShareParams(
-          // The words, as [ShareMessage] composed them — so what a test reads
-          // here is what leaves the phone. A message carries no link by
-          // construction. Null when the caller had nothing to say, which is
-          // the image-only share this class has always done.
+          // Send the caller's text with the image in ONE share operation. The
+          // match invitation includes its public URL here; other cards keep
+          // their existing text. Whether a target app preserves both is up to
+          // that app. Null retains the original image-only share.
           text: message?.body,
           files: [
             XFile.fromData(

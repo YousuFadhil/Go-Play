@@ -9,13 +9,10 @@ import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/infrastructure/platform/native_share_service.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// The share payload: image and localized text — never a URL — and what is
-/// recorded about it.
-///
-/// The composition is asserted here rather than only through a screen, because
-/// it is one rule that every share surface depends on: since UAT round 1 no
-/// public address travels with a share, and `ShareMessage` has no field that
-/// could carry one.
+/// General share-card payloads remain image plus localized text, without
+/// automatically appended public URLs. The separately approved match
+/// invitation includes a public match URL in its text alongside a PNG;
+/// see match_invitation_share_test.dart. ShareMessage still has no URL field.
 void main() {
   ShareCardImage card() => ShareCardImage(
         bytes: Uint8List.fromList(const [1, 2, 3]),

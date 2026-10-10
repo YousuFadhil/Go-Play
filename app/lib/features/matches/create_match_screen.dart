@@ -11,7 +11,6 @@ import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import 'match_service.dart';
 import '../sharing/match_invitation_share.dart';
-import '../../infrastructure/platform/native_text_share_service.dart';
 
 class CreateMatchScreen extends StatefulWidget {
   const CreateMatchScreen({
@@ -360,7 +359,21 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       endAt: end,
     );
     try {
-      await (widget.shareText ?? NativeTextShareService().shareText)(message);
+      if (widget.shareText != null) {
+        // Test seam retained for the existing creation-flow widget tests.
+        await widget.shareText!(message);
+      } else {
+        await MatchInvitationShare.present(
+          context,
+          matchId: matchId,
+          title: _titleController.text,
+          location: _locationController.text,
+          startAt: start,
+          endAt: end,
+          communityId: widget.communityId,
+          source: 'create_match_screen',
+        );
+      }
     } catch (_) {
       // Sharing is optional; a failed OS sheet must never be called a failed
       // match creation. The match is already committed in Supabase.
