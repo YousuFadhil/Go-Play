@@ -149,15 +149,41 @@ class _ComposingDialog extends StatelessWidget {
 /// and the pitch already falls back to a plain disc. `onError` is what keeps
 /// that true: without a handler `precacheImage` reports the failure to
 /// `FlutterError`, turning a missing photograph into an app-level error.
+/// How long the share flow waits for player photographs before showing
+/// the already-approved card with its existing fallback avatars.
+///
+/// A stalled image request must not block the whole lineup share indefinitely.
+/// Normal, cached and fast-loading images are still composed as before.
+const shareCardFacePrecacheDeadline = Duration(seconds: 8);
+
 Future<void> precacheShareCardFaces(
   BuildContext context,
-  Iterable<String> urls,
-) async {
-  final unique = urls.toSet();
+  Iterable<String> urls, {
+  Duration maxWait = shareCardFacePrecacheDeadline,
+  Future<void> Function(String url)? imageLoader,
+}) async {
+  final unique = urls.where((url) => url.trim().isNotEmpty).toSet();
   if (unique.isEmpty) return;
 
-  await Future.wait([
+  // The loader seam is for deterministic tests of a stalled image. Production
+  // always uses Flutter's image cache and the same error/fallback behavior.
+  final load = imageLoader ??
+      (String url) =>
+          precacheImage(NetworkImage(url), context, onError: (_, __) {});
+
+  // Each request owns its failure, including failures that arrive *after*
+  // the deadline. This keeps a single unavailable face from preventing
+  // every other player's image from being composed.
+  final pending = Future.wait<void>([
     for (final url in unique)
-      precacheImage(NetworkImage(url), context, onError: (_, __) {}),
+      () async {
+        try {
+          await load(url);
+        } catch (_) {
+          // The card already has its approved fallback avatar.
+        }
+      }(),
   ]);
+
+  await pending.timeout(maxWait, onTimeout: () {});
 }
