@@ -43,15 +43,12 @@ enum ShareOutcome {
 /// complete it raises a [Failure] like everything else.
 typedef ShareCardDownloader = Future<bool> Function(ShareCardImage image);
 
-/// The words that travel with a picture: a short localized sentence, and
-/// nothing else.
+/// The text that travels with a picture. Most cards carry only a localized
+/// sentence; the match invitation deliberately adds its existing public URL
+/// to the same text so its image and link can travel in one OS share action.
 ///
-/// **No link, by construction.** The approved share is the image plus a line of
-/// text. A public address is not attached automatically, and this type has no
-/// field that could carry one, so no caller can append a URL again by
-/// accident. Public links still exist — direct routes, external arrivals and
-/// their acquisition evidence are untouched (`PublicLink`) — they are simply
-/// not part of what a share sends.
+/// There is no URL field and no automatic link addition: the match invitation
+/// caller composes its destination explicitly; other share cards are unchanged.
 ///
 /// [text] is already localized when it arrives. Composing it is the calling
 /// feature's business — it is the one that knows whether this is a player's own
