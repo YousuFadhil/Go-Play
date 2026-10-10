@@ -419,6 +419,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your match starts in less than an hour.';
 
   @override
+  String get notifMatchResultReminder =>
+      'The match has ended. Please record its result.';
+
+  @override
   String get notifMatchTimeChanged => 'The match time has changed.';
 
   @override

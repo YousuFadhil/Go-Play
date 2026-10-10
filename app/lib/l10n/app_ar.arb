@@ -127,6 +127,7 @@
   "notifMatchFull": "اكتمل عدد اللاعبين في المباراة.",
   "notifTeamsRegenerated": "تمت إعادة توزيع الفرق.",
   "notifMatchStartingSoon": "تبدأ مباراتك خلال أقل من ساعة.",
+  "notifMatchResultReminder": "انتهت المباراة. يرجى تسجيل النتيجة.",
   "notifMatchTimeChanged": "تم تغيير موعد المباراة.",
   "notifCommunityInvitation": "تمت دعوتك إلى مجتمع.",
   "notifCommunityJoinAccepted": "تم قبول طلب انضمامك.",
