@@ -458,11 +458,14 @@ class SupabaseAdminAdapter implements AdminAdapter {
         operation: 'rpc admin_preview_account_merge',
       );
 
-  /// The permanent merge (migration `0101`): one RPC, one transaction, and the
-  /// source's `auth.users` row is deleted by it, so there is no second call to
-  /// make and none that can be missed.
+  /// The permanent merge (migration `0101`), requested through the
+  /// `admin-merge-accounts` Edge Function. The function proves the caller is a System
+  /// Admin, preflights the preview, removes the merged-in account's profile picture
+  /// from Storage (which no SQL can do), and only then calls `admin_merge_accounts`:
+  /// one database transaction that deletes the source's `auth.users` row itself, so
+  /// there is no second call to make for the database or Auth side.
   ///
-  /// **If the RPC returned without raising, the merge happened.** The result is
+  /// **If the function answered 2xx, the merge happened.** The result is
   /// read leniently for that reason: a shape this build does not recognise is
   /// reported as a merge with an empty summary, never as a failure, because
   /// "failed" would invite a second attempt at something already done.
@@ -474,21 +477,22 @@ class SupabaseAdminAdapter implements AdminAdapter {
   }) =>
       guarded(
         () async {
-          final result = await _client.rpc(
-            'admin_merge_accounts',
-            params: adminMergeAccountsParams(
+          final response = await _client.functions.invoke(
+            'admin-merge-accounts',
+            body: adminMergeAccountsParams(
               retainedUserId: retainedUserId,
               sourceUserId: sourceUserId,
               resolutions: resolutions,
             ),
           );
+          final result = response.data;
           return adminMergeResultFromJson(
             result is Map ? result.cast<String, dynamic>() : const {},
             retainedUserId: retainedUserId,
             sourceUserId: sourceUserId,
           );
         },
-        operation: 'rpc admin_merge_accounts',
+        operation: 'function admin-merge-accounts',
       );
 
   @override

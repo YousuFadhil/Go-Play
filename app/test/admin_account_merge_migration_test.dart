@@ -99,6 +99,7 @@ void main() {
     'merge_shared_matches',
     'merge_participation_blockers',
     'merge_invariants',
+    'merge_source_stored_files',
   ];
   const helperArgs = {
     'merge_skips_lifecycle': 'uuid',
@@ -106,6 +107,7 @@ void main() {
     'merge_shared_matches': 'uuid, uuid',
     'merge_participation_blockers': 'uuid, uuid',
     'merge_invariants': 'uuid, uuid',
+    'merge_source_stored_files': 'uuid',
   };
   const guarded = [
     'capture_match_registration_event',
@@ -211,11 +213,19 @@ void main() {
               '(${helperArgs[helper]})\n  from anon, authenticated, public;'),
           reason: helper,
         );
-        expect(
-          executable,
-          isNot(matches(RegExp('grant[^;]*public\\.$helper'))),
-          reason: '$helper must not be granted to anyone',
-        );
+        // The one helper with a grant is the stored-files list, and only to the
+        // service role the Edge Function runs as.
+        final grants = RegExp('grant[^;]*public\\.$helper[^;]*;')
+            .allMatches(executable)
+            .map((m) => m.group(0)!)
+            .toList();
+        if (helper == 'merge_source_stored_files') {
+          expect(grants, hasLength(1));
+          expect(grants.single, endsWith(' to service_role;'));
+        } else {
+          expect(grants, isEmpty,
+              reason: '$helper must not be granted to anyone');
+        }
       }
     });
 
@@ -492,13 +502,65 @@ void main() {
       }
     });
 
-    test('the audit log is only ever appended to', () {
+    test('no audit entry is ever deleted', () {
       expect(
         executable,
-        isNot(matches(
-            RegExp(r'(update|delete\s+from)\s+public\.admin_audit_log\b'))),
+        isNot(matches(RegExp(r'delete\s+from\s+public\.admin_audit_log\b'))),
       );
       expect(statements, contains("'USER_ACCOUNTS_MERGED'"));
+    });
+
+    test(
+        'the only change to an audit entry empties the two snapshot columns '
+        'of those that name the source', () {
+      final updates = RegExp(r'update\s+public\.admin_audit_log\b[^;]*;')
+          .allMatches(mergeBlank)
+          .map((m) => m.group(0)!)
+          .toList();
+      expect(updates, hasLength(1), reason: 'one statement, in one place');
+      final update = updates.single;
+      final set = update.substring(0, update.indexOf(' where '));
+
+      // The two columns that identify a person, and nothing else, and only to NULL.
+      // With each `case ... end` folded to X, the whole assignment list is these two.
+      final folded = set
+          .replaceAll(RegExp(r'case.*?end', dotAll: true), 'X')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      expect(
+          folded,
+          'update public.admin_audit_log a set actor_email_snapshot = X, '
+          'target_label_snapshot = X');
+      expect(set, contains('then null else a.actor_email_snapshot end'));
+      expect(set, contains('then null else a.target_label_snapshot end'));
+      // Scoped to the source, as actor or as target, and nobody else.
+      final where = update.substring(update.indexOf(' where '));
+      expect(where, contains('a.actor_user_id = p_source_user_id'));
+      expect(where, contains('a.target_id = p_source_user_id'));
+      expect(where, isNot(contains('p_retained_user_id')));
+      // After the checks and the writes it depends on, before the event and the delete.
+      final redaction = at(mergeBody, 'update public.admin_audit_log a');
+      expect(redaction,
+          greaterThan(at(mergeBody, "raise exception 'MERGE_BLOCKED'")));
+      expect(redaction, lessThan(at(mergeBody, 'record_admin_audit(')));
+      expect(redaction, lessThan(at(mergeBody, 'delete from auth.users')));
+      // And the last look refuses if any snapshot of the source is left.
+      final look = at(mergeBody, "raise exception 'MERGE_RESIDUAL_REFERENCE'");
+      final last =
+          lastAt(mergeBody, 'a.actor_email_snapshot is not null', look);
+      expect(last, greaterThan(redaction));
+      expect(mergeBody.substring(redaction, look),
+          contains('a.target_label_snapshot is not null'));
+    });
+
+    test('the number redacted is reported, and the event carries no name', () {
+      expect(mergeBody, contains("'audit_entries_redacted', c_audit_redacted"));
+      expect(
+          "'audit_entries_redacted', c_audit_redacted"
+              .allMatches(mergeBody)
+              .length,
+          2,
+          reason: 'in the audit payload and in the answer');
     });
 
     test('the audit action list gains exactly one value and loses none', () {
@@ -591,12 +653,15 @@ void main() {
       expect(previewBody, isNot(contains('set_config')));
     });
 
-    test('the two decisions this migration does not take are blockers', () {
-      // The audit log keeps names and emails in snapshots; a merge cannot erase
-      // them without a retention decision that has not been made. A stored avatar
-      // cannot be deleted from SQL and is public. Both stop the merge.
-      expect(previewBody, contains("('AUDIT_LOG_NAMES_SOURCE', 'BLOCKER'"));
-      expect(previewBody, contains("('SOURCE_HAS_STORED_FILES', 'BLOCKER'"));
+    test('the audit entries and the stored picture are told, not blockers', () {
+      // The Product Owner's decision of 2026-10-10: the merge redacts the audit
+      // snapshots itself, and the Edge Function removes the picture first.
+      expect(previewBody, contains("('AUDIT_LOG_NAMES_SOURCE', 'CONSTRAINT'"));
+      expect(previewBody, contains("('SOURCE_HAS_STORED_FILES', 'CONSTRAINT'"));
+      expect(
+          previewBody, isNot(contains("('AUDIT_LOG_NAMES_SOURCE', 'BLOCKER'")));
+      expect(previewBody,
+          isNot(contains("('SOURCE_HAS_STORED_FILES', 'BLOCKER'")));
     });
 
     test('and so are the cases the product rules forbid', () {
@@ -654,10 +719,105 @@ void main() {
       expect(drops, helpers.length + 1 + 1);
     });
 
+    test(
+        'it refuses to be called on a source whose picture is still stored, '
+        'but only at the two points that matter', () {
+      // Early, before any write, for a direct call that skipped the Edge Function...
+      final early = at(mergeBody, "raise exception 'SOURCE_FILES_REMAIN'");
+      final firstWrite =
+          RegExp(r'\b(insert\s+into|update\s+public|delete\s+from)\b')
+              .firstMatch(mergeBlank)!
+              .start;
+      expect(early, lessThan(firstWrite));
+      expect(
+          early, greaterThan(at(mergeBody, "raise exception 'MERGE_BLOCKED'")));
+      // ...and again at the last look, for a picture that arrived in between.
+      final look = at(mergeBody, "raise exception 'MERGE_RESIDUAL_REFERENCE'");
+      expect(
+          mergeBody.substring(0, look).lastIndexOf('merge_source_stored_files'),
+          greaterThan(early));
+    });
+
+    test('the stored-files list is read only, bounded, and about one folder',
+        () {
+      final body = functionOf(sql, 'merge_source_stored_files');
+      expect(body, contains('security definer'));
+      expect(body, contains('stable'));
+      expect(body, contains('set search_path = public, pg_temp'));
+      expect(body, contains("s.bucket_id = 'avatars'"));
+      expect(body, contains("split_part(s.name, '/', 1) = p_user_id::text"));
+      expect(body, contains('limit 1000'));
+      expect(
+          blank(body), isNot(matches(RegExp(r'\b(insert|update|delete)\b'))));
+      // Nothing else in the migration reads Storage.
+      expect('storage.objects'.allMatches(executable).length, 1);
+    });
+
     test('it runs again without error, and disables nothing', () {
       expect(code(rollback), isNot(contains('disable trigger')));
       expect(code(rollback), isNot(contains('session_replication_role')));
       expect(rollback, contains('to_regclass'));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  group('the Edge Function the app calls', () {
+    final function =
+        load('../supabase/functions/admin-merge-accounts/index.ts');
+    final adapter =
+        load('../app/lib/infrastructure/supabase/supabase_admin_adapter.dart');
+
+    test('the adapter invokes it by the name it is deployed under', () {
+      expect(adapter, contains("'admin-merge-accounts'"));
+      expect(
+          Directory('../supabase/functions/admin-merge-accounts').existsSync(),
+          isTrue);
+    });
+
+    test('it calls exactly the three functions this migration defines', () {
+      for (final name in [
+        'admin_preview_account_merge',
+        'admin_merge_accounts',
+        'merge_source_stored_files',
+      ]) {
+        expect(function, contains(name), reason: name);
+        expect(statements, contains('function public.$name('), reason: name);
+      }
+    });
+
+    test('and speaks the parameter names the RPC defines', () {
+      // Each as the function builds it, and each declared by the migration.
+      for (final entry in {
+        'p_retained_user_id': 'p_retained_user_id: input.retained',
+        'p_source_user_id': 'p_source_user_id: input.source',
+        'p_resolutions': 'p_resolutions: input.resolutions',
+        'p_user_id': '{ p_user_id: source }',
+      }.entries) {
+        expect(function, contains(entry.value), reason: entry.key);
+        expect(statements, contains(entry.key), reason: entry.key);
+      }
+    });
+
+    test('the error tokens it passes through are raised by the database', () {
+      for (final token in [
+        'NOT_AUTHORIZED',
+        'USER_NOT_FOUND',
+        'MERGE_BLOCKED',
+        'RESOLUTION_REQUIRED',
+        'RESOLUTION_BLOCKED',
+        'RESOLUTION_UNKNOWN_MATCH',
+        'SOURCE_FILES_REMAIN',
+      ]) {
+        expect(function, contains(token), reason: token);
+        expect(statements, contains("raise exception '$token'"), reason: token);
+      }
+    });
+
+    test('the Storage call removes by exact name from the avatars bucket only',
+        () {
+      expect(function, contains('/storage/v1/object/\${BUCKET}'));
+      expect(function, contains('const BUCKET = "avatars";'));
+      expect(function, contains('JSON.stringify({ prefixes: before })'));
     });
   });
 

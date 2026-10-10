@@ -302,6 +302,7 @@ grant execute on function public.admin_preview_account_merge(uuid, uuid)
 
 drop function if exists public.merge_participation_blockers(uuid, uuid);
 drop function if exists public.merge_shared_matches(uuid, uuid);
+drop function if exists public.merge_source_stored_files(uuid);
 
 -- The four functions, as they were (their bodies are the live ones, without the guard).
 

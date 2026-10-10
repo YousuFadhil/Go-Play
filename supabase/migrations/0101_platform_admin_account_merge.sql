@@ -10,7 +10,9 @@
 --   admin_merge_accounts(retained, source, resolutions)   the merge (section 8)
 --   admin_preview_account_merge(retained, source)         the preview, graded for it
 --   account_merge_map                                     source UUID -> retained UUID
---   helpers (all internal)                                shared by the two above
+--   helpers (all internal)                                shared by the two above; one of them,
+--                                                         merge_source_stored_files, is for the
+--                                                         service role (the Edge Function)
 --
 -- and changes four existing functions, each by ONE guard at the top of its body
 -- (section 5), leaving every other line as it was and inert unless a merge is
@@ -83,24 +85,30 @@
 --   * no table in `storage` references `auth.users`;
 --   * two Auth tables hold the user id with NO foreign key (`refresh_tokens`, `flow_state`),
 --     and `postgres` may delete from both, so the merge removes them by name.
--- There is no Auth Admin API call, no Edge Function and no second round trip.
+-- There is no Auth Admin API call and no second round trip on the database or Auth side:
+-- the Edge Function of decision 2 below only removes the picture BEFORE this transaction.
 --
--- ## TWO THINGS THIS MIGRATION REFUSES TO DECIDE (they are blockers, not silent gaps)
+-- ## TWO DECISIONS THE PRODUCT OWNER HAS TAKEN (2026-10-10)
 --
 -- 1. AUDIT SNAPSHOTS. `admin_audit_log` keeps the e-mail of the administrator who
---    acted and a label for the account acted on. An account that any entry references
---    would still be identifiable there after the merge, and erasing or redacting those
---    snapshots is a change to the audit-retention policy, which nobody has approved.
---    So `AUDIT_LOG_NAMES_SOURCE` is a BLOCKER: the merge will not run for such a source.
---    The decision needed: whether, and how, audit snapshots may be redacted when their
---    subject is merged away (0099 asked the same for deletion).
--- 2. STORED FILES. A profile picture lives in Storage, whose `protect_delete` trigger
---    refuses any delete from SQL, in a PUBLIC bucket whose delete policy lets only the
---    owner remove it. A merge cannot erase it and would leave it reachable at a path
---    that begins with the old UUID. So `SOURCE_HAS_STORED_FILES` is a BLOCKER: the
---    source must remove its picture first (or an operator must, with the service role).
---    The decision needed: an admin-delete Storage policy, an Edge Function that cleans up
---    after the commit, or an accepted orphan.
+--    acted (`actor_email_snapshot`) and a name for the account acted on
+--    (`target_label_snapshot`). When an account is merged away, the merge sets those two
+--    columns to NULL on every entry that names it as actor or as target, in the same
+--    transaction. Nothing else of an entry changes and no entry is deleted: its id, actor
+--    and target UUIDs, action, reason, metadata (field names and UUIDs only) and date
+--    stay, so the entry still reads "an administrator did this to this UUID, then", and
+--    `account_merge_map` says whom the UUID became. An entry naming the source is a
+--    constraint of the preview (`AUDIT_LOG_NAMES_SOURCE`), not a blocker. The
+--    administrator's own free-text `reason` is kept as written.
+-- 2. STORED FILES. A profile picture lives in Storage (bucket `avatars`, folder `<uuid>/`),
+--    whose `protect_delete` trigger refuses any delete from SQL. It is removed through the
+--    Storage API by the `admin-merge-accounts` Edge Function, which first proves the
+--    caller is a System Admin and that the preview has no blocker, deletes only the
+--    source's folder, and only then calls this merge. The merge itself makes no HTTP call.
+--    If the merge then fails, the picture stays removed; both accounts and all football
+--    record are untouched, and the function says so. A picture still present when the merge
+--    runs is refused (`SOURCE_FILES_REMAIN`) instead of being left public behind a deleted
+--    account. `SOURCE_HAS_STORED_FILES` is a constraint of the preview, not a blocker.
 --
 -- ## ORDER AND THE REST OF THE CHAIN
 --
@@ -160,8 +168,10 @@ grant select on table public.account_merge_map to service_role;
 -- 2) The audit trail gains the one event a merge writes
 -- ============================================================================
 -- The same statement pair 0095 used for USER_PROFILE_UPDATED. It changes which
--- action names are accepted and nothing else: the log is still append-only by
--- row level security and revoked privileges, and no existing row is touched.
+-- action names are accepted and nothing else: the log is still closed to every
+-- client role by row level security and revoked privileges. (The one change a merge
+-- makes to existing entries is to empty the two snapshot columns of those that name
+-- the merged-away account; see section 8, step 13.)
 alter table public.admin_audit_log
   drop constraint if exists admin_audit_log_action_check;
 
@@ -343,10 +353,36 @@ as $$
   ], null), '{}'::text[]);
 $$;
 
+-- The source's stored profile picture(s): the object names in the `avatars` bucket whose
+-- first path segment is the account's UUID (the folder the Storage policies give each
+-- player, migration 0031). SQL cannot delete them -- Storage's `protect_delete` trigger
+-- refuses -- so the `admin-merge-accounts` Edge Function reads this list with the service
+-- role, removes exactly these objects through the Storage API, and reads it again. The
+-- preview counts it and the merge refuses while it is not empty, so all three use one
+-- definition of "the source's files".
+create or replace function public.merge_source_stored_files(p_user_id uuid)
+returns text[]
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(array_agg(o.name order by o.name), '{}'::text[])
+    from (select s.name
+            from storage.objects s
+           where s.bucket_id = 'avatars'
+             and split_part(s.name, '/', 1) = p_user_id::text
+           order by s.name
+           limit 1000) o;
+$$;
+
 revoke execute on function public.merge_shared_matches(uuid, uuid)
   from anon, authenticated, public;
 revoke execute on function public.merge_participation_blockers(uuid, uuid)
   from anon, authenticated, public;
+revoke execute on function public.merge_source_stored_files(uuid)
+  from anon, authenticated, public;
+grant execute on function public.merge_source_stored_files(uuid) to service_role;
 
 comment on function public.merge_shared_matches(uuid, uuid) is
   'Account merge (0101), INTERNAL: the matches both accounts have participation '
@@ -355,6 +391,10 @@ comment on function public.merge_participation_blockers(uuid, uuid) is
   'Account merge (0101), INTERNAL: why one account''s participation in one match '
   'cannot be removed (GOALS, MVP, LINEUP_IN_RESULT, CONFIRMED_LINEUP, '
   'RATING_IN_EFFECT); empty when it can. Shared by the preview and the merge.';
+comment on function public.merge_source_stored_files(uuid) is
+  'Account merge (0101), INTERNAL: the names of the objects in the avatars bucket '
+  'under an account''s UUID folder (at most 1000). Executable by the service role '
+  'only, for the admin-merge-accounts Edge Function; read-only.';
 
 
 -- ============================================================================
@@ -681,19 +721,16 @@ $$;
 --   SHARED_MATCH_LIMIT_EXCEEDED              more shared matches than one merge resolves
 --   TEAM_AWARD_COLLISION                     both hold an award in one Team of the
 --                                            Period; none is discarded silently
---   AUDIT_LOG_NAMES_SOURCE                   audit entries carry the source's e-mail
---                                            or name; erasing them is a retention
---                                            decision this migration does not make
---   SOURCE_HAS_STORED_FILES                  the source's profile picture is in
---                                            Storage, which no SQL can delete, so a
---                                            merge would leave it public
 --   RETAINED_RATING_INCONSISTENT             the retained rating does not follow
 --                                            from its own history, so a replay would
 --                                            hide a fault instead of fixing it
--- and what is NOT a blocker any more: the immutable rating archives. They keep
--- naming the old UUID on purpose, and `account_merge_map` says whom it became. They
--- are reported as `RATING_ARCHIVE_MAPPED`, a code of their own, because the deletion
--- preview's `RATING_ARCHIVE_IMMUTABLE` means the opposite: there the archives BLOCK.
+-- and what is NOT a blocker: the immutable rating archives. They keep naming the old
+-- UUID on purpose, and `account_merge_map` says whom it became. They are reported as
+-- `RATING_ARCHIVE_MAPPED`, a code of their own, because the deletion preview's
+-- `RATING_ARCHIVE_IMMUTABLE` means the opposite: there the archives BLOCK. Two more are
+-- constraints, told to the administrator and done by the merge: the audit entries that
+-- name the source lose their name and e-mail snapshots (`AUDIT_LOG_NAMES_SOURCE`), and the
+-- source's profile picture is removed first (`SOURCE_HAS_STORED_FILES`).
 create or replace function public.admin_preview_account_merge(
   p_retained_user_id uuid,
   p_source_user_id uuid
@@ -890,14 +927,10 @@ begin
    where a.user_id = p_retained_user_id;
 
   -- ---- what no SQL can erase ----------------------------------------------------
-  -- Storage refuses a direct delete (storage.protect_delete), and the avatars
-  -- bucket is public, so a picture left behind stays reachable by its path, which
-  -- begins with the source's UUID. Nobody but its owner may delete it through the
-  -- Storage API either.
-  select count(*) into v_stored_files
-    from storage.objects o
-   where o.bucket_id = 'avatars'
-     and split_part(o.name, '/', 1) = p_source_user_id::text;
+  -- Storage refuses a direct delete (storage.protect_delete), and the avatars bucket is
+  -- public, so a picture left behind would stay reachable by a path that begins with the
+  -- source's UUID. The admin-merge-accounts Edge Function removes it before the merge.
+  v_stored_files := cardinality(public.merge_source_stored_files(p_source_user_id));
 
   -- ---- the retained rating must follow from its own history ----------------------
   -- A replay starts from the 5.000 baseline. If the stored rating is not what the
@@ -968,13 +1001,13 @@ begin
       ('SHARED_MATCH_LIMIT_EXCEEDED', 'BLOCKER', 'MATCH',
          case when v_shared_total > v_shared_limit then v_shared_total else 0 end, 1),
       ('TEAM_AWARD_COLLISION', 'BLOCKER', 'STATISTICS', v_award_collisions, 1),
-      ('AUDIT_LOG_NAMES_SOURCE', 'BLOCKER', 'AUDIT',
-         (v_source->'counts'->>'audit_entries')::bigint, 1),
-      ('SOURCE_HAS_STORED_FILES', 'BLOCKER', 'STORAGE', v_stored_files, 1),
       ('RETAINED_RATING_INCONSISTENT', 'BLOCKER', 'RATING',
          case when v_retained_rating_bad then 1 else 0 end, 1),
       ('SHARED_MATCH_CHOICE_REQUIRED', 'CONFLICT', 'MATCH',
          v_shared_total - v_shared_unresolvable, 2),
+      ('AUDIT_LOG_NAMES_SOURCE', 'CONSTRAINT', 'AUDIT',
+         (v_source->'counts'->>'audit_entries')::bigint, 3),
+      ('SOURCE_HAS_STORED_FILES', 'CONSTRAINT', 'STORAGE', v_stored_files, 3),
       ('RATING_ARCHIVE_MAPPED', 'CONSTRAINT', 'ARCHIVE',
          (v_source->'counts'->>'rating_archive_rows')::bigint
            + (v_source->'counts'->>'user_rating_archive_rows')::bigint, 3),
@@ -1120,7 +1153,8 @@ comment on function public.merge_invariants(uuid, uuid) is
 --       source finds nothing)
 --   4.  arm the transaction-bound switches (see section 3)
 --   5.  refuse if the schema has a reference to `users` this function does not know
---   6.  the preview, again, inside the transaction: any blocker refuses the merge
+--   6.  the preview, again, inside the transaction: any blocker refuses the merge, and
+--       so does any stored file of the source (the Edge Function removes it first)
 --   7.  the resolutions must cover exactly the shared matches, each side free to go
 --   8.  take the fingerprints (section 7)
 --   9.  remove the dropped sides, then move everything else from source to retained
@@ -1129,8 +1163,9 @@ comment on function public.merge_invariants(uuid, uuid) is
 --       every recorded result is replayed oldest first through the rating engine,
 --       which pays only the retained player
 --   12. the retained player's statistics are rebuilt from the evidence
---   13. push tokens are invalidated, last-seen is cleared, the mapping and the one
---       audit event are written
+--   13. the name and e-mail snapshots of the audit entries that name the source are
+--       emptied, push tokens are invalidated, last-seen is cleared, the mapping and
+--       the one audit event are written
 --   14. fingerprints again; then `delete from auth.users` -- which removes the
 --       source from `public.users`, its identities, sessions and refresh tokens --
 --       and a last look that nothing of the source remains
@@ -1140,7 +1175,8 @@ comment on function public.merge_invariants(uuid, uuid) is
 -- Other players' statistics, ratings and rating history; recorded results and goal
 -- totals; the immutable rating archives (they keep the old UUID, and the mapping
 -- says whom it became); the event logs, analytics events and lineup-generation
--- evidence (same); audit entries. No trigger is disabled and nothing is altered:
+-- evidence (same); audit entries, but for the two snapshot columns (name, e-mail) of
+-- the entries that name the source. No trigger is disabled and nothing is altered:
 -- see section 3 for how the lifecycle triggers stand aside for the two accounts'
 -- own rows, and only for those.
 create or replace function public.admin_merge_accounts(
@@ -1198,6 +1234,7 @@ declare
   c_matches_reattributed bigint := 0;
   c_team_awards_moved bigint := 0;
   c_push_tokens_invalidated bigint := 0;
+  c_audit_redacted bigint := 0;
 begin
   -- ---- 1. who may ask -------------------------------------------------------
   if v_caller is null
@@ -1329,6 +1366,12 @@ begin
      order by 1);
   if cardinality(v_blockers) > 0 then
     raise exception 'MERGE_BLOCKED' using detail = array_to_string(v_blockers, ',');
+  end if;
+  -- The picture is removed through the Storage API BEFORE this runs (the
+  -- `admin-merge-accounts` Edge Function). Not removed means not called through it: refuse
+  -- rather than leave a public file behind a deleted account.
+  if cardinality(public.merge_source_stored_files(p_source_user_id)) > 0 then
+    raise exception 'SOURCE_FILES_REMAIN';
   end if;
 
   -- ---- 7. the admin's explicit choices ------------------------------------------
@@ -1605,6 +1648,19 @@ begin
   get diagnostics c_push_tokens_invalidated = row_count;
   delete from public.product_activity_last_seen where user_id = p_source_user_id;
 
+  -- The audit entries that name the source stay, with their id, actor and target UUIDs,
+  -- action, reason, metadata and date. Only the e-mail of the actor and the name of the
+  -- target -- the two columns that identify a person -- are emptied.
+  update public.admin_audit_log a
+     set actor_email_snapshot = case when a.actor_user_id = p_source_user_id
+                                     then null else a.actor_email_snapshot end,
+         target_label_snapshot = case when a.target_type = 'USER'
+                                           and a.target_id = p_source_user_id
+                                      then null else a.target_label_snapshot end
+   where a.actor_user_id = p_source_user_id
+      or (a.target_type = 'USER' and a.target_id = p_source_user_id);
+  get diagnostics c_audit_redacted = row_count;
+
   insert into public.account_merge_map (source_user_id, retained_user_id)
   values (p_source_user_id, p_retained_user_id);
 
@@ -1632,7 +1688,8 @@ begin
         'after', v_rating_after,
         'matches_reversed', v_reversed,
         'matches_replayed', v_replayed),
-      'push_tokens_invalidated', c_push_tokens_invalidated));
+      'push_tokens_invalidated', c_push_tokens_invalidated,
+      'audit_entries_redacted', c_audit_redacted));
 
   -- ---- 14. nothing of the source may be left, then the source goes ---------------
   if exists (select 1 from public.communities where owner_id = p_source_user_id)
@@ -1644,7 +1701,13 @@ begin
                  where mvp_user_id = p_source_user_id or recorded_by = p_source_user_id)
      or exists (select 1 from public.matches where created_by = p_source_user_id)
      or exists (select 1 from public.match_professional_guests
-                 where created_by = p_source_user_id) then
+                 where created_by = p_source_user_id)
+     or exists (select 1 from public.admin_audit_log a
+                 where (a.actor_user_id = p_source_user_id
+                        and a.actor_email_snapshot is not null)
+                    or (a.target_type = 'USER' and a.target_id = p_source_user_id
+                        and a.target_label_snapshot is not null))
+     or cardinality(public.merge_source_stored_files(p_source_user_id)) > 0 then
     raise exception 'MERGE_RESIDUAL_REFERENCE';
   end if;
 
@@ -1704,7 +1767,8 @@ begin
     'rating', jsonb_build_object(
       'before', v_rating_before,
       'after', v_rating_after,
-      'matches_replayed', v_replayed));
+      'matches_replayed', v_replayed),
+    'audit_entries_redacted', c_audit_redacted);
 end;
 $$;
 
@@ -1715,8 +1779,11 @@ comment on function public.admin_merge_accounts(uuid, uuid, jsonb) is
   'match both accounts took part in. Refuses (MERGE_BLOCKED, RESOLUTION_*) rather '
   'than discard goals, an MVP award, a result or a confirmed lineup. Recalculates '
   'the retained player''s ratings chronologically and rebuilds their statistics; '
-  'touches no other player''s. Writes one USER_ACCOUNTS_MERGED audit event and one '
-  'row of account_merge_map. System Admin only (NOT_AUTHORIZED). Migration 0101.';
+  'touches no other player''s. Empties the name and e-mail snapshots of the audit '
+  'entries that name the source, writes one USER_ACCOUNTS_MERGED audit event and one '
+  'row of account_merge_map. Refuses while the source still has a stored profile '
+  'picture (SOURCE_FILES_REMAIN): the admin-merge-accounts Edge Function removes it '
+  'first. System Admin only (NOT_AUTHORIZED). Migration 0101.';
 
 revoke execute on function public.admin_merge_accounts(uuid, uuid, jsonb)
   from anon, public;

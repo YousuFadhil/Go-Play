@@ -891,16 +891,26 @@ class _ExecuteSection extends StatelessWidget {
   final VoidCallback onMerge;
   final VoidCallback onCheckAgain;
 
-  static String failureText(AppLocalizations l10n, Failure failure) =>
-      switch (failure) {
-        ConflictFailure() => l10n.adminMergeFailedConflict,
-        NotFoundFailure() => l10n.adminMergeFailedNotFound,
-        AuthorizationFailure() => l10n.adminMergeFailedAuthorization,
-        ValidationFailure() => l10n.adminMergeFailedValidation,
-        // A dropped connection, a database error, a session that ended: the request
-        // may have reached the server and the merge may have committed.
-        _ => l10n.adminMergeFailedUncertain,
-      };
+  static String failureText(AppLocalizations l10n, Failure failure) {
+    // The merge was never attempted: the picture could not be removed first.
+    if (failure.reason == FailureReason.mergeAvatarCleanupFailed) {
+      return l10n.adminMergeFailedAvatarCleanup;
+    }
+    final text = switch (failure) {
+      ConflictFailure() => l10n.adminMergeFailedConflict,
+      NotFoundFailure() => l10n.adminMergeFailedNotFound,
+      AuthorizationFailure() => l10n.adminMergeFailedAuthorization,
+      ValidationFailure() => l10n.adminMergeFailedValidation,
+      // A dropped connection, a database error, a session that ended: the request
+      // may have reached the server and the merge may have committed.
+      _ => l10n.adminMergeFailedUncertain,
+    };
+    // The picture goes before the merge runs, so a merge that failed afterwards has
+    // still cost it. Said as a fact on top of the failure, never instead of it.
+    return failure.reason == FailureReason.mergeAvatarRemoved
+        ? '$text ${l10n.adminMergeAvatarRemovedNote}'
+        : text;
+  }
 
   @override
   Widget build(BuildContext context) {

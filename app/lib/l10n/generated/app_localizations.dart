@@ -5441,7 +5441,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminFindingAuditLogNamesSource.
   ///
   /// In en, this message translates to:
-  /// **'Audit log entries carry this account\'s name or email and cannot be erased by a merge, so it is blocked'**
+  /// **'Audit log entries name this account. They keep their date, action and ids; the name and e-mail in them are removed'**
   String get adminFindingAuditLogNamesSource;
 
   /// No description provided for @adminFindingTargetIsCaller.
@@ -5513,7 +5513,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminMergeNotice.
   ///
   /// In en, this message translates to:
-  /// **'Merging is permanent. The account to merge in is deleted for good, including its sign-in, and its football record is added to the account to keep. Nothing happens until you confirm.'**
+  /// **'Merging is permanent. The account to merge in is deleted for good, including its sign-in and profile picture, and its football record is added to the account to keep. Nothing happens until you confirm.'**
   String get adminMergeNotice;
 
   /// No description provided for @adminMergePlanTitle.
@@ -5675,7 +5675,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminMergeConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'{source} will be deleted for good, including their sign-in. Their football record will be added to {retained}. This cannot be undone.'**
+  /// **'{source} will be deleted for good, including their sign-in and profile picture. Their football record will be added to {retained}. This cannot be undone.'**
   String adminMergeConfirmBody(String source, String retained);
 
   /// No description provided for @adminMergeConfirmTypeLabel.
@@ -5783,7 +5783,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminFindingSourceHasStoredFiles.
   ///
   /// In en, this message translates to:
-  /// **'The account to merge in still has a profile picture in storage. A merge cannot delete it and it is public, so it must be removed first'**
+  /// **'The account to merge in has a profile picture in storage. The merge removes it first; if the merge then fails, the picture stays removed'**
   String get adminFindingSourceHasStoredFiles;
 
   /// No description provided for @adminFindingRetainedRatingInconsistent.
@@ -5797,6 +5797,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rating archive rows keep the old account id; the merge records which account it became'**
   String get adminFindingRatingArchiveMapped;
+
+  /// No description provided for @adminMergeFailedAvatarCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'The merge was not performed. The profile picture of the account to merge in could not be removed, so nothing else was changed. Try again.'**
+  String get adminMergeFailedAvatarCleanup;
+
+  /// No description provided for @adminMergeAvatarRemovedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The profile picture of the account to merge in had already been removed.'**
+  String get adminMergeAvatarRemovedNote;
 }
 
 class _AppLocalizationsDelegate

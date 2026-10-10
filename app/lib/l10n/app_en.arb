@@ -1225,7 +1225,7 @@
   "adminFindingRatingReplayRequired": "Rating history would have to be replayed (entries)",
   "adminFindingRatingArchiveImmutable": "Rating archive rows name this account and cannot be moved or deleted, so retiring it safely is not demonstrated",
   "adminFindingEventLogsNameSource": "Event logs that name the merged-in account stay as they are",
-  "adminFindingAuditLogNamesSource": "Audit log entries carry this account's name or email and cannot be erased by a merge, so it is blocked",
+  "adminFindingAuditLogNamesSource": "Audit log entries name this account. They keep their date, action and ids; the name and e-mail in them are removed",
   "adminFindingTargetIsCaller": "This is your own account",
   "adminFindingTargetIsSystemAdmin": "This account is a System Admin",
   "adminFindingOwnsCommunities": "Owns communities: ownership must be transferred first",
@@ -1237,7 +1237,7 @@
   "adminFindingAuditLogAppendOnly": "Audit log entries naming this account are not erased by a deletion, so its name or email address would stay identifiable in them",
   "adminFindingEventLogsNameAccount": "Event logs that name this account stay as they are",
   "adminHistCareerStatistics": "Career statistics",
-  "adminMergeNotice": "Merging is permanent. The account to merge in is deleted for good, including its sign-in, and its football record is added to the account to keep. Nothing happens until you confirm.",
+  "adminMergeNotice": "Merging is permanent. The account to merge in is deleted for good, including its sign-in and profile picture, and its football record is added to the account to keep. Nothing happens until you confirm.",
   "adminMergePlanTitle": "What the merge will do",
   "adminMergePlanCommunitiesTransferred": "Communities passed to the account to keep",
   "adminMergePlanMembershipsMoved": "Memberships moved",
@@ -1268,7 +1268,7 @@
   "adminMergeResolveBlockersFirst": "Resolve the blockers above first.",
   "adminMergeExecuteButton": "Merge accounts…",
   "adminMergeConfirmTitle": "Merge permanently?",
-  "adminMergeConfirmBody": "{source} will be deleted for good, including their sign-in. Their football record will be added to {retained}. This cannot be undone.",
+  "adminMergeConfirmBody": "{source} will be deleted for good, including their sign-in and profile picture. Their football record will be added to {retained}. This cannot be undone.",
   "@adminMergeConfirmBody": {"placeholders": {"source": {"type": "String"}, "retained": {"type": "String"}}},
   "adminMergeConfirmTypeLabel": "Type the name of the account to delete: {name}",
   "@adminMergeConfirmTypeLabel": {"placeholders": {"name": {"type": "String"}}},
@@ -1290,7 +1290,9 @@
   "adminFindingSharedMatchNotResolvable": "Matches where neither account's participation can be removed (goals, MVP awards, recorded lineups): correct them first",
   "adminFindingSharedMatchLimitExceeded": "More shared matches than one merge can resolve (100)",
   "adminFindingSharedMatchChoiceRequired": "Matches both accounts took part in: choose which participation to keep",
-  "adminFindingSourceHasStoredFiles": "The account to merge in still has a profile picture in storage. A merge cannot delete it and it is public, so it must be removed first",
+  "adminFindingSourceHasStoredFiles": "The account to merge in has a profile picture in storage. The merge removes it first; if the merge then fails, the picture stays removed",
   "adminFindingRetainedRatingInconsistent": "The rating of the account to keep does not follow from its rating history, so it cannot be recalculated safely",
-  "adminFindingRatingArchiveMapped": "Rating archive rows keep the old account id; the merge records which account it became"
+  "adminFindingRatingArchiveMapped": "Rating archive rows keep the old account id; the merge records which account it became",
+  "adminMergeFailedAvatarCleanup": "The merge was not performed. The profile picture of the account to merge in could not be removed, so nothing else was changed. Try again.",
+  "adminMergeAvatarRemovedNote": "The profile picture of the account to merge in had already been removed."
 }

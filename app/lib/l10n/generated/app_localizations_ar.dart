@@ -3070,7 +3070,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminFindingAuditLogNamesSource =>
-      'تحمل سجلات التدقيق اسم هذا الحساب أو بريده ولا يمكن محوها بالدمج، لذلك هو ممنوع';
+      'تذكر سجلات التدقيق هذا الحساب. تبقى بتاريخها وإجرائها ومعرّفاتها، ويُزال الاسم والبريد الإلكتروني منها';
 
   @override
   String get adminFindingTargetIsCaller => 'هذا حسابك';
@@ -3113,7 +3113,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminMergeNotice =>
-      'الدمج نهائي. يُحذف الحساب المدموج نهائياً مع تسجيل دخوله، وتُضاف سجلاته الكروية إلى الحساب المُبقى. لا يحدث شيء قبل أن تؤكد.';
+      'الدمج نهائي. يُحذف الحساب المدموج نهائياً مع تسجيل دخوله وصورته الشخصية، وتُضاف سجلاته الكروية إلى الحساب المُبقى. لا يحدث شيء قبل أن تؤكد.';
 
   @override
   String get adminMergePlanTitle => 'ما الذي سيفعله الدمج';
@@ -3215,7 +3215,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String adminMergeConfirmBody(String source, String retained) {
-    return 'سيُحذف $source نهائياً مع تسجيل دخوله، وتُضاف سجلاته الكروية إلى $retained. لا يمكن التراجع.';
+    return 'سيُحذف $source نهائياً مع تسجيل دخوله وصورته الشخصية، وتُضاف سجلاته الكروية إلى $retained. لا يمكن التراجع.';
   }
 
   @override
@@ -3284,7 +3284,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminFindingSourceHasStoredFiles =>
-      'للحساب المدموج صورة شخصية في التخزين. لا يستطيع الدمج حذفها وهي عامة، فيجب إزالتها أولاً';
+      'للحساب المدموج صورة شخصية في التخزين. يزيلها الدمج أولاً، وإن فشل الدمج بعد ذلك تبقى الصورة محذوفة';
 
   @override
   String get adminFindingRetainedRatingInconsistent =>
@@ -3293,4 +3293,12 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get adminFindingRatingArchiveMapped =>
       'تبقى صفوف أرشيف التقييم بمعرّف الحساب القديم، ويسجّل الدمج الحساب الذي صار إليه';
+
+  @override
+  String get adminMergeFailedAvatarCleanup =>
+      'لم يُنفَّذ الدمج. تعذّرت إزالة الصورة الشخصية للحساب المدموج، فلم يتغير أي شيء آخر. حاول من جديد.';
+
+  @override
+  String get adminMergeAvatarRemovedNote =>
+      'كانت الصورة الشخصية للحساب المدموج قد أُزيلت بالفعل.';
 }

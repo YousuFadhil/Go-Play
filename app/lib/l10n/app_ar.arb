@@ -1081,7 +1081,7 @@
   "adminFindingRatingReplayRequired": "سيلزم إعادة تشغيل سجل التقييم (السجلات)",
   "adminFindingRatingArchiveImmutable": "صفوف أرشيف التقييم تذكر هذا الحساب ولا يمكن نقلها أو حذفها، ولم يثبت بعد أن إيقافه آمن",
   "adminFindingEventLogsNameSource": "سجلات أحداث تذكر الحساب المدمج تبقى كما هي",
-  "adminFindingAuditLogNamesSource": "تحمل سجلات التدقيق اسم هذا الحساب أو بريده ولا يمكن محوها بالدمج، لذلك هو ممنوع",
+  "adminFindingAuditLogNamesSource": "تذكر سجلات التدقيق هذا الحساب. تبقى بتاريخها وإجرائها ومعرّفاتها، ويُزال الاسم والبريد الإلكتروني منها",
   "adminFindingTargetIsCaller": "هذا حسابك",
   "adminFindingTargetIsSystemAdmin": "هذا الحساب مدير نظام",
   "adminFindingOwnsCommunities": "يملك مجتمعات: يجب نقل الملكية أولاً",
@@ -1093,7 +1093,7 @@
   "adminFindingAuditLogAppendOnly": "سجلات التدقيق التي تذكر هذا الحساب لا تُمحى بالحذف، فيبقى اسمه أو بريده الإلكتروني ظاهراً فيها",
   "adminFindingEventLogsNameAccount": "سجلات أحداث تذكر هذا الحساب تبقى كما هي",
   "adminHistCareerStatistics": "إحصاءات المسيرة",
-  "adminMergeNotice": "الدمج نهائي. يُحذف الحساب المدموج نهائياً مع تسجيل دخوله، وتُضاف سجلاته الكروية إلى الحساب المُبقى. لا يحدث شيء قبل أن تؤكد.",
+  "adminMergeNotice": "الدمج نهائي. يُحذف الحساب المدموج نهائياً مع تسجيل دخوله وصورته الشخصية، وتُضاف سجلاته الكروية إلى الحساب المُبقى. لا يحدث شيء قبل أن تؤكد.",
   "adminMergePlanTitle": "ما الذي سيفعله الدمج",
   "adminMergePlanCommunitiesTransferred": "مجتمعات تنتقل ملكيتها إلى الحساب المُبقى",
   "adminMergePlanMembershipsMoved": "عضويات تُنقل",
@@ -1120,7 +1120,7 @@
   "adminMergeResolveBlockersFirst": "عالج العوائق أعلاه أولاً.",
   "adminMergeExecuteButton": "دمج الحسابين…",
   "adminMergeConfirmTitle": "هل تدمج نهائياً؟",
-  "adminMergeConfirmBody": "سيُحذف {source} نهائياً مع تسجيل دخوله، وتُضاف سجلاته الكروية إلى {retained}. لا يمكن التراجع.",
+  "adminMergeConfirmBody": "سيُحذف {source} نهائياً مع تسجيل دخوله وصورته الشخصية، وتُضاف سجلاته الكروية إلى {retained}. لا يمكن التراجع.",
   "adminMergeConfirmTypeLabel": "اكتب اسم الحساب المراد حذفه: {name}",
   "adminMergeConfirmField": "الاسم",
   "adminMergeConfirmAction": "ادمج نهائياً",
@@ -1138,7 +1138,9 @@
   "adminFindingSharedMatchNotResolvable": "مباريات لا يمكن إزالة مشاركة أي من الحسابين فيها (أهداف أو جوائز أفضل لاعب أو تشكيلات مسجلة): صحّحها أولاً",
   "adminFindingSharedMatchLimitExceeded": "عدد المباريات المشتركة أكبر مما يمكن حسمه في دمج واحد (100)",
   "adminFindingSharedMatchChoiceRequired": "مباريات شارك فيها الحسابان: اختر المشاركة التي تُبقيها",
-  "adminFindingSourceHasStoredFiles": "للحساب المدموج صورة شخصية في التخزين. لا يستطيع الدمج حذفها وهي عامة، فيجب إزالتها أولاً",
+  "adminFindingSourceHasStoredFiles": "للحساب المدموج صورة شخصية في التخزين. يزيلها الدمج أولاً، وإن فشل الدمج بعد ذلك تبقى الصورة محذوفة",
   "adminFindingRetainedRatingInconsistent": "تقييم الحساب المُبقى لا يتوافق مع سجل تقييمه، فلا يمكن إعادة حسابه بأمان",
-  "adminFindingRatingArchiveMapped": "تبقى صفوف أرشيف التقييم بمعرّف الحساب القديم، ويسجّل الدمج الحساب الذي صار إليه"
+  "adminFindingRatingArchiveMapped": "تبقى صفوف أرشيف التقييم بمعرّف الحساب القديم، ويسجّل الدمج الحساب الذي صار إليه",
+  "adminMergeFailedAvatarCleanup": "لم يُنفَّذ الدمج. تعذّرت إزالة الصورة الشخصية للحساب المدموج، فلم يتغير أي شيء آخر. حاول من جديد.",
+  "adminMergeAvatarRemovedNote": "كانت الصورة الشخصية للحساب المدموج قد أُزيلت بالفعل."
 }

@@ -51,6 +51,7 @@ class SupabaseFailureMapper {
 
     if (error is PostgrestException) return _fromPostgrest(error);
     if (error is AuthException) return _fromAuth(error);
+    if (error is FunctionException) return _fromFunction(error);
     // The transport never completed the round trip.
     //
     // [ClientException] is the one type that says this on every platform the
@@ -245,6 +246,18 @@ class SupabaseFailureMapper {
     'RATING_BASELINE_MISMATCH': InfrastructureFailure(),
     'RATING_CHAIN_BROKEN': InfrastructureFailure(),
     'AUTH_DELETE_INCOMPLETE': InfrastructureFailure(),
+    // The merge is requested through the `admin-merge-accounts` Edge Function, which
+    // first removes the merged-in account's picture from Storage. Its own refusals:
+    // a picture that was still there when the merge ran, a picture that could not be
+    // removed (the merge was never attempted), and a merge whose answer was lost (it
+    // may have committed). The rest it passes through from the database unchanged.
+    'SOURCE_FILES_REMAIN': ConflictFailure(),
+    'AVATAR_CLEANUP_FAILED':
+        InfrastructureFailure(FailureReason.mergeAvatarCleanupFailed),
+    'MERGE_OUTCOME_UNKNOWN': InfrastructureFailure(),
+    'PREFLIGHT_FAILED': InfrastructureFailure(),
+    'REQUEST_FAILED': InfrastructureFailure(),
+    'BAD_REQUEST': ValidationFailure(),
 
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
@@ -323,6 +336,44 @@ class SupabaseFailureMapper {
     }
     return const AuthenticationFailure();
   }
+
+  /// An Edge Function answers a refusal as `{"error": "<TOKEN>", "detail": ...,
+  /// "avatar_removed": bool}` under an HTTP status. The token is the database's own,
+  /// passed through, so the same table classifies it; the status is read only when the
+  /// function gave none (the platform answered instead: the function is not deployed,
+  /// the token expired, the gateway failed), and an unknown outcome is a failure of
+  /// the service, never a conflict or a missing account.
+  static Failure _fromFunction(FunctionException error) {
+    final details = error.details;
+    final token = details is Map && details['error'] is String
+        ? details['error'] as String
+        : null;
+    final avatarRemoved = details is Map && details['avatar_removed'] == true;
+
+    final failure = (token == null ? null : _domainOutcome(token)) ??
+        switch (error.status) {
+          401 => const AuthenticationFailure(),
+          403 => const AuthorizationFailure(),
+          _ => const InfrastructureFailure(),
+        };
+    // A picture already removed is said once, on top of whatever else failed.
+    if (avatarRemoved && failure.reason == null) {
+      return _withReason(failure, FailureReason.mergeAvatarRemoved);
+    }
+    return failure;
+  }
+
+  static Failure _withReason(Failure failure, FailureReason reason) =>
+      switch (failure) {
+        AuthenticationFailure() => AuthenticationFailure(reason),
+        AuthorizationFailure() => AuthorizationFailure(reason),
+        ValidationFailure() => ValidationFailure(reason),
+        NotFoundFailure() => NotFoundFailure(reason),
+        ConflictFailure() => ConflictFailure(reason),
+        NetworkFailure() => NetworkFailure(reason),
+        InfrastructureFailure() => InfrastructureFailure(reason),
+        UnknownFailure() => UnknownFailure(reason),
+      };
 
   static Failure? _domainOutcome(String message) {
     for (final entry in _domainOutcomes.entries) {

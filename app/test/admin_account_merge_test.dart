@@ -155,23 +155,36 @@ void main() {
       expect(match.sourceDropBlockers, isNot(contains('MVP')));
     });
 
-    test(
-        'the blockers that need no match: audit log, rating, stored file, '
-        'award', () {
+    test('the blockers that need no match: the rating and the award', () {
       final preview = _merge(mergeBlockedDoc);
 
       expect(preview.hasBlockers, isTrue);
       expect(
         preview.findingsOf(AdminFindingSeverity.blocker).map((f) => f.code),
-        [
-          'AUDIT_LOG_NAMES_SOURCE',
-          'RETAINED_RATING_INCONSISTENT',
-          'SOURCE_HAS_STORED_FILES',
-          'TEAM_AWARD_COLLISION',
-        ],
+        ['RETAINED_RATING_INCONSISTENT', 'TEAM_AWARD_COLLISION'],
       );
       expect(preview.teamAwardCollisions, 1);
       expect(preview.plan.teamAwardsMoved, 1);
+    });
+
+    test('an audit entry and a stored picture are constraints, not blockers',
+        () {
+      final preview = _merge(mergeBlockedDoc);
+      final constraints = {
+        for (final f in preview.findingsOf(AdminFindingSeverity.constraint))
+          f.code: f.category,
+      };
+
+      expect(constraints['AUDIT_LOG_NAMES_SOURCE'], 'AUDIT');
+      expect(constraints['SOURCE_HAS_STORED_FILES'], 'STORAGE');
+      expect(
+        preview.findingsOf(AdminFindingSeverity.blocker).map((f) => f.code),
+        isNot(contains('AUDIT_LOG_NAMES_SOURCE')),
+      );
+      expect(
+        preview.findingsOf(AdminFindingSeverity.blocker).map((f) => f.code),
+        isNot(contains('SOURCE_HAS_STORED_FILES')),
+      );
     });
 
     test('a System Admin is a blocker', () {
@@ -539,19 +552,53 @@ void main() {
       await open(tester, doc: mergeBlockedDoc);
 
       for (final code in [
-        'AUDIT_LOG_NAMES_SOURCE',
         'RETAINED_RATING_INCONSISTENT',
-        'SOURCE_HAS_STORED_FILES',
         'TEAM_AWARD_COLLISION',
+        'AUDIT_LOG_NAMES_SOURCE',
+        'SOURCE_HAS_STORED_FILES',
         'EVENT_LOGS_NAME_SOURCE',
       ]) {
         expect(find.byKey(Key('adminFinding_$code')), findsOneWidget,
             reason: code);
       }
-      expect(find.text('Blocker'), findsNWidgets(4));
-      expect(find.text('4 blockers found.'), findsOneWidget);
-      expect(find.textContaining('still has a profile picture in storage'),
-          findsOneWidget);
+      expect(find.text('Blocker'), findsNWidgets(2));
+      expect(find.text('2 blockers found.'), findsOneWidget);
+      expect(canExecute(tester), isFalse);
+    });
+
+    testWidgets(
+        'an audit entry and a stored picture are told, and do not stop the '
+        'merge', (tester) async {
+      final doc = _doc(mergeEmptyDoc)
+        ..['findings'] = [
+          {
+            'code': 'AUDIT_LOG_NAMES_SOURCE',
+            'severity': 'CONSTRAINT',
+            'category': 'AUDIT',
+            'count': 2,
+          },
+          {
+            'code': 'SOURCE_HAS_STORED_FILES',
+            'severity': 'CONSTRAINT',
+            'category': 'STORAGE',
+            'count': 1,
+          },
+        ];
+      await open(tester, doc: jsonEncode(doc));
+
+      expect(
+        find.text('Audit log entries name this account. They keep their date, '
+            'action and ids; the name and e-mail in them are removed'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('The account to merge in has a profile picture in storage. '
+            'The merge removes it first; if the merge then fails, the picture '
+            'stays removed'),
+        findsOneWidget,
+      );
+      expect(find.text('Blocker'), findsNothing);
+      expect(canExecute(tester), isTrue);
     });
 
     // ---- the choices ------------------------------------------------------------------------------
@@ -705,8 +752,8 @@ void main() {
       expect(find.text('Merge permanently?'), findsOneWidget);
       expect(
         find.text('Source Sam will be deleted for good, including their '
-            'sign-in. Their football record will be added to Retained Rita. '
-            'This cannot be undone.'),
+            'sign-in and profile picture. Their football record will be added '
+            'to Retained Rita. This cannot be undone.'),
         findsOneWidget,
       );
       expect(find.text('Type the name of the account to delete: Source Sam'),
@@ -1080,6 +1127,60 @@ void main() {
 
       expect(find.text('Failed to load data.'), findsOneWidget);
       expect(executeButton(), findsNothing);
+    });
+
+    // ---- the profile picture goes before the merge runs --------------------------------------------
+    for (final entry in <(String, Failure, String)>[
+      (
+        'the picture could not be removed, so no merge was attempted',
+        const InfrastructureFailure(FailureReason.mergeAvatarCleanupFailed),
+        'The merge was not performed. The profile picture of the account to '
+            'merge in could not be removed, so nothing else was changed. Try '
+            'again.'
+      ),
+      (
+        'the database refused after the picture was removed',
+        const ConflictFailure(FailureReason.mergeAvatarRemoved),
+        'The merge was not performed. Something changed or is in the way. '
+            'Review the preview again. The profile picture of the account to '
+            'merge in had already been removed.'
+      ),
+      (
+        'the answer was lost after the picture was removed',
+        const InfrastructureFailure(FailureReason.mergeAvatarRemoved),
+        'The merge may or may not have been performed. Check the preview '
+            'before trying again: if it went through, the account to merge in '
+            'no longer exists. The profile picture of the account to merge in '
+            'had already been removed.'
+      ),
+    ]) {
+      testWidgets('${entry.$1}: said exactly', (tester) async {
+        await open(tester, mergeFailure: entry.$2);
+
+        await confirm(tester);
+        await tester.pumpAndSettle();
+
+        expect(find.text(entry.$3), findsOneWidget);
+        expect(find.byKey(const Key('adminMergeDone')), findsNothing);
+        expect(find.byKey(const Key('adminMergeCheckAgain')), findsOneWidget);
+        expect(canExecute(tester), isFalse);
+      });
+    }
+
+    testWidgets(
+        'a cleanup that failed never claims the merge may have happened',
+        (tester) async {
+      await open(
+        tester,
+        mergeFailure:
+            const InfrastructureFailure(FailureReason.mergeAvatarCleanupFailed),
+      );
+
+      await confirm(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('may or may not'), findsNothing);
+      expect(find.textContaining('was not performed'), findsOneWidget);
     });
 
     // ---- a different question ------------------------------------------------------------------------------

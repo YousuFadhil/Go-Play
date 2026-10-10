@@ -207,6 +207,21 @@ void main() {
       expect(map(raised('RESOLUTIONS_INVALID')), isA<ValidationFailure>());
     });
 
+    test('merging accounts: what the Edge Function adds to the database\'s own',
+        () {
+      expect(map(raised('SOURCE_FILES_REMAIN')), isA<ConflictFailure>());
+      expect(map(raised('MERGE_OUTCOME_UNKNOWN')), isA<InfrastructureFailure>());
+      expect(map(raised('PREFLIGHT_FAILED')), isA<InfrastructureFailure>());
+      expect(map(raised('REQUEST_FAILED')), isA<InfrastructureFailure>());
+      expect(map(raised('BAD_REQUEST')), isA<ValidationFailure>());
+      // The merge was never attempted: the picture could not be removed.
+      expect(
+        map(raised('AVATAR_CLEANUP_FAILED')),
+        isA<InfrastructureFailure>().having(
+            (f) => f.reason, 'reason', FailureReason.mergeAvatarCleanupFailed),
+      );
+    });
+
     test('merging accounts: the merge checking its own work is a fault', () {
       // Each rolled the transaction back, and none is something the
       // administrator did.
@@ -350,6 +365,79 @@ void main() {
               'in the request');
       expect(map(const PostgrestException(message: 'no code')),
           isA<InfrastructureFailure>());
+    });
+  });
+
+  group('an Edge Function answered', () {
+    // The merge is requested through `admin-merge-accounts`, which answers a refusal as
+    // {"error": TOKEN, "avatar_removed": bool} under an HTTP status.
+    Failure answered(int status, Object? details) =>
+        map(FunctionException(status: status, details: details));
+
+    test('the database\'s own token is classified as it is for an RPC', () {
+      expect(answered(403, {'error': 'NOT_AUTHORIZED'}),
+          isA<AuthorizationFailure>());
+      expect(answered(409, {'error': 'MERGE_BLOCKED', 'detail': 'X'}),
+          isA<ConflictFailure>());
+      expect(answered(404, {'error': 'USER_NOT_FOUND'}), isA<NotFoundFailure>());
+      expect(answered(400, {'error': 'RESOLUTIONS_INVALID'}),
+          isA<ValidationFailure>());
+      expect(answered(401, {'error': 'NOT_AUTHENTICATED'}),
+          isA<AuthenticationFailure>());
+      expect(answered(502, {'error': 'MERGE_OUTCOME_UNKNOWN'}),
+          isA<InfrastructureFailure>());
+    });
+
+    test('a picture already removed is said on top of whatever else failed', () {
+      for (final entry in <(Map<String, Object?>, Type)>[
+        ({'error': 'MERGE_BLOCKED', 'avatar_removed': true}, ConflictFailure),
+        (
+          {'error': 'MERGE_OUTCOME_UNKNOWN', 'avatar_removed': true},
+          InfrastructureFailure
+        ),
+        (
+          {'error': 'MERGE_INVARIANT_BROKEN', 'avatar_removed': true},
+          InfrastructureFailure
+        ),
+      ]) {
+        final failure = answered(500, entry.$1);
+        expect(failure.runtimeType, entry.$2);
+        expect(failure.reason, FailureReason.mergeAvatarRemoved);
+      }
+      expect(
+        answered(409, {'error': 'MERGE_BLOCKED', 'avatar_removed': false})
+            .reason,
+        isNull,
+      );
+    });
+
+    test('a failed cleanup keeps its own reason, whether or not part of the '
+        'picture went', () {
+      for (final removed in [true, false]) {
+        final failure = answered(
+            502, {'error': 'AVATAR_CLEANUP_FAILED', 'avatar_removed': removed});
+        expect(failure, isA<InfrastructureFailure>());
+        expect(failure.reason, FailureReason.mergeAvatarCleanupFailed);
+      }
+    });
+
+    test('an answer from the platform, not the function, is read by status only',
+        () {
+      expect(answered(401, 'Invalid JWT'), isA<AuthenticationFailure>());
+      expect(answered(403, null), isA<AuthorizationFailure>());
+      // Not deployed, timed out, crashed: the service failed; it is not "the
+      // account is gone".
+      expect(answered(404, 'Requested function was not found'),
+          isA<InfrastructureFailure>());
+      expect(answered(500, {'message': 'boom'}), isA<InfrastructureFailure>());
+      expect(answered(546, null), isA<InfrastructureFailure>());
+    });
+
+    test('a token this build does not know falls back to the status', () {
+      expect(answered(409, {'error': 'SOMETHING_NEW'}),
+          isA<InfrastructureFailure>());
+      expect(answered(403, {'error': 'SOMETHING_NEW'}),
+          isA<AuthorizationFailure>());
     });
   });
 

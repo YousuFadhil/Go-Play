@@ -49,7 +49,8 @@ fn(name, args, kind) as (
     ('merge_rating_scope_excludes',     'p_user_id uuid', 'internal'),
     ('merge_shared_matches',            'p_retained_user_id uuid, p_source_user_id uuid', 'internal'),
     ('merge_participation_blockers',    'p_match_id uuid, p_user_id uuid', 'internal'),
-    ('merge_invariants',                'p_retained_user_id uuid, p_source_user_id uuid', 'internal')
+    ('merge_invariants',                'p_retained_user_id uuid, p_source_user_id uuid', 'internal'),
+    ('merge_source_stored_files',       'p_user_id uuid', 'internal')
 ),
 found as (
   select p.oid, p.proname, p.prosecdef, p.proconfig, p.provolatile, p.proowner,
@@ -99,17 +100,17 @@ from (
            where name like '%0101_platform_admin_account_merge%') as ok
 
   union all
-  -- 2. The seven functions, by exact signature, once each.
+  -- 2. The eight functions, by exact signature, once each.
   select 2, 'function ' || fn.name || '(' || fn.args || ')', 'exists, once',
          (select count(*)::text from found f where f.proname = fn.name and f.args = fn.args),
          (select count(*) = 1 from found f where f.proname = fn.name and f.args = fn.args)
     from fn
 
   union all
-  select 3, 'no overload of a merge function exists besides those', '7',
+  select 3, 'no overload of a merge function exists besides those', '8',
          (select count(*)::text from found
            where proname like 'merge\_%' or proname in ('admin_merge_accounts', 'admin_preview_account_merge')),
-         (select count(*) = 7 from found
+         (select count(*) = 8 from found
            where proname like 'merge\_%' or proname in ('admin_merge_accounts', 'admin_preview_account_merge'))
 
   union all
@@ -127,10 +128,10 @@ from (
             from found where proname = 'admin_preview_account_merge')
 
   union all
-  select 6, 'every internal helper is STABLE and has pg_temp last', '5',
+  select 6, 'every internal helper is STABLE and has pg_temp last', '6',
          (select count(*)::text from mine where proname not in ('admin_merge_accounts', 'admin_preview_account_merge')
              and provolatile = 's' and proconfig = array['search_path=public, pg_temp']),
-         (select count(*) = 5 from mine where proname not in ('admin_merge_accounts', 'admin_preview_account_merge')
+         (select count(*) = 6 from mine where proname not in ('admin_merge_accounts', 'admin_preview_account_merge')
              and provolatile = 's' and proconfig = array['search_path=public, pg_temp'])
 
   union all
@@ -140,13 +141,13 @@ from (
          (select count(*) = 0 from mine where has_function_privilege('anon', oid, 'EXECUTE') or public_can_execute)
 
   union all
-  select 8, 'authenticated and service_role can execute the merge and its preview, and NO client role any helper', 'merge, preview; no helper',
+  select 8, 'authenticated can execute the merge and its preview and NO helper; service_role those two and merge_source_stored_files', 'merge, preview; no helper',
          (select coalesce(string_agg(proname, ', ' order by proname), 'none') from mine
            where has_function_privilege('authenticated', oid, 'EXECUTE')),
          (select count(*) = 2 and bool_and(proname in ('admin_merge_accounts', 'admin_preview_account_merge')) from mine
            where has_function_privilege('authenticated', oid, 'EXECUTE'))
-         and (select count(*) = 2 from mine
-               where proname in ('admin_merge_accounts', 'admin_preview_account_merge')
+         and (select count(*) = 3 from mine
+               where proname in ('admin_merge_accounts', 'admin_preview_account_merge', 'merge_source_stored_files')
                  and has_function_privilege('service_role', oid, 'EXECUTE'))
 
   union all
@@ -210,23 +211,25 @@ from (
 
   union all
   -- 13. The bodies are exactly the ones 0101 defines (hashes).
-  select 13, 'the merge, its preview and the five helpers are exactly the bodies 0101 defines (hashes)', '7 of 7',
-         (select count(*)::text || ' of 7' from mine where
-            (proname = 'admin_merge_accounts'           and src_md5 = 'f8d2ec026cb79d58363c985866347098')
-         or (proname = 'admin_preview_account_merge'    and src_md5 = 'd56b5e4610d54e2a49a7b215ea7cd545')
+  select 13, 'the merge, its preview and the six helpers are exactly the bodies 0101 defines (hashes)', '8 of 8',
+         (select count(*)::text || ' of 8' from mine where
+            (proname = 'admin_merge_accounts'           and src_md5 = '3b906b67dec5cd94a6c37a4c27d3d4b5')
+         or (proname = 'admin_preview_account_merge'    and src_md5 = '54bd260bb7d073208667a2fc7c656876')
          or (proname = 'merge_skips_lifecycle'          and src_md5 = '42282473e1813a112c13d3f840b0f6b5')
          or (proname = 'merge_rating_scope_excludes'    and src_md5 = '46a3e57a19c56f20e3b02df9829b693d')
          or (proname = 'merge_shared_matches'           and src_md5 = '2c29a044403fbc49f99d58dfb24cdc85')
          or (proname = 'merge_participation_blockers'   and src_md5 = 'a863bf56041fc6f3be7069e0a5700d79')
-         or (proname = 'merge_invariants'               and src_md5 = '91d2aee4c54bae6f5ad112e6aa7d0597')),
-         (select count(*) = 7 from mine where
-            (proname = 'admin_merge_accounts'           and src_md5 = 'f8d2ec026cb79d58363c985866347098')
-         or (proname = 'admin_preview_account_merge'    and src_md5 = 'd56b5e4610d54e2a49a7b215ea7cd545')
+         or (proname = 'merge_invariants'               and src_md5 = '91d2aee4c54bae6f5ad112e6aa7d0597')
+         or (proname = 'merge_source_stored_files'      and src_md5 = '5ad5a3749c12802f8312cc92bd359df9')),
+         (select count(*) = 8 from mine where
+            (proname = 'admin_merge_accounts'           and src_md5 = '3b906b67dec5cd94a6c37a4c27d3d4b5')
+         or (proname = 'admin_preview_account_merge'    and src_md5 = '54bd260bb7d073208667a2fc7c656876')
          or (proname = 'merge_skips_lifecycle'          and src_md5 = '42282473e1813a112c13d3f840b0f6b5')
          or (proname = 'merge_rating_scope_excludes'    and src_md5 = '46a3e57a19c56f20e3b02df9829b693d')
          or (proname = 'merge_shared_matches'           and src_md5 = '2c29a044403fbc49f99d58dfb24cdc85')
          or (proname = 'merge_participation_blockers'   and src_md5 = 'a863bf56041fc6f3be7069e0a5700d79')
-         or (proname = 'merge_invariants'               and src_md5 = '91d2aee4c54bae6f5ad112e6aa7d0597'))
+         or (proname = 'merge_invariants'               and src_md5 = '91d2aee4c54bae6f5ad112e6aa7d0597')
+         or (proname = 'merge_source_stored_files'      and src_md5 = '5ad5a3749c12802f8312cc92bd359df9'))
 
   union all
   -- 14. The four existing functions carry their guard and are otherwise unchanged (hashes), and are SECURITY DEFINER as before.
