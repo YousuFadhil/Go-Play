@@ -4853,7 +4853,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminPreviewMergeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Merge preview'**
+  /// **'Merge accounts'**
   String get adminPreviewMergeTitle;
 
   /// No description provided for @adminPreviewDeletionTitle.
@@ -5411,7 +5411,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminFindingTeamAwardCollision.
   ///
   /// In en, this message translates to:
-  /// **'Team of the period awards both accounts hold'**
+  /// **'Both accounts hold an award in the same team of the period; none is discarded, so the merge is blocked'**
   String get adminFindingTeamAwardCollision;
 
   /// No description provided for @adminFindingPlayerStatisticsRecompute.
@@ -5441,7 +5441,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminFindingAuditLogNamesSource.
   ///
   /// In en, this message translates to:
-  /// **'Audit log entries that name the merged-in account stay as they are'**
+  /// **'Audit log entries carry this account\'s name or email and cannot be erased by a merge, so it is blocked'**
   String get adminFindingAuditLogNamesSource;
 
   /// No description provided for @adminFindingTargetIsCaller.
@@ -5509,6 +5509,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Career statistics'**
   String get adminHistCareerStatistics;
+
+  /// No description provided for @adminMergeNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Merging is permanent. The account to merge in is deleted for good, including its sign-in, and its football record is added to the account to keep. Nothing happens until you confirm.'**
+  String get adminMergeNotice;
+
+  /// No description provided for @adminMergePlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What the merge will do'**
+  String get adminMergePlanTitle;
+
+  /// No description provided for @adminMergePlanCommunitiesTransferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities passed to the account to keep'**
+  String get adminMergePlanCommunitiesTransferred;
+
+  /// No description provided for @adminMergePlanMembershipsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Memberships moved'**
+  String get adminMergePlanMembershipsMoved;
+
+  /// No description provided for @adminMergePlanMembershipsMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate memberships merged (the higher role stays)'**
+  String get adminMergePlanMembershipsMerged;
+
+  /// No description provided for @adminMergePlanRolesUpgraded.
+  ///
+  /// In en, this message translates to:
+  /// **'Roles raised to the higher one'**
+  String get adminMergePlanRolesUpgraded;
+
+  /// No description provided for @adminMergePlanRegistrationsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Match registrations moved'**
+  String get adminMergePlanRegistrationsMoved;
+
+  /// No description provided for @adminMergePlanLineupPlacesMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup places moved'**
+  String get adminMergePlanLineupPlacesMoved;
+
+  /// No description provided for @adminMergePlanGoalRowsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal records moved'**
+  String get adminMergePlanGoalRowsMoved;
+
+  /// No description provided for @adminMergePlanMvpAwardsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'MVP awards moved'**
+  String get adminMergePlanMvpAwardsMoved;
+
+  /// No description provided for @adminMergePlanTeamAwardsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the period awards moved'**
+  String get adminMergePlanTeamAwardsMoved;
+
+  /// No description provided for @adminMergePlanCreatedMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches the merged-in account created, re-attributed'**
+  String get adminMergePlanCreatedMatches;
+
+  /// No description provided for @adminMergePlanFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'The kept account\'s rating is recalculated match by match in date order, and its statistics are rebuilt from the records. Nobody else\'s rating or statistics change.'**
+  String get adminMergePlanFootnote;
+
+  /// No description provided for @adminMergeChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which participation to keep'**
+  String get adminMergeChoiceTitle;
+
+  /// No description provided for @adminMergeChoiceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A player has one place in a match. For each match below, choose whose participation stays; the other is removed. Goals, MVP awards, results and confirmed lineups are never removed.'**
+  String get adminMergeChoiceHelp;
+
+  /// No description provided for @adminMergeKeepRetained.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep {name}'**
+  String adminMergeKeepRetained(String name);
+
+  /// No description provided for @adminMergeKeepSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep {name}'**
+  String adminMergeKeepSource(String name);
+
+  /// No description provided for @adminMergeHeldBy.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} can\'t be removed here: {reasons}'**
+  String adminMergeHeldBy(String name, String reasons);
+
+  /// No description provided for @adminMergeBlockerGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'scored goals'**
+  String get adminMergeBlockerGoals;
+
+  /// No description provided for @adminMergeBlockerMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'is the match\'s MVP'**
+  String get adminMergeBlockerMvp;
+
+  /// No description provided for @adminMergeBlockerLineupInResult.
+  ///
+  /// In en, this message translates to:
+  /// **'is in the lineup a result was recorded from'**
+  String get adminMergeBlockerLineupInResult;
+
+  /// No description provided for @adminMergeBlockerConfirmedLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'is in a confirmed lineup'**
+  String get adminMergeBlockerConfirmedLineup;
+
+  /// No description provided for @adminMergeBlockerRating.
+  ///
+  /// In en, this message translates to:
+  /// **'has a rating in effect from this match'**
+  String get adminMergeBlockerRating;
+
+  /// No description provided for @adminMergeNeedChoices.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Choose which participation to keep in 1 match.} other{Choose which participation to keep in {count} matches.}}'**
+  String adminMergeNeedChoices(int count);
+
+  /// No description provided for @adminMergeResolveBlockersFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve the blockers above first.'**
+  String get adminMergeResolveBlockersFirst;
+
+  /// No description provided for @adminMergeExecuteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge accounts…'**
+  String get adminMergeExecuteButton;
+
+  /// No description provided for @adminMergeConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge permanently?'**
+  String get adminMergeConfirmTitle;
+
+  /// No description provided for @adminMergeConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} will be deleted for good, including their sign-in. Their football record will be added to {retained}. This cannot be undone.'**
+  String adminMergeConfirmBody(String source, String retained);
+
+  /// No description provided for @adminMergeConfirmTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the name of the account to delete: {name}'**
+  String adminMergeConfirmTypeLabel(String name);
+
+  /// No description provided for @adminMergeConfirmField.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get adminMergeConfirmField;
+
+  /// No description provided for @adminMergeConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge permanently'**
+  String get adminMergeConfirmAction;
+
+  /// No description provided for @adminMergeRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Merging…'**
+  String get adminMergeRunning;
+
+  /// No description provided for @adminMergeDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts merged'**
+  String get adminMergeDoneTitle;
+
+  /// No description provided for @adminMergeDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} was deleted. Their football record now belongs to {retained}.'**
+  String adminMergeDoneBody(String source, String retained);
+
+  /// No description provided for @adminMergeDoneRating.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s rating was recalculated: {before} → {after}.'**
+  String adminMergeDoneRating(String name, String before, String after);
+
+  /// No description provided for @adminMergeDoneButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get adminMergeDoneButton;
+
+  /// No description provided for @adminMergeFailedConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'The merge was not performed. Something changed or is in the way. Review the preview again.'**
+  String get adminMergeFailedConflict;
+
+  /// No description provided for @adminMergeFailedNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'One of the accounts no longer exists. If a merge just ran, the account to merge in is already gone.'**
+  String get adminMergeFailedNotFound;
+
+  /// No description provided for @adminMergeFailedAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'You are not allowed to merge these accounts.'**
+  String get adminMergeFailedAuthorization;
+
+  /// No description provided for @adminMergeFailedValidation.
+  ///
+  /// In en, this message translates to:
+  /// **'The request was not accepted. Nothing was changed.'**
+  String get adminMergeFailedValidation;
+
+  /// No description provided for @adminMergeFailedUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'The merge may or may not have been performed. Check the preview before trying again: if it went through, the account to merge in no longer exists.'**
+  String get adminMergeFailedUncertain;
+
+  /// No description provided for @adminMergeCheckAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get adminMergeCheckAgain;
+
+  /// No description provided for @adminFindingSharedMatchNotResolvable.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches where neither account\'s participation can be removed (goals, MVP awards, recorded lineups): correct them first'**
+  String get adminFindingSharedMatchNotResolvable;
+
+  /// No description provided for @adminFindingSharedMatchLimitExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'More shared matches than one merge can resolve (100)'**
+  String get adminFindingSharedMatchLimitExceeded;
+
+  /// No description provided for @adminFindingSharedMatchChoiceRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches both accounts took part in: choose which participation to keep'**
+  String get adminFindingSharedMatchChoiceRequired;
+
+  /// No description provided for @adminFindingSourceHasStoredFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to merge in still has a profile picture in storage. A merge cannot delete it and it is public, so it must be removed first'**
+  String get adminFindingSourceHasStoredFiles;
+
+  /// No description provided for @adminFindingRetainedRatingInconsistent.
+  ///
+  /// In en, this message translates to:
+  /// **'The rating of the account to keep does not follow from its rating history, so it cannot be recalculated safely'**
+  String get adminFindingRetainedRatingInconsistent;
+
+  /// No description provided for @adminFindingRatingArchiveMapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive rows keep the old account id; the merge records which account it became'**
+  String get adminFindingRatingArchiveMapped;
 }
 
 class _AppLocalizationsDelegate

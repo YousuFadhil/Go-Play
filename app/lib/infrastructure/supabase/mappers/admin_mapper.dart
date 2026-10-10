@@ -539,6 +539,7 @@ AdminMergePreview adminMergePreviewFromJson(Map<String, dynamic> json) {
   final overlap = _previewMap(json['overlapping_communities']);
   final shared = _previewMap(json['shared_matches']);
   final statistics = _previewMap(json['statistics_overlap']);
+  final plan = _previewMap(json['plan']);
   return AdminMergePreview(
     retained: adminPreviewAccountFromJson(_previewMap(json['retained'])),
     source: adminPreviewAccountFromJson(_previewMap(json['source'])),
@@ -555,7 +556,6 @@ AdminMergePreview adminMergePreviewFromJson(Map<String, dynamic> json) {
       ),
     ),
     roleConflictsTotal: _adminCount(overlap['role_conflicts_total']),
-    ownershipConflictsTotal: _adminCount(overlap['ownership_conflicts_total']),
     sourceOwnedCommunities: _previewList(
       json['source_owned_communities'],
       (row) => AdminSourceOwnedCommunity(
@@ -576,17 +576,78 @@ AdminMergePreview adminMergePreviewFromJson(Map<String, dynamic> json) {
         isHistorical: row['is_historical'] as bool? ?? false,
         retainedEvidence: _previewStrings(row['retained_evidence']),
         sourceEvidence: _previewStrings(row['source_evidence']),
-        collision: row['collision'] as bool? ?? false,
+        retainedDropBlockers: _previewStrings(row['retained_drop_blockers']),
+        sourceDropBlockers: _previewStrings(row['source_drop_blockers']),
+        // Absent means "no": a side is never offered on a guess.
+        canKeepRetained: row['can_keep_retained'] as bool? ?? false,
+        canKeepSource: row['can_keep_source'] as bool? ?? false,
       ),
     ),
-    collidingMatchesTotal: _adminCount(shared['colliding_total']),
-    collisionsByKind: _previewCounts(shared['by_kind']),
+    unresolvableMatchesTotal: _adminCount(shared['unresolvable_total']),
+    sharedLimit: _adminCount(json['shared_limit']),
     communityStatisticsCollisions:
         _adminCount(statistics['community_statistics_collisions']),
     teamAwardCollisions: _adminCount(statistics['team_award_collisions']),
+    plan: AdminMergePlan(
+      communitiesTransferred: _adminCount(plan['communities_transferred']),
+      membershipsMoved: _adminCount(plan['memberships_moved']),
+      membershipsMerged: _adminCount(plan['memberships_merged']),
+      rolesUpgraded: _adminCount(plan['roles_upgraded']),
+      registrationsMoved: _adminCount(plan['registrations_moved']),
+      lineupPlacesMoved: _adminCount(plan['lineup_places_moved']),
+      goalRowsMoved: _adminCount(plan['goal_rows_moved']),
+      mvpAwardsMoved: _adminCount(plan['mvp_awards_moved']),
+      teamAwardsMoved: _adminCount(plan['team_awards_moved']),
+      createdMatchesReattributed:
+          _adminCount(plan['created_matches_reattributed']),
+      sharedMatches: _adminCount(plan['shared_matches']),
+    ),
     findings: findings,
     hasBlockers: _previewHasBlockers(json['has_blockers'], findings),
     coverageNotes: _previewStrings(json['coverage_notes']),
+  );
+}
+
+/// The arguments of `admin_merge_accounts` (migration `0101`).
+Map<String, dynamic> adminMergeAccountsParams({
+  required String retainedUserId,
+  required String sourceUserId,
+  required List<AdminMergeResolution> resolutions,
+}) =>
+    {
+      'p_retained_user_id': retainedUserId,
+      'p_source_user_id': sourceUserId,
+      'p_resolutions': [for (final r in resolutions) r.toJson()],
+    };
+
+/// What `admin_merge_accounts` returned. **Never throws:** a merge that returned
+/// happened, and a result this build cannot fully read must still be reported as a
+/// merge that happened.
+AdminMergeResult adminMergeResultFromJson(
+  Map<String, dynamic> json, {
+  required String retainedUserId,
+  required String sourceUserId,
+}) {
+  final dropped = _previewMap(json['dropped']);
+  final rating = _previewMap(json['rating']);
+  // Pattern tests, not casts: a cast that fails would throw, and a throw here
+  // would be reported as a merge that failed.
+  final retainedId = json['retained_user_id'];
+  final sourceId = json['source_user_id'];
+  final before = rating['before'];
+  final after = rating['after'];
+  return AdminMergeResult(
+    retainedUserId: retainedId is String && retainedId.isNotEmpty
+        ? retainedId
+        : retainedUserId,
+    sourceUserId:
+        sourceId is String && sourceId.isNotEmpty ? sourceId : sourceUserId,
+    droppedRegistrations: _adminCount(dropped['registrations']),
+    droppedLineupPlaces: _adminCount(dropped['lineup_places']),
+    moved: _previewCounts(json['moved']),
+    ratingBefore: before is num ? before.toDouble() : null,
+    ratingAfter: after is num ? after.toDouble() : null,
+    matchesReplayed: _adminCount(rating['matches_replayed']),
   );
 }
 

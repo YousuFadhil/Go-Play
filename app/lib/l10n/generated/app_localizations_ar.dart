@@ -2750,7 +2750,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get adminPreviewDeletionAction => 'معاينة الحذف';
 
   @override
-  String get adminPreviewMergeTitle => 'معاينة دمج الحسابات';
+  String get adminPreviewMergeTitle => 'دمج الحسابات';
 
   @override
   String get adminPreviewDeletionTitle => 'معاينة حذف الحساب';
@@ -3050,7 +3050,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminFindingTeamAwardCollision =>
-      'جوائز تشكيلة فترة يملكها الحسابان معاً';
+      'يحمل الحسابان جائزة في فريق الفترة نفسه ولا تُحذف أي جائزة، لذلك الدمج ممنوع';
 
   @override
   String get adminFindingPlayerStatisticsRecompute =>
@@ -3070,7 +3070,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminFindingAuditLogNamesSource =>
-      'سجلات تدقيق تذكر الحساب المدمج تبقى كما هي';
+      'تحمل سجلات التدقيق اسم هذا الحساب أو بريده ولا يمكن محوها بالدمج، لذلك هو ممنوع';
 
   @override
   String get adminFindingTargetIsCaller => 'هذا حسابك';
@@ -3110,4 +3110,187 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get adminHistCareerStatistics => 'إحصاءات المسيرة';
+
+  @override
+  String get adminMergeNotice =>
+      'الدمج نهائي. يُحذف الحساب المدموج نهائياً مع تسجيل دخوله، وتُضاف سجلاته الكروية إلى الحساب المُبقى. لا يحدث شيء قبل أن تؤكد.';
+
+  @override
+  String get adminMergePlanTitle => 'ما الذي سيفعله الدمج';
+
+  @override
+  String get adminMergePlanCommunitiesTransferred =>
+      'مجتمعات تنتقل ملكيتها إلى الحساب المُبقى';
+
+  @override
+  String get adminMergePlanMembershipsMoved => 'عضويات تُنقل';
+
+  @override
+  String get adminMergePlanMembershipsMerged =>
+      'عضويات مكررة تُدمج (يبقى الدور الأعلى)';
+
+  @override
+  String get adminMergePlanRolesUpgraded => 'أدوار تُرفع إلى الدور الأعلى';
+
+  @override
+  String get adminMergePlanRegistrationsMoved => 'تسجيلات مباريات تُنقل';
+
+  @override
+  String get adminMergePlanLineupPlacesMoved => 'أماكن في التشكيلات تُنقل';
+
+  @override
+  String get adminMergePlanGoalRowsMoved => 'سجلات أهداف تُنقل';
+
+  @override
+  String get adminMergePlanMvpAwardsMoved => 'جوائز أفضل لاعب تُنقل';
+
+  @override
+  String get adminMergePlanTeamAwardsMoved => 'جوائز فريق الفترة تُنقل';
+
+  @override
+  String get adminMergePlanCreatedMatches =>
+      'مباريات أنشأها الحساب المدموج تُنسب إلى الحساب المُبقى';
+
+  @override
+  String get adminMergePlanFootnote =>
+      'يُعاد حساب تقييم الحساب المُبقى مباراةً بمباراة بترتيب التاريخ، وتُعاد بناء إحصاءاته من السجلات. لا يتغير تقييم أي لاعب آخر ولا إحصاءاته.';
+
+  @override
+  String get adminMergeChoiceTitle => 'اختر المشاركة التي تُبقيها';
+
+  @override
+  String get adminMergeChoiceHelp =>
+      'للّاعب مكان واحد في المباراة. اختر لكل مباراة أدناه مشاركة من تبقى، وتُزال الأخرى. لا تُزال الأهداف ولا جوائز أفضل لاعب ولا النتائج ولا التشكيلات المؤكدة أبداً.';
+
+  @override
+  String adminMergeKeepRetained(String name) {
+    return 'إبقاء $name';
+  }
+
+  @override
+  String adminMergeKeepSource(String name) {
+    return 'إبقاء $name';
+  }
+
+  @override
+  String adminMergeHeldBy(String name, String reasons) {
+    return 'لا يمكن إزالة مشاركة $name هنا: $reasons';
+  }
+
+  @override
+  String get adminMergeBlockerGoals => 'سجّل أهدافاً';
+
+  @override
+  String get adminMergeBlockerMvp => 'أفضل لاعب في المباراة';
+
+  @override
+  String get adminMergeBlockerLineupInResult => 'ضمن تشكيلة سُجلت منها نتيجة';
+
+  @override
+  String get adminMergeBlockerConfirmedLineup => 'ضمن تشكيلة مؤكدة';
+
+  @override
+  String get adminMergeBlockerRating => 'لديه تقييم ساري من هذه المباراة';
+
+  @override
+  String adminMergeNeedChoices(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'اختر المشاركة التي تُبقيها في $count مباريات.',
+      two: 'اختر المشاركة التي تُبقيها في مباراتين.',
+      one: 'اختر المشاركة التي تُبقيها في مباراة واحدة.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminMergeResolveBlockersFirst => 'عالج العوائق أعلاه أولاً.';
+
+  @override
+  String get adminMergeExecuteButton => 'دمج الحسابين…';
+
+  @override
+  String get adminMergeConfirmTitle => 'هل تدمج نهائياً؟';
+
+  @override
+  String adminMergeConfirmBody(String source, String retained) {
+    return 'سيُحذف $source نهائياً مع تسجيل دخوله، وتُضاف سجلاته الكروية إلى $retained. لا يمكن التراجع.';
+  }
+
+  @override
+  String adminMergeConfirmTypeLabel(String name) {
+    return 'اكتب اسم الحساب المراد حذفه: $name';
+  }
+
+  @override
+  String get adminMergeConfirmField => 'الاسم';
+
+  @override
+  String get adminMergeConfirmAction => 'ادمج نهائياً';
+
+  @override
+  String get adminMergeRunning => 'جارٍ الدمج…';
+
+  @override
+  String get adminMergeDoneTitle => 'تم دمج الحسابين';
+
+  @override
+  String adminMergeDoneBody(String source, String retained) {
+    return 'حُذف $source. وأصبحت سجلاته الكروية ضمن $retained.';
+  }
+
+  @override
+  String adminMergeDoneRating(String name, String before, String after) {
+    return 'أُعيد حساب تقييم $name: $before ← $after.';
+  }
+
+  @override
+  String get adminMergeDoneButton => 'تم';
+
+  @override
+  String get adminMergeFailedConflict =>
+      'لم يُنفَّذ الدمج. تغيّر شيء أو ظهر ما يمنعه. راجع المعاينة من جديد.';
+
+  @override
+  String get adminMergeFailedNotFound =>
+      'أحد الحسابين لم يعد موجوداً. إن كان دمج قد جرى للتو فالحساب المدموج محذوف بالفعل.';
+
+  @override
+  String get adminMergeFailedAuthorization =>
+      'لا تملك صلاحية دمج هذين الحسابين.';
+
+  @override
+  String get adminMergeFailedValidation => 'لم يُقبل الطلب. لم يتغير شيء.';
+
+  @override
+  String get adminMergeFailedUncertain =>
+      'قد يكون الدمج نُفِّذ وقد لا يكون. تحقق من المعاينة قبل المحاولة من جديد: إن نُفِّذ فلن يبقى الحساب المدموج موجوداً.';
+
+  @override
+  String get adminMergeCheckAgain => 'تحقق من جديد';
+
+  @override
+  String get adminFindingSharedMatchNotResolvable =>
+      'مباريات لا يمكن إزالة مشاركة أي من الحسابين فيها (أهداف أو جوائز أفضل لاعب أو تشكيلات مسجلة): صحّحها أولاً';
+
+  @override
+  String get adminFindingSharedMatchLimitExceeded =>
+      'عدد المباريات المشتركة أكبر مما يمكن حسمه في دمج واحد (100)';
+
+  @override
+  String get adminFindingSharedMatchChoiceRequired =>
+      'مباريات شارك فيها الحسابان: اختر المشاركة التي تُبقيها';
+
+  @override
+  String get adminFindingSourceHasStoredFiles =>
+      'للحساب المدموج صورة شخصية في التخزين. لا يستطيع الدمج حذفها وهي عامة، فيجب إزالتها أولاً';
+
+  @override
+  String get adminFindingRetainedRatingInconsistent =>
+      'تقييم الحساب المُبقى لا يتوافق مع سجل تقييمه، فلا يمكن إعادة حسابه بأمان';
+
+  @override
+  String get adminFindingRatingArchiveMapped =>
+      'تبقى صفوف أرشيف التقييم بمعرّف الحساب القديم، ويسجّل الدمج الحساب الذي صار إليه';
 }

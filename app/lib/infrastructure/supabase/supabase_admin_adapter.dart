@@ -458,6 +458,39 @@ class SupabaseAdminAdapter implements AdminAdapter {
         operation: 'rpc admin_preview_account_merge',
       );
 
+  /// The permanent merge (migration `0101`): one RPC, one transaction, and the
+  /// source's `auth.users` row is deleted by it, so there is no second call to
+  /// make and none that can be missed.
+  ///
+  /// **If the RPC returned without raising, the merge happened.** The result is
+  /// read leniently for that reason: a shape this build does not recognise is
+  /// reported as a merge with an empty summary, never as a failure, because
+  /// "failed" would invite a second attempt at something already done.
+  @override
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  }) =>
+      guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_merge_accounts',
+            params: adminMergeAccountsParams(
+              retainedUserId: retainedUserId,
+              sourceUserId: sourceUserId,
+              resolutions: resolutions,
+            ),
+          );
+          return adminMergeResultFromJson(
+            result is Map ? result.cast<String, dynamic>() : const {},
+            retainedUserId: retainedUserId,
+            sourceUserId: sourceUserId,
+          );
+        },
+        operation: 'rpc admin_merge_accounts',
+      );
+
   @override
   Future<AdminDeletionPreview> previewAccountDeletion(String userId) => guarded(
         () async {

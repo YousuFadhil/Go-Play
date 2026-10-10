@@ -173,11 +173,15 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     if (mounted) _reloadAccount();
   }
 
-  /// The read-only merge preview, with this account offered as the one to keep.
-  /// Nothing is reloaded afterwards: a preview changes nothing.
-  void _previewMerge(AdminUserAccount account) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
+  /// The merge screen, with this account offered as the one to keep. It answers
+  /// with the id of the account that survived when a merge was performed, and with
+  /// nothing otherwise: a preview changes nothing, so nothing is reloaded.
+  ///
+  /// This account may be either of the two (the administrator can swap them), so
+  /// after a merge it is read again if it survived and left if it was merged away.
+  Future<void> _previewMerge(AdminUserAccount account) async {
+    final survivor = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
         builder: (_) => AdminMergePreviewScreen(
           retained: AdminUserSummary(
             id: account.id,
@@ -190,6 +194,12 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
         ),
       ),
     );
+    if (!mounted || survivor == null) return;
+    if (survivor == account.id) {
+      _reload();
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
   /// The read-only deletion preview for this account.

@@ -184,6 +184,44 @@ void main() {
       expect(map(raised('SAME_ACCOUNT')).reason, isNull);
     });
 
+    test('merging accounts: the administrator cannot be either account', () {
+      // Migration 0101. A permission refusal, as with editing their own.
+      expect(map(raised('CANNOT_MERGE_SELF')), isA<AuthorizationFailure>());
+      expect(map(raised('CANNOT_MERGE_SELF')).reason, isNull);
+    });
+
+    test('merging accounts: what stands in the way is a state to look at again',
+        () {
+      // A blocker that appeared since the preview, a choice that is missing, or
+      // one that would discard goals, an MVP award, a result or a confirmed
+      // lineup: not bad input, so the screen asks for the preview again.
+      for (final token in [
+        'MERGE_BLOCKED',
+        'RESOLUTION_REQUIRED',
+        'RESOLUTION_BLOCKED',
+        'RESOLUTION_UNKNOWN_MATCH',
+      ]) {
+        expect(map(raised(token)), isA<ConflictFailure>(), reason: token);
+        expect(map(raised(token)).reason, isNull, reason: token);
+      }
+      expect(map(raised('RESOLUTIONS_INVALID')), isA<ValidationFailure>());
+    });
+
+    test('merging accounts: the merge checking its own work is a fault', () {
+      // Each rolled the transaction back, and none is something the
+      // administrator did.
+      for (final token in [
+        'MERGE_UNHANDLED_REFERENCE',
+        'MERGE_RESIDUAL_REFERENCE',
+        'MERGE_INVARIANT_BROKEN',
+        'RATING_BASELINE_MISMATCH',
+        'RATING_CHAIN_BROKEN',
+        'AUTH_DELETE_INCOMPLETE',
+      ]) {
+        expect(map(raised(token)), isA<InfrastructureFailure>(), reason: token);
+      }
+    });
+
     test('joining refusals keep their reason', () {
       expect(map(raised('JOIN_CODE_REQUIRED')).reason,
           FailureReason.joinCodeRequired);

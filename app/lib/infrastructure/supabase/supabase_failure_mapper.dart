@@ -223,6 +223,29 @@ class SupabaseFailureMapper {
     // some other way: plain input the caller got wrong.
     'SAME_ACCOUNT': ValidationFailure(),
 
+    // Merging two accounts (migration `0101`). The administrator cannot be either
+    // account: a permission refusal, as with editing their own. Everything else the
+    // merge refuses is a STATE it ran into, not bad input -- a blocker that appeared
+    // since the preview, a choice that is missing, or one that would discard goals,
+    // an MVP award, a result or a confirmed lineup -- so it is a conflict, and the
+    // screen asks for the preview again. The next five are the merge checking its
+    // own work before it commits (an unknown reference to users, a leftover row, a
+    // changed fingerprint, a rating that did not start from the baseline or did not
+    // chain, an Auth delete that did not finish): the transaction rolled back, and
+    // none of them is something the administrator did.
+    'CANNOT_MERGE_SELF': AuthorizationFailure(),
+    'MERGE_BLOCKED': ConflictFailure(),
+    'RESOLUTION_REQUIRED': ConflictFailure(),
+    'RESOLUTION_BLOCKED': ConflictFailure(),
+    'RESOLUTION_UNKNOWN_MATCH': ConflictFailure(),
+    'RESOLUTIONS_INVALID': ValidationFailure(),
+    'MERGE_UNHANDLED_REFERENCE': InfrastructureFailure(),
+    'MERGE_RESIDUAL_REFERENCE': InfrastructureFailure(),
+    'MERGE_INVARIANT_BROKEN': InfrastructureFailure(),
+    'RATING_BASELINE_MISMATCH': InfrastructureFailure(),
+    'RATING_CHAIN_BROKEN': InfrastructureFailure(),
+    'AUTH_DELETE_INCOMPLETE': InfrastructureFailure(),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),

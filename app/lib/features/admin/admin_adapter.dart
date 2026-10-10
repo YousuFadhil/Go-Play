@@ -135,9 +135,27 @@ abstract interface class AdminAdapter {
   });
 
   Future<AdminDeletionPreview> previewAccountDeletion(String userId);
+
+  /// Merges the source account into the retained one and removes the source for
+  /// good -- its profile, its sign-in identities and its sessions -- in one
+  /// database transaction (migration `0101`). **Permanent and irreversible.**
+  ///
+  /// [resolutions] is the administrator's explicit choice for every match both
+  /// accounts took part in. The database refuses, and changes nothing, when a
+  /// choice is missing, when a blocker has appeared since the preview, or when the
+  /// choice would discard goals, an MVP award, a result or a confirmed lineup.
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  });
 }
 
 // Permanent delete is deliberately absent from this port. The `admin_delete_*`
 // RPCs still exist in the database and are untouched, but the normal Admin
 // console no longer offers them: suspension is the reversible action the
 // product asks for, and a client method nothing calls is a door left open.
+//
+// `mergeAccounts` above is the one permanent action the console offers, and only
+// because the Product Owner approved it: one account into another, with the source
+// removed in the same transaction, behind a typed confirmation.

@@ -223,6 +223,23 @@ class AdminRepository {
   Future<AdminDeletionPreview> previewAccountDeletion(String userId) =>
       _adapter.previewAccountDeletion(userId);
 
+  /// The permanent merge (migration `0101`). **Not a read: a failure is a failure
+  /// to report, never to swallow, and a success is irreversible.** The same
+  /// account twice is refused here, as a rejected Future, so the database is not
+  /// asked; everything else is the database's to refuse, inside its transaction.
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  }) async {
+    if (retainedUserId == sourceUserId) throw const ValidationFailure();
+    return _adapter.mergeAccounts(
+      retainedUserId: retainedUserId,
+      sourceUserId: sourceUserId,
+      resolutions: resolutions,
+    );
+  }
+
   static String? _reason(String? reason) {
     final trimmed = reason?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;

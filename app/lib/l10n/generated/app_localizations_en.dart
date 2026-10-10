@@ -2768,7 +2768,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminPreviewDeletionAction => 'Preview deletion';
 
   @override
-  String get adminPreviewMergeTitle => 'Merge preview';
+  String get adminPreviewMergeTitle => 'Merge accounts';
 
   @override
   String get adminPreviewDeletionTitle => 'Deletion preview';
@@ -3075,7 +3075,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminFindingTeamAwardCollision =>
-      'Team of the period awards both accounts hold';
+      'Both accounts hold an award in the same team of the period; none is discarded, so the merge is blocked';
 
   @override
   String get adminFindingPlayerStatisticsRecompute =>
@@ -3095,7 +3095,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminFindingAuditLogNamesSource =>
-      'Audit log entries that name the merged-in account stay as they are';
+      'Audit log entries carry this account\'s name or email and cannot be erased by a merge, so it is blocked';
 
   @override
   String get adminFindingTargetIsCaller => 'This is your own account';
@@ -3138,4 +3138,190 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminHistCareerStatistics => 'Career statistics';
+
+  @override
+  String get adminMergeNotice =>
+      'Merging is permanent. The account to merge in is deleted for good, including its sign-in, and its football record is added to the account to keep. Nothing happens until you confirm.';
+
+  @override
+  String get adminMergePlanTitle => 'What the merge will do';
+
+  @override
+  String get adminMergePlanCommunitiesTransferred =>
+      'Communities passed to the account to keep';
+
+  @override
+  String get adminMergePlanMembershipsMoved => 'Memberships moved';
+
+  @override
+  String get adminMergePlanMembershipsMerged =>
+      'Duplicate memberships merged (the higher role stays)';
+
+  @override
+  String get adminMergePlanRolesUpgraded => 'Roles raised to the higher one';
+
+  @override
+  String get adminMergePlanRegistrationsMoved => 'Match registrations moved';
+
+  @override
+  String get adminMergePlanLineupPlacesMoved => 'Lineup places moved';
+
+  @override
+  String get adminMergePlanGoalRowsMoved => 'Goal records moved';
+
+  @override
+  String get adminMergePlanMvpAwardsMoved => 'MVP awards moved';
+
+  @override
+  String get adminMergePlanTeamAwardsMoved => 'Team of the period awards moved';
+
+  @override
+  String get adminMergePlanCreatedMatches =>
+      'Matches the merged-in account created, re-attributed';
+
+  @override
+  String get adminMergePlanFootnote =>
+      'The kept account\'s rating is recalculated match by match in date order, and its statistics are rebuilt from the records. Nobody else\'s rating or statistics change.';
+
+  @override
+  String get adminMergeChoiceTitle => 'Choose which participation to keep';
+
+  @override
+  String get adminMergeChoiceHelp =>
+      'A player has one place in a match. For each match below, choose whose participation stays; the other is removed. Goals, MVP awards, results and confirmed lineups are never removed.';
+
+  @override
+  String adminMergeKeepRetained(String name) {
+    return 'Keep $name';
+  }
+
+  @override
+  String adminMergeKeepSource(String name) {
+    return 'Keep $name';
+  }
+
+  @override
+  String adminMergeHeldBy(String name, String reasons) {
+    return '$name can\'t be removed here: $reasons';
+  }
+
+  @override
+  String get adminMergeBlockerGoals => 'scored goals';
+
+  @override
+  String get adminMergeBlockerMvp => 'is the match\'s MVP';
+
+  @override
+  String get adminMergeBlockerLineupInResult =>
+      'is in the lineup a result was recorded from';
+
+  @override
+  String get adminMergeBlockerConfirmedLineup => 'is in a confirmed lineup';
+
+  @override
+  String get adminMergeBlockerRating =>
+      'has a rating in effect from this match';
+
+  @override
+  String adminMergeNeedChoices(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Choose which participation to keep in $count matches.',
+      one: 'Choose which participation to keep in 1 match.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminMergeResolveBlockersFirst =>
+      'Resolve the blockers above first.';
+
+  @override
+  String get adminMergeExecuteButton => 'Merge accounts…';
+
+  @override
+  String get adminMergeConfirmTitle => 'Merge permanently?';
+
+  @override
+  String adminMergeConfirmBody(String source, String retained) {
+    return '$source will be deleted for good, including their sign-in. Their football record will be added to $retained. This cannot be undone.';
+  }
+
+  @override
+  String adminMergeConfirmTypeLabel(String name) {
+    return 'Type the name of the account to delete: $name';
+  }
+
+  @override
+  String get adminMergeConfirmField => 'Name';
+
+  @override
+  String get adminMergeConfirmAction => 'Merge permanently';
+
+  @override
+  String get adminMergeRunning => 'Merging…';
+
+  @override
+  String get adminMergeDoneTitle => 'Accounts merged';
+
+  @override
+  String adminMergeDoneBody(String source, String retained) {
+    return '$source was deleted. Their football record now belongs to $retained.';
+  }
+
+  @override
+  String adminMergeDoneRating(String name, String before, String after) {
+    return '$name\'s rating was recalculated: $before → $after.';
+  }
+
+  @override
+  String get adminMergeDoneButton => 'Done';
+
+  @override
+  String get adminMergeFailedConflict =>
+      'The merge was not performed. Something changed or is in the way. Review the preview again.';
+
+  @override
+  String get adminMergeFailedNotFound =>
+      'One of the accounts no longer exists. If a merge just ran, the account to merge in is already gone.';
+
+  @override
+  String get adminMergeFailedAuthorization =>
+      'You are not allowed to merge these accounts.';
+
+  @override
+  String get adminMergeFailedValidation =>
+      'The request was not accepted. Nothing was changed.';
+
+  @override
+  String get adminMergeFailedUncertain =>
+      'The merge may or may not have been performed. Check the preview before trying again: if it went through, the account to merge in no longer exists.';
+
+  @override
+  String get adminMergeCheckAgain => 'Check again';
+
+  @override
+  String get adminFindingSharedMatchNotResolvable =>
+      'Matches where neither account\'s participation can be removed (goals, MVP awards, recorded lineups): correct them first';
+
+  @override
+  String get adminFindingSharedMatchLimitExceeded =>
+      'More shared matches than one merge can resolve (100)';
+
+  @override
+  String get adminFindingSharedMatchChoiceRequired =>
+      'Matches both accounts took part in: choose which participation to keep';
+
+  @override
+  String get adminFindingSourceHasStoredFiles =>
+      'The account to merge in still has a profile picture in storage. A merge cannot delete it and it is public, so it must be removed first';
+
+  @override
+  String get adminFindingRetainedRatingInconsistent =>
+      'The rating of the account to keep does not follow from its rating history, so it cannot be recalculated safely';
+
+  @override
+  String get adminFindingRatingArchiveMapped =>
+      'Rating archive rows keep the old account id; the merge records which account it became';
 }

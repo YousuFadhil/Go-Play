@@ -54,6 +54,28 @@ class AdminPreviewLabels {
         'RATING_HISTORY_IMMUTABLE' => l10n.adminFindingRatingHistoryImmutable,
         'AUDIT_LOG_APPEND_ONLY' => l10n.adminFindingAuditLogAppendOnly,
         'EVENT_LOGS_NAME_ACCOUNT' => l10n.adminFindingEventLogsNameAccount,
+        // Merging two accounts (migration `0101`).
+        'SHARED_MATCH_NOT_RESOLVABLE' =>
+          l10n.adminFindingSharedMatchNotResolvable,
+        'SHARED_MATCH_LIMIT_EXCEEDED' =>
+          l10n.adminFindingSharedMatchLimitExceeded,
+        'SHARED_MATCH_CHOICE_REQUIRED' =>
+          l10n.adminFindingSharedMatchChoiceRequired,
+        'SOURCE_HAS_STORED_FILES' => l10n.adminFindingSourceHasStoredFiles,
+        'RETAINED_RATING_INCONSISTENT' =>
+          l10n.adminFindingRetainedRatingInconsistent,
+        'RATING_ARCHIVE_MAPPED' => l10n.adminFindingRatingArchiveMapped,
+        _ => code,
+      };
+
+  /// Why a participation cannot be removed from a match (migration `0101`).
+  static String dropBlocker(AppLocalizations l10n, String code) =>
+      switch (code) {
+        'GOALS' => l10n.adminMergeBlockerGoals,
+        'MVP' => l10n.adminMergeBlockerMvp,
+        'LINEUP_IN_RESULT' => l10n.adminMergeBlockerLineupInResult,
+        'CONFIRMED_LINEUP' => l10n.adminMergeBlockerConfirmedLineup,
+        'RATING_IN_EFFECT' => l10n.adminMergeBlockerRating,
         _ => code,
       };
 

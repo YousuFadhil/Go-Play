@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
@@ -140,6 +142,8 @@ class FakeAdminAdapter implements AdminAdapter {
     this.mergePreview,
     this.deletionPreview,
     this.previewFailure,
+    this.mergeResult,
+    this.mergeFailure,
   });
 
   List<AdminUserSummary> users;
@@ -193,6 +197,25 @@ class FakeAdminAdapter implements AdminAdapter {
   /// Set to make both previews fail (a refusal, a dropped connection, a database
   /// that does not have the RPC yet); cleared to let a retry succeed.
   Failure? previewFailure;
+
+  /// What the permanent merge (migration `0101`) answers, or the failure it
+  /// raises. Null for both means no test asked for one, and a call is then a
+  /// mistake worth failing loudly on.
+  AdminMergeResult? mergeResult;
+  Failure? mergeFailure;
+
+  /// Every merge requested, in order, with its choices. A test that taps twice
+  /// asserts this is one.
+  final List<
+      ({
+        String retainedUserId,
+        String sourceUserId,
+        List<AdminMergeResolution> resolutions
+      })> mergeRequests = [];
+
+  /// When set, the merge waits on it, so a test can look at the screen while the
+  /// request is in flight and tap again.
+  Completer<void>? mergeGate;
 
   @override
   String? get currentUserId => signedInUserId;
@@ -392,6 +415,24 @@ class FakeAdminAdapter implements AdminAdapter {
     calls.add('previewAccountDeletion:$userId');
     if (previewFailure != null) throw previewFailure!;
     return deletionPreview!;
+  }
+
+  @override
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  }) async {
+    calls.add('mergeAccounts:$retainedUserId:$sourceUserId:${resolutions.length}');
+    mergeRequests.add((
+      retainedUserId: retainedUserId,
+      sourceUserId: sourceUserId,
+      resolutions: List.of(resolutions),
+    ));
+    final gate = mergeGate;
+    if (gate != null) await gate.future;
+    if (mergeFailure != null) throw mergeFailure!;
+    return mergeResult!;
   }
 
   @override

@@ -115,6 +115,14 @@ class _FakeAdminAdapter implements AdminAdapter {
       throw UnimplementedError();
 
   @override
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<bool> isSystemAdmin() async => true;
 
   @override

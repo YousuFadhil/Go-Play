@@ -840,8 +840,13 @@ class AdminSourceOwnedCommunity {
 /// A match both accounts have participation evidence for.
 ///
 /// The evidence lists hold `REGISTRATION`, `LINEUP`, `GOALS`, `MVP` and
-/// `RATING`. [collision] is true when both hold the same kind of evidence, which
-/// is what a merge could not fold into one.
+/// `RATING`. A retained account may have only one participation in a match, so
+/// the administrator chooses which side survives; the other side's participation
+/// is removed. It can be removed only if it holds nothing the product keeps as
+/// record, and [retainedDropBlockers] and [sourceDropBlockers] say what holds
+/// each side (`GOALS`, `MVP`, `LINEUP_IN_RESULT`, `CONFIRMED_LINEUP`,
+/// `RATING_IN_EFFECT`). [canKeepRetained] means the source's side may go, and
+/// [canKeepSource] the other way round.
 class AdminSharedMatch {
   const AdminSharedMatch({
     required this.matchId,
@@ -850,7 +855,10 @@ class AdminSharedMatch {
     required this.isHistorical,
     required this.retainedEvidence,
     required this.sourceEvidence,
-    required this.collision,
+    this.retainedDropBlockers = const [],
+    this.sourceDropBlockers = const [],
+    this.canKeepRetained = false,
+    this.canKeepSource = false,
     this.communityName,
     this.startAt,
   });
@@ -863,26 +871,119 @@ class AdminSharedMatch {
   final bool isHistorical;
   final List<String> retainedEvidence;
   final List<String> sourceEvidence;
-  final bool collision;
+  final List<String> retainedDropBlockers;
+  final List<String> sourceDropBlockers;
+
+  /// The retained account's participation may be kept (the source's can go).
+  /// Missing from the document means "no", never "yes".
+  final bool canKeepRetained;
+  final bool canKeepSource;
+
+  /// At least one side can be kept. When neither can, the merge is blocked.
+  bool get isResolvable => canKeepRetained || canKeepSource;
+
+  bool canKeep(AdminMergeKeep keep) => switch (keep) {
+        AdminMergeKeep.retained => canKeepRetained,
+        AdminMergeKeep.source => canKeepSource,
+      };
 }
 
-/// What folding a source account into a retained one would collide with.
+/// Which account's participation survives in a match both took part in.
+enum AdminMergeKeep {
+  retained('retained'),
+  source('source');
+
+  const AdminMergeKeep(this.wireName);
+
+  /// What the database expects: `retained` or `source`.
+  final String wireName;
+}
+
+/// The administrator's explicit choice for one shared match.
+class AdminMergeResolution {
+  const AdminMergeResolution({required this.matchId, required this.keep});
+
+  final String matchId;
+  final AdminMergeKeep keep;
+
+  Map<String, dynamic> toJson() => {
+        'match_id': matchId,
+        'keep': keep.wireName,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is AdminMergeResolution &&
+      other.matchId == matchId &&
+      other.keep == keep;
+
+  @override
+  int get hashCode => Object.hash(matchId, keep);
+}
+
+/// What a merge will do by itself, counted. None of it needs a decision.
+class AdminMergePlan {
+  const AdminMergePlan({
+    this.communitiesTransferred = 0,
+    this.membershipsMoved = 0,
+    this.membershipsMerged = 0,
+    this.rolesUpgraded = 0,
+    this.registrationsMoved = 0,
+    this.lineupPlacesMoved = 0,
+    this.goalRowsMoved = 0,
+    this.mvpAwardsMoved = 0,
+    this.teamAwardsMoved = 0,
+    this.createdMatchesReattributed = 0,
+    this.sharedMatches = 0,
+  });
+
+  final int communitiesTransferred;
+  final int membershipsMoved;
+  final int membershipsMerged;
+  final int rolesUpgraded;
+  final int registrationsMoved;
+  final int lineupPlacesMoved;
+  final int goalRowsMoved;
+  final int mvpAwardsMoved;
+  final int teamAwardsMoved;
+  final int createdMatchesReattributed;
+  final int sharedMatches;
+
+  /// Whether the plan moves anything at all.
+  bool get isEmpty =>
+      communitiesTransferred +
+          membershipsMoved +
+          membershipsMerged +
+          registrationsMoved +
+          lineupPlacesMoved +
+          goalRowsMoved +
+          mvpAwardsMoved +
+          teamAwardsMoved +
+          createdMatchesReattributed ==
+      0;
+}
+
+/// What folding a source account into a retained one would do, and what stands in
+/// its way (migrations `0096`, `0101`).
 ///
-/// There is no execute counterpart anywhere: this describes, and the only way
-/// to act on it does not exist yet.
+/// [findings] holds only what needs attention; what the merge does by itself is
+/// in [plan]. **[hasBlockers] is a statement about this preview and nothing
+/// else:** `false` never means the merge is authorised -- the database asks
+/// again, inside its own transaction, when the merge is requested. The name is
+/// deliberately not "can proceed".
 class AdminMergePreview {
   const AdminMergePreview({
     required this.retained,
     required this.source,
     required this.overlappingCommunities,
     required this.roleConflictsTotal,
-    required this.ownershipConflictsTotal,
     required this.sourceOwnedCommunities,
     required this.sharedMatches,
-    required this.collidingMatchesTotal,
-    required this.collisionsByKind,
+    required this.unresolvableMatchesTotal,
+    required this.sharedLimit,
     required this.communityStatisticsCollisions,
     required this.teamAwardCollisions,
+    required this.plan,
     required this.findings,
     required this.hasBlockers,
     required this.coverageNotes,
@@ -892,23 +993,19 @@ class AdminMergePreview {
   final AdminPreviewAccount source;
   final AdminPreviewList<AdminCommunityOverlap> overlappingCommunities;
   final int roleConflictsTotal;
-  final int ownershipConflictsTotal;
   final AdminPreviewList<AdminSourceOwnedCommunity> sourceOwnedCommunities;
   final AdminPreviewList<AdminSharedMatch> sharedMatches;
-  final int collidingMatchesTotal;
 
-  /// Matches where both accounts hold the same kind of evidence, by kind:
-  /// `registration`, `lineup`, `goals`, `rating`.
-  final Map<String, int> collisionsByKind;
+  /// Shared matches where neither side can be removed.
+  final int unresolvableMatchesTotal;
+
+  /// How many shared matches one merge resolves, and so how many [sharedMatches]
+  /// lists.
+  final int sharedLimit;
   final int communityStatisticsCollisions;
   final int teamAwardCollisions;
+  final AdminMergePlan plan;
   final List<AdminPreviewFinding> findings;
-
-  /// True when any finding is a blocker. **A statement about this preview and
-  /// nothing else:** `false` never means a merge is available, safe or
-  /// authorised -- none exists in this phase, and the preview does not look at
-  /// everything ([coverageNotes] says what it leaves out). The name is
-  /// deliberately not "can proceed", so no caller can read it as permission.
   final bool hasBlockers;
   final List<String> coverageNotes;
 
@@ -916,6 +1013,37 @@ class AdminMergePreview {
         for (final f in findings)
           if (f.severity == severity) f
       ];
+}
+
+/// What the database reports after a merge. A merge that returned is a merge that
+/// happened, so every field defaults rather than throws: a result this build cannot
+/// read must never be mistaken for a merge that failed.
+class AdminMergeResult {
+  const AdminMergeResult({
+    required this.retainedUserId,
+    required this.sourceUserId,
+    this.droppedRegistrations = 0,
+    this.droppedLineupPlaces = 0,
+    this.moved = const {},
+    this.ratingBefore,
+    this.ratingAfter,
+    this.matchesReplayed = 0,
+  });
+
+  final String retainedUserId;
+  final String sourceUserId;
+  final int droppedRegistrations;
+  final int droppedLineupPlaces;
+
+  /// What moved, by name: `registrations`, `lineup_places`, `goal_rows`,
+  /// `mvp_awards`, `team_awards`, `communities_transferred`, `memberships_moved`,
+  /// `memberships_merged`, `roles_upgraded`, `created_matches`.
+  final Map<String, int> moved;
+  final double? ratingBefore;
+  final double? ratingAfter;
+  final int matchesReplayed;
+
+  int movedCount(String key) => moved[key] ?? 0;
 }
 
 /// A community the account owns, which would need a new owner.
