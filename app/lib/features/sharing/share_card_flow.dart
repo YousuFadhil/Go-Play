@@ -174,16 +174,14 @@ Future<void> precacheShareCardFaces(
   // Each request owns its failure, including failures that arrive *after*
   // the deadline. This keeps a single unavailable face from preventing
   // every other player's image from being composed.
-  final pending = Future.wait<void>([
-    for (final url in unique)
-      () async {
-        try {
-          await load(url);
-        } catch (_) {
-          // The card already has its approved fallback avatar.
-        }
-      }(),
-  ]);
+  Future<void> loadSafely(String url) async {
+    try {
+      await load(url);
+    } catch (_) {
+      // A broken photograph must not prevent the card from being shared.
+    }
+  }
 
-  await pending.timeout(maxWait, onTimeout: () {});
+  await Future.wait<void>(unique.map(loadSafely))
+      .timeout(maxWait, onTimeout: () {});
 }
