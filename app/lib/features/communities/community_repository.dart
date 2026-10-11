@@ -21,6 +21,10 @@ class CommunityRepository {
   /// Communities the current user belongs to.
   Future<List<Community>> fetchMyCommunities() => _adapter.fetchMyCommunities();
 
+  /// Communities in which the caller may organize matches.
+  Future<List<Community>> fetchManagedCommunities() =>
+      _adapter.fetchManagedCommunities();
+
   /// What the user can see and act on: [mine] are joined communities,
   /// [discover] is everything else. Every community is visible now; what
   /// differs is whether joining needs the code.

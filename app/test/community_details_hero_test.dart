@@ -801,6 +801,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   Future<List<Community>> fetchMyCommunities() => throw UnimplementedError();
 
   @override
+  Future<List<Community>> fetchManagedCommunities() =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchAllCommunities() => throw UnimplementedError();
 
   @override
@@ -924,7 +928,7 @@ class _FakeMatchAdapter implements MatchAdapter {
   Future<List<Match>> fetchUpcomingMatches() => throw UnimplementedError();
 
   @override
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,

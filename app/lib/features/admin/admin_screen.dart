@@ -8,6 +8,7 @@ import 'admin_audit_tab.dart';
 import 'admin_overview_tab.dart';
 import 'admin_repository.dart';
 import 'admin_user_detail_screen.dart';
+import '../support/admin_support_phone_screen.dart';
 
 /// What a row lets an administrator do to the record behind it.
 enum AdminRowAction {
@@ -76,6 +77,18 @@ class AdminScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppHeader(
           title: Text(l10n.adminTitle),
+          actions: [
+            IconButton(
+              key: const Key('adminSupportPhone'),
+              tooltip: l10n.supportAdminPhoneTitle,
+              icon: const Icon(Icons.support_agent_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AdminSupportPhoneScreen(),
+                ),
+              ),
+            ),
+          ],
           bottom: TabBar(
             // Five labels now, several of them long in Arabic. Scrollable so
             // the last is reachable on a narrow phone rather than crushed to

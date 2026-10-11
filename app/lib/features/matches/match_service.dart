@@ -39,7 +39,7 @@ class MatchService {
   /// follows: the participants, the two sides and the result of a recorded match
   /// are entered through the same screens and the same functions as any other
   /// match that has been played.
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,

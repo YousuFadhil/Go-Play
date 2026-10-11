@@ -268,7 +268,7 @@ class FakeMatchAdapter implements MatchAdapter {
   Future<List<Match>> fetchUpcomingMatches() => throw UnimplementedError();
 
   @override
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,

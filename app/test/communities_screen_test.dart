@@ -250,6 +250,10 @@ class _FakeCommunityAdapter implements CommunityAdapter {
   }
 
   @override
+  Future<List<Community>> fetchManagedCommunities() =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchAllCommunities() async => all;
 
   @override

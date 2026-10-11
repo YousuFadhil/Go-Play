@@ -843,6 +843,10 @@ class FakeCommunityAdapter implements CommunityAdapter {
   Future<List<Community>> fetchMyCommunities() async => mine;
 
   @override
+  Future<List<Community>> fetchManagedCommunities() =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Community>> fetchAllCommunities() async => all;
 
   @override
@@ -1276,7 +1280,7 @@ class FakeMatchAdapter implements MatchAdapter {
   String? lastLocation;
 
   @override
-  Future<void> createMatch({
+  Future<String> createMatch({
     required String communityId,
     required String title,
     required String location,
@@ -1287,6 +1291,7 @@ class FakeMatchAdapter implements MatchAdapter {
   }) async {
     lastTitle = title;
     lastLocation = location;
+    return '00000000-0000-4000-8000-000000000001';
   }
 
   @override
