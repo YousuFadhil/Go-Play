@@ -104,6 +104,23 @@ class PublicLink {
   static String format(PublicLinkKind kind, String id) =>
       '$webBase/#${path(kind, id)}';
 
+  /// The one link a match invitation shares.
+  ///
+  /// Unlike [format] this is a real server route, `/share/match/<id>`, served
+  /// by the Pages Function in `functions/share/match/[id].js`: it answers a
+  /// chat app's crawler with a preview card (title, description, one Go Play
+  /// thumbnail) and moves a person on to the app's own `/#/match/<id>` route.
+  ///
+  /// [languageCode] is the sharer's language, so the preview a group sees is
+  /// written in it; only `ar` and `en` are carried, anything else is left off
+  /// and the server falls back to the app's own default. [parse] reads this
+  /// form back to the same target as the hash route.
+  static String matchInvitation(String id, {String? languageCode}) {
+    final base = '$webBase/share/${PublicLinkKind.match.segment}/$id';
+    final language = languageCode?.toLowerCase();
+    return language == 'ar' || language == 'en' ? '$base?lang=$language' : base;
+  }
+
   /// What opens the app directly on a device that has it.
   static String appLink(PublicLinkKind kind, String id) =>
       '$scheme://${kind.segment}/$id';

@@ -18,6 +18,9 @@ client_secret*.json
 packages/btge/.dart_tool/
 packages/btge/pubspec.lock
 
+# Wrangler's local state from `wrangler pages dev` (see functions/README.md).
+.wrangler/
+
 # Python bytecode from the validation tooling under supabase/tool/.
 __pycache__/
 *.pyc

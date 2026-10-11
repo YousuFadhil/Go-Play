@@ -320,16 +320,12 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         SnackBar(content: Text(context.l10n.historicalMatchRecorded)),
       );
     } else {
-      await _offerShareAfterCreate(createdMatchId, start, end);
+      await _offerShareAfterCreate(createdMatchId);
     }
     if (mounted) Navigator.of(context).pop(true);
   }
 
-  Future<void> _offerShareAfterCreate(
-    String matchId,
-    DateTime start,
-    DateTime end,
-  ) async {
+  Future<void> _offerShareAfterCreate(String matchId) async {
     final shareNow = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -350,30 +346,14 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     );
     if (!mounted || shareNow != true) return;
 
-    final message = MatchInvitationShare.message(
-      context,
-      matchId: matchId,
-      title: _titleController.text,
-      location: _locationController.text,
-      startAt: start,
-      endAt: end,
-    );
     try {
-      if (widget.shareText != null) {
-        // Test seam retained for the existing creation-flow widget tests.
-        await widget.shareText!(message);
-      } else {
-        await MatchInvitationShare.present(
-          context,
-          matchId: matchId,
-          title: _titleController.text,
-          location: _locationController.text,
-          startAt: start,
-          endAt: end,
-          communityId: widget.communityId,
-          source: 'create_match_screen',
-        );
-      }
+      await MatchInvitationShare.share(
+        context,
+        matchId: matchId,
+        communityId: widget.communityId,
+        source: 'create_match_screen',
+        shareText: widget.shareText,
+      );
     } catch (_) {
       // Sharing is optional; a failed OS sheet must never be called a failed
       // match creation. The match is already committed in Supabase.

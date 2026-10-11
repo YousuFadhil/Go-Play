@@ -419,30 +419,14 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   }
 
   Future<void> _shareMatchInvitation(Match match) async {
-    final message = MatchInvitationShare.message(
-      context,
-      matchId: match.id,
-      title: match.displayName,
-      location: match.location,
-      startAt: match.startAt,
-      endAt: match.endAt,
-    );
     try {
-      if (widget.shareText != null) {
-        // Test seam retained for the existing details-flow widget tests.
-        await widget.shareText!(message);
-      } else {
-        await MatchInvitationShare.present(
-          context,
-          matchId: match.id,
-          title: match.displayName,
-          location: match.location,
-          startAt: match.startAt,
-          endAt: match.endAt,
-          communityId: _communityId,
-          source: 'match_details_screen',
-        );
-      }
+      await MatchInvitationShare.share(
+        context,
+        matchId: match.id,
+        communityId: _communityId,
+        source: 'match_details_screen',
+        shareText: widget.shareText,
+      );
     } catch (_) {
       if (mounted) _showMessage(context.l10n.genericError);
     }

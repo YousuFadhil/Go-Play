@@ -22,6 +22,7 @@ import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/members/member_adapter.dart';
 import 'package:go_play/features/members/member_repository.dart';
 import 'package:go_play/features/sharing/public_link.dart';
+import 'package:go_play/l10n/generated/app_localizations_ar.dart';
 import 'auth_adapter_defaults.dart';
 
 /// Opening a match you are not a member of.
@@ -757,10 +758,31 @@ void main() {
       await tester.tap(find.text('Share match'));
       await tester.pumpAndSettle();
 
-      final lines = shared!.split('\n');
-      expect(lines.last, PublicLink.format(PublicLinkKind.match, 'm1'));
-      expect(shared, contains('Friday Night'));
-      expect(shared, contains('Al Amerat Pitch'));
+      // One link and nothing else: the preview is built from it.
+      expect(shared, PublicLink.matchInvitation('m1', languageCode: 'en'));
+      expect(shared, isNot(contains('\n')));
+      expect(shared, contains('/share/match/m1'));
+    });
+
+    testWidgets(
+        'in Arabic it shares the same link asking for the Arabic preview',
+        (tester) async {
+      String? shared;
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: match, access: memberContext),
+        locale: const Locale('ar'),
+        shareText: (text) async {
+          shared = text;
+        },
+      );
+
+      await tester
+          .tap(find.text(AppLocalizationsAr().shareMatchInvitationAction));
+      await tester.pumpAndSettle();
+
+      expect(shared, PublicLink.matchInvitation('m1', languageCode: 'ar'));
+      expect(shared, endsWith('?lang=ar'));
     });
 
     testWidgets('a match that has started offers no invitation',

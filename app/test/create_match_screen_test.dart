@@ -6,6 +6,8 @@ import 'package:go_play/core/app_header.dart';
 import 'package:go_play/core/club_task.dart';
 import 'package:go_play/core/failures.dart';
 import 'package:go_play/core/l10n.dart';
+import 'package:go_play/features/sharing/public_link.dart';
+import 'package:go_play/l10n/generated/app_localizations_ar.dart';
 import 'package:go_play/features/matches/create_match_screen.dart';
 import 'package:go_play/features/matches/match_adapter.dart';
 import 'package:go_play/features/matches/match_models.dart';
@@ -161,9 +163,72 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(adapter.writes, 1);
-    expect(shared, contains('/#/match/00000000-0000-4000-8000-000000000001'));
-    expect(shared, contains('Location:'));
+    // One link and nothing else: the preview is built from it, not from text.
+    expect(
+      shared,
+      PublicLink.matchInvitation(
+        '00000000-0000-4000-8000-000000000001',
+        languageCode: 'en',
+      ),
+    );
+    expect(shared, isNot(contains('\n')));
+    expect(
+        shared, contains('/share/match/00000000-0000-4000-8000-000000000001'));
     expect(find.byType(CreateMatchScreen), findsNothing);
+  });
+
+  testWidgets(
+      'in Arabic the same single link carries the Arabic preview request',
+      (tester) async {
+    final adapter = CreateMatchAdapter();
+    String? shared;
+    final locale = ValueNotifier(const Locale('en'));
+    addTearDown(locale.dispose);
+    tester.view.physicalSize = const Size(412, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    // The form is filled in English (its pickers are driven by English labels),
+    // then the app language changes, as it can between opening and saving.
+    final screen = CreateMatchScreen(
+      communityId: 'c1',
+      matchService: MatchService(adapter),
+      shareText: (text) async {
+        shared = text;
+      },
+    );
+    await tester.pumpWidget(ValueListenableBuilder<Locale>(
+      valueListenable: locale,
+      builder: (_, value, __) => MaterialApp(
+        locale: value,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: screen,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await fillValidForm(tester);
+    locale.value = const Locale('ar');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.descendant(
+      of: find.byType(ClubActionBar),
+      matching: find.byType(FilledButton),
+    ));
+    await tester.pumpAndSettle();
+    final ar = AppLocalizationsAr();
+    expect(find.text(ar.shareMatchCreatedTitle), findsOneWidget);
+    await tester.tap(find.text(ar.shareMatchInvitationAction));
+    await tester.pumpAndSettle();
+
+    expect(
+      shared,
+      PublicLink.matchInvitation(
+        '00000000-0000-4000-8000-000000000001',
+        languageCode: 'ar',
+      ),
+    );
+    expect(shared, endsWith('?lang=ar'));
+    expect(adapter.writes, 1);
   });
 
   testWidgets('optional share failure does not turn creation into a failure',
