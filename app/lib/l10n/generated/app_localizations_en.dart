@@ -1556,35 +1556,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareMyProfileAction => 'Share my profile';
 
   @override
-  String get shareTextMyProfile => 'My player profile on Go Play.';
-
-  @override
-  String shareTextPlayerProfile(String name) {
-    return '$name — player profile on Go Play.';
-  }
-
-  @override
   String get shareTextMyStatistics => 'My statistics on Go Play.';
-
-  @override
-  String shareTextCommunityStatistics(String community) {
-    return '$community — statistics on Go Play.';
-  }
-
-  @override
-  String shareTextTeamOfPeriod(String community) {
-    return '$community — Team of the Period on Go Play.';
-  }
-
-  @override
-  String shareTextMatchLineup(String match) {
-    return '$match — the lineup on Go Play.';
-  }
-
-  @override
-  String shareTextMatchResult(String match) {
-    return '$match — the result on Go Play.';
-  }
 
   @override
   String get recentFormTitle => 'Recent form';

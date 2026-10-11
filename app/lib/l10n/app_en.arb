@@ -632,28 +632,7 @@
 
   "sharePlayerProfileAction": "Share profile",
   "shareMyProfileAction": "Share my profile",
-  "shareTextMyProfile": "My player profile on Go Play.",
-  "shareTextPlayerProfile": "{name} — player profile on Go Play.",
-  "@shareTextPlayerProfile": {
-    "placeholders": { "name": { "type": "String" } }
-  },
   "shareTextMyStatistics": "My statistics on Go Play.",
-  "shareTextCommunityStatistics": "{community} — statistics on Go Play.",
-  "@shareTextCommunityStatistics": {
-    "placeholders": { "community": { "type": "String" } }
-  },
-  "shareTextTeamOfPeriod": "{community} — Team of the Period on Go Play.",
-  "@shareTextTeamOfPeriod": {
-    "placeholders": { "community": { "type": "String" } }
-  },
-  "shareTextMatchLineup": "{match} — the lineup on Go Play.",
-  "@shareTextMatchLineup": {
-    "placeholders": { "match": { "type": "String" } }
-  },
-  "shareTextMatchResult": "{match} — the result on Go Play.",
-  "@shareTextMatchResult": {
-    "placeholders": { "match": { "type": "String" } }
-  },
 
   "recentFormTitle": "Recent form",
   "recentFormNote": "The player's last {count} completed matches, most recent first.",

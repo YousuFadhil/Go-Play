@@ -548,28 +548,7 @@
 
   "sharePlayerProfileAction": "مشاركة الملف",
   "shareMyProfileAction": "مشاركة ملفي",
-  "shareTextMyProfile": "ملفي كلاعب في Go Play.",
-  "shareTextPlayerProfile": "{name} — ملف اللاعب في Go Play.",
-  "@shareTextPlayerProfile": {
-    "placeholders": { "name": { "type": "String" } }
-  },
   "shareTextMyStatistics": "إحصائياتي في Go Play.",
-  "shareTextCommunityStatistics": "{community} — الإحصائيات في Go Play.",
-  "@shareTextCommunityStatistics": {
-    "placeholders": { "community": { "type": "String" } }
-  },
-  "shareTextTeamOfPeriod": "{community} — تشكيلة الفترة في Go Play.",
-  "@shareTextTeamOfPeriod": {
-    "placeholders": { "community": { "type": "String" } }
-  },
-  "shareTextMatchLineup": "{match} — التشكيلة في Go Play.",
-  "@shareTextMatchLineup": {
-    "placeholders": { "match": { "type": "String" } }
-  },
-  "shareTextMatchResult": "{match} — النتيجة في Go Play.",
-  "@shareTextMatchResult": {
-    "placeholders": { "match": { "type": "String" } }
-  },
 
   "recentFormTitle": "الأداء الأخير",
   "recentFormNote": "آخر {count} مباريات مكتملة للاعب، الأحدث أولاً.",
