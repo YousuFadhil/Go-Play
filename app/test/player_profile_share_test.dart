@@ -22,7 +22,6 @@ import 'package:go_play/features/profile/profile_screen.dart';
 import 'package:go_play/features/results/result_adapter.dart';
 import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
-import 'package:go_play/features/sharing/public_link.dart';
 import 'package:go_play/features/sharing/share_card_canvas.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
@@ -149,7 +148,7 @@ void main() {
     testWidgets('prints no address, and no code for one', (tester) async {
       await pumpCard(tester, cardOf());
 
-      // The approved share is the picture and a line of text (UAT round 1):
+      // The approved share is the picture alone, with no caption (UAT round 1):
       // no public address is printed on the card, and there is no public-link
       // QR behaviour in the product for a code to stand for either.
       expect(find.textContaining('http'), findsNothing);
@@ -523,7 +522,7 @@ void main() {
       expect(find.byIcon(Icons.ios_share), findsNothing);
     });
 
-    testWidgets('sharing hands over an image and words, and no link',
+    testWidgets('sharing hands over the image alone, with no words and no link',
         (tester) async {
       final share = await pumpProfile(tester);
 
@@ -533,17 +532,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(share.image, isNotNull, reason: 'the picture still travels');
-      final message = share.message;
-      expect(message, isNotNull);
-      expect(message!.text, 'Noor Al Kindi — player profile on Go Play.');
-      // The body is what the sheet is actually handed: the words, and nothing
-      // appended to them (UAT round 1).
-      expect(share.body, message.text);
-      expect(share.body, isNot(contains(AppConfig.publicWebBase)));
-      expect(share.body, isNot(contains('http')));
+      // A display card is only the picture: no caption and no address.
+      expect(share.message, isNull);
+      expect(share.body, isNull);
     });
 
-    testWidgets('a player sharing themselves says so', (tester) async {
+    testWidgets('a player sharing themselves hands over the image alone',
+        (tester) async {
       final share = await pumpProfile(
         tester,
         openUserId: null,
@@ -561,10 +556,11 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Share'));
       await tester.pumpAndSettle();
 
-      expect(share.message!.text, 'My player profile on Go Play.');
+      expect(share.image, isNotNull);
+      expect(share.message, isNull);
     });
 
-    testWidgets('the words are the reader\'s language', (tester) async {
+    testWidgets('an Arabic reader shares the image alone too', (tester) async {
       final share = await pumpProfile(tester, locale: const Locale('ar'));
 
       await tester.tap(find.byTooltip('مشاركة الملف'));
@@ -572,8 +568,8 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'مشاركة'));
       await tester.pumpAndSettle();
 
-      expect(share.message!.text, contains('ملف اللاعب'));
-      expect(share.body, isNot(contains('http')));
+      expect(share.image, isNotNull);
+      expect(share.message, isNull);
     });
 
     testWidgets('a visitor shares the public card, and only that',
@@ -603,10 +599,10 @@ void main() {
 
       // The card was composed from the public record and nothing else, so the
       // share cannot carry more than the visitor was shown -- and, like every
-      // share, it carries no link.
-      expect(share.message!.text, 'Noor Al Kindi — player profile on Go Play.');
-      expect(share.body,
-          isNot(contains(PublicLink.format(PublicLinkKind.player, userId))));
+      // display card, it is the picture alone: no caption and no link.
+      expect(share.image, isNotNull);
+      expect(share.message, isNull);
+      expect(share.body, isNull);
     });
 
     testWidgets('a share is recorded with its type and where it came from',

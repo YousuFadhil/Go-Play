@@ -219,7 +219,8 @@ void main() {
         final source = read(path);
         expect(source, contains(type), reason: path);
         expect(source, contains('source: ShareSource.'), reason: path);
-        expect(source, contains('message: ShareMessage('), reason: path);
+        // A display card shares only the picture: no caption goes with it.
+        expect(source, isNot(contains('message: ShareMessage(')), reason: path);
       });
 
       // One player-share entry point, and this is what keeps it one.
