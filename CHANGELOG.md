@@ -1,6 +1,69 @@
 # سجل التغييرات — Go Play
 
+> **قاعدة هذا الملف:** كل migration جديد يُذكر هنا برقمه في المرحلة نفسها. يفحص ذلك
+> `node tool/check-docs.mjs` (انظر `CLAUDE.md` §13).
+
 ## غير مُصدَر بعد
+
+- **تنظيف نصوص الترجمة:** حُذفت ستة نصوص غير مستخدمة لتسميات بطاقات العرض، ثم
+  `shareTextMyStatistics` وحارسه الفارغ (PR #77، #78). في `develop` ولم تصل إلى `main` بعد.
+
+## منشور على الإنتاج بعد v0.4.0-public-beta (بلا رقم إصدار)
+
+> كل ما تحت هذا العنوان منشور على الإنتاج، لكنه لم يُمنح رقم إصدار ولا وسماً في git؛
+> آخر وسم هو `v0.4.0-public-beta`. ترقيم الإصدارات قرار لمالك المنتج (انظر «مواءمة
+> إصدارات التوثيق» في `Docs/11-Future-Backlog.md`)، وإلى أن يُتخذ تُرتَّب البنود بالتاريخ.
+
+### 2026-10-11 — إدارة الحسابات لمدير النظام (Migrations 0095، 0096، 0099، 0101، 0102، 0103)
+
+- **عرض بيانات حساب وتعديلها (0095):** قراءة واحدة وخمس كتابات، كل كتابة لمجموعة
+  كاملة من الحقول (الاسم والهاتف؛ تاريخ الميلاد والمراكز؛ الخصوصية؛ الموقع
+  الافتراضي؛ إعدادات الإشعارات). لا دالة «تعديل عامة»، ولا يُحذف شيء، وكل تعديل
+  يُسجَّل في سجل التدقيق.
+- **معاينة قبل الدمج والحذف (0096):** ثلاث دوال قراءة فقط تُظهر ما يرتبط به الحساب
+  من تاريخ كرة قدم، ولا تكتب شيئاً ولا تُسجَّل في التدقيق. في 0099 صار وجود سجلات
+  تدقيق تُعرّف الحساب **مانعاً** للحذف في المعاينة بعد أن كان قيداً فقط.
+- **دمج حسابين (0101):** يبقى معرّف الحساب المُبقى، ويُزال المصدر من `public.users`
+  و`auth.users` مع هويات دخوله وجلساته في المعاملة نفسها، ويُحفظ الربط في
+  `account_merge_map`. تحذف الصورة من Storage الوظيفة `admin-merge-accounts`.
+- **الحذف النهائي (0102):** محرك واحد وبابان: `admin_delete_account` لمدير النظام
+  و`delete_my_account` للمستخدم نفسه، عبر الوظيفة `delete-account` التي تحذف الصورة
+  أولاً. تُحذف هوية الدخول والجلسات نهائياً، ويبقى صف واحد باسم «لاعب محذوف /
+  Deleted Player» بلا هاتف ولا تاريخ ميلاد ولا صورة ولا موقع. تبقى المباريات
+  المكتملة ونتائجها والمشاركات والأهداف وجوائز أفضل لاعب والتشكيلات وأدلة التقييم
+  باسم ذلك الصف.
+- **إدارة دخول حساب آخر (0103):** تغيير البريد، وإرسال رابط الاستعادة، وتعيين كلمة
+  المرور، عبر الوظيفة `admin-user-auth` لأن Auth Admin API يتطلب مفتاح الخدمة الذي
+  لا يغادر الخادم. قاعدة البيانات تقرر **هل** يُسمح بالفعل، وتسجّل **أنه** تمّ
+  بثلاث دوال تدقيق، كل واحدة لحدثها وحده.
+- PR #69، #70. الوظائف الثلاث موصوفة في `supabase/functions/*/README.md`.
+
+### 2026-10-11 — دعوات المباريات: صورة ورابط معاينة (PR #65، #66، #68، #71 إلى #76)
+
+- **صورة الدعوة برابط عام** تُشارَك بعد إنشاء المباراة ومن تفاصيلها (PR #65، #66).
+- **معاينة الرابط (Open Graph)** عبر Cloudflare Pages Function على `/share/match/:id`
+  فتظهر بطاقة الدعوة في واتساب وغيره (PR #68، #71)؛ التصميم في
+  `Docs/engineering/MATCH_LINK_PREVIEW.md`.
+- **تحسينات لاحقة:** دعوات ونصوص انضمام أوضح (#72)، وصور مصغّرة أصغر ليعرضها
+  واتساب (#73)، وعدم تكرار تفاصيل المباراة في بطاقة الرابط (#74)، وكتابة المدى
+  الزمني بالعربية بالكلمات (#75)، ومشاركة بطاقات العرض صورةً وحدها بلا تعليق (#76).
+
+### 2026-10-10 — تذكير بنتيجة المباراة (Migration 0100) وموثوقية بطاقات المشاركة (PR #61 إلى #63)
+
+- **تذكير بالنتيجة:** بعد 30 دقيقة من نهاية مباراة لم تُحفظ لها نتيجة يصل مالكَ
+  المجتمع ومشرفيه تذكير واحد بأولوية متوسطة، مرة واحدة لكل مباراة. يعمل داخل
+  PostgreSQL (`pg_cron`) لا في التطبيق، ولا يشمل مباريات انتهت قبل التفعيل.
+- **بطاقات المشاركة:** صور اللاعبين المتعثرة لم تعد تحجب إنشاء البطاقة (PR #62).
+
+### 2026-10-09 — إنشاء مباراة من الرئيسية، دعم واتساب، وتحصين أمني (Migrations 0097، 0098) — PR #54 إلى #60
+
+- **الرئيسية:** إنشاء مباراة من «المباريات القادمة» مع اختيار مجتمع يراعي الدور (#54)،
+  ومشاركة دعوة المباراة بعد إنشائها ومن تفاصيلها (#55).
+- **دعم واتساب (0097):** رقم دعم يضبطه مدير النظام ويظهر للمستخدمين (#56).
+- **أمن:** تحقق مزدوج من مدير النظام في دالة الدعم (#57)، وتحصين `is_system_admin`
+  ضد تظليل الجداول المؤقتة بتثبيت `search_path` (0098، #58).
+- **تسوية السجل:** المرحلتان 0095 و0096 كانتا مطبّقتين على القاعدة قبل دمجهما
+  (#59)؛ التفاصيل في `Docs/engineering/MIGRATION_BASELINE_RECONCILIATION_2026-10-06.md`.
 
 ### «قريب من»: الاكتشاف بحسب الولاية (Migration 0094)
 
@@ -62,6 +125,53 @@
 - **BTGE لم يُمَس.** المحترفون خارج المحرك كما هم، وتغيير مجموعة لاعبي
   المجتمع الأساسيين يُلغي التشكيلة المخزّنة عبر الآلية المعتمدة سابقاً.
 - التفاصيل في `Docs/10-Design-Decisions.md` (DD-14) و`Docs/07-Database-Design.md` §7.
+
+## فهرس PRs من 2026-08-10 إلى 2026-09-29
+
+لم تُكتب ملاحظات إصدار لهذه الفترة في حينها. هذا فهرس مأخوذ من عناوين الـ PRs
+المدموجة على GitHub، لا وصف لسلوكها؛ التفاصيل في `Docs/10-Design-Decisions.md`
+ورؤوس الـ migrations. الإصدارات إلى `main` في هذه الفترة: #3 و#24 و#27 و#35 و#37 و#44 و#53.
+
+<details>
+<summary>إظهار الفهرس</summary>
+
+| التاريخ | PR | العنوان |
+|---|---|---|
+| 08-14 | #4 | feat: complete notification UX |
+| 08-14 | #5 | feat: add players to matches by admins |
+| 08-14 | #6 | feat: add community access and player profile visibility |
+| 08-15 | #7 | feat: add Professional Guests as match-scoped participants |
+| 08-15 | #8 | fix: correct Professional Guest team assignment alias |
+| 08-15 | #9 | feat: administrative roster arrangement |
+| 08-15 | #10 | feat: player identity — avatar, name and profile navigation |
+| 08-15 | #11 | feat: Weekly, Monthly and All Time statistics periods |
+| 08-16 | #12 | feat: the Share Card Engine — a reusable 9:16 card renderer, preview and native share |
+| 08-16 | #13 | feat: the Player Statistics share card |
+| 08-16 | #14 | feat: the Community Statistics share card |
+| 08-16 | #15 | feat: the Team Lineup share card |
+| 08-16 | #16، #17 | Redesign and polish the Team Lineup share card |
+| 08-31 | #18 | ci: add manual staging web deployment |
+| 09-04 | #19 | chore: default staging deployments to develop |
+| 09-05 | #20، #23 | Platform admin MVP and overview drilldown |
+| 09-05 | #21، #25، #26 | Opposing half-pitch match stage, applied to share cards |
+| 09-07 | #28، #29 | feat: team of period; refine period eligibility |
+| 09-11 | #30 | feat(statistics): reverse community leaderboards |
+| 09-12 | #31 | Fix statistics rating display precision |
+| 09-12 | #32 | feat(matches): all-state match management |
+| 09-12 | #33 | test(db): refresh integration suite |
+| 09-12 | #34 | fix(matches): preserve post-start roster capacity |
+| 09-13 | #36 | fix(statistics): resolve Team of the Week to the current week |
+| 09-19 | #38 | Package 5 follow-up: community rating, public results, achievements, rating rebase |
+| 09-19 | #39، #41 | Package 5 UAT and final visual parity |
+| 09-19 | #40 | Finalize Team of the Week Sunday–Saturday contract |
+| 09-20 | #42، #43 | Role-aware completed match, fixed share-card sides, all visible achievements |
+| 09-27 | #45، #46 | Wave 1 Intelligence; Wave 2 Data Integrity (staging integration) |
+| 09-28 | #47، #48 | Wave 3 Evidence; Wave 4 Operational Hardening (staging integration) |
+| 09-28 | #49 | Integrate UAT stabilization into develop |
+| 09-29 | #50 | Integrate authentication modernization into develop (Migration 0092) |
+| 09-29 | #51 | feat(discover): tabbed public community football view (Migration 0093) |
+
+</details>
 
 ## v0.4.0-public-beta — 2026-08-09
 

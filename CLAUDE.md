@@ -23,7 +23,7 @@ The project contains additional AI documentation.
 
 Reference when relevant:
 
--   `docs/ai/AI_PROTOCOL.md`
+-   `Docs/AI_PROTOCOL.md`
 
 Assume this document is stable.
 
@@ -186,3 +186,27 @@ NORMAL
 -   Next Step
 
 لا تنشئ تقارير مطولة إلا عند طلبها صراحة.
+
+------------------------------------------------------------------------
+
+## 13. Documentation Sync --- إغلاق المرحلة
+
+التوثيق جزء من تعريف «المرحلة منتهية». يتقادم التوثيق حين يُكتب يدوياً عن أشياء
+تتغير، لذلك: ما يمكن توليده يُولَّد، وما يجب كتابته يُفحص.
+
+عند إغلاق أي مرحلة تغيّر `supabase/migrations/` أو `supabase/functions/` أو
+`functions/` أو سلوكاً ظاهراً للمستخدم:
+
+1.  شغّل `node tool/check-docs.mjs`. إن فشل فنفّذ ما تطلبه رسائله فقط؛ ومنه
+    `node tool/check-docs.mjs --write` لإعادة توليد
+    `Docs/engineering/DB_Object_Catalog.md`.
+2.  أضف إلى `CHANGELOG.md` سطراً لكل migration جديد يذكر رقمه وما يفعله.
+3.  لا تكتب في النثر رقم إصدار ولا رقم migration حالياً ولا عدد اختبارات ولا
+    نتيجة «آخر تشغيل»؛ أشِر إلى مصدرها بدلاً من نسخها.
+4.  القرار الذي يغيّر سلوك المنتج يُسجَّل في `Docs/10-Design-Decisions.md` بعد
+    موافقة Product Owner، ومواصفة الجدول تُحدَّث حين تتغير أعمدته أو قواعده.
+5.  ما يتجاوز ذلك (مراجعة التوثيق كله، إعادة هيكلته، كتابة وثائق جديدة) يبقى
+    تحت §4 و§10: لا يُنفَّذ إلا بطلب صريح.
+
+يُضاف إلى التقرير النهائي سطر واحد: `Docs Sync: تم` أو `Docs Sync: لا ينطبق`.
+الفحص نفسه يعمل على كل Pull Request (`.github/workflows/docs-sync.yml`).
