@@ -9,6 +9,8 @@ const id = '11111111-2222-4333-8444-555555555555';
 const key = `e30.${Buffer.from(JSON.stringify({ role: 'anon' })).toString('base64url')}.test`;
 const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: key };
 const match = { match_id: id, title: 'Friday Football', location: 'Sohar Pitch', start_at: '2026-10-16T16:00:00Z', end_at: '2026-10-16T18:00:00Z', mvp_display_name: 'DO_NOT_PUBLISH', join_code: 'PRIVATE_CODE' };
+const cardDescription = html => /property="og:description" content="([^"]*)"/.exec(html)[1];
+const metaDescription = html => /name="description" content="([^"]*)"/.exec(html)[1];
 function context(language = 'en', overrides = {}) {
   return { request: new Request(`https://go-play.example/share/match/${id}?lang=${language}`), params: { id }, env, ...overrides };
 }
@@ -156,7 +158,11 @@ test('upcoming previews invite joining and preserve versioned canonical URLs', a
     const request = new Request(`https://go-play.example/share/match/${id}?lang=${language}&v=2`);
     const html = await (await onRequest(context(language, { request }))).text();
     assert.ok(html.includes(language === 'ar' ? '⚽ انضم إلى Friday Football' : '⚽ Join Friday Football'));
-    assert.ok(html.includes(language === 'ar' ? 'افتح الرابط لعرض التفاصيل والانضمام' : 'Open the link to view details and join'));
+    const action = language === 'ar' ? 'افتح الرابط لعرض التفاصيل والانضمام' : 'Open the link to view details and join';
+    // The shared message lists the date, time and place; the card only adds the invitation.
+    assert.equal(cardDescription(html), action);
+    // Pages without JavaScript and search engines still get the full details.
+    assert.ok(metaDescription(html).includes(language === 'ar' ? 'الموقع: Sohar Pitch' : 'Location: Sohar Pitch'));
     assert.ok(html.includes(`?lang=${language}&amp;v=2`));
     assert.ok(html.includes('property="og:image:type" content="image/jpeg"'));
     assert.ok(html.includes('property="og:image:width" content="1200"'));
@@ -174,5 +180,7 @@ test('completed matches do not claim registration is available', async t => {
     assert.ok(html.includes('https://go-play.example/share/go-play-thumbnail.png'));
     assert.ok(html.includes('property="og:image:type" content="image/png"'));
     assert.ok(!html.includes('go-play-invite-v2-'));
+    // A completed match has no shared message to repeat, so its card keeps the details.
+    assert.ok(cardDescription(html).includes(language === 'ar' ? 'الموقع: Sohar Pitch' : 'Location: Sohar Pitch'));
   }
 });
