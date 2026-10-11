@@ -365,6 +365,13 @@
   "@shareMatchInviteHeading": {
     "placeholders": { "title": { "type": "String" } }
   },
+  "shareMatchInviteTime": "{start} - {end}",
+  "@shareMatchInviteTime": {
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" }
+    }
+  },
   "shareMatchInviteAction": "Open the link to view the details and join the match 👇",
   "inviteLinkCopied": "Invitation copied. Paste it wherever you share it.",
   "inviteShareCommunityBody": "Join {community} on Go Play:\n{link}",

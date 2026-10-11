@@ -948,6 +948,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String shareMatchInviteTime(String start, String end) {
+    return '$start - $end';
+  }
+
+  @override
   String get shareMatchInviteAction =>
       'Open the link to view the details and join the match 👇';
 
