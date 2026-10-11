@@ -38,7 +38,7 @@ for (const language of ['en', 'ar']) {
       assert.ok(html.includes(`property="og:${property}"`));
     }
     assert.ok(html.includes('Friday Football — Go Play'));
-    assert.ok(html.includes('https://go-play.example/share/go-play-thumbnail.png'));
+    assert.ok(html.includes(`https://go-play.example/share/go-play-invite-v2-${language}.png`));
     assert.ok(html.includes(`https://go-play.example/share/match/${id}?lang=${language}`));
     assert.ok(html.includes(`https://go-play.example/#/match/${id}`));
     assert.ok(html.includes("location.replace(document.getElementById('open-match').href)"));
@@ -126,11 +126,38 @@ test('unsupported methods do not call the read API', async t => {
   assert.equal(response.headers.get('allow'), 'GET, HEAD');
   assert.equal(calls.length, 0);
 });
-test('thumbnail is a real 1200x630 PNG and function routing excludes normal app assets', async () => {
-  const image = await readFile(new URL('../../app/web/share/go-play-thumbnail.png', import.meta.url));
-  assert.deepEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
-  assert.equal(image.readUInt32BE(16), 1200);
-  assert.equal(image.readUInt32BE(20), 630);
+test('localized thumbnails match their metadata and avoid function routing', async () => {
+  for (const [language, width] of [['ar', 1730], ['en', 1731]]) {
+    const image = await readFile(new URL(`../../app/web/share/go-play-invite-v2-${language}.png`, import.meta.url));
+    assert.deepEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+    assert.equal(image.readUInt32BE(16), width);
+    assert.equal(image.readUInt32BE(20), 909);
+  }
   const routes = JSON.parse(await readFile(new URL('../../app/web/_routes.json', import.meta.url)));
   assert.deepEqual(routes, { version: 1, include: ['/share/match/*'], exclude: [] });
+});
+
+test('upcoming previews invite joining and preserve versioned canonical URLs', async t => {
+  rpc(t);
+  for (const language of ['ar', 'en']) {
+    const request = new Request(`https://go-play.example/share/match/${id}?lang=${language}&v=2`);
+    const html = await (await onRequest(context(language, { request }))).text();
+    assert.ok(html.includes(language === 'ar' ? '⚽ انضم إلى Friday Football' : '⚽ Join Friday Football'));
+    assert.ok(html.includes(language === 'ar' ? 'افتح الرابط لعرض التفاصيل والانضمام' : 'Open the link to view details and join'));
+    assert.ok(html.includes(`?lang=${language}&amp;v=2`));
+    assert.ok(html.includes(`property="og:image:width" content="${language === 'ar' ? 1730 : 1731}"`));
+    assert.ok(html.includes('property="og:image:height" content="909"'));
+    assert.ok(html.includes(`/#/match/${id}`));
+  }
+});
+test('completed matches do not claim registration is available', async t => {
+  rpc(t, [{ ...match, public_state: 'COMPLETED' }]);
+  for (const language of ['ar', 'en']) {
+    const html = await (await onRequest(context(language))).text();
+    assert.ok(html.includes('Friday Football — Go Play'));
+    assert.ok(!html.includes(language === 'ar' ? '⚽ انضم إلى' : '⚽ Join'));
+    assert.ok(!html.includes(language === 'ar' ? 'افتح الرابط لعرض التفاصيل والانضمام' : 'Open the link to view details and join'));
+    assert.ok(html.includes('https://go-play.example/share/go-play-thumbnail.png'));
+    assert.ok(!html.includes('go-play-invite-v2-'));
+  }
 });

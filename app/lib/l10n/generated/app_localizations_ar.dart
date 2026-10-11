@@ -922,6 +922,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shareMatchInviteLead => 'دعوة إلى مباراة عبر Go Play:';
 
   @override
+  String shareMatchInviteHeading(String title) {
+    return '⚽ ننتظرك في $title!';
+  }
+
+  @override
+  String get shareMatchInviteAction =>
+      'اضغط الرابط لعرض التفاصيل والانضمام إلى المباراة 👇';
+
+  @override
   String get inviteLinkCopied => 'نُسخت الدعوة. الصقها حيث تريد مشاركتها.';
 
   @override

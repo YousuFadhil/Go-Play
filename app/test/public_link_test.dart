@@ -21,7 +21,7 @@ void main() {
         final link = PublicLink.matchInvitation(match, languageCode: language);
         expect(
           link,
-          '${AppConfig.publicWebBase}/share/match/$match?lang=$language',
+          '${AppConfig.publicWebBase}/share/match/$match?lang=$language&v=2',
         );
         expect(Uri.parse(link).fragment, isEmpty);
         expect(
@@ -31,7 +31,7 @@ void main() {
       }
       expect(
         PublicLink.matchInvitation(match, languageCode: 'fr'),
-        endsWith('?lang=ar'),
+        endsWith('?lang=ar&v=2'),
       );
       expect(
         PublicLink.format(PublicLinkKind.match, match),
