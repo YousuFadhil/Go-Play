@@ -4819,6 +4819,1704 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'LIVE'**
   String get matchLiveBadge;
+
+  /// No description provided for @adminAccountDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account data'**
+  String get adminAccountDataTitle;
+
+  /// No description provided for @adminAccountEditAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit account'**
+  String get adminAccountEditAction;
+
+  /// No description provided for @adminAccountActiveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account active'**
+  String get adminAccountActiveLabel;
+
+  /// No description provided for @adminAccountNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get adminAccountNotSet;
+
+  /// No description provided for @adminAccountYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get adminAccountYes;
+
+  /// No description provided for @adminAccountNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get adminAccountNo;
+
+  /// No description provided for @adminAccountOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get adminAccountOn;
+
+  /// No description provided for @adminAccountOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get adminAccountOff;
+
+  /// No description provided for @adminAccountAgeVisibleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Age visible to others'**
+  String get adminAccountAgeVisibleLabel;
+
+  /// No description provided for @adminAccountProfileVisibilityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile visibility'**
+  String get adminAccountProfileVisibilityLabel;
+
+  /// No description provided for @adminAccountSignInMethodsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in method'**
+  String get adminAccountSignInMethodsLabel;
+
+  /// No description provided for @adminProviderGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Google'**
+  String get adminProviderGoogle;
+
+  /// No description provided for @adminAccountEmailConfirmedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email confirmed'**
+  String get adminAccountEmailConfirmedLabel;
+
+  /// No description provided for @adminAccountEmailNotConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not confirmed'**
+  String get adminAccountEmailNotConfirmed;
+
+  /// No description provided for @adminAccountLastSignInLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Last sign-in'**
+  String get adminAccountLastSignInLabel;
+
+  /// No description provided for @adminAccountNeverSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Never signed in'**
+  String get adminAccountNeverSignedIn;
+
+  /// No description provided for @adminEditUnavailableSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t edit your own account here.'**
+  String get adminEditUnavailableSelf;
+
+  /// No description provided for @adminEditUnavailableSystemAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'System Admin accounts are managed outside the app.'**
+  String get adminEditUnavailableSystemAdmin;
+
+  /// No description provided for @adminEditGroupAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Name and phone'**
+  String get adminEditGroupAccount;
+
+  /// No description provided for @adminEditGroupPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of birth and positions'**
+  String get adminEditGroupPlayer;
+
+  /// No description provided for @adminEditReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (optional)'**
+  String get adminEditReasonLabel;
+
+  /// No description provided for @adminEditReasonHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded in the audit log.'**
+  String get adminEditReasonHelp;
+
+  /// No description provided for @adminEditSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved.'**
+  String get adminEditSaved;
+
+  /// No description provided for @adminEditClearDateOfBirth.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear date of birth'**
+  String get adminEditClearDateOfBirth;
+
+  /// No description provided for @adminEditNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t edit this account.'**
+  String get adminEditNotAllowed;
+
+  /// No description provided for @adminEditInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'One of the values isn\'t valid. Check them and try again.'**
+  String get adminEditInvalid;
+
+  /// No description provided for @adminEditUserNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This account no longer exists.'**
+  String get adminEditUserNotFound;
+
+  /// No description provided for @adminActionUserProfileUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Account updated'**
+  String get adminActionUserProfileUpdated;
+
+  /// No description provided for @adminAccountCreatedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account created'**
+  String get adminAccountCreatedLabel;
+
+  /// No description provided for @adminPreviewMergeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview merge'**
+  String get adminPreviewMergeAction;
+
+  /// No description provided for @adminPreviewDeletionAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview deletion'**
+  String get adminPreviewDeletionAction;
+
+  /// No description provided for @adminPreviewMergeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge accounts'**
+  String get adminPreviewMergeTitle;
+
+  /// No description provided for @adminPreviewDeletionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get adminPreviewDeletionTitle;
+
+  /// No description provided for @adminPreviewReadOnlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Read only. Nothing is merged, deleted or changed from this screen, and this preview does not make a merge or deletion available or authorised.'**
+  String get adminPreviewReadOnlyNote;
+
+  /// No description provided for @adminMergeRetainedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account to keep'**
+  String get adminMergeRetainedLabel;
+
+  /// No description provided for @adminMergeSourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account to merge in'**
+  String get adminMergeSourceLabel;
+
+  /// No description provided for @adminMergeChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an account'**
+  String get adminMergeChoose;
+
+  /// No description provided for @adminMergeSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap accounts'**
+  String get adminMergeSwap;
+
+  /// No description provided for @adminMergeSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name or email'**
+  String get adminMergeSearchHint;
+
+  /// No description provided for @adminMergePreviewButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get adminMergePreviewButton;
+
+  /// No description provided for @adminMergeNeedTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose two different accounts to preview.'**
+  String get adminMergeNeedTwo;
+
+  /// No description provided for @adminPickerNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts found.'**
+  String get adminPickerNoResults;
+
+  /// No description provided for @adminPreviewVerdictClear.
+  ///
+  /// In en, this message translates to:
+  /// **'No blockers found in this preview.'**
+  String get adminPreviewVerdictClear;
+
+  /// No description provided for @adminPreviewVerdictBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 blocker found.} other{{count} blockers found.}}'**
+  String adminPreviewVerdictBlocked(int count);
+
+  /// No description provided for @adminPreviewFindingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Findings'**
+  String get adminPreviewFindingsTitle;
+
+  /// No description provided for @adminPreviewNothingInTheWay.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in the way.'**
+  String get adminPreviewNothingInTheWay;
+
+  /// No description provided for @adminSeverityBlocker.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocker'**
+  String get adminSeverityBlocker;
+
+  /// No description provided for @adminSeverityConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs a rule'**
+  String get adminSeverityConflict;
+
+  /// No description provided for @adminSeverityConstraint.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot be changed'**
+  String get adminSeverityConstraint;
+
+  /// No description provided for @adminPreviewAccountsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get adminPreviewAccountsTitle;
+
+  /// No description provided for @adminPreviewActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What names the accounts'**
+  String get adminPreviewActivityTitle;
+
+  /// No description provided for @adminPreviewRetainedColumn.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get adminPreviewRetainedColumn;
+
+  /// No description provided for @adminPreviewSourceColumn.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge in'**
+  String get adminPreviewSourceColumn;
+
+  /// No description provided for @adminPreviewOverlapTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities both belong to'**
+  String get adminPreviewOverlapTitle;
+
+  /// No description provided for @adminPreviewSourceOwnedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities the merged-in account owns'**
+  String get adminPreviewSourceOwnedTitle;
+
+  /// No description provided for @adminPreviewSharedMatchesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches both appear in'**
+  String get adminPreviewSharedMatchesTitle;
+
+  /// No description provided for @adminPreviewStatisticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics that would collide'**
+  String get adminPreviewStatisticsTitle;
+
+  /// No description provided for @adminPreviewPersonalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal data held'**
+  String get adminPreviewPersonalTitle;
+
+  /// No description provided for @adminPreviewOwnedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities owned'**
+  String get adminPreviewOwnedTitle;
+
+  /// No description provided for @adminPreviewCreatedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches created'**
+  String get adminPreviewCreatedTitle;
+
+  /// No description provided for @adminPreviewHistoricalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Football history'**
+  String get adminPreviewHistoricalTitle;
+
+  /// No description provided for @adminPreviewPreservedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot be changed by anyone'**
+  String get adminPreviewPreservedTitle;
+
+  /// No description provided for @adminPreviewCoverageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not covered by this preview'**
+  String get adminPreviewCoverageTitle;
+
+  /// No description provided for @adminPreviewShowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total}'**
+  String adminPreviewShowing(int shown, int total);
+
+  /// No description provided for @adminPreviewOwnedRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{members} members · {admins} other admins · {matches} matches'**
+  String adminPreviewOwnedRow(int members, int admins, int matches);
+
+  /// No description provided for @adminPreviewTagRoleConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Different roles'**
+  String get adminPreviewTagRoleConflict;
+
+  /// No description provided for @adminPreviewTagSourceOwns.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged-in account owns it'**
+  String get adminPreviewTagSourceOwns;
+
+  /// No description provided for @adminPreviewTagRetainedOwns.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept account owns it'**
+  String get adminPreviewTagRetainedOwns;
+
+  /// No description provided for @adminPreviewRetainedNotMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept account is not a member'**
+  String get adminPreviewRetainedNotMember;
+
+  /// No description provided for @adminPreviewCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'Collision'**
+  String get adminPreviewCollision;
+
+  /// No description provided for @adminPreviewHasResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Has a recorded result'**
+  String get adminPreviewHasResult;
+
+  /// No description provided for @adminPreviewRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Overall rating'**
+  String get adminPreviewRating;
+
+  /// No description provided for @adminEvidenceRegistration.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration'**
+  String get adminEvidenceRegistration;
+
+  /// No description provided for @adminEvidenceLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup'**
+  String get adminEvidenceLineup;
+
+  /// No description provided for @adminEvidenceGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get adminEvidenceGoals;
+
+  /// No description provided for @adminEvidenceMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'MVP'**
+  String get adminEvidenceMvp;
+
+  /// No description provided for @adminEvidenceRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get adminEvidenceRating;
+
+  /// No description provided for @adminTreatmentCascadeDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Erased with the account'**
+  String get adminTreatmentCascadeDelete;
+
+  /// No description provided for @adminTreatmentDetach.
+  ///
+  /// In en, this message translates to:
+  /// **'Link removed, record kept'**
+  String get adminTreatmentDetach;
+
+  /// No description provided for @adminTreatmentRetainedId.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept, pointing at no account'**
+  String get adminTreatmentRetainedId;
+
+  /// No description provided for @adminCountMemberships.
+  ///
+  /// In en, this message translates to:
+  /// **'Community memberships'**
+  String get adminCountMemberships;
+
+  /// No description provided for @adminCountOwned.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities owned'**
+  String get adminCountOwned;
+
+  /// No description provided for @adminCountCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches created'**
+  String get adminCountCreated;
+
+  /// No description provided for @adminCountRegistrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Match registrations'**
+  String get adminCountRegistrations;
+
+  /// No description provided for @adminCountUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming registrations'**
+  String get adminCountUpcoming;
+
+  /// No description provided for @adminCountLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup places'**
+  String get adminCountLineup;
+
+  /// No description provided for @adminCountGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals scored'**
+  String get adminCountGoals;
+
+  /// No description provided for @adminCountGoalRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal records'**
+  String get adminCountGoalRows;
+
+  /// No description provided for @adminCountMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'MVP awards'**
+  String get adminCountMvp;
+
+  /// No description provided for @adminCountCareerStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches played (career)'**
+  String get adminCountCareerStats;
+
+  /// No description provided for @adminCountRatingEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating entries'**
+  String get adminCountRatingEntries;
+
+  /// No description provided for @adminCountRatingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive rows'**
+  String get adminCountRatingArchive;
+
+  /// No description provided for @adminCountCommunityStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Community statistics rows'**
+  String get adminCountCommunityStatistics;
+
+  /// No description provided for @adminCountTeamAwards.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the period awards'**
+  String get adminCountTeamAwards;
+
+  /// No description provided for @adminCountNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get adminCountNotifications;
+
+  /// No description provided for @adminCountPushTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Push tokens'**
+  String get adminCountPushTokens;
+
+  /// No description provided for @adminCountActivityEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity events'**
+  String get adminCountActivityEvents;
+
+  /// No description provided for @adminCountAuditEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit log entries'**
+  String get adminCountAuditEntries;
+
+  /// No description provided for @adminPersonalProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get adminPersonalProfile;
+
+  /// No description provided for @adminPersonalIdentities.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in identities'**
+  String get adminPersonalIdentities;
+
+  /// No description provided for @adminPersonalAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile picture'**
+  String get adminPersonalAvatar;
+
+  /// No description provided for @adminPersonalPushPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Push preferences'**
+  String get adminPersonalPushPreferences;
+
+  /// No description provided for @adminHistRecordedResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Results recorded'**
+  String get adminHistRecordedResults;
+
+  /// No description provided for @adminHistGuestsAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Professional guests added'**
+  String get adminHistGuestsAdded;
+
+  /// No description provided for @adminHistRegistrationEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration events'**
+  String get adminHistRegistrationEvents;
+
+  /// No description provided for @adminHistMembershipEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership events'**
+  String get adminHistMembershipEvents;
+
+  /// No description provided for @adminHistGenerationRuns.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup generation runs'**
+  String get adminHistGenerationRuns;
+
+  /// No description provided for @adminHistConfirmedLineups.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineups confirmed'**
+  String get adminHistConfirmedLineups;
+
+  /// No description provided for @adminHistRatingHistoryArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating history archive'**
+  String get adminHistRatingHistoryArchive;
+
+  /// No description provided for @adminHistUserRatingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive (per account)'**
+  String get adminHistUserRatingArchive;
+
+  /// No description provided for @adminCoverageGenerationEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Player ids embedded inside saved lineup-generation data are not scanned.'**
+  String get adminCoverageGenerationEvidence;
+
+  /// No description provided for @adminCoverageStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'The profile picture file in storage is not inspected.'**
+  String get adminCoverageStorage;
+
+  /// No description provided for @adminCoverageSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in sessions and tokens are not inspected.'**
+  String get adminCoverageSessions;
+
+  /// No description provided for @adminFindingSourceIsCaller.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to merge in is your own'**
+  String get adminFindingSourceIsCaller;
+
+  /// No description provided for @adminFindingRetainedIsCaller.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to keep is your own'**
+  String get adminFindingRetainedIsCaller;
+
+  /// No description provided for @adminFindingSourceIsSystemAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to merge in is a System Admin'**
+  String get adminFindingSourceIsSystemAdmin;
+
+  /// No description provided for @adminFindingRetainedIsSystemAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to keep is a System Admin'**
+  String get adminFindingRetainedIsSystemAdmin;
+
+  /// No description provided for @adminFindingOwnershipConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities owned by the merged-in account that the kept account already belongs to'**
+  String get adminFindingOwnershipConflict;
+
+  /// No description provided for @adminFindingSharedMatchCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches where both accounts hold the same kind of record'**
+  String get adminFindingSharedMatchCollision;
+
+  /// No description provided for @adminFindingSourceOwnsCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities owned by the merged-in account need a new owner'**
+  String get adminFindingSourceOwnsCommunities;
+
+  /// No description provided for @adminFindingRoleConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities where the two accounts have different roles'**
+  String get adminFindingRoleConflict;
+
+  /// No description provided for @adminFindingSharedMatchParticipation.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches both accounts appear in, without the same kind of record'**
+  String get adminFindingSharedMatchParticipation;
+
+  /// No description provided for @adminFindingSourceCreatedMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches created by the merged-in account'**
+  String get adminFindingSourceCreatedMatches;
+
+  /// No description provided for @adminFindingCommunityStatisticsCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'Community statistics rows both accounts hold'**
+  String get adminFindingCommunityStatisticsCollision;
+
+  /// No description provided for @adminFindingTeamAwardCollision.
+  ///
+  /// In en, this message translates to:
+  /// **'Both accounts hold an award in the same team of the period; none is discarded, so the merge is blocked'**
+  String get adminFindingTeamAwardCollision;
+
+  /// No description provided for @adminFindingPlayerStatisticsRecompute.
+  ///
+  /// In en, this message translates to:
+  /// **'Career statistics would have to be recomputed (matches played)'**
+  String get adminFindingPlayerStatisticsRecompute;
+
+  /// No description provided for @adminFindingRatingReplayRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating history would have to be replayed (entries)'**
+  String get adminFindingRatingReplayRequired;
+
+  /// No description provided for @adminFindingRatingArchiveImmutable.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive rows name this account and cannot be moved or deleted, so retiring it safely is not demonstrated'**
+  String get adminFindingRatingArchiveImmutable;
+
+  /// No description provided for @adminFindingEventLogsNameSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Event logs that name the merged-in account stay as they are'**
+  String get adminFindingEventLogsNameSource;
+
+  /// No description provided for @adminFindingAuditLogNamesSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit log entries name this account. They keep their date, action and ids; the name and e-mail in them are removed'**
+  String get adminFindingAuditLogNamesSource;
+
+  /// No description provided for @adminFindingTargetIsCaller.
+  ///
+  /// In en, this message translates to:
+  /// **'This is your own account'**
+  String get adminFindingTargetIsCaller;
+
+  /// No description provided for @adminFindingTargetIsSystemAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is a System Admin'**
+  String get adminFindingTargetIsSystemAdmin;
+
+  /// No description provided for @adminFindingOwnsCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Owns communities: ownership must be transferred first'**
+  String get adminFindingOwnsCommunities;
+
+  /// No description provided for @adminFindingCreatedMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Created matches: they must be reassigned first'**
+  String get adminFindingCreatedMatches;
+
+  /// No description provided for @adminFindingMvpResultsWouldCascade.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting would erase the results of matches where this player is the MVP'**
+  String get adminFindingMvpResultsWouldCascade;
+
+  /// No description provided for @adminFindingHistoryWouldCascade.
+  ///
+  /// In en, this message translates to:
+  /// **'Football history that would be erased with the account'**
+  String get adminFindingHistoryWouldCascade;
+
+  /// No description provided for @adminFindingUpcomingRegistrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered for upcoming matches'**
+  String get adminFindingUpcomingRegistrations;
+
+  /// No description provided for @adminFindingRatingHistoryImmutable.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating entries cannot be edited (updates are rejected), so they cannot be anonymised in place; deleting the account deletes them'**
+  String get adminFindingRatingHistoryImmutable;
+
+  /// No description provided for @adminFindingAuditLogAppendOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit log entries naming this account are not erased by a deletion, so its name or email address would stay identifiable in them'**
+  String get adminFindingAuditLogAppendOnly;
+
+  /// No description provided for @adminFindingEventLogsNameAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Event logs that name this account stay as they are'**
+  String get adminFindingEventLogsNameAccount;
+
+  /// No description provided for @adminHistCareerStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Career statistics'**
+  String get adminHistCareerStatistics;
+
+  /// No description provided for @adminMergeNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Merging is permanent. The account to merge in is deleted for good, including its sign-in and profile picture, and its football record is added to the account to keep. Nothing happens until you confirm.'**
+  String get adminMergeNotice;
+
+  /// No description provided for @adminMergePlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What the merge will do'**
+  String get adminMergePlanTitle;
+
+  /// No description provided for @adminMergePlanCommunitiesTransferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities passed to the account to keep'**
+  String get adminMergePlanCommunitiesTransferred;
+
+  /// No description provided for @adminMergePlanMembershipsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Memberships moved'**
+  String get adminMergePlanMembershipsMoved;
+
+  /// No description provided for @adminMergePlanMembershipsMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate memberships merged (the higher role stays)'**
+  String get adminMergePlanMembershipsMerged;
+
+  /// No description provided for @adminMergePlanRolesUpgraded.
+  ///
+  /// In en, this message translates to:
+  /// **'Roles raised to the higher one'**
+  String get adminMergePlanRolesUpgraded;
+
+  /// No description provided for @adminMergePlanRegistrationsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Match registrations moved'**
+  String get adminMergePlanRegistrationsMoved;
+
+  /// No description provided for @adminMergePlanLineupPlacesMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup places moved'**
+  String get adminMergePlanLineupPlacesMoved;
+
+  /// No description provided for @adminMergePlanGoalRowsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal records moved'**
+  String get adminMergePlanGoalRowsMoved;
+
+  /// No description provided for @adminMergePlanMvpAwardsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'MVP awards moved'**
+  String get adminMergePlanMvpAwardsMoved;
+
+  /// No description provided for @adminMergePlanTeamAwardsMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Team of the period awards moved'**
+  String get adminMergePlanTeamAwardsMoved;
+
+  /// No description provided for @adminMergePlanCreatedMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches the merged-in account created, re-attributed'**
+  String get adminMergePlanCreatedMatches;
+
+  /// No description provided for @adminMergePlanFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'The kept account\'s rating is recalculated match by match in date order, and its statistics are rebuilt from the records. Nobody else\'s rating or statistics change.'**
+  String get adminMergePlanFootnote;
+
+  /// No description provided for @adminMergeChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which participation to keep'**
+  String get adminMergeChoiceTitle;
+
+  /// No description provided for @adminMergeChoiceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A player has one place in a match. For each match below, choose whose participation stays; the other is removed. Goals, MVP awards, results and confirmed lineups are never removed.'**
+  String get adminMergeChoiceHelp;
+
+  /// No description provided for @adminMergeKeepRetained.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep {name}'**
+  String adminMergeKeepRetained(String name);
+
+  /// No description provided for @adminMergeKeepSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep {name}'**
+  String adminMergeKeepSource(String name);
+
+  /// No description provided for @adminMergeHeldBy.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} can\'t be removed here: {reasons}'**
+  String adminMergeHeldBy(String name, String reasons);
+
+  /// No description provided for @adminMergeBlockerGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'scored goals'**
+  String get adminMergeBlockerGoals;
+
+  /// No description provided for @adminMergeBlockerMvp.
+  ///
+  /// In en, this message translates to:
+  /// **'is the match\'s MVP'**
+  String get adminMergeBlockerMvp;
+
+  /// No description provided for @adminMergeBlockerLineupInResult.
+  ///
+  /// In en, this message translates to:
+  /// **'is in the lineup a result was recorded from'**
+  String get adminMergeBlockerLineupInResult;
+
+  /// No description provided for @adminMergeBlockerConfirmedLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'is in a confirmed lineup'**
+  String get adminMergeBlockerConfirmedLineup;
+
+  /// No description provided for @adminMergeBlockerRating.
+  ///
+  /// In en, this message translates to:
+  /// **'has a rating in effect from this match'**
+  String get adminMergeBlockerRating;
+
+  /// No description provided for @adminMergeNeedChoices.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Choose which participation to keep in 1 match.} other{Choose which participation to keep in {count} matches.}}'**
+  String adminMergeNeedChoices(int count);
+
+  /// No description provided for @adminMergeResolveBlockersFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve the blockers above first.'**
+  String get adminMergeResolveBlockersFirst;
+
+  /// No description provided for @adminMergeExecuteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge accounts…'**
+  String get adminMergeExecuteButton;
+
+  /// No description provided for @adminMergeConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge permanently?'**
+  String get adminMergeConfirmTitle;
+
+  /// No description provided for @adminMergeConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} will be deleted for good, including their sign-in and profile picture. Their football record will be added to {retained}. This cannot be undone.'**
+  String adminMergeConfirmBody(String source, String retained);
+
+  /// No description provided for @adminMergeConfirmTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the name of the account to delete: {name}'**
+  String adminMergeConfirmTypeLabel(String name);
+
+  /// No description provided for @adminMergeConfirmField.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get adminMergeConfirmField;
+
+  /// No description provided for @adminMergeConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge permanently'**
+  String get adminMergeConfirmAction;
+
+  /// No description provided for @adminMergeRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Merging…'**
+  String get adminMergeRunning;
+
+  /// No description provided for @adminMergeDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts merged'**
+  String get adminMergeDoneTitle;
+
+  /// No description provided for @adminMergeDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} was deleted. Their football record now belongs to {retained}.'**
+  String adminMergeDoneBody(String source, String retained);
+
+  /// No description provided for @adminMergeDoneRating.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s rating was recalculated: {before} → {after}.'**
+  String adminMergeDoneRating(String name, String before, String after);
+
+  /// No description provided for @adminMergeDoneButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get adminMergeDoneButton;
+
+  /// No description provided for @adminMergeFailedConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'The merge was not performed. Something changed or is in the way. Review the preview again.'**
+  String get adminMergeFailedConflict;
+
+  /// No description provided for @adminMergeFailedNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'One of the accounts no longer exists. If a merge just ran, the account to merge in is already gone.'**
+  String get adminMergeFailedNotFound;
+
+  /// No description provided for @adminMergeFailedAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'You are not allowed to merge these accounts.'**
+  String get adminMergeFailedAuthorization;
+
+  /// No description provided for @adminMergeFailedValidation.
+  ///
+  /// In en, this message translates to:
+  /// **'The request was not accepted. Nothing was changed.'**
+  String get adminMergeFailedValidation;
+
+  /// No description provided for @adminMergeFailedUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'The merge may or may not have been performed. Check the preview before trying again: if it went through, the account to merge in no longer exists.'**
+  String get adminMergeFailedUncertain;
+
+  /// No description provided for @adminMergeCheckAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get adminMergeCheckAgain;
+
+  /// No description provided for @adminFindingSharedMatchNotResolvable.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches where neither account\'s participation can be removed (goals, MVP awards, recorded lineups): correct them first'**
+  String get adminFindingSharedMatchNotResolvable;
+
+  /// No description provided for @adminFindingSharedMatchLimitExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'More shared matches than one merge can resolve (100)'**
+  String get adminFindingSharedMatchLimitExceeded;
+
+  /// No description provided for @adminFindingSharedMatchChoiceRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches both accounts took part in: choose which participation to keep'**
+  String get adminFindingSharedMatchChoiceRequired;
+
+  /// No description provided for @adminFindingSourceHasStoredFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'The account to merge in has a profile picture in storage. The merge removes it first; if the merge then fails, the picture stays removed'**
+  String get adminFindingSourceHasStoredFiles;
+
+  /// No description provided for @adminFindingRetainedRatingInconsistent.
+  ///
+  /// In en, this message translates to:
+  /// **'The rating of the account to keep does not follow from its rating history, so it cannot be recalculated safely'**
+  String get adminFindingRetainedRatingInconsistent;
+
+  /// No description provided for @adminFindingRatingArchiveMapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive rows keep the old account id; the merge records which account it became'**
+  String get adminFindingRatingArchiveMapped;
+
+  /// No description provided for @adminMergeFailedAvatarCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'The merge was not performed. The profile picture of the account to merge in could not be removed, so nothing else was changed. Try again.'**
+  String get adminMergeFailedAvatarCleanup;
+
+  /// No description provided for @adminMergeAvatarRemovedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The profile picture of the account to merge in had already been removed.'**
+  String get adminMergeAvatarRemovedNote;
+
+  /// No description provided for @adminFindingHistoryKept.
+  ///
+  /// In en, this message translates to:
+  /// **'The football history of matches played is kept and shown as Deleted Player'**
+  String get adminFindingHistoryKept;
+
+  /// No description provided for @adminFindingCreatedMatchesKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches this account created are kept'**
+  String get adminFindingCreatedMatchesKept;
+
+  /// No description provided for @adminFindingRatingArchiveKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating archive rows keep the old account id and stay as they are'**
+  String get adminFindingRatingArchiveKept;
+
+  /// No description provided for @adminFindingStoredFilesRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'The account has a profile picture in storage. The deletion removes it first; if the deletion then fails, the picture stays removed'**
+  String get adminFindingStoredFilesRemoved;
+
+  /// No description provided for @adminTreatmentKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept, shown as Deleted Player'**
+  String get adminTreatmentKept;
+
+  /// No description provided for @adminTreatmentRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed'**
+  String get adminTreatmentRemoved;
+
+  /// No description provided for @adminHistUpcomingLineup.
+  ///
+  /// In en, this message translates to:
+  /// **'Lineup places in upcoming matches'**
+  String get adminHistUpcomingLineup;
+
+  /// No description provided for @adminDeleteNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting is permanent. The account is deleted for good, including its sign-in, its profile data and its profile picture. Its football history stays and is shown as Deleted Player. Nothing happens until you confirm.'**
+  String get adminDeleteNotice;
+
+  /// No description provided for @adminDeleteExecuteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account…'**
+  String get adminDeleteExecuteButton;
+
+  /// No description provided for @adminDeleteAccountConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently?'**
+  String get adminDeleteAccountConfirmTitle;
+
+  /// No description provided for @adminDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will be deleted for good, including their sign-in and profile picture. Their football history stays and is shown as Deleted Player. This cannot be undone.'**
+  String adminDeleteConfirmBody(String name);
+
+  /// No description provided for @adminDeleteConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get adminDeleteConfirmAction;
+
+  /// No description provided for @adminDeleteRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting…'**
+  String get adminDeleteRunning;
+
+  /// No description provided for @adminDeleteDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account deleted'**
+  String get adminDeleteDoneTitle;
+
+  /// No description provided for @adminDeleteDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was deleted. Their football history stays and is shown as Deleted Player.'**
+  String adminDeleteDoneBody(String name);
+
+  /// No description provided for @adminDeleteFailedConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'The account was not deleted. Something changed or is in the way. Review the preview again.'**
+  String get adminDeleteFailedConflict;
+
+  /// No description provided for @adminDeleteFailedNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The account no longer exists. If a deletion just ran, it is already gone.'**
+  String get adminDeleteFailedNotFound;
+
+  /// No description provided for @adminDeleteFailedAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'You are not allowed to delete this account.'**
+  String get adminDeleteFailedAuthorization;
+
+  /// No description provided for @adminDeleteFailedValidation.
+  ///
+  /// In en, this message translates to:
+  /// **'The request was not accepted. Nothing was changed.'**
+  String get adminDeleteFailedValidation;
+
+  /// No description provided for @adminDeleteFailedUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'The deletion may or may not have been performed. Check the preview before trying again: if it went through, the account no longer exists.'**
+  String get adminDeleteFailedUncertain;
+
+  /// No description provided for @adminDeleteFailedAvatarCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'The account was not deleted. Its profile picture could not be removed, so nothing else was changed. Try again.'**
+  String get adminDeleteFailedAvatarCleanup;
+
+  /// No description provided for @adminDeleteAvatarRemovedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The account\'s profile picture had already been removed.'**
+  String get adminDeleteAvatarRemovedNote;
+
+  /// No description provided for @settingsAccountSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get settingsAccountSection;
+
+  /// No description provided for @deleteMyAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete my account'**
+  String get deleteMyAccountTitle;
+
+  /// No description provided for @deleteMyAccountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete your account and personal data'**
+  String get deleteMyAccountSubtitle;
+
+  /// No description provided for @deleteAccountIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account is permanent. Your sign-in, profile, picture and notifications are deleted for good, and you are removed from your communities. The matches you played stay in their communities\' history, shown as Deleted Player.'**
+  String get deleteAccountIntro;
+
+  /// No description provided for @deleteAccountOwnsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You own communities'**
+  String get deleteAccountOwnsTitle;
+
+  /// No description provided for @deleteAccountOwnsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer ownership of each community below to another member first. Then you can delete your account.'**
+  String get deleteAccountOwnsBody;
+
+  /// No description provided for @deleteAccountManageMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage members'**
+  String get deleteAccountManageMembers;
+
+  /// No description provided for @deleteAccountOwnedRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{members, plural, =1{1 member} other{{members} members}}'**
+  String deleteAccountOwnedRow(int members);
+
+  /// No description provided for @deleteAccountBlockedAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'System Admin accounts cannot be deleted from the app.'**
+  String get deleteAccountBlockedAdmin;
+
+  /// No description provided for @deleteAccountBlockedSuspended.
+  ///
+  /// In en, this message translates to:
+  /// **'A suspended account cannot be deleted.'**
+  String get deleteAccountBlockedSuspended;
+
+  /// No description provided for @deleteAccountUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{You will be withdrawn from 1 upcoming match.} other{You will be withdrawn from {count} upcoming matches.}}'**
+  String deleteAccountUpcoming(int count);
+
+  /// No description provided for @deleteAccountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete my account…'**
+  String get deleteAccountButton;
+
+  /// No description provided for @deleteAccountConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your account permanently?'**
+  String get deleteAccountConfirmTitle;
+
+  /// No description provided for @deleteAccountConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone. Your account, profile and picture will be deleted and you will be signed out.'**
+  String get deleteAccountConfirmBody;
+
+  /// No description provided for @deleteAccountConfirmWord.
+  ///
+  /// In en, this message translates to:
+  /// **'DELETE'**
+  String get deleteAccountConfirmWord;
+
+  /// No description provided for @deleteAccountConfirmLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type {word} to confirm'**
+  String deleteAccountConfirmLabel(String word);
+
+  /// No description provided for @deleteAccountConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get deleteAccountConfirmAction;
+
+  /// No description provided for @deleteAccountRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account…'**
+  String get deleteAccountRunning;
+
+  /// No description provided for @deleteAccountFailedBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was not deleted. Something is in the way. Check again.'**
+  String get deleteAccountFailedBlocked;
+
+  /// No description provided for @deleteAccountFailedAuthorization.
+  ///
+  /// In en, this message translates to:
+  /// **'You are not allowed to delete this account.'**
+  String get deleteAccountFailedAuthorization;
+
+  /// No description provided for @deleteAccountFailedGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was not deleted. Nothing was changed. Try again.'**
+  String get deleteAccountFailedGeneric;
+
+  /// No description provided for @deleteAccountFailedUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account may or may not have worked. Sign in again to check: if it did, your account no longer exists.'**
+  String get deleteAccountFailedUncertain;
+
+  /// No description provided for @deleteAccountFailedAvatarCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was not deleted. Your profile picture could not be removed, so nothing else was changed. Try again.'**
+  String get deleteAccountFailedAvatarCleanup;
+
+  /// No description provided for @deleteAccountAvatarRemovedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile picture had already been removed.'**
+  String get deleteAccountAvatarRemovedNote;
+
+  /// No description provided for @deleteAccountDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account was deleted'**
+  String get deleteAccountDoneTitle;
+
+  /// No description provided for @deleteAccountDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been signed out. The matches you played stay in their communities, shown as Deleted Player.'**
+  String get deleteAccountDoneBody;
+
+  /// No description provided for @adminActionUserEmailChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Email changed'**
+  String get adminActionUserEmailChanged;
+
+  /// No description provided for @adminActionUserRecoverySent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery email sent'**
+  String get adminActionUserRecoverySent;
+
+  /// No description provided for @adminActionUserPasswordSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Password set'**
+  String get adminActionUserPasswordSet;
+
+  /// No description provided for @adminAuthChangeEmailAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get adminAuthChangeEmailAction;
+
+  /// No description provided for @adminAuthSendRecoveryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Send recovery email'**
+  String get adminAuthSendRecoveryAction;
+
+  /// No description provided for @adminAuthSetPasswordAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Set password'**
+  String get adminAuthSetPasswordAction;
+
+  /// No description provided for @adminAuthGoogleNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is linked to Google, so its email cannot be changed here. Recovery and setting a password are still available.'**
+  String get adminAuthGoogleNote;
+
+  /// No description provided for @adminAuthChangeEmailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get adminAuthChangeEmailTitle;
+
+  /// No description provided for @adminAuthChangeEmailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The new address takes effect immediately and the player does not confirm it. The standard password recovery email is then sent to the new address.'**
+  String get adminAuthChangeEmailBody;
+
+  /// No description provided for @adminAuthCurrentEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Current email: {email}'**
+  String adminAuthCurrentEmail(String email);
+
+  /// No description provided for @adminAuthNewEmailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New email'**
+  String get adminAuthNewEmailLabel;
+
+  /// No description provided for @adminAuthConfirmEmailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat the new email'**
+  String get adminAuthConfirmEmailLabel;
+
+  /// No description provided for @adminAuthEmailMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The two addresses do not match'**
+  String get adminAuthEmailMismatch;
+
+  /// No description provided for @adminAuthEmailSame.
+  ///
+  /// In en, this message translates to:
+  /// **'That is already this account\'s email'**
+  String get adminAuthEmailSame;
+
+  /// No description provided for @adminAuthSendRecoveryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send recovery email'**
+  String get adminAuthSendRecoveryTitle;
+
+  /// No description provided for @adminAuthSendRecoveryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The standard password recovery email is sent to {email}. Nothing about the account changes.'**
+  String adminAuthSendRecoveryBody(String email);
+
+  /// No description provided for @adminAuthSetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set password'**
+  String get adminAuthSetPasswordTitle;
+
+  /// No description provided for @adminAuthSetPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The player can sign in with this password right away. Tell them the password yourself: it is not stored or shown again. Devices that are signed in may stay signed in until their session expires.'**
+  String get adminAuthSetPasswordBody;
+
+  /// No description provided for @adminAuthConfirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat the new password'**
+  String get adminAuthConfirmPasswordLabel;
+
+  /// No description provided for @adminAuthPasswordMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The two passwords do not match'**
+  String get adminAuthPasswordMismatch;
+
+  /// No description provided for @adminAuthReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (required)'**
+  String get adminAuthReasonLabel;
+
+  /// No description provided for @adminAuthReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the reason'**
+  String get adminAuthReasonRequired;
+
+  /// No description provided for @adminAuthSubmitChangeEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get adminAuthSubmitChangeEmail;
+
+  /// No description provided for @adminAuthSubmitSendRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get adminAuthSubmitSendRecovery;
+
+  /// No description provided for @adminAuthSubmitSetPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set password'**
+  String get adminAuthSubmitSetPassword;
+
+  /// No description provided for @adminAuthWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get adminAuthWorking;
+
+  /// No description provided for @adminAuthDoneButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get adminAuthDoneButton;
+
+  /// No description provided for @adminAuthEmailChangedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Email changed. The recovery email was sent to the new address.'**
+  String get adminAuthEmailChangedDone;
+
+  /// No description provided for @adminAuthEmailChangedNoRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Email changed, but the recovery email was not sent. The change stays in place.'**
+  String get adminAuthEmailChangedNoRecovery;
+
+  /// No description provided for @adminAuthEmailChangedRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Email changed, but the recovery email was not sent because the email provider limits how often it sends. Try again in a minute. The change stays in place.'**
+  String get adminAuthEmailChangedRateLimited;
+
+  /// No description provided for @adminAuthRetryRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the recovery email again'**
+  String get adminAuthRetryRecovery;
+
+  /// No description provided for @adminAuthRecoveryDone.
+  ///
+  /// In en, this message translates to:
+  /// **'The recovery email was requested. Whether it reaches the inbox is not known.'**
+  String get adminAuthRecoveryDone;
+
+  /// No description provided for @adminAuthPasswordDone.
+  ///
+  /// In en, this message translates to:
+  /// **'The password was set.'**
+  String get adminAuthPasswordDone;
+
+  /// No description provided for @adminAuthAuditMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This was done, but it could not be recorded in the audit log. Note it down.'**
+  String get adminAuthAuditMissing;
+
+  /// No description provided for @adminAuthNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot do this for this account.'**
+  String get adminAuthNotAllowed;
+
+  /// No description provided for @adminAuthAccountGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This account no longer exists.'**
+  String get adminAuthAccountGone;
+
+  /// No description provided for @adminAuthGoogleLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is linked to Google, so its email cannot be changed.'**
+  String get adminAuthGoogleLinked;
+
+  /// No description provided for @adminAuthEmailTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Another account already uses that email.'**
+  String get adminAuthEmailTaken;
+
+  /// No description provided for @adminAuthEmailRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'That email cannot be used.'**
+  String get adminAuthEmailRejected;
+
+  /// No description provided for @adminAuthNoEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'This account has no email, so a recovery email cannot be sent.'**
+  String get adminAuthNoEmail;
+
+  /// No description provided for @adminAuthPasswordRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The sign-in service did not accept that password. Choose a longer or less common one.'**
+  String get adminAuthPasswordRejected;
+
+  /// No description provided for @adminAuthRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Nothing was changed. Try again in a minute.'**
+  String get adminAuthRateLimited;
+
+  /// No description provided for @adminAuthOutcomeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The sign-in service did not answer, so it is not known whether this was done. Check the account, then try again if needed.'**
+  String get adminAuthOutcomeUnknown;
+
+  /// No description provided for @adminAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This could not be done. Nothing was changed.'**
+  String get adminAuthFailed;
 }
 
 class _AppLocalizationsDelegate

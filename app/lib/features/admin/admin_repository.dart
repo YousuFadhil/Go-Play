@@ -1,5 +1,8 @@
 import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_admin_adapter.dart';
+import '../auth/auth_models.dart' show PlayerPosition;
+import '../auth/auth_service.dart' show AuthService;
+import '../profile/profile_models.dart' show ProfileVisibility;
 import 'admin_adapter.dart';
 import 'admin_models.dart';
 
@@ -118,4 +121,187 @@ class AdminRepository {
 
   Future<void> reactivateCommunity(String id) =>
       _adapter.reactivateCommunity(id);
+
+  /// The signed-in account's id, for the one question the console asks of it:
+  /// is this account me.
+  String? get currentUserId => _adapter.currentUserId;
+
+  /// One account's data and settings (migration `0095`). A failure is not
+  /// swallowed, for the reason the other reads do not: a section that received
+  /// a blank where the truth was "the request failed" would show an
+  /// administrator a clean, wrong answer instead of a retry.
+  Future<AdminUserAccount> userAccount(String userId) =>
+      _adapter.userAccount(userId);
+
+  /// The five account edits. The reason is optional: it is trimmed here and a
+  /// blank one is sent as no reason, so the database stores an absence rather
+  /// than whitespace. Everything else is passed through; what a valid value is
+  /// stays a database rule, and the edit screen has already checked it.
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  }) =>
+      _adapter.updateUserAccount(
+        userId,
+        fullName: fullName,
+        phone: phone,
+        reason: _reason(reason),
+      );
+
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  }) =>
+      _adapter.updateUserPlayerProfile(
+        userId,
+        dateOfBirth: dateOfBirth,
+        primaryPosition: primaryPosition,
+        secondaryPosition: secondaryPosition,
+        reason: _reason(reason),
+      );
+
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  }) =>
+      _adapter.updateUserPrivacy(
+        userId,
+        visibility: visibility,
+        ageVisible: ageVisible,
+        reason: _reason(reason),
+      );
+
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  }) =>
+      _adapter.updateUserDefaultWilayat(
+        userId,
+        wilayatCode: wilayatCode,
+        reason: _reason(reason),
+      );
+
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  }) =>
+      _adapter.updateUserPushPreferences(
+        userId,
+        matchPush: matchPush,
+        communityPush: communityPush,
+        muteAll: muteAll,
+        reason: _reason(reason),
+      );
+
+  /// The read-only previews (migration `0096`). Reads, so a failure is not
+  /// swallowed: a preview that failed must show as failed, never as "nothing in
+  /// the way".
+  ///
+  /// The same account twice is not a merge. It is refused here, as a rejected
+  /// Future like every other failure in this layer, so the database is not asked.
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  }) async {
+    if (retainedUserId == sourceUserId) throw const ValidationFailure();
+    return _adapter.previewAccountMerge(
+      retainedUserId: retainedUserId,
+      sourceUserId: sourceUserId,
+    );
+  }
+
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId) =>
+      _adapter.previewAccountDeletion(userId);
+
+  /// The permanent merge (migration `0101`). **Not a read: a failure is a failure
+  /// to report, never to swallow, and a success is irreversible.** The same
+  /// account twice is refused here, as a rejected Future, so the database is not
+  /// asked; everything else is the database's to refuse, inside its transaction.
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  }) async {
+    if (retainedUserId == sourceUserId) throw const ValidationFailure();
+    return _adapter.mergeAccounts(
+      retainedUserId: retainedUserId,
+      sourceUserId: sourceUserId,
+      resolutions: resolutions,
+    );
+  }
+
+  /// The permanent deletion (migration `0102`). **Not a read: a failure is a failure to
+  /// report, never to swallow, and a success is irreversible.** Who may do it, and
+  /// whether anything stands in the way, is the server's to decide.
+  Future<AdminDeletionResult> deleteAccount(String userId) =>
+      _adapter.deleteAccount(userId: userId);
+
+  /// Changing another account's sign-in (migration `0103`). **Not reads: a failure is a
+  /// failure to report, never to swallow, and a success has already changed the account.**
+  /// The reason is required, and the address and password follow the application's own
+  /// rules; a request that breaks them is refused here, as a rejected Future, so the
+  /// function is not asked. Everything else is the server's to decide, twice, before it acts.
+  Future<AdminUserAuthResult> changeUserEmail(
+    String userId, {
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  }) async {
+    final trimmed = newEmail.trim();
+    if (!AuthService.isValidEmail(trimmed)) throw const ValidationFailure();
+    return _adapter.changeUserEmail(
+      userId: userId,
+      newEmail: trimmed,
+      reason: _requiredReason(reason),
+      redirectTo: redirectTo,
+    );
+  }
+
+  Future<AdminUserAuthResult> sendUserRecovery(
+    String userId, {
+    required String reason,
+    required String redirectTo,
+  }) async =>
+      _adapter.sendUserRecovery(
+        userId: userId,
+        reason: _requiredReason(reason),
+        redirectTo: redirectTo,
+      );
+
+  /// The password is passed on exactly as given: it is not trimmed, because a space can be
+  /// part of it.
+  Future<AdminUserAuthResult> setUserPassword(
+    String userId, {
+    required String password,
+    required String reason,
+  }) async {
+    if (!AuthService.isValidPassword(password)) throw const ValidationFailure();
+    return _adapter.setUserPassword(
+      userId: userId,
+      password: password,
+      reason: _requiredReason(reason),
+    );
+  }
+
+  static String _requiredReason(String reason) {
+    final trimmed = _reason(reason);
+    if (trimmed == null) throw const ValidationFailure();
+    return trimmed;
+  }
+
+  static String? _reason(String? reason) {
+    final trimmed = reason?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
 }

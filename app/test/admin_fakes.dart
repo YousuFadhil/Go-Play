@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
@@ -6,6 +8,9 @@ import 'package:go_play/features/admin/admin_adapter.dart';
 import 'package:go_play/features/admin/admin_models.dart';
 import 'package:go_play/features/admin/admin_repository.dart';
 import 'package:go_play/features/admin/admin_screen.dart';
+import 'package:go_play/features/auth/auth_models.dart' show PlayerPosition;
+import 'package:go_play/features/profile/profile_models.dart'
+    show ProfileVisibility;
 
 /// Shared Admin test fixtures.
 ///
@@ -68,6 +73,52 @@ AdminUserSummary adminUser({
       isActive: active,
     );
 
+/// An ordinary player account as `admin_get_user_account` reports it: active,
+/// signed in by email, no preferences row (so the column defaults), no Default
+/// Location and no date of birth.
+AdminUserAccount adminAccount({
+  String id = 'u1',
+  String fullName = 'Account Holder',
+  String phone = '+96891234567',
+  DateTime? dateOfBirth,
+  PlayerPosition primary = PlayerPosition.def,
+  PlayerPosition? secondary,
+  ProfileVisibility visibility = ProfileVisibility.everyone,
+  bool ageVisible = true,
+  int? wilayat,
+  bool isActive = true,
+  bool isSystemAdmin = false,
+  bool matchPush = true,
+  bool communityPush = true,
+  bool muteAll = false,
+  List<String> providers = const ['email'],
+  DateTime? emailConfirmedAt,
+  DateTime? lastSignInAt,
+}) =>
+    AdminUserAccount(
+      id: id,
+      fullName: fullName,
+      phone: phone,
+      email: '$id@example.com',
+      dateOfBirth: dateOfBirth,
+      primaryPosition: primary,
+      secondaryPosition: secondary,
+      profileVisibility: visibility,
+      ageVisible: ageVisible,
+      defaultWilayatCode: wilayat,
+      isActive: isActive,
+      suspendedAt: isActive ? null : DateTime.utc(2026, 8, 1),
+      suspensionReason: isActive ? null : 'Repeated no-shows',
+      isSystemAdmin: isSystemAdmin,
+      matchPush: matchPush,
+      communityPush: communityPush,
+      muteAll: muteAll,
+      signInProviders: providers,
+      emailConfirmedAt: emailConfirmedAt,
+      lastSignInAt: lastSignInAt,
+      createdAt: DateTime.utc(2026, 1, 15, 9),
+    );
+
 /// Answers whatever a test needs, and remembers what it was asked.
 class FakeAdminAdapter implements AdminAdapter {
   FakeAdminAdapter({
@@ -84,6 +135,17 @@ class FakeAdminAdapter implements AdminAdapter {
     this.communityInspectionResult,
     this.matchInspectionResult,
     this.inspectionFailure,
+    this.accountResult,
+    this.accountFailure,
+    this.updateFailure,
+    this.signedInUserId,
+    this.mergePreview,
+    this.deletionPreview,
+    this.previewFailure,
+    this.mergeResult,
+    this.mergeFailure,
+    this.deleteResult,
+    this.deleteFailure,
   });
 
   List<AdminUserSummary> users;
@@ -115,6 +177,72 @@ class FakeAdminAdapter implements AdminAdapter {
   AdminCommunityInspection? communityInspectionResult;
   AdminMatchInspection? matchInspectionResult;
   Failure? inspectionFailure;
+
+  /// What `userAccount` answers. Null means an ordinary [adminAccount], so the
+  /// Account data section has something to read in tests that are not about it.
+  AdminUserAccount? accountResult;
+
+  /// Set to make the Account data read fail; cleared to let a retry succeed.
+  Failure? accountFailure;
+
+  /// Set to make every account edit fail.
+  Failure? updateFailure;
+
+  /// The signed-in administrator, or null when the session cannot say.
+  String? signedInUserId;
+
+  /// What the read-only previews (migration `0096`) answer. Null means no test
+  /// asked for one, and a call is then a mistake worth failing loudly on.
+  AdminMergePreview? mergePreview;
+  AdminDeletionPreview? deletionPreview;
+
+  /// Set to make both previews fail (a refusal, a dropped connection, a database
+  /// that does not have the RPC yet); cleared to let a retry succeed.
+  Failure? previewFailure;
+
+  /// What the permanent merge (migration `0101`) answers, or the failure it
+  /// raises. Null for both means no test asked for one, and a call is then a
+  /// mistake worth failing loudly on.
+  AdminMergeResult? mergeResult;
+  Failure? mergeFailure;
+
+  /// Every merge requested, in order, with its choices. A test that taps twice
+  /// asserts this is one.
+  final List<
+      ({
+        String retainedUserId,
+        String sourceUserId,
+        List<AdminMergeResolution> resolutions
+      })> mergeRequests = [];
+
+  /// When set, the merge waits on it, so a test can look at the screen while the
+  /// request is in flight and tap again.
+  Completer<void>? mergeGate;
+
+  /// What the permanent deletion (migration `0102`) answers, or the failure it raises.
+  AdminDeletionResult? deleteResult;
+  Failure? deleteFailure;
+
+  /// Every deletion requested, in order. A test that taps twice asserts this is one.
+  final List<String> deleteRequests = [];
+
+  /// When set, the deletion waits on it, so a test can look at the screen mid-request.
+  Completer<void>? deleteGate;
+
+  /// Admin authentication management (migration 0103). One entry per request, in order, with
+  /// exactly what the port was given -- including the password, which is how the tests prove it
+  /// is passed on untouched and nowhere else.
+  final List<Map<String, Object?>> authRequests = [];
+
+  /// What the next requests answer, consumed in order: a [Failure] is thrown, an
+  /// [AdminUserAuthResult] is returned. Empty means a complete success.
+  final List<Object> authQueue = [];
+
+  /// Held until completed, to prove the in-flight state and the single request.
+  Completer<void>? authGate;
+
+  @override
+  String? get currentUserId => signedInUserId;
 
   final List<String> calls = [];
 
@@ -243,6 +371,178 @@ class FakeAdminAdapter implements AdminAdapter {
   @override
   Future<void> reactivateCommunity(String id) async =>
       calls.add('reactivateCommunity:$id');
+
+  @override
+  Future<AdminUserAccount> userAccount(String userId) async {
+    calls.add('userAccount:$userId');
+    if (accountFailure != null) throw accountFailure!;
+    return accountResult ?? adminAccount(id: userId);
+  }
+
+  /// The calls below record every argument that reaches the port, in the form a
+  /// test asserts on, and fail the way a refusing database would.
+  void _edit(String call) {
+    calls.add(call);
+    if (updateFailure != null) throw updateFailure!;
+  }
+
+  @override
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  }) async =>
+      _edit('updateUserAccount:$userId:$fullName:$phone:$reason');
+
+  @override
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  }) async =>
+      _edit('updateUserPlayerProfile:$userId:'
+          '${dateOfBirth == null ? 'null' : dateOfBirth.toIso8601String().substring(0, 10)}:'
+          '${primaryPosition.name}:${secondaryPosition?.name}:$reason');
+
+  @override
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  }) async =>
+      _edit('updateUserPrivacy:$userId:${visibility.name}:$ageVisible:$reason');
+
+  @override
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  }) async =>
+      _edit('updateUserDefaultWilayat:$userId:$wilayatCode:$reason');
+
+  @override
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  }) async {
+    calls.add('previewAccountMerge:$retainedUserId:$sourceUserId');
+    if (previewFailure != null) throw previewFailure!;
+    return mergePreview!;
+  }
+
+  @override
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId) async {
+    calls.add('previewAccountDeletion:$userId');
+    if (previewFailure != null) throw previewFailure!;
+    return deletionPreview!;
+  }
+
+  Future<AdminUserAuthResult> _auth(
+    AdminUserAuthAction action,
+    Map<String, Object?> request,
+  ) async {
+    calls.add('auth:${action.wire}:${request['userId']}');
+    authRequests.add({'action': action.wire, ...request});
+    final gate = authGate;
+    if (gate != null) await gate.future;
+    if (authQueue.isNotEmpty) {
+      final next = authQueue.removeAt(0);
+      if (next is Failure) throw next;
+      return next as AdminUserAuthResult;
+    }
+    return switch (action) {
+      AdminUserAuthAction.changeEmail => AdminUserAuthResult(
+          action: action,
+          emailChanged: true,
+          recoverySent: true,
+        ),
+      AdminUserAuthAction.sendRecovery =>
+        AdminUserAuthResult(action: action, recoverySent: true),
+      AdminUserAuthAction.setPassword =>
+        AdminUserAuthResult(action: action, passwordSet: true),
+    };
+  }
+
+  @override
+  Future<AdminUserAuthResult> changeUserEmail({
+    required String userId,
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      _auth(AdminUserAuthAction.changeEmail, {
+        'userId': userId,
+        'newEmail': newEmail,
+        'reason': reason,
+        'redirectTo': redirectTo,
+      });
+
+  @override
+  Future<AdminUserAuthResult> sendUserRecovery({
+    required String userId,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      _auth(AdminUserAuthAction.sendRecovery, {
+        'userId': userId,
+        'reason': reason,
+        'redirectTo': redirectTo,
+      });
+
+  @override
+  Future<AdminUserAuthResult> setUserPassword({
+    required String userId,
+    required String password,
+    required String reason,
+  }) =>
+      _auth(AdminUserAuthAction.setPassword, {
+        'userId': userId,
+        'password': password,
+        'reason': reason,
+      });
+
+  @override
+  Future<AdminDeletionResult> deleteAccount({required String userId}) async {
+    calls.add('deleteAccount:$userId');
+    deleteRequests.add(userId);
+    final gate = deleteGate;
+    if (gate != null) await gate.future;
+    if (deleteFailure != null) throw deleteFailure!;
+    return deleteResult!;
+  }
+
+  @override
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  }) async {
+    calls.add('mergeAccounts:$retainedUserId:$sourceUserId:${resolutions.length}');
+    mergeRequests.add((
+      retainedUserId: retainedUserId,
+      sourceUserId: sourceUserId,
+      resolutions: List.of(resolutions),
+    ));
+    final gate = mergeGate;
+    if (gate != null) await gate.future;
+    if (mergeFailure != null) throw mergeFailure!;
+    return mergeResult!;
+  }
+
+  @override
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  }) async =>
+      _edit('updateUserPushPreferences:$userId:$matchPush:$communityPush:'
+          '$muteAll:$reason');
 }
 
 /// The whole console, on a surface tall enough that nothing under test is

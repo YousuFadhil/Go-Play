@@ -2739,4 +2739,989 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get matchLiveBadge => 'مباشر';
+
+  @override
+  String get adminAccountDataTitle => 'بيانات الحساب';
+
+  @override
+  String get adminAccountEditAction => 'تعديل الحساب';
+
+  @override
+  String get adminAccountActiveLabel => 'الحساب نشط';
+
+  @override
+  String get adminAccountNotSet => 'غير محدد';
+
+  @override
+  String get adminAccountYes => 'نعم';
+
+  @override
+  String get adminAccountNo => 'لا';
+
+  @override
+  String get adminAccountOn => 'مفعّل';
+
+  @override
+  String get adminAccountOff => 'متوقف';
+
+  @override
+  String get adminAccountAgeVisibleLabel => 'إظهار العمر للآخرين';
+
+  @override
+  String get adminAccountProfileVisibilityLabel => 'ظهور الملف الشخصي';
+
+  @override
+  String get adminAccountSignInMethodsLabel => 'طريقة تسجيل الدخول';
+
+  @override
+  String get adminProviderGoogle => 'Google';
+
+  @override
+  String get adminAccountEmailConfirmedLabel => 'تأكيد البريد الإلكتروني';
+
+  @override
+  String get adminAccountEmailNotConfirmed => 'غير مؤكد';
+
+  @override
+  String get adminAccountLastSignInLabel => 'آخر تسجيل دخول';
+
+  @override
+  String get adminAccountNeverSignedIn => 'لم يسجّل الدخول بعد';
+
+  @override
+  String get adminEditUnavailableSelf => 'لا يمكنك تعديل حسابك من هنا.';
+
+  @override
+  String get adminEditUnavailableSystemAdmin =>
+      'حسابات مديري النظام تُدار خارج التطبيق.';
+
+  @override
+  String get adminEditGroupAccount => 'الاسم والجوال';
+
+  @override
+  String get adminEditGroupPlayer => 'تاريخ الميلاد والمراكز';
+
+  @override
+  String get adminEditReasonLabel => 'السبب (اختياري)';
+
+  @override
+  String get adminEditReasonHelp => 'يُسجَّل في سجل التدقيق.';
+
+  @override
+  String get adminEditSaved => 'تم الحفظ.';
+
+  @override
+  String get adminEditClearDateOfBirth => 'مسح تاريخ الميلاد';
+
+  @override
+  String get adminEditNotAllowed => 'لا يمكنك تعديل هذا الحساب.';
+
+  @override
+  String get adminEditInvalid => 'إحدى القيم غير صالحة. راجعها وحاول مرة أخرى.';
+
+  @override
+  String get adminEditUserNotFound => 'هذا الحساب لم يعد موجوداً.';
+
+  @override
+  String get adminActionUserProfileUpdated => 'تعديل بيانات حساب';
+
+  @override
+  String get adminAccountCreatedLabel => 'تاريخ إنشاء الحساب';
+
+  @override
+  String get adminPreviewMergeAction => 'معاينة الدمج';
+
+  @override
+  String get adminPreviewDeletionAction => 'معاينة الحذف';
+
+  @override
+  String get adminPreviewMergeTitle => 'دمج الحسابات';
+
+  @override
+  String get adminPreviewDeletionTitle => 'حذف حساب';
+
+  @override
+  String get adminPreviewReadOnlyNote =>
+      'للعرض فقط. لا يُدمج ولا يُحذف ولا يتغيّر أي شيء من هذه الشاشة، وهذه المعاينة لا تجعل الدمج أو الحذف متاحاً أو مصرّحاً به.';
+
+  @override
+  String get adminMergeRetainedLabel => 'الحساب المُبقى';
+
+  @override
+  String get adminMergeSourceLabel => 'الحساب المراد دمجه';
+
+  @override
+  String get adminMergeChoose => 'اختر حساباً';
+
+  @override
+  String get adminMergeSwap => 'تبديل الحسابين';
+
+  @override
+  String get adminMergeSearchHint => 'ابحث بالاسم أو البريد الإلكتروني';
+
+  @override
+  String get adminMergePreviewButton => 'معاينة';
+
+  @override
+  String get adminMergeNeedTwo => 'اختر حسابين مختلفين للمعاينة.';
+
+  @override
+  String get adminPickerNoResults => 'لا توجد حسابات.';
+
+  @override
+  String get adminPreviewVerdictClear => 'لا توجد عوائق في هذه المعاينة.';
+
+  @override
+  String adminPreviewVerdictBlocked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'عدد العوائق: $count.',
+      two: 'عائقان.',
+      one: 'عائق واحد.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminPreviewFindingsTitle => 'النتائج';
+
+  @override
+  String get adminPreviewNothingInTheWay => 'لا شيء يعترض.';
+
+  @override
+  String get adminSeverityBlocker => 'عائق';
+
+  @override
+  String get adminSeverityConflict => 'يحتاج قاعدة';
+
+  @override
+  String get adminSeverityConstraint => 'لا يمكن تغييره';
+
+  @override
+  String get adminPreviewAccountsTitle => 'الحسابات';
+
+  @override
+  String get adminPreviewActivityTitle => 'ما يرتبط بالحسابين';
+
+  @override
+  String get adminPreviewRetainedColumn => 'المُبقى';
+
+  @override
+  String get adminPreviewSourceColumn => 'المدمج';
+
+  @override
+  String get adminPreviewOverlapTitle => 'مجتمعات ينتمي إليها الحسابان';
+
+  @override
+  String get adminPreviewSourceOwnedTitle => 'مجتمعات يملكها الحساب المدمج';
+
+  @override
+  String get adminPreviewSharedMatchesTitle => 'مباريات يظهر فيها الحسابان';
+
+  @override
+  String get adminPreviewStatisticsTitle => 'إحصاءات ستتعارض';
+
+  @override
+  String get adminPreviewPersonalTitle => 'البيانات الشخصية المحفوظة';
+
+  @override
+  String get adminPreviewOwnedTitle => 'مجتمعات يملكها الحساب';
+
+  @override
+  String get adminPreviewCreatedTitle => 'مباريات أنشأها الحساب';
+
+  @override
+  String get adminPreviewHistoricalTitle => 'السجل الكروي';
+
+  @override
+  String get adminPreviewPreservedTitle => 'سجلات لا يمكن لأحد تعديلها';
+
+  @override
+  String get adminPreviewCoverageTitle => 'غير مشمول بهذه المعاينة';
+
+  @override
+  String adminPreviewShowing(int shown, int total) {
+    return 'عرض $shown من $total';
+  }
+
+  @override
+  String adminPreviewOwnedRow(int members, int admins, int matches) {
+    return '$members أعضاء · $admins مشرفون آخرون · $matches مباريات';
+  }
+
+  @override
+  String get adminPreviewTagRoleConflict => 'أدوار مختلفة';
+
+  @override
+  String get adminPreviewTagSourceOwns => 'الحساب المدمج يملكه';
+
+  @override
+  String get adminPreviewTagRetainedOwns => 'الحساب المُبقى يملكه';
+
+  @override
+  String get adminPreviewRetainedNotMember => 'الحساب المُبقى ليس عضواً';
+
+  @override
+  String get adminPreviewCollision => 'تعارض';
+
+  @override
+  String get adminPreviewHasResult => 'له نتيجة مسجّلة';
+
+  @override
+  String get adminPreviewRating => 'التقييم العام';
+
+  @override
+  String get adminEvidenceRegistration => 'تسجيل';
+
+  @override
+  String get adminEvidenceLineup => 'التشكيلة';
+
+  @override
+  String get adminEvidenceGoals => 'أهداف';
+
+  @override
+  String get adminEvidenceMvp => 'أفضل لاعب';
+
+  @override
+  String get adminEvidenceRating => 'تقييم';
+
+  @override
+  String get adminTreatmentCascadeDelete => 'يُمحى مع الحساب';
+
+  @override
+  String get adminTreatmentDetach => 'يُزال الربط ويبقى السجل';
+
+  @override
+  String get adminTreatmentRetainedId => 'يبقى دون حساب يشير إليه';
+
+  @override
+  String get adminCountMemberships => 'عضويات المجتمعات';
+
+  @override
+  String get adminCountOwned => 'مجتمعات يملكها';
+
+  @override
+  String get adminCountCreated => 'مباريات أنشأها';
+
+  @override
+  String get adminCountRegistrations => 'تسجيلات المباريات';
+
+  @override
+  String get adminCountUpcoming => 'تسجيلات في مباريات قادمة';
+
+  @override
+  String get adminCountLineup => 'أماكن في التشكيلات';
+
+  @override
+  String get adminCountGoals => 'الأهداف المسجّلة';
+
+  @override
+  String get adminCountGoalRows => 'سجلات الأهداف';
+
+  @override
+  String get adminCountMvp => 'جوائز أفضل لاعب';
+
+  @override
+  String get adminCountCareerStats => 'المباريات الملعوبة (المسيرة)';
+
+  @override
+  String get adminCountRatingEntries => 'سجلات التقييم';
+
+  @override
+  String get adminCountRatingArchive => 'صفوف أرشيف التقييم';
+
+  @override
+  String get adminCountCommunityStatistics => 'صفوف إحصاءات المجتمع';
+
+  @override
+  String get adminCountTeamAwards => 'جوائز تشكيلة الفترة';
+
+  @override
+  String get adminCountNotifications => 'الإشعارات';
+
+  @override
+  String get adminCountPushTokens => 'رموز إشعارات الجوال';
+
+  @override
+  String get adminCountActivityEvents => 'أحداث النشاط';
+
+  @override
+  String get adminCountAuditEntries => 'سجلات التدقيق';
+
+  @override
+  String get adminPersonalProfile => 'الملف الشخصي';
+
+  @override
+  String get adminPersonalIdentities => 'هويات تسجيل الدخول';
+
+  @override
+  String get adminPersonalAvatar => 'الصورة الشخصية';
+
+  @override
+  String get adminPersonalPushPreferences => 'تفضيلات الإشعارات';
+
+  @override
+  String get adminHistRecordedResults => 'نتائج سجّلها';
+
+  @override
+  String get adminHistGuestsAdded => 'لاعبون محترفون أضافهم';
+
+  @override
+  String get adminHistRegistrationEvents => 'أحداث التسجيل';
+
+  @override
+  String get adminHistMembershipEvents => 'أحداث العضوية';
+
+  @override
+  String get adminHistGenerationRuns => 'عمليات توليد التشكيلات';
+
+  @override
+  String get adminHistConfirmedLineups => 'تشكيلات أكّدها';
+
+  @override
+  String get adminHistRatingHistoryArchive => 'أرشيف سجل التقييم';
+
+  @override
+  String get adminHistUserRatingArchive => 'أرشيف التقييم (لكل حساب)';
+
+  @override
+  String get adminCoverageGenerationEvidence =>
+      'أرقام اللاعبين المضمّنة في بيانات توليد التشكيلات المحفوظة لا تُفحص.';
+
+  @override
+  String get adminCoverageStorage => 'ملف الصورة الشخصية في التخزين لا يُفحص.';
+
+  @override
+  String get adminCoverageSessions => 'جلسات تسجيل الدخول والرموز لا تُفحص.';
+
+  @override
+  String get adminFindingSourceIsCaller => 'الحساب المراد دمجه هو حسابك';
+
+  @override
+  String get adminFindingRetainedIsCaller => 'الحساب المُبقى هو حسابك';
+
+  @override
+  String get adminFindingSourceIsSystemAdmin => 'الحساب المراد دمجه مدير نظام';
+
+  @override
+  String get adminFindingRetainedIsSystemAdmin => 'الحساب المُبقى مدير نظام';
+
+  @override
+  String get adminFindingOwnershipConflict =>
+      'مجتمعات يملكها الحساب المدمج والحساب المُبقى عضو فيها أصلاً';
+
+  @override
+  String get adminFindingSharedMatchCollision =>
+      'مباريات يحمل فيها الحسابان النوع نفسه من السجلات';
+
+  @override
+  String get adminFindingSourceOwnsCommunities =>
+      'مجتمعات يملكها الحساب المدمج تحتاج مالكاً جديداً';
+
+  @override
+  String get adminFindingRoleConflict => 'مجتمعات للحسابين فيها أدوار مختلفة';
+
+  @override
+  String get adminFindingSharedMatchParticipation =>
+      'مباريات يظهر فيها الحسابان دون النوع نفسه من السجلات';
+
+  @override
+  String get adminFindingSourceCreatedMatches => 'مباريات أنشأها الحساب المدمج';
+
+  @override
+  String get adminFindingCommunityStatisticsCollision =>
+      'صفوف إحصاءات يملكها الحسابان معاً';
+
+  @override
+  String get adminFindingTeamAwardCollision =>
+      'يحمل الحسابان جائزة في فريق الفترة نفسه ولا تُحذف أي جائزة، لذلك الدمج ممنوع';
+
+  @override
+  String get adminFindingPlayerStatisticsRecompute =>
+      'ستلزم إعادة احتساب إحصاءات المسيرة (المباريات الملعوبة)';
+
+  @override
+  String get adminFindingRatingReplayRequired =>
+      'سيلزم إعادة تشغيل سجل التقييم (السجلات)';
+
+  @override
+  String get adminFindingRatingArchiveImmutable =>
+      'صفوف أرشيف التقييم تذكر هذا الحساب ولا يمكن نقلها أو حذفها، ولم يثبت بعد أن إيقافه آمن';
+
+  @override
+  String get adminFindingEventLogsNameSource =>
+      'سجلات أحداث تذكر الحساب المدمج تبقى كما هي';
+
+  @override
+  String get adminFindingAuditLogNamesSource =>
+      'تذكر سجلات التدقيق هذا الحساب. تبقى بتاريخها وإجرائها ومعرّفاتها، ويُزال الاسم والبريد الإلكتروني منها';
+
+  @override
+  String get adminFindingTargetIsCaller => 'هذا حسابك';
+
+  @override
+  String get adminFindingTargetIsSystemAdmin => 'هذا الحساب مدير نظام';
+
+  @override
+  String get adminFindingOwnsCommunities =>
+      'يملك مجتمعات: يجب نقل الملكية أولاً';
+
+  @override
+  String get adminFindingCreatedMatches =>
+      'أنشأ مباريات: يجب إعادة إسنادها أولاً';
+
+  @override
+  String get adminFindingMvpResultsWouldCascade =>
+      'الحذف سيمحو نتائج المباريات التي هذا اللاعب أفضل لاعب فيها';
+
+  @override
+  String get adminFindingHistoryWouldCascade => 'سجل كروي سيُمحى مع الحساب';
+
+  @override
+  String get adminFindingUpcomingRegistrations => 'مسجّل في مباريات قادمة';
+
+  @override
+  String get adminFindingRatingHistoryImmutable =>
+      'لا يمكن تعديل سجلات التقييم (تُرفض التحديثات)، فلا يمكن إخفاء هوية صاحبها فيها مباشرة، وحذف الحساب يحذفها';
+
+  @override
+  String get adminFindingAuditLogAppendOnly =>
+      'سجلات التدقيق التي تذكر هذا الحساب لا تُمحى بالحذف، فيبقى اسمه أو بريده الإلكتروني ظاهراً فيها';
+
+  @override
+  String get adminFindingEventLogsNameAccount =>
+      'سجلات أحداث تذكر هذا الحساب تبقى كما هي';
+
+  @override
+  String get adminHistCareerStatistics => 'إحصاءات المسيرة';
+
+  @override
+  String get adminMergeNotice =>
+      'الدمج نهائي. يُحذف الحساب المدموج نهائياً مع تسجيل دخوله وصورته الشخصية، وتُضاف سجلاته الكروية إلى الحساب المُبقى. لا يحدث شيء قبل أن تؤكد.';
+
+  @override
+  String get adminMergePlanTitle => 'ما الذي سيفعله الدمج';
+
+  @override
+  String get adminMergePlanCommunitiesTransferred =>
+      'مجتمعات تنتقل ملكيتها إلى الحساب المُبقى';
+
+  @override
+  String get adminMergePlanMembershipsMoved => 'عضويات تُنقل';
+
+  @override
+  String get adminMergePlanMembershipsMerged =>
+      'عضويات مكررة تُدمج (يبقى الدور الأعلى)';
+
+  @override
+  String get adminMergePlanRolesUpgraded => 'أدوار تُرفع إلى الدور الأعلى';
+
+  @override
+  String get adminMergePlanRegistrationsMoved => 'تسجيلات مباريات تُنقل';
+
+  @override
+  String get adminMergePlanLineupPlacesMoved => 'أماكن في التشكيلات تُنقل';
+
+  @override
+  String get adminMergePlanGoalRowsMoved => 'سجلات أهداف تُنقل';
+
+  @override
+  String get adminMergePlanMvpAwardsMoved => 'جوائز أفضل لاعب تُنقل';
+
+  @override
+  String get adminMergePlanTeamAwardsMoved => 'جوائز فريق الفترة تُنقل';
+
+  @override
+  String get adminMergePlanCreatedMatches =>
+      'مباريات أنشأها الحساب المدموج تُنسب إلى الحساب المُبقى';
+
+  @override
+  String get adminMergePlanFootnote =>
+      'يُعاد حساب تقييم الحساب المُبقى مباراةً بمباراة بترتيب التاريخ، وتُعاد بناء إحصاءاته من السجلات. لا يتغير تقييم أي لاعب آخر ولا إحصاءاته.';
+
+  @override
+  String get adminMergeChoiceTitle => 'اختر المشاركة التي تُبقيها';
+
+  @override
+  String get adminMergeChoiceHelp =>
+      'للّاعب مكان واحد في المباراة. اختر لكل مباراة أدناه مشاركة من تبقى، وتُزال الأخرى. لا تُزال الأهداف ولا جوائز أفضل لاعب ولا النتائج ولا التشكيلات المؤكدة أبداً.';
+
+  @override
+  String adminMergeKeepRetained(String name) {
+    return 'إبقاء $name';
+  }
+
+  @override
+  String adminMergeKeepSource(String name) {
+    return 'إبقاء $name';
+  }
+
+  @override
+  String adminMergeHeldBy(String name, String reasons) {
+    return 'لا يمكن إزالة مشاركة $name هنا: $reasons';
+  }
+
+  @override
+  String get adminMergeBlockerGoals => 'سجّل أهدافاً';
+
+  @override
+  String get adminMergeBlockerMvp => 'أفضل لاعب في المباراة';
+
+  @override
+  String get adminMergeBlockerLineupInResult => 'ضمن تشكيلة سُجلت منها نتيجة';
+
+  @override
+  String get adminMergeBlockerConfirmedLineup => 'ضمن تشكيلة مؤكدة';
+
+  @override
+  String get adminMergeBlockerRating => 'لديه تقييم ساري من هذه المباراة';
+
+  @override
+  String adminMergeNeedChoices(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'اختر المشاركة التي تُبقيها في $count مباريات.',
+      two: 'اختر المشاركة التي تُبقيها في مباراتين.',
+      one: 'اختر المشاركة التي تُبقيها في مباراة واحدة.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminMergeResolveBlockersFirst => 'عالج العوائق أعلاه أولاً.';
+
+  @override
+  String get adminMergeExecuteButton => 'دمج الحسابين…';
+
+  @override
+  String get adminMergeConfirmTitle => 'هل تدمج نهائياً؟';
+
+  @override
+  String adminMergeConfirmBody(String source, String retained) {
+    return 'سيُحذف $source نهائياً مع تسجيل دخوله وصورته الشخصية، وتُضاف سجلاته الكروية إلى $retained. لا يمكن التراجع.';
+  }
+
+  @override
+  String adminMergeConfirmTypeLabel(String name) {
+    return 'اكتب اسم الحساب المراد حذفه: $name';
+  }
+
+  @override
+  String get adminMergeConfirmField => 'الاسم';
+
+  @override
+  String get adminMergeConfirmAction => 'ادمج نهائياً';
+
+  @override
+  String get adminMergeRunning => 'جارٍ الدمج…';
+
+  @override
+  String get adminMergeDoneTitle => 'تم دمج الحسابين';
+
+  @override
+  String adminMergeDoneBody(String source, String retained) {
+    return 'حُذف $source. وأصبحت سجلاته الكروية ضمن $retained.';
+  }
+
+  @override
+  String adminMergeDoneRating(String name, String before, String after) {
+    return 'أُعيد حساب تقييم $name: $before ← $after.';
+  }
+
+  @override
+  String get adminMergeDoneButton => 'تم';
+
+  @override
+  String get adminMergeFailedConflict =>
+      'لم يُنفَّذ الدمج. تغيّر شيء أو ظهر ما يمنعه. راجع المعاينة من جديد.';
+
+  @override
+  String get adminMergeFailedNotFound =>
+      'أحد الحسابين لم يعد موجوداً. إن كان دمج قد جرى للتو فالحساب المدموج محذوف بالفعل.';
+
+  @override
+  String get adminMergeFailedAuthorization =>
+      'لا تملك صلاحية دمج هذين الحسابين.';
+
+  @override
+  String get adminMergeFailedValidation => 'لم يُقبل الطلب. لم يتغير شيء.';
+
+  @override
+  String get adminMergeFailedUncertain =>
+      'قد يكون الدمج نُفِّذ وقد لا يكون. تحقق من المعاينة قبل المحاولة من جديد: إن نُفِّذ فلن يبقى الحساب المدموج موجوداً.';
+
+  @override
+  String get adminMergeCheckAgain => 'تحقق من جديد';
+
+  @override
+  String get adminFindingSharedMatchNotResolvable =>
+      'مباريات لا يمكن إزالة مشاركة أي من الحسابين فيها (أهداف أو جوائز أفضل لاعب أو تشكيلات مسجلة): صحّحها أولاً';
+
+  @override
+  String get adminFindingSharedMatchLimitExceeded =>
+      'عدد المباريات المشتركة أكبر مما يمكن حسمه في دمج واحد (100)';
+
+  @override
+  String get adminFindingSharedMatchChoiceRequired =>
+      'مباريات شارك فيها الحسابان: اختر المشاركة التي تُبقيها';
+
+  @override
+  String get adminFindingSourceHasStoredFiles =>
+      'للحساب المدموج صورة شخصية في التخزين. يزيلها الدمج أولاً، وإن فشل الدمج بعد ذلك تبقى الصورة محذوفة';
+
+  @override
+  String get adminFindingRetainedRatingInconsistent =>
+      'تقييم الحساب المُبقى لا يتوافق مع سجل تقييمه، فلا يمكن إعادة حسابه بأمان';
+
+  @override
+  String get adminFindingRatingArchiveMapped =>
+      'تبقى صفوف أرشيف التقييم بمعرّف الحساب القديم، ويسجّل الدمج الحساب الذي صار إليه';
+
+  @override
+  String get adminMergeFailedAvatarCleanup =>
+      'لم يُنفَّذ الدمج. تعذّرت إزالة الصورة الشخصية للحساب المدموج، فلم يتغير أي شيء آخر. حاول من جديد.';
+
+  @override
+  String get adminMergeAvatarRemovedNote =>
+      'كانت الصورة الشخصية للحساب المدموج قد أُزيلت بالفعل.';
+
+  @override
+  String get adminFindingHistoryKept =>
+      'يبقى تاريخ المباريات التي لُعبت ويُعرض باسم «لاعب محذوف»';
+
+  @override
+  String get adminFindingCreatedMatchesKept =>
+      'تبقى المباريات التي أنشأها هذا الحساب';
+
+  @override
+  String get adminFindingRatingArchiveKept =>
+      'تحتفظ صفوف أرشيف التقييم بمعرّف الحساب القديم وتبقى كما هي';
+
+  @override
+  String get adminFindingStoredFilesRemoved =>
+      'للحساب صورة شخصية في التخزين. يزيلها الحذف أولاً، وإن فشل الحذف بعد ذلك تبقى الصورة محذوفة';
+
+  @override
+  String get adminTreatmentKept => 'يبقى ويُعرض باسم «لاعب محذوف»';
+
+  @override
+  String get adminTreatmentRemoved => 'يُزال';
+
+  @override
+  String get adminHistUpcomingLineup => 'أماكن في تشكيلات مباريات قادمة';
+
+  @override
+  String get adminDeleteNotice =>
+      'الحذف نهائي. يُحذف الحساب نهائياً مع تسجيل دخوله وبياناته الشخصية وصورته. يبقى تاريخه الكروي ويُعرض باسم «لاعب محذوف». لا يحدث شيء قبل أن تؤكد.';
+
+  @override
+  String get adminDeleteExecuteButton => 'حذف الحساب…';
+
+  @override
+  String get adminDeleteAccountConfirmTitle => 'هل تحذف نهائياً؟';
+
+  @override
+  String adminDeleteConfirmBody(String name) {
+    return 'سيُحذف $name نهائياً مع تسجيل دخوله وصورته الشخصية. يبقى تاريخه الكروي ويُعرض باسم «لاعب محذوف». لا يمكن التراجع.';
+  }
+
+  @override
+  String get adminDeleteConfirmAction => 'احذف نهائياً';
+
+  @override
+  String get adminDeleteRunning => 'جارٍ الحذف…';
+
+  @override
+  String get adminDeleteDoneTitle => 'تم حذف الحساب';
+
+  @override
+  String adminDeleteDoneBody(String name) {
+    return 'حُذف $name. يبقى تاريخه الكروي ويُعرض باسم «لاعب محذوف».';
+  }
+
+  @override
+  String get adminDeleteFailedConflict =>
+      'لم يُحذف الحساب. تغيّر شيء أو ظهر ما يمنع الحذف. راجع المعاينة من جديد.';
+
+  @override
+  String get adminDeleteFailedNotFound =>
+      'الحساب لم يعد موجوداً. إن كان حذف قد جرى للتو فهو محذوف بالفعل.';
+
+  @override
+  String get adminDeleteFailedAuthorization => 'لا تملك صلاحية حذف هذا الحساب.';
+
+  @override
+  String get adminDeleteFailedValidation => 'لم يُقبل الطلب. لم يتغير شيء.';
+
+  @override
+  String get adminDeleteFailedUncertain =>
+      'قد يكون الحذف نُفِّذ وقد لا يكون. تحقق من المعاينة قبل المحاولة من جديد: إن نُفِّذ فلن يبقى الحساب موجوداً.';
+
+  @override
+  String get adminDeleteFailedAvatarCleanup =>
+      'لم يُحذف الحساب. تعذّرت إزالة صورته الشخصية، فلم يتغير أي شيء آخر. حاول من جديد.';
+
+  @override
+  String get adminDeleteAvatarRemovedNote =>
+      'كانت الصورة الشخصية للحساب قد أُزيلت بالفعل.';
+
+  @override
+  String get settingsAccountSection => 'الحساب';
+
+  @override
+  String get deleteMyAccountTitle => 'حذف حسابي';
+
+  @override
+  String get deleteMyAccountSubtitle => 'احذف حسابك وبياناتك الشخصية نهائياً';
+
+  @override
+  String get deleteAccountIntro =>
+      'حذف حسابك نهائي. يُحذف تسجيل دخولك وملفك وصورتك وإشعاراتك نهائياً، وتُزال من مجتمعاتك. تبقى المباريات التي لعبتها في تاريخ مجتمعاتها وتُعرض باسم «لاعب محذوف».';
+
+  @override
+  String get deleteAccountOwnsTitle => 'أنت مالك لمجتمعات';
+
+  @override
+  String get deleteAccountOwnsBody =>
+      'انقل ملكية كل مجتمع أدناه إلى عضو آخر أولاً. بعدها يمكنك حذف حسابك.';
+
+  @override
+  String get deleteAccountManageMembers => 'إدارة الأعضاء';
+
+  @override
+  String deleteAccountOwnedRow(int members) {
+    String _temp0 = intl.Intl.pluralLogic(
+      members,
+      locale: localeName,
+      other: '$members أعضاء',
+      two: 'عضوان',
+      one: 'عضو واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteAccountBlockedAdmin =>
+      'لا يمكن حذف حسابات مدراء النظام من التطبيق.';
+
+  @override
+  String get deleteAccountBlockedSuspended => 'لا يمكن حذف حساب موقوف.';
+
+  @override
+  String deleteAccountUpcoming(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ستُسحب من $count مباريات قادمة.',
+      two: 'ستُسحب من مباراتين قادمتين.',
+      one: 'ستُسحب من مباراة قادمة واحدة.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteAccountButton => 'حذف حسابي…';
+
+  @override
+  String get deleteAccountConfirmTitle => 'هل تحذف حسابك نهائياً؟';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'لا يمكن التراجع. سيُحذف حسابك وملفك وصورتك وسيتم تسجيل خروجك.';
+
+  @override
+  String get deleteAccountConfirmWord => 'حذف';
+
+  @override
+  String deleteAccountConfirmLabel(String word) {
+    return 'اكتب $word للتأكيد';
+  }
+
+  @override
+  String get deleteAccountConfirmAction => 'احذف نهائياً';
+
+  @override
+  String get deleteAccountRunning => 'جارٍ حذف حسابك…';
+
+  @override
+  String get deleteAccountFailedBlocked =>
+      'لم يُحذف حسابك. ثمة ما يمنع الحذف. تحقق من جديد.';
+
+  @override
+  String get deleteAccountFailedAuthorization =>
+      'لا تملك صلاحية حذف هذا الحساب.';
+
+  @override
+  String get deleteAccountFailedGeneric =>
+      'لم يُحذف حسابك. لم يتغير شيء. حاول من جديد.';
+
+  @override
+  String get deleteAccountFailedUncertain =>
+      'قد يكون حذف حسابك نجح وقد لا يكون. سجّل الدخول من جديد للتحقق: إن نجح فلن يبقى حسابك موجوداً.';
+
+  @override
+  String get deleteAccountFailedAvatarCleanup =>
+      'لم يُحذف حسابك. تعذّرت إزالة صورتك الشخصية، فلم يتغير أي شيء آخر. حاول من جديد.';
+
+  @override
+  String get deleteAccountAvatarRemovedNote =>
+      'كانت صورتك الشخصية قد أُزيلت بالفعل.';
+
+  @override
+  String get deleteAccountDoneTitle => 'تم حذف حسابك';
+
+  @override
+  String get deleteAccountDoneBody =>
+      'تم تسجيل خروجك. تبقى المباريات التي لعبتها في مجتمعاتها وتُعرض باسم «لاعب محذوف».';
+
+  @override
+  String get adminActionUserEmailChanged => 'تغيير البريد الإلكتروني';
+
+  @override
+  String get adminActionUserRecoverySent => 'إرسال رسالة استرداد';
+
+  @override
+  String get adminActionUserPasswordSet => 'تعيين كلمة المرور';
+
+  @override
+  String get adminAuthChangeEmailAction => 'تغيير البريد الإلكتروني';
+
+  @override
+  String get adminAuthSendRecoveryAction => 'إرسال رسالة استرداد كلمة المرور';
+
+  @override
+  String get adminAuthSetPasswordAction => 'تعيين كلمة المرور';
+
+  @override
+  String get adminAuthGoogleNote =>
+      'هذا الحساب مرتبط بجوجل، لذا لا يمكن تغيير بريده الإلكتروني من هنا. يبقى استرداد كلمة المرور وتعيينها متاحين.';
+
+  @override
+  String get adminAuthChangeEmailTitle => 'تغيير البريد الإلكتروني';
+
+  @override
+  String get adminAuthChangeEmailBody =>
+      'يسري العنوان الجديد فوراً دون أن يؤكده اللاعب. ثم تُرسل رسالة استرداد كلمة المرور المعتادة إلى العنوان الجديد.';
+
+  @override
+  String adminAuthCurrentEmail(String email) {
+    return 'البريد الحالي: $email';
+  }
+
+  @override
+  String get adminAuthNewEmailLabel => 'البريد الجديد';
+
+  @override
+  String get adminAuthConfirmEmailLabel => 'أعد كتابة البريد الجديد';
+
+  @override
+  String get adminAuthEmailMismatch => 'العنوانان غير متطابقين';
+
+  @override
+  String get adminAuthEmailSame => 'هذا هو بريد الحساب الحالي بالفعل';
+
+  @override
+  String get adminAuthSendRecoveryTitle => 'إرسال رسالة استرداد';
+
+  @override
+  String adminAuthSendRecoveryBody(String email) {
+    return 'تُرسل رسالة استرداد كلمة المرور المعتادة إلى $email. لا يتغير شيء في الحساب.';
+  }
+
+  @override
+  String get adminAuthSetPasswordTitle => 'تعيين كلمة المرور';
+
+  @override
+  String get adminAuthSetPasswordBody =>
+      'يستطيع اللاعب تسجيل الدخول بهذه الكلمة فوراً. أبلغه بها بنفسك: لا تُحفظ ولا تُعرض مرة أخرى. قد تبقى الأجهزة المسجّل دخولها مفتوحة حتى تنتهي جلستها.';
+
+  @override
+  String get adminAuthConfirmPasswordLabel => 'أعد كتابة كلمة المرور الجديدة';
+
+  @override
+  String get adminAuthPasswordMismatch => 'كلمتا المرور غير متطابقتين';
+
+  @override
+  String get adminAuthReasonLabel => 'السبب (مطلوب)';
+
+  @override
+  String get adminAuthReasonRequired => 'اكتب السبب';
+
+  @override
+  String get adminAuthSubmitChangeEmail => 'غيّر البريد';
+
+  @override
+  String get adminAuthSubmitSendRecovery => 'أرسل';
+
+  @override
+  String get adminAuthSubmitSetPassword => 'عيّن كلمة المرور';
+
+  @override
+  String get adminAuthWorking => 'جارٍ التنفيذ…';
+
+  @override
+  String get adminAuthDoneButton => 'تم';
+
+  @override
+  String get adminAuthEmailChangedDone =>
+      'تم تغيير البريد وأُرسلت رسالة الاسترداد إلى العنوان الجديد.';
+
+  @override
+  String get adminAuthEmailChangedNoRecovery =>
+      'تم تغيير البريد، لكن رسالة الاسترداد لم تُرسل. يبقى التغيير قائماً.';
+
+  @override
+  String get adminAuthEmailChangedRateLimited =>
+      'تم تغيير البريد، لكن رسالة الاسترداد لم تُرسل لأن مزوّد البريد يحدّ من عدد الرسائل. حاول بعد دقيقة. يبقى التغيير قائماً.';
+
+  @override
+  String get adminAuthRetryRecovery => 'أعد إرسال رسالة الاسترداد';
+
+  @override
+  String get adminAuthRecoveryDone =>
+      'طُلب إرسال رسالة الاسترداد. لا نعرف إن كانت وصلت إلى صندوق الوارد.';
+
+  @override
+  String get adminAuthPasswordDone => 'تم تعيين كلمة المرور.';
+
+  @override
+  String get adminAuthAuditMissing =>
+      'تم التنفيذ، لكن تعذّر تسجيله في سجل التدقيق. دوّنه.';
+
+  @override
+  String get adminAuthNotAllowed => 'لا يمكنك تنفيذ ذلك لهذا الحساب.';
+
+  @override
+  String get adminAuthAccountGone => 'هذا الحساب لم يعد موجوداً.';
+
+  @override
+  String get adminAuthGoogleLinked =>
+      'هذا الحساب مرتبط بجوجل، لذا لا يمكن تغيير بريده الإلكتروني.';
+
+  @override
+  String get adminAuthEmailTaken => 'يستخدم حساب آخر هذا البريد بالفعل.';
+
+  @override
+  String get adminAuthEmailRejected => 'لا يمكن استخدام هذا البريد.';
+
+  @override
+  String get adminAuthNoEmail =>
+      'لا يوجد بريد إلكتروني لهذا الحساب، فلا يمكن إرسال رسالة استرداد.';
+
+  @override
+  String get adminAuthPasswordRejected =>
+      'لم تقبل خدمة تسجيل الدخول كلمة المرور هذه. اختر كلمة أطول أو أقل شيوعاً.';
+
+  @override
+  String get adminAuthRateLimited =>
+      'طلبات كثيرة. لم يتغير شيء. حاول بعد دقيقة.';
+
+  @override
+  String get adminAuthOutcomeUnknown =>
+      'لم تردّ خدمة تسجيل الدخول، فلا نعرف إن تم التنفيذ. تحقق من الحساب ثم أعد المحاولة عند الحاجة.';
+
+  @override
+  String get adminAuthFailed => 'تعذّر التنفيذ. لم يتغير شيء.';
 }

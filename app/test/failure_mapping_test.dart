@@ -146,6 +146,153 @@ void main() {
               (f) => f.reason, 'reason', FailureReason.profileNotFound));
     });
 
+    test('editing an account: who may be edited is a permission refusal', () {
+      // The console words it once, because it already knows whether the account
+      // is the administrator's own or a System Admin's.
+      expect(map(raised('CANNOT_MODIFY_SELF')), isA<AuthorizationFailure>());
+      expect(map(raised('CANNOT_MODIFY_SYSTEM_ADMIN')),
+          isA<AuthorizationFailure>());
+      // And neither is mistaken for the membership refusals they resemble.
+      expect(map(raised('CANNOT_MODIFY_SELF')).reason,
+          isNot(FailureReason.cannotRemoveSelf));
+      expect(map(raised('CANNOT_MODIFY_SYSTEM_ADMIN')).reason, isNull);
+    });
+
+    test('editing an account: every value the database refuses is input', () {
+      for (final token in [
+        'INVALID_FULL_NAME',
+        'INVALID_PHONE',
+        'INVALID_DATE_OF_BIRTH',
+        'INVALID_POSITION',
+        'INVALID_WILAYAT',
+        'INVALID_SETTINGS',
+      ]) {
+        expect(map(raised(token)), isA<ValidationFailure>(), reason: token);
+      }
+      // The new token carries no reason: the console words it for the group.
+      expect(map(raised('INVALID_SETTINGS')).reason, isNull);
+    });
+
+    test('editing an account: an unknown id is not found', () {
+      expect(map(raised('USER_NOT_FOUND')), isA<NotFoundFailure>());
+    });
+
+    test('previewing a merge: the same account twice is input, not a fault', () {
+      // Migration 0096. The screen never offers the same account twice, so
+      // reaching this means the request was built some other way.
+      expect(map(raised('SAME_ACCOUNT')), isA<ValidationFailure>());
+      expect(map(raised('SAME_ACCOUNT')).reason, isNull);
+    });
+
+    test('merging accounts: the administrator cannot be either account', () {
+      // Migration 0101. A permission refusal, as with editing their own.
+      expect(map(raised('CANNOT_MERGE_SELF')), isA<AuthorizationFailure>());
+      expect(map(raised('CANNOT_MERGE_SELF')).reason, isNull);
+    });
+
+    test('merging accounts: what stands in the way is a state to look at again',
+        () {
+      // A blocker that appeared since the preview, a choice that is missing, or
+      // one that would discard goals, an MVP award, a result or a confirmed
+      // lineup: not bad input, so the screen asks for the preview again.
+      for (final token in [
+        'MERGE_BLOCKED',
+        'RESOLUTION_REQUIRED',
+        'RESOLUTION_BLOCKED',
+        'RESOLUTION_UNKNOWN_MATCH',
+      ]) {
+        expect(map(raised(token)), isA<ConflictFailure>(), reason: token);
+        expect(map(raised(token)).reason, isNull, reason: token);
+      }
+      expect(map(raised('RESOLUTIONS_INVALID')), isA<ValidationFailure>());
+    });
+
+    test('merging accounts: what the Edge Function adds to the database\'s own',
+        () {
+      expect(map(raised('SOURCE_FILES_REMAIN')), isA<ConflictFailure>());
+      expect(map(raised('MERGE_OUTCOME_UNKNOWN')), isA<InfrastructureFailure>());
+      expect(map(raised('PREFLIGHT_FAILED')), isA<InfrastructureFailure>());
+      expect(map(raised('REQUEST_FAILED')), isA<InfrastructureFailure>());
+      expect(map(raised('BAD_REQUEST')), isA<ValidationFailure>());
+      // The merge was never attempted: the picture could not be removed.
+      expect(
+        map(raised('AVATAR_CLEANUP_FAILED')),
+        isA<InfrastructureFailure>().having(
+            (f) => f.reason, 'reason', FailureReason.avatarCleanupFailed),
+      );
+    });
+
+    test('deleting an account: what blocks is a state, who may is a permission',
+        () {
+      // Migration 0102.
+      expect(map(raised('DELETE_BLOCKED')), isA<ConflictFailure>());
+      expect(map(raised('DELETE_BLOCKED')).reason, isNull);
+      expect(map(raised('CANNOT_DELETE_SELF')), isA<AuthorizationFailure>());
+      expect(map(raised('ACCOUNT_SUSPENDED')), isA<AuthorizationFailure>());
+    });
+
+    test('deleting an account: the engine checking its own work is a fault', () {
+      for (final token in [
+        'DELETE_OUTCOME_UNKNOWN',
+        'DELETE_EVIDENCE_CHANGED',
+        'DELETE_INVARIANT_BROKEN',
+        'DELETE_RESIDUAL_DATA',
+      ]) {
+        expect(map(raised(token)), isA<InfrastructureFailure>(), reason: token);
+      }
+    });
+
+    test('changing another account\'s sign-in: states are conflicts, rules are input',
+        () {
+      // Migration 0103.
+      final google = map(raised('GOOGLE_LINKED'));
+      expect(google, isA<ConflictFailure>());
+      expect(google.reason, FailureReason.googleLinked);
+      final taken = map(raised('EMAIL_TAKEN'));
+      expect(taken, isA<ConflictFailure>());
+      expect(taken.reason, FailureReason.emailAlreadyUsed);
+      expect(map(raised('NO_EMAIL')), isA<ConflictFailure>());
+      expect(map(raised('NO_EMAIL')).reason, isNull);
+      for (final token in [
+        'EMAIL_UNCHANGED',
+        'INVALID_EMAIL',
+        'INVALID_PASSWORD',
+        'INVALID_REASON',
+        'INVALID_ACTION',
+      ]) {
+        expect(map(raised(token)), isA<ValidationFailure>(), reason: token);
+      }
+    });
+
+    test('changing another account\'s sign-in: the provider\'s answers', () {
+      final limited = map(raised('RATE_LIMITED'));
+      expect(limited, isA<InfrastructureFailure>());
+      expect(limited.reason, FailureReason.tooManyRequests);
+      final unknown = map(raised('AUTH_OUTCOME_UNKNOWN'));
+      expect(unknown, isA<InfrastructureFailure>());
+      expect(unknown.reason, FailureReason.authOutcomeUnknown);
+      for (final token in ['AUTH_UPDATE_REFUSED', 'RECOVERY_SEND_FAILED']) {
+        final failure = map(raised(token));
+        expect(failure, isA<InfrastructureFailure>(), reason: token);
+        expect(failure.reason, isNull, reason: token);
+      }
+    });
+
+    test('merging accounts: the merge checking its own work is a fault', () {
+      // Each rolled the transaction back, and none is something the
+      // administrator did.
+      for (final token in [
+        'MERGE_UNHANDLED_REFERENCE',
+        'MERGE_RESIDUAL_REFERENCE',
+        'MERGE_INVARIANT_BROKEN',
+        'RATING_BASELINE_MISMATCH',
+        'RATING_CHAIN_BROKEN',
+        'AUTH_DELETE_INCOMPLETE',
+      ]) {
+        expect(map(raised(token)), isA<InfrastructureFailure>(), reason: token);
+      }
+    });
+
     test('joining refusals keep their reason', () {
       expect(map(raised('JOIN_CODE_REQUIRED')).reason,
           FailureReason.joinCodeRequired);
@@ -274,6 +421,133 @@ void main() {
               'in the request');
       expect(map(const PostgrestException(message: 'no code')),
           isA<InfrastructureFailure>());
+    });
+  });
+
+  group('an Edge Function answered', () {
+    // The merge is requested through `admin-merge-accounts`, which answers a refusal as
+    // {"error": TOKEN, "avatar_removed": bool} under an HTTP status.
+    Failure answered(int status, Object? details) =>
+        map(FunctionException(status: status, details: details));
+
+    test('the database\'s own token is classified as it is for an RPC', () {
+      expect(answered(403, {'error': 'NOT_AUTHORIZED'}),
+          isA<AuthorizationFailure>());
+      expect(answered(409, {'error': 'MERGE_BLOCKED', 'detail': 'X'}),
+          isA<ConflictFailure>());
+      expect(answered(404, {'error': 'USER_NOT_FOUND'}), isA<NotFoundFailure>());
+      expect(answered(400, {'error': 'RESOLUTIONS_INVALID'}),
+          isA<ValidationFailure>());
+      expect(answered(401, {'error': 'NOT_AUTHENTICATED'}),
+          isA<AuthenticationFailure>());
+      expect(answered(502, {'error': 'MERGE_OUTCOME_UNKNOWN'}),
+          isA<InfrastructureFailure>());
+    });
+
+    test('a picture already removed is said on top of whatever else failed', () {
+      for (final entry in <(Map<String, Object?>, Type)>[
+        ({'error': 'MERGE_BLOCKED', 'avatar_removed': true}, ConflictFailure),
+        (
+          {'error': 'MERGE_OUTCOME_UNKNOWN', 'avatar_removed': true},
+          InfrastructureFailure
+        ),
+        (
+          {'error': 'MERGE_INVARIANT_BROKEN', 'avatar_removed': true},
+          InfrastructureFailure
+        ),
+      ]) {
+        final failure = answered(500, entry.$1);
+        expect(failure.runtimeType, entry.$2);
+        expect(failure.reason, FailureReason.avatarRemovedFirst);
+      }
+      expect(
+        answered(409, {'error': 'MERGE_BLOCKED', 'avatar_removed': false})
+            .reason,
+        isNull,
+      );
+    });
+
+    test('a failed cleanup keeps its own reason, whether or not part of the '
+        'picture went', () {
+      for (final removed in [true, false]) {
+        final failure = answered(
+            502, {'error': 'AVATAR_CLEANUP_FAILED', 'avatar_removed': removed});
+        expect(failure, isA<InfrastructureFailure>());
+        expect(failure.reason, FailureReason.avatarCleanupFailed);
+      }
+    });
+
+    test('an answer from the platform, not the function, is read by status only',
+        () {
+      expect(answered(401, 'Invalid JWT'), isA<AuthenticationFailure>());
+      expect(answered(403, null), isA<AuthorizationFailure>());
+      // Not deployed, timed out, crashed: the service failed; it is not "the
+      // account is gone".
+      expect(answered(404, 'Requested function was not found'),
+          isA<InfrastructureFailure>());
+      expect(answered(500, {'message': 'boom'}), isA<InfrastructureFailure>());
+      expect(answered(546, null), isA<InfrastructureFailure>());
+    });
+
+    test('the deletion function answers in the same language', () {
+      expect(answered(409, {'error': 'DELETE_BLOCKED', 'detail': 'OWNS_COMMUNITIES'}),
+          isA<ConflictFailure>());
+      expect(answered(403, {'error': 'CANNOT_DELETE_SELF'}),
+          isA<AuthorizationFailure>());
+      expect(answered(403, {'error': 'ACCOUNT_SUSPENDED'}),
+          isA<AuthorizationFailure>());
+      expect(answered(502, {'error': 'DELETE_OUTCOME_UNKNOWN'}),
+          isA<InfrastructureFailure>());
+      expect(answered(404, {'error': 'USER_NOT_FOUND'}), isA<NotFoundFailure>());
+    });
+
+    test('the sign-in function answers in the same language, under its own statuses',
+        () {
+      for (final (status, token, type) in <(int, String, Type)>[
+        (401, 'NOT_AUTHENTICATED', AuthenticationFailure),
+        (403, 'NOT_AUTHORIZED', AuthorizationFailure),
+        (403, 'CANNOT_MODIFY_SELF', AuthorizationFailure),
+        (403, 'CANNOT_MODIFY_SYSTEM_ADMIN', AuthorizationFailure),
+        (404, 'USER_NOT_FOUND', NotFoundFailure),
+        (409, 'GOOGLE_LINKED', ConflictFailure),
+        (409, 'EMAIL_TAKEN', ConflictFailure),
+        (409, 'EMAIL_UNCHANGED', ValidationFailure),
+        (409, 'NO_EMAIL', ConflictFailure),
+        (400, 'INVALID_EMAIL', ValidationFailure),
+        (400, 'INVALID_PASSWORD', ValidationFailure),
+        (400, 'INVALID_REASON', ValidationFailure),
+        (400, 'BAD_REQUEST', ValidationFailure),
+        (429, 'RATE_LIMITED', InfrastructureFailure),
+        (502, 'AUTH_UPDATE_REFUSED', InfrastructureFailure),
+        (502, 'AUTH_OUTCOME_UNKNOWN', InfrastructureFailure),
+        (502, 'RECOVERY_SEND_FAILED', InfrastructureFailure),
+        (502, 'PREFLIGHT_FAILED', InfrastructureFailure),
+      ]) {
+        expect(answered(status, {'error': token}).runtimeType, type,
+            reason: '$status $token');
+      }
+      // The retry hint is the function's; the type and wording do not depend on it.
+      final limited = answered(429, {'error': 'RATE_LIMITED', 'retry_after': 42});
+      expect(limited.reason, FailureReason.tooManyRequests);
+    });
+
+    test('a picture already removed is said on top of a refused deletion', () {
+      final blocked = answered(
+          409, {'error': 'DELETE_BLOCKED', 'avatar_removed': true});
+      expect(blocked, isA<ConflictFailure>());
+      expect(blocked.reason, FailureReason.avatarRemovedFirst);
+
+      final lost = answered(
+          502, {'error': 'DELETE_OUTCOME_UNKNOWN', 'avatar_removed': true});
+      expect(lost, isA<InfrastructureFailure>());
+      expect(lost.reason, FailureReason.avatarRemovedFirst);
+    });
+
+    test('a token this build does not know falls back to the status', () {
+      expect(answered(409, {'error': 'SOMETHING_NEW'}),
+          isA<InfrastructureFailure>());
+      expect(answered(403, {'error': 'SOMETHING_NEW'}),
+          isA<AuthorizationFailure>());
     });
   });
 

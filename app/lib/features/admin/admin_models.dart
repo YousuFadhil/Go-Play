@@ -5,6 +5,9 @@
 // and belongs to the screen (OP-3: what leaves the adapter is a Domain Model,
 // not a pre-formatted view row).
 
+import '../auth/auth_models.dart' show PlayerPosition;
+import '../profile/profile_models.dart' show ProfileVisibility;
+
 /// A user account, as the administration list sees it.
 class AdminUserSummary {
   const AdminUserSummary({
@@ -624,4 +627,618 @@ class AdminMatchInspection {
   final String? mvpName;
 
   bool get hasScore => scoreA != null && scoreB != null;
+}
+
+/// One account's own data and settings, as the Account data section and the
+/// edit screen see it (migration `0095`).
+///
+/// It carries what `admin_get_user_account` returns and nothing more: the
+/// provider names are the names only, never a token or an identity payload, and
+/// the avatar is a URL composed by the adapter, for display -- there is no write
+/// for it.
+///
+/// The three push switches arrive as the database's effective values, so an
+/// account with no preferences row reads as the column defaults rather than as
+/// three unknowns. A null [dateOfBirth] is an ordinary state, not an error: the
+/// column is nullable and an account may never have given one.
+class AdminUserAccount {
+  const AdminUserAccount({
+    required this.id,
+    required this.fullName,
+    required this.phone,
+    required this.email,
+    required this.primaryPosition,
+    required this.profileVisibility,
+    required this.ageVisible,
+    required this.isActive,
+    required this.isSystemAdmin,
+    required this.matchPush,
+    required this.communityPush,
+    required this.muteAll,
+    required this.createdAt,
+    this.dateOfBirth,
+    this.secondaryPosition,
+    this.defaultWilayatCode,
+    this.avatarUrl,
+    this.suspendedAt,
+    this.suspensionReason,
+    this.signInProviders = const [],
+    this.emailConfirmedAt,
+    this.lastSignInAt,
+  });
+
+  final String id;
+  final String fullName;
+
+  /// Stored in E.164 (`+968XXXXXXXX`).
+  final String phone;
+  final String email;
+
+  final DateTime? dateOfBirth;
+  final PlayerPosition primaryPosition;
+  final PlayerPosition? secondaryPosition;
+
+  final ProfileVisibility profileVisibility;
+  final bool ageVisible;
+
+  /// The MOI Wilayat code, or null when the account has no Default Location.
+  final int? defaultWilayatCode;
+
+  /// Where the picture can be fetched, or null when the account has none.
+  /// Display only: nothing in the console writes or removes it.
+  final String? avatarUrl;
+
+  final bool isActive;
+  final DateTime? suspendedAt;
+  final String? suspensionReason;
+  final bool isSystemAdmin;
+
+  final bool matchPush;
+  final bool communityPush;
+  final bool muteAll;
+
+  /// The sign-in methods by name (`email`, `google`), sorted. Empty when the
+  /// account has no identity row.
+  final List<String> signInProviders;
+
+  /// Null when the address has never been confirmed.
+  final DateTime? emailConfirmedAt;
+
+  /// Null when the account has never signed in.
+  final DateTime? lastSignInAt;
+
+  final DateTime createdAt;
+}
+
+// ---------------------------------------------------------------------------
+// Account preflight (migration `0096`): read-only previews of merging two
+// accounts and of deleting one. Nothing here acts; every type describes.
+// ---------------------------------------------------------------------------
+
+/// How serious a preflight finding is.
+enum AdminFindingSeverity {
+  /// Execution must not proceed until it is resolved.
+  blocker,
+
+  /// Needs an explicit resolution rule before execution.
+  conflict,
+
+  /// A preservation fact to accept; there is nothing to resolve.
+  constraint,
+}
+
+/// One thing a preview found: a [code] the screen words, how serious it is, and
+/// how many records it concerns.
+class AdminPreviewFinding {
+  const AdminPreviewFinding({
+    required this.code,
+    required this.severity,
+    required this.category,
+    required this.count,
+  });
+
+  /// `OWNS_COMMUNITIES`, `SHARED_MATCH_COLLISION`, … -- kept as the database
+  /// wrote it, so a code this build has not heard of is shown rather than lost.
+  final String code;
+  final AdminFindingSeverity severity;
+
+  /// `IDENTITY`, `OWNERSHIP`, `ROLE`, `MATCH`, `STATISTICS`, `RATING`,
+  /// `ARCHIVE`, `HISTORY` or `AUDIT`.
+  final String category;
+  final int count;
+}
+
+/// A bounded list with the true total behind it. [items] is at most the page
+/// the database allows; [total] counts everything.
+class AdminPreviewList<T> {
+  const AdminPreviewList({required this.total, required this.items});
+
+  final int total;
+  final List<T> items;
+
+  /// Whether the list shows fewer rows than there are.
+  bool get isTruncated => items.length < total;
+}
+
+/// One account in a preview: who it is, and how many rows in each table name it.
+///
+/// [counts] holds the fixed set of keys `admin_preview_account_snapshot` builds
+/// (`memberships`, `registrations`, `rating_entries`, …); [count] reads one and
+/// answers 0 for a key the database did not send. The account's overall
+/// [rating] is kept apart because it is a rating, not a count. Provider names
+/// are names only -- never a token or an identity payload.
+class AdminPreviewAccount {
+  const AdminPreviewAccount({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.isActive,
+    required this.isSystemAdmin,
+    required this.isCaller,
+    required this.createdAt,
+    required this.counts,
+    this.signInProviders = const [],
+    this.lastSignInAt,
+    this.rating,
+  });
+
+  final String id;
+  final String fullName;
+  final String email;
+  final bool isActive;
+  final bool isSystemAdmin;
+
+  /// Whether this is the administrator looking at the preview.
+  final bool isCaller;
+  final DateTime createdAt;
+  final DateTime? lastSignInAt;
+  final List<String> signInProviders;
+  final Map<String, int> counts;
+  final double? rating;
+
+  int count(String key) => counts[key] ?? 0;
+}
+
+/// A community both accounts belong to.
+class AdminCommunityOverlap {
+  const AdminCommunityOverlap({
+    required this.communityId,
+    required this.name,
+    required this.retainedRole,
+    required this.sourceRole,
+    required this.roleConflict,
+    required this.sourceOwns,
+    required this.retainedOwns,
+  });
+
+  final String communityId;
+  final String name;
+
+  /// `owner`, `admin` or `player`.
+  final String retainedRole;
+  final String sourceRole;
+  final bool roleConflict;
+  final bool sourceOwns;
+  final bool retainedOwns;
+}
+
+/// A community the source account owns, and whether the retained one is in it.
+class AdminSourceOwnedCommunity {
+  const AdminSourceOwnedCommunity({
+    required this.communityId,
+    required this.name,
+    required this.retainedIsMember,
+    this.retainedRole,
+  });
+
+  final String communityId;
+  final String name;
+  final bool retainedIsMember;
+  final String? retainedRole;
+}
+
+/// A match both accounts have participation evidence for.
+///
+/// The evidence lists hold `REGISTRATION`, `LINEUP`, `GOALS`, `MVP` and
+/// `RATING`. A retained account may have only one participation in a match, so
+/// the administrator chooses which side survives; the other side's participation
+/// is removed. It can be removed only if it holds nothing the product keeps as
+/// record, and [retainedDropBlockers] and [sourceDropBlockers] say what holds
+/// each side (`GOALS`, `MVP`, `LINEUP_IN_RESULT`, `CONFIRMED_LINEUP`,
+/// `RATING_IN_EFFECT`). [canKeepRetained] means the source's side may go, and
+/// [canKeepSource] the other way round.
+class AdminSharedMatch {
+  const AdminSharedMatch({
+    required this.matchId,
+    required this.title,
+    required this.status,
+    required this.isHistorical,
+    required this.retainedEvidence,
+    required this.sourceEvidence,
+    this.retainedDropBlockers = const [],
+    this.sourceDropBlockers = const [],
+    this.canKeepRetained = false,
+    this.canKeepSource = false,
+    this.communityName,
+    this.startAt,
+  });
+
+  final String matchId;
+  final String title;
+  final String? communityName;
+  final DateTime? startAt;
+  final String status;
+  final bool isHistorical;
+  final List<String> retainedEvidence;
+  final List<String> sourceEvidence;
+  final List<String> retainedDropBlockers;
+  final List<String> sourceDropBlockers;
+
+  /// The retained account's participation may be kept (the source's can go).
+  /// Missing from the document means "no", never "yes".
+  final bool canKeepRetained;
+  final bool canKeepSource;
+
+  /// At least one side can be kept. When neither can, the merge is blocked.
+  bool get isResolvable => canKeepRetained || canKeepSource;
+
+  bool canKeep(AdminMergeKeep keep) => switch (keep) {
+        AdminMergeKeep.retained => canKeepRetained,
+        AdminMergeKeep.source => canKeepSource,
+      };
+}
+
+/// Which account's participation survives in a match both took part in.
+enum AdminMergeKeep {
+  retained('retained'),
+  source('source');
+
+  const AdminMergeKeep(this.wireName);
+
+  /// What the database expects: `retained` or `source`.
+  final String wireName;
+}
+
+/// The administrator's explicit choice for one shared match.
+class AdminMergeResolution {
+  const AdminMergeResolution({required this.matchId, required this.keep});
+
+  final String matchId;
+  final AdminMergeKeep keep;
+
+  Map<String, dynamic> toJson() => {
+        'match_id': matchId,
+        'keep': keep.wireName,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is AdminMergeResolution &&
+      other.matchId == matchId &&
+      other.keep == keep;
+
+  @override
+  int get hashCode => Object.hash(matchId, keep);
+}
+
+/// What a merge will do by itself, counted. None of it needs a decision.
+class AdminMergePlan {
+  const AdminMergePlan({
+    this.communitiesTransferred = 0,
+    this.membershipsMoved = 0,
+    this.membershipsMerged = 0,
+    this.rolesUpgraded = 0,
+    this.registrationsMoved = 0,
+    this.lineupPlacesMoved = 0,
+    this.goalRowsMoved = 0,
+    this.mvpAwardsMoved = 0,
+    this.teamAwardsMoved = 0,
+    this.createdMatchesReattributed = 0,
+    this.sharedMatches = 0,
+  });
+
+  final int communitiesTransferred;
+  final int membershipsMoved;
+  final int membershipsMerged;
+  final int rolesUpgraded;
+  final int registrationsMoved;
+  final int lineupPlacesMoved;
+  final int goalRowsMoved;
+  final int mvpAwardsMoved;
+  final int teamAwardsMoved;
+  final int createdMatchesReattributed;
+  final int sharedMatches;
+
+  /// Whether the plan moves anything at all.
+  bool get isEmpty =>
+      communitiesTransferred +
+          membershipsMoved +
+          membershipsMerged +
+          registrationsMoved +
+          lineupPlacesMoved +
+          goalRowsMoved +
+          mvpAwardsMoved +
+          teamAwardsMoved +
+          createdMatchesReattributed ==
+      0;
+}
+
+/// What folding a source account into a retained one would do, and what stands in
+/// its way (migrations `0096`, `0101`).
+///
+/// [findings] holds only what needs attention; what the merge does by itself is
+/// in [plan]. **[hasBlockers] is a statement about this preview and nothing
+/// else:** `false` never means the merge is authorised -- the database asks
+/// again, inside its own transaction, when the merge is requested. The name is
+/// deliberately not "can proceed".
+class AdminMergePreview {
+  const AdminMergePreview({
+    required this.retained,
+    required this.source,
+    required this.overlappingCommunities,
+    required this.roleConflictsTotal,
+    required this.sourceOwnedCommunities,
+    required this.sharedMatches,
+    required this.unresolvableMatchesTotal,
+    required this.sharedLimit,
+    required this.communityStatisticsCollisions,
+    required this.teamAwardCollisions,
+    required this.plan,
+    required this.findings,
+    required this.hasBlockers,
+    required this.coverageNotes,
+  });
+
+  final AdminPreviewAccount retained;
+  final AdminPreviewAccount source;
+  final AdminPreviewList<AdminCommunityOverlap> overlappingCommunities;
+  final int roleConflictsTotal;
+  final AdminPreviewList<AdminSourceOwnedCommunity> sourceOwnedCommunities;
+  final AdminPreviewList<AdminSharedMatch> sharedMatches;
+
+  /// Shared matches where neither side can be removed.
+  final int unresolvableMatchesTotal;
+
+  /// How many shared matches one merge resolves, and so how many [sharedMatches]
+  /// lists.
+  final int sharedLimit;
+  final int communityStatisticsCollisions;
+  final int teamAwardCollisions;
+  final AdminMergePlan plan;
+  final List<AdminPreviewFinding> findings;
+  final bool hasBlockers;
+  final List<String> coverageNotes;
+
+  List<AdminPreviewFinding> findingsOf(AdminFindingSeverity severity) => [
+        for (final f in findings)
+          if (f.severity == severity) f
+      ];
+}
+
+/// What the database reports after an administrator deleted an account (migration
+/// `0102`). A deletion that returned is a deletion that happened, so every field
+/// defaults rather than throws: a result this build cannot read must never be
+/// mistaken for a deletion that failed.
+class AdminDeletionResult {
+  const AdminDeletionResult({
+    required this.userId,
+    this.withdrawnRegistrations = 0,
+    this.withdrawnLineupPlaces = 0,
+    this.membershipsRemoved = 0,
+    this.auditEntriesRedacted = 0,
+    this.avatarFilesRemoved = 0,
+  });
+
+  final String userId;
+
+  /// Places in matches not yet played, given up as a cancellation is.
+  final int withdrawnRegistrations;
+  final int withdrawnLineupPlaces;
+  final int membershipsRemoved;
+
+  /// Audit entries that named the account and lost the name or e-mail in them.
+  final int auditEntriesRedacted;
+  final int avatarFilesRemoved;
+}
+
+/// What an administrator can do to another account's sign-in (migration `0103`), by the
+/// names the `admin-user-auth` Edge Function takes.
+enum AdminUserAuthAction {
+  changeEmail('change_email'),
+  sendRecovery('send_recovery'),
+  setPassword('set_password');
+
+  const AdminUserAuthAction(this.wire);
+
+  final String wire;
+}
+
+/// Why the recovery email that follows an email change was not requested. The email IS
+/// changed either way.
+enum AdminRecoveryProblem { rateLimited, failed }
+
+/// What `admin-user-auth` answered with a 2xx: **the Auth change happened.** Auth, email
+/// delivery and the audit trail are three services and not one transaction, so the result
+/// says what each did instead of folding them into one verdict.
+///
+/// Every field defaults rather than throws: a result this build cannot fully read must
+/// never be mistaken for a change that failed.
+class AdminUserAuthResult {
+  const AdminUserAuthResult({
+    required this.action,
+    this.emailChanged = false,
+    this.recoverySent = false,
+    this.passwordSet = false,
+    this.recoveryProblem,
+    this.auditRecorded = true,
+  });
+
+  final AdminUserAuthAction action;
+
+  /// The email was changed (change email only).
+  final bool emailChanged;
+
+  /// The provider accepted the request to send the recovery email. Delivery to the inbox is
+  /// not known.
+  final bool recoverySent;
+
+  final bool passwordSet;
+
+  /// Set when an email change succeeded and the recovery email was not requested.
+  final AdminRecoveryProblem? recoveryProblem;
+
+  /// False only when the change was made and its audit event could not be written.
+  final bool auditRecorded;
+
+  /// Nothing is left for the administrator to follow up.
+  bool get isComplete => auditRecorded &&
+      switch (action) {
+        AdminUserAuthAction.changeEmail => emailChanged && recoverySent,
+        AdminUserAuthAction.sendRecovery => recoverySent,
+        AdminUserAuthAction.setPassword => passwordSet,
+      };
+
+  /// The same result after the recovery email was sent again.
+  AdminUserAuthResult withRecoverySent({required bool auditRecorded}) =>
+      AdminUserAuthResult(
+        action: action,
+        emailChanged: emailChanged,
+        recoverySent: true,
+        passwordSet: passwordSet,
+        auditRecorded: this.auditRecorded && auditRecorded,
+      );
+}
+
+/// What the database reports after a merge. A merge that returned is a merge that
+/// happened, so every field defaults rather than throws: a result this build cannot
+/// read must never be mistaken for a merge that failed.
+class AdminMergeResult {
+  const AdminMergeResult({
+    required this.retainedUserId,
+    required this.sourceUserId,
+    this.droppedRegistrations = 0,
+    this.droppedLineupPlaces = 0,
+    this.moved = const {},
+    this.ratingBefore,
+    this.ratingAfter,
+    this.matchesReplayed = 0,
+  });
+
+  final String retainedUserId;
+  final String sourceUserId;
+  final int droppedRegistrations;
+  final int droppedLineupPlaces;
+
+  /// What moved, by name: `registrations`, `lineup_places`, `goal_rows`,
+  /// `mvp_awards`, `team_awards`, `communities_transferred`, `memberships_moved`,
+  /// `memberships_merged`, `roles_upgraded`, `created_matches`.
+  final Map<String, int> moved;
+  final double? ratingBefore;
+  final double? ratingAfter;
+  final int matchesReplayed;
+
+  int movedCount(String key) => moved[key] ?? 0;
+}
+
+/// A community the account owns, which would need a new owner.
+class AdminOwnedCommunity {
+  const AdminOwnedCommunity({
+    required this.communityId,
+    required this.name,
+    required this.isActive,
+    required this.memberCount,
+    required this.otherAdminCount,
+    required this.matchCount,
+  });
+
+  final String communityId;
+  final String name;
+  final bool isActive;
+  final int memberCount;
+
+  /// Admins other than the owner: the natural people to hand ownership to.
+  final int otherAdminCount;
+  final int matchCount;
+}
+
+/// A match the account created. `matches.created_by` blocks the delete.
+class AdminCreatedMatch {
+  const AdminCreatedMatch({
+    required this.matchId,
+    required this.title,
+    required this.status,
+    required this.isHistorical,
+    required this.hasResult,
+    this.communityName,
+    this.startAt,
+  });
+
+  final String matchId;
+  final String title;
+  final String? communityName;
+  final DateTime? startAt;
+  final String status;
+  final bool isHistorical;
+  final bool hasResult;
+}
+
+/// A category of data or history, how many records it holds and, for history,
+/// what deleting the account would do to it.
+///
+/// [treatment] is `CASCADE_DELETE` (erased with the account), `DETACH` (the
+/// reference is cleared) or `RETAINED_ID` (the row stays and names no one); null
+/// for a personal-data or preserved record.
+class AdminPreviewRecord {
+  const AdminPreviewRecord({
+    required this.code,
+    required this.records,
+    this.treatment,
+  });
+
+  final String code;
+  final int records;
+  final String? treatment;
+}
+
+/// What deleting an account would touch.
+class AdminDeletionPreview {
+  const AdminDeletionPreview({
+    required this.account,
+    required this.personalData,
+    required this.ownedCommunities,
+    required this.createdMatches,
+    required this.createdMatchesByStatus,
+    required this.historicalRecords,
+    required this.preservedRecords,
+    required this.findings,
+    required this.hasBlockers,
+    required this.coverageNotes,
+  });
+
+  final AdminPreviewAccount account;
+  final List<AdminPreviewRecord> personalData;
+  final AdminPreviewList<AdminOwnedCommunity> ownedCommunities;
+  final AdminPreviewList<AdminCreatedMatch> createdMatches;
+  final Map<String, int> createdMatchesByStatus;
+
+  /// Football history, each with what the delete would do to it.
+  final List<AdminPreviewRecord> historicalRecords;
+
+  /// Records the deletion cannot reach: the rating archives (their triggers
+  /// reject UPDATE and DELETE) and the audit log. The rating *history* is not
+  /// among them: it rejects UPDATE only, and is deleted with the account, so it
+  /// is listed under [historicalRecords] as erased.
+  final List<AdminPreviewRecord> preservedRecords;
+  final List<AdminPreviewFinding> findings;
+
+  /// True when any finding is a blocker. A statement about this preview only:
+  /// `false` never means a deletion is available, safe or authorised -- none
+  /// exists in this phase.
+  final bool hasBlockers;
+  final List<String> coverageNotes;
+
+  List<AdminPreviewFinding> findingsOf(AdminFindingSeverity severity) => [
+        for (final f in findings)
+          if (f.severity == severity) f
+      ];
 }

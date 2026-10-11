@@ -6,6 +6,9 @@ import 'package:go_play/features/admin/admin_adapter.dart';
 import 'package:go_play/features/admin/admin_models.dart';
 import 'package:go_play/features/admin/admin_repository.dart';
 import 'package:go_play/features/admin/admin_screen.dart';
+import 'package:go_play/features/auth/auth_models.dart' show PlayerPosition;
+import 'package:go_play/features/profile/profile_models.dart'
+    show ProfileVisibility;
 
 /// A full set of figures, so a test can change the one it cares about.
 const _figures = AdminAnalyticsOverview(
@@ -42,6 +45,111 @@ class _FakeAdminAdapter implements AdminAdapter {
     if (overviewFailure != null) throw overviewFailure!;
     return overview;
   }
+
+  // The account reads and edits (`0095`) are not what this suite is about; a
+  // call from an unexpected place should fail loudly rather than answer.
+  @override
+  String? get currentUserId => throw UnimplementedError();
+
+  @override
+  Future<AdminUserAccount> userAccount(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  }) =>
+      throw UnimplementedError();
+
+  // The account previews (`0096`) are not what this suite is about; a call from
+  // an unexpected place should fail loudly rather than answer.
+  @override
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminDeletionResult> deleteAccount({required String userId}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminUserAuthResult> changeUserEmail({
+    required String userId,
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminUserAuthResult> sendUserRecovery({
+    required String userId,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminUserAuthResult> setUserPassword({
+    required String userId,
+    required String password,
+    required String reason,
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<bool> isSystemAdmin() async => true;

@@ -51,6 +51,7 @@ class SupabaseFailureMapper {
 
     if (error is PostgrestException) return _fromPostgrest(error);
     if (error is AuthException) return _fromAuth(error);
+    if (error is FunctionException) return _fromFunction(error);
     // The transport never completed the round trip.
     //
     // [ClientException] is the one type that says this on every platform the
@@ -205,6 +206,93 @@ class SupabaseFailureMapper {
     // The picker only lists active ones, so reaching this means a stale list.
     'INVALID_WILAYAT': ValidationFailure(),
 
+    // Editing an account from the administration console (migration `0095`). The
+    // first two are who may be edited -- a permission refusal, which the type
+    // says and the console words on its own, since it already knows whether the
+    // account is the administrator's own or a System Admin's. The third is a
+    // visibility that is not one of the two tokens, or a null switch, in the
+    // privacy and push-preference edits: input, with the same plain validation
+    // failure as the other edit outcomes. Those are `INVALID_FULL_NAME`,
+    // `INVALID_PHONE`, `INVALID_DATE_OF_BIRTH`, `INVALID_POSITION` and
+    // `INVALID_WILAYAT`, all mapped above.
+    'CANNOT_MODIFY_SELF': AuthorizationFailure(),
+    'CANNOT_MODIFY_SYSTEM_ADMIN': AuthorizationFailure(),
+    'INVALID_SETTINGS': ValidationFailure(),
+
+    // The merge preview named one account twice (migration `0096`). The screen
+    // does not let that be chosen, so reaching it means the request was built
+    // some other way: plain input the caller got wrong.
+    'SAME_ACCOUNT': ValidationFailure(),
+
+    // Merging two accounts (migration `0101`). The administrator cannot be either
+    // account: a permission refusal, as with editing their own. Everything else the
+    // merge refuses is a STATE it ran into, not bad input -- a blocker that appeared
+    // since the preview, a choice that is missing, or one that would discard goals,
+    // an MVP award, a result or a confirmed lineup -- so it is a conflict, and the
+    // screen asks for the preview again. The next five are the merge checking its
+    // own work before it commits (an unknown reference to users, a leftover row, a
+    // changed fingerprint, a rating that did not start from the baseline or did not
+    // chain, an Auth delete that did not finish): the transaction rolled back, and
+    // none of them is something the administrator did.
+    'CANNOT_MERGE_SELF': AuthorizationFailure(),
+    'MERGE_BLOCKED': ConflictFailure(),
+    'RESOLUTION_REQUIRED': ConflictFailure(),
+    'RESOLUTION_BLOCKED': ConflictFailure(),
+    'RESOLUTION_UNKNOWN_MATCH': ConflictFailure(),
+    'RESOLUTIONS_INVALID': ValidationFailure(),
+    'MERGE_UNHANDLED_REFERENCE': InfrastructureFailure(),
+    'MERGE_RESIDUAL_REFERENCE': InfrastructureFailure(),
+    'MERGE_INVARIANT_BROKEN': InfrastructureFailure(),
+    'RATING_BASELINE_MISMATCH': InfrastructureFailure(),
+    'RATING_CHAIN_BROKEN': InfrastructureFailure(),
+    'AUTH_DELETE_INCOMPLETE': InfrastructureFailure(),
+    // The merge is requested through the `admin-merge-accounts` Edge Function, which
+    // first removes the merged-in account's picture from Storage. Its own refusals:
+    // a picture that was still there when the merge ran, a picture that could not be
+    // removed (the merge was never attempted), and a merge whose answer was lost (it
+    // may have committed). The rest it passes through from the database unchanged.
+    'SOURCE_FILES_REMAIN': ConflictFailure(),
+    'AVATAR_CLEANUP_FAILED':
+        InfrastructureFailure(FailureReason.avatarCleanupFailed),
+    'MERGE_OUTCOME_UNKNOWN': InfrastructureFailure(),
+    'PREFLIGHT_FAILED': InfrastructureFailure(),
+    'REQUEST_FAILED': InfrastructureFailure(),
+    'BAD_REQUEST': ValidationFailure(),
+    // Deleting an account (migration `0102`), through the `delete-account` Edge Function.
+    // What blocks it -- owning a community, being a System Admin -- is a STATE the person
+    // can change, so a conflict; the administrator and the account itself are told
+    // apart by the type, not by a reason. A suspended account cannot use the self route.
+    // The last four are the engine checking its own work before it commits, or an
+    // answer that was lost: the transaction rolled back, or may have committed.
+    'DELETE_BLOCKED': ConflictFailure(),
+    'CANNOT_DELETE_SELF': AuthorizationFailure(),
+    'ACCOUNT_SUSPENDED': AuthorizationFailure(),
+    'DELETE_OUTCOME_UNKNOWN': InfrastructureFailure(),
+    'DELETE_EVIDENCE_CHANGED': InfrastructureFailure(),
+    'DELETE_INVARIANT_BROKEN': InfrastructureFailure(),
+    'DELETE_RESIDUAL_DATA': InfrastructureFailure(),
+
+    // Changing another account's sign-in from the console (migration `0103`), through the
+    // `admin-user-auth` Edge Function. Who may (`NOT_AUTHORIZED`, `CANNOT_MODIFY_SELF`,
+    // `CANNOT_MODIFY_SYSTEM_ADMIN`) and who exists (`USER_NOT_FOUND`) are mapped above. A Google
+    // identity and an address another account holds are STATES the administrator ran into, so
+    // conflicts; an address or password the rules refuse is input. A rate limit is the provider's
+    // (the same wording as a player's own). The three `AUTH_*` / `RECOVERY_*` tokens are the Auth
+    // service refusing (nothing changed), or answering nothing (it may have), or the recovery
+    // email not being requested after an email change (the change stays).
+    'GOOGLE_LINKED': ConflictFailure(FailureReason.googleLinked),
+    'EMAIL_TAKEN': ConflictFailure(FailureReason.emailAlreadyUsed),
+    'EMAIL_UNCHANGED': ValidationFailure(),
+    'INVALID_EMAIL': ValidationFailure(),
+    'INVALID_PASSWORD': ValidationFailure(),
+    'INVALID_REASON': ValidationFailure(),
+    'INVALID_ACTION': ValidationFailure(),
+    'NO_EMAIL': ConflictFailure(),
+    'RATE_LIMITED': InfrastructureFailure(FailureReason.tooManyRequests),
+    'AUTH_UPDATE_REFUSED': InfrastructureFailure(),
+    'AUTH_OUTCOME_UNKNOWN': InfrastructureFailure(FailureReason.authOutcomeUnknown),
+    'RECOVERY_SEND_FAILED': InfrastructureFailure(),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),
@@ -282,6 +370,44 @@ class SupabaseFailureMapper {
     }
     return const AuthenticationFailure();
   }
+
+  /// An Edge Function answers a refusal as `{"error": "<TOKEN>", "detail": ...,
+  /// "avatar_removed": bool}` under an HTTP status. The token is the database's own,
+  /// passed through, so the same table classifies it; the status is read only when the
+  /// function gave none (the platform answered instead: the function is not deployed,
+  /// the token expired, the gateway failed), and an unknown outcome is a failure of
+  /// the service, never a conflict or a missing account.
+  static Failure _fromFunction(FunctionException error) {
+    final details = error.details;
+    final token = details is Map && details['error'] is String
+        ? details['error'] as String
+        : null;
+    final avatarRemoved = details is Map && details['avatar_removed'] == true;
+
+    final failure = (token == null ? null : _domainOutcome(token)) ??
+        switch (error.status) {
+          401 => const AuthenticationFailure(),
+          403 => const AuthorizationFailure(),
+          _ => const InfrastructureFailure(),
+        };
+    // A picture already removed is said once, on top of whatever else failed.
+    if (avatarRemoved && failure.reason == null) {
+      return _withReason(failure, FailureReason.avatarRemovedFirst);
+    }
+    return failure;
+  }
+
+  static Failure _withReason(Failure failure, FailureReason reason) =>
+      switch (failure) {
+        AuthenticationFailure() => AuthenticationFailure(reason),
+        AuthorizationFailure() => AuthorizationFailure(reason),
+        ValidationFailure() => ValidationFailure(reason),
+        NotFoundFailure() => NotFoundFailure(reason),
+        ConflictFailure() => ConflictFailure(reason),
+        NetworkFailure() => NetworkFailure(reason),
+        InfrastructureFailure() => InfrastructureFailure(reason),
+        UnknownFailure() => UnknownFailure(reason),
+      };
 
   static Failure? _domainOutcome(String message) {
     for (final entry in _domainOutcomes.entries) {

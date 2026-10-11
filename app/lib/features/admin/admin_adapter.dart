@@ -1,3 +1,5 @@
+import '../auth/auth_models.dart' show PlayerPosition;
+import '../profile/profile_models.dart' show ProfileVisibility;
 import 'admin_models.dart';
 
 /// The administration screens' port into the data provider.
@@ -71,9 +73,122 @@ abstract interface class AdminAdapter {
   Future<void> suspendCommunity(String id, String reason);
 
   Future<void> reactivateCommunity(String id);
+
+  /// The signed-in account's id, or null without a session. Reads the session
+  /// and asks the database nothing: it only lets the console leave out an edit
+  /// the database would refuse with `CANNOT_MODIFY_SELF` anyway.
+  String? get currentUserId;
+
+  /// One account's data and settings (migration `0095`). Raises
+  /// `USER_NOT_FOUND` rather than returning nothing.
+  Future<AdminUserAccount> userAccount(String userId);
+
+  /// The five account edits (migration `0095`), one per owner operation. Each
+  /// sets its whole group; there is deliberately no patch call. [reason] is
+  /// optional and arrives already trimmed, or null.
+  ///
+  /// A null [dateOfBirth], [secondaryPosition] or [wilayatCode] clears the
+  /// value; nothing else in any of them may be null.
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  });
+
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  });
+
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  });
+
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  });
+
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  });
+
+  /// The previews of merging two accounts and of deleting one (migrations `0096`,
+  /// `0101`, `0102`). They describe what each would do and write nothing, not even an
+  /// audit event. [mergeAccounts] and [deleteAccount] below are the actions.
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  });
+
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId);
+
+  /// Merges the source account into the retained one and removes the source for
+  /// good -- its profile, its sign-in identities and its sessions -- in one
+  /// database transaction (migration `0101`). **Permanent and irreversible.**
+  ///
+  /// [resolutions] is the administrator's explicit choice for every match both
+  /// accounts took part in. The database refuses, and changes nothing, when a
+  /// choice is missing, when a blocker has appeared since the preview, or when the
+  /// choice would discard goals, an MVP award, a result or a confirmed lineup.
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  });
+
+  /// Deletes [userId] for good -- the sign-in, the profile data, the picture and the
+  /// personal records -- in one database transaction, and keeps the football history
+  /// under "Deleted Player" (migration `0102`). **Permanent and irreversible.**
+  ///
+  /// The database refuses, and changes nothing, while the account owns a community
+  /// and for a System Admin; the administrator's own account is refused too.
+  Future<AdminDeletionResult> deleteAccount({required String userId});
+
+  /// Another account's sign-in (migration `0103`), through the `admin-user-auth` Edge
+  /// Function. The Auth service, the email provider and the audit trail are three services,
+  /// not one transaction: the result says which of them did what, and a failure says whether
+  /// anything changed.
+  ///
+  /// Sets the account's email at once (no confirmation by the player) and sends the standard
+  /// recovery email to the NEW address. Refused for a Google-linked account.
+  Future<AdminUserAuthResult> changeUserEmail({
+    required String userId,
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  });
+
+  /// Sends the standard recovery email to the account's CURRENT address. Changes nothing.
+  Future<AdminUserAuthResult> sendUserRecovery({
+    required String userId,
+    required String reason,
+    required String redirectTo,
+  });
+
+  /// Sets the account's password directly. [password] travels once, to the function, and is
+  /// never stored, logged or echoed.
+  Future<AdminUserAuthResult> setUserPassword({
+    required String userId,
+    required String password,
+    required String reason,
+  });
 }
 
-// Permanent delete is deliberately absent from this port. The `admin_delete_*`
-// RPCs still exist in the database and are untouched, but the normal Admin
-// console no longer offers them: suspension is the reversible action the
-// product asks for, and a client method nothing calls is a door left open.
+// The legacy `admin_delete_user`, `admin_delete_community` and `admin_delete_match` RPCs
+// still exist in the database and are not called from here: they purge football history.
+// `mergeAccounts` and `deleteAccount` above are the permanent actions the console offers,
+// and only because the Product Owner approved them, each behind a typed confirmation.
+// `deleteAccount` keeps the history; the legacy RPC does not.
