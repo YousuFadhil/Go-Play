@@ -29,7 +29,6 @@ import 'match_management_screen.dart';
 import 'match_models.dart';
 import 'match_service.dart';
 import '../sharing/match_invitation_share.dart';
-import '../../infrastructure/platform/native_text_share_service.dart';
 
 /// The Match Details currently on screen, so a notification for that same match
 /// refreshes it instead of stacking a second copy of it.
@@ -429,7 +428,21 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       endAt: match.endAt,
     );
     try {
-      await (widget.shareText ?? NativeTextShareService().shareText)(message);
+      if (widget.shareText != null) {
+        // Test seam retained for the existing details-flow widget tests.
+        await widget.shareText!(message);
+      } else {
+        await MatchInvitationShare.present(
+          context,
+          matchId: match.id,
+          title: match.displayName,
+          location: match.location,
+          startAt: match.startAt,
+          endAt: match.endAt,
+          communityId: _communityId,
+          source: 'match_details_screen',
+        );
+      }
     } catch (_) {
       if (mounted) _showMessage(context.l10n.genericError);
     }
