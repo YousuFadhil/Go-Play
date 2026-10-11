@@ -78,18 +78,24 @@ void main() {
         expect(calls, hasLength(1));
         final args = Map<String, dynamic>.from(calls.single.arguments as Map);
         final message = args['text'] as String;
-        expect(message, startsWith(code == 'ar'
-            ? '⚽ ننتظرك في Friday Football!'
-            : '⚽ Join us for Friday Football!'));
+        expect(
+            message,
+            startsWith(code == 'ar'
+                ? '⚽ ننتظرك في Friday Football!'
+                : '⚽ Join us for Friday Football!'));
         expect(message, contains('📅 '));
         expect(message, contains('🕗 '));
         expect(message, contains('📍 Sohar Pitch'));
-        expect(message, contains(code == 'ar'
-            ? 'اضغط الرابط لعرض التفاصيل والانضمام إلى المباراة 👇'
-            : 'Open the link to view the details and join the match 👇'));
-        expect(message, endsWith(
-          PublicLink.matchInvitation(matchId, languageCode: code),
-        ));
+        expect(
+            message,
+            contains(code == 'ar'
+                ? 'اضغط الرابط لعرض التفاصيل والانضمام إلى المباراة 👇'
+                : 'Open the link to view the details and join the match 👇'));
+        expect(
+            message,
+            endsWith(
+              PublicLink.matchInvitation(matchId, languageCode: code),
+            ));
         expect(RegExp(r'https?://\S+').allMatches(message), hasLength(1));
         expect(args['paths'], isNull);
         expect(args['mimeTypes'], isNull);

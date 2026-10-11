@@ -763,7 +763,8 @@ void main() {
       await tester.tap(find.text('Share match'));
       await tester.pumpAndSettle();
 
-      expect(shared, endsWith(PublicLink.matchInvitation('m1', languageCode: 'en')));
+      expect(shared,
+          endsWith(PublicLink.matchInvitation('m1', languageCode: 'en')));
     });
 
     testWidgets('details sends one URL through the real share service', (

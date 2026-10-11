@@ -166,7 +166,8 @@ void main() {
     expect(
         shared,
         endsWith(PublicLink.matchInvitation(
-          '00000000-0000-4000-8000-000000000001', languageCode: 'en')));
+            '00000000-0000-4000-8000-000000000001',
+            languageCode: 'en')));
     expect(find.byType(CreateMatchScreen), findsNothing);
   });
 
