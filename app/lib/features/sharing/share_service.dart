@@ -98,8 +98,9 @@ abstract interface class ShareService {
   /// what it handed over before.
   ///
   /// **Still no destinations.** A message is words only; it names no
-  /// application and carries no link, and the sheet decides where it goes
-  /// exactly as before.
+  /// application, and the sheet decides where it goes exactly as before. It
+  /// carries no link either, except in the approved match invitation, whose
+  /// caller writes the public match URL into the text itself.
   ///
   /// Throws [InfrastructureFailure] when the sheet could not be shown at all.
   /// A sheet that was shown and closed returns [ShareOutcome.dismissed].

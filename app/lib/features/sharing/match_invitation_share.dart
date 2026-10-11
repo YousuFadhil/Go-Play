@@ -8,8 +8,10 @@ import 'share_card_flow.dart';
 import 'share_card_palette.dart';
 import 'share_service.dart';
 
-/// Words accompanying a public match link. This shares a navigable invitation,
-/// not an image: existing lineup/result/statistics image shares remain separate.
+/// A match invitation: the localized words with the public match link, and the
+/// Club card picture that travels with them in one share ([present]). The
+/// lineup, result and statistics image shares keep their own templates and
+/// carry no link.
 class MatchInvitationShare {
   const MatchInvitationShare._();
 
