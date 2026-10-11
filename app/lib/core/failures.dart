@@ -239,4 +239,12 @@ enum FailureReason {
 
   // The picture could not be removed, so the merge or deletion was not attempted at all.
   avatarCleanupFailed,
+
+  // Changing another account's email (0103): the account has a Google identity, which keeps its
+  // own address, so the address is not changed. Wording only; nothing branches on it.
+  googleLinked,
+
+  // An Auth change (0103) whose answer was lost: it may or may not have been applied, so the
+  // person is told to look before trying again. Wording only.
+  authOutcomeUnknown,
 }

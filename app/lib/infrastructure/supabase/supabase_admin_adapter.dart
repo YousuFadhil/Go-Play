@@ -533,6 +533,80 @@ class SupabaseAdminAdapter implements AdminAdapter {
         operation: 'function delete-account',
       );
 
+  /// Changing another account's sign-in (migration `0103`): one request to the
+  /// `admin-user-auth` Edge Function. **A 2xx means the Auth change happened**; the result is
+  /// read leniently for that reason. The request body is built by [adminUserAuthParams] and
+  /// the password, when there is one, is in no other place: it is not logged here, and the
+  /// function never echoes it.
+  Future<AdminUserAuthResult> _userAuth(
+    AdminUserAuthAction action,
+    Map<String, dynamic> body,
+  ) =>
+      guarded(
+        () async {
+          final response = await _client.functions.invoke(
+            'admin-user-auth',
+            body: body,
+          );
+          final result = response.data;
+          return adminUserAuthResultFromJson(
+            result is Map ? result.cast<String, dynamic>() : const {},
+            action: action,
+          );
+        },
+        operation: 'function admin-user-auth (${action.wire})',
+      );
+
+  @override
+  Future<AdminUserAuthResult> changeUserEmail({
+    required String userId,
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      _userAuth(
+        AdminUserAuthAction.changeEmail,
+        adminUserAuthParams(
+          action: AdminUserAuthAction.changeEmail,
+          userId: userId,
+          reason: reason,
+          newEmail: newEmail,
+          redirectTo: redirectTo,
+        ),
+      );
+
+  @override
+  Future<AdminUserAuthResult> sendUserRecovery({
+    required String userId,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      _userAuth(
+        AdminUserAuthAction.sendRecovery,
+        adminUserAuthParams(
+          action: AdminUserAuthAction.sendRecovery,
+          userId: userId,
+          reason: reason,
+          redirectTo: redirectTo,
+        ),
+      );
+
+  @override
+  Future<AdminUserAuthResult> setUserPassword({
+    required String userId,
+    required String password,
+    required String reason,
+  }) =>
+      _userAuth(
+        AdminUserAuthAction.setPassword,
+        adminUserAuthParams(
+          action: AdminUserAuthAction.setPassword,
+          userId: userId,
+          reason: reason,
+          password: password,
+        ),
+      );
+
   @override
   Future<void> updateUserPushPreferences(
     String userId, {

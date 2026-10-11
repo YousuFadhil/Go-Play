@@ -1041,6 +1041,74 @@ class AdminDeletionResult {
   final int avatarFilesRemoved;
 }
 
+/// What an administrator can do to another account's sign-in (migration `0103`), by the
+/// names the `admin-user-auth` Edge Function takes.
+enum AdminUserAuthAction {
+  changeEmail('change_email'),
+  sendRecovery('send_recovery'),
+  setPassword('set_password');
+
+  const AdminUserAuthAction(this.wire);
+
+  final String wire;
+}
+
+/// Why the recovery email that follows an email change was not requested. The email IS
+/// changed either way.
+enum AdminRecoveryProblem { rateLimited, failed }
+
+/// What `admin-user-auth` answered with a 2xx: **the Auth change happened.** Auth, email
+/// delivery and the audit trail are three services and not one transaction, so the result
+/// says what each did instead of folding them into one verdict.
+///
+/// Every field defaults rather than throws: a result this build cannot fully read must
+/// never be mistaken for a change that failed.
+class AdminUserAuthResult {
+  const AdminUserAuthResult({
+    required this.action,
+    this.emailChanged = false,
+    this.recoverySent = false,
+    this.passwordSet = false,
+    this.recoveryProblem,
+    this.auditRecorded = true,
+  });
+
+  final AdminUserAuthAction action;
+
+  /// The email was changed (change email only).
+  final bool emailChanged;
+
+  /// The provider accepted the request to send the recovery email. Delivery to the inbox is
+  /// not known.
+  final bool recoverySent;
+
+  final bool passwordSet;
+
+  /// Set when an email change succeeded and the recovery email was not requested.
+  final AdminRecoveryProblem? recoveryProblem;
+
+  /// False only when the change was made and its audit event could not be written.
+  final bool auditRecorded;
+
+  /// Nothing is left for the administrator to follow up.
+  bool get isComplete => auditRecorded &&
+      switch (action) {
+        AdminUserAuthAction.changeEmail => emailChanged && recoverySent,
+        AdminUserAuthAction.sendRecovery => recoverySent,
+        AdminUserAuthAction.setPassword => passwordSet,
+      };
+
+  /// The same result after the recovery email was sent again.
+  AdminUserAuthResult withRecoverySent({required bool auditRecorded}) =>
+      AdminUserAuthResult(
+        action: action,
+        emailChanged: emailChanged,
+        recoverySent: true,
+        passwordSet: passwordSet,
+        auditRecorded: this.auditRecorded && auditRecorded,
+      );
+}
+
 /// What the database reports after a merge. A merge that returned is a merge that
 /// happened, so every field defaults rather than throws: a result this build cannot
 /// read must never be mistaken for a merge that failed.

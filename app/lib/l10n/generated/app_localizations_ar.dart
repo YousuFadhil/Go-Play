@@ -3490,4 +3490,153 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get deleteAccountDoneBody =>
       'تم تسجيل خروجك. تبقى المباريات التي لعبتها في مجتمعاتها وتُعرض باسم «لاعب محذوف».';
+
+  @override
+  String get adminActionUserEmailChanged => 'تغيير البريد الإلكتروني';
+
+  @override
+  String get adminActionUserRecoverySent => 'إرسال رسالة استرداد';
+
+  @override
+  String get adminActionUserPasswordSet => 'تعيين كلمة المرور';
+
+  @override
+  String get adminAuthChangeEmailAction => 'تغيير البريد الإلكتروني';
+
+  @override
+  String get adminAuthSendRecoveryAction => 'إرسال رسالة استرداد كلمة المرور';
+
+  @override
+  String get adminAuthSetPasswordAction => 'تعيين كلمة المرور';
+
+  @override
+  String get adminAuthGoogleNote =>
+      'هذا الحساب مرتبط بجوجل، لذا لا يمكن تغيير بريده الإلكتروني من هنا. يبقى استرداد كلمة المرور وتعيينها متاحين.';
+
+  @override
+  String get adminAuthChangeEmailTitle => 'تغيير البريد الإلكتروني';
+
+  @override
+  String get adminAuthChangeEmailBody =>
+      'يسري العنوان الجديد فوراً دون أن يؤكده اللاعب. ثم تُرسل رسالة استرداد كلمة المرور المعتادة إلى العنوان الجديد.';
+
+  @override
+  String adminAuthCurrentEmail(String email) {
+    return 'البريد الحالي: $email';
+  }
+
+  @override
+  String get adminAuthNewEmailLabel => 'البريد الجديد';
+
+  @override
+  String get adminAuthConfirmEmailLabel => 'أعد كتابة البريد الجديد';
+
+  @override
+  String get adminAuthEmailMismatch => 'العنوانان غير متطابقين';
+
+  @override
+  String get adminAuthEmailSame => 'هذا هو بريد الحساب الحالي بالفعل';
+
+  @override
+  String get adminAuthSendRecoveryTitle => 'إرسال رسالة استرداد';
+
+  @override
+  String adminAuthSendRecoveryBody(String email) {
+    return 'تُرسل رسالة استرداد كلمة المرور المعتادة إلى $email. لا يتغير شيء في الحساب.';
+  }
+
+  @override
+  String get adminAuthSetPasswordTitle => 'تعيين كلمة المرور';
+
+  @override
+  String get adminAuthSetPasswordBody =>
+      'يستطيع اللاعب تسجيل الدخول بهذه الكلمة فوراً. أبلغه بها بنفسك: لا تُحفظ ولا تُعرض مرة أخرى. قد تبقى الأجهزة المسجّل دخولها مفتوحة حتى تنتهي جلستها.';
+
+  @override
+  String get adminAuthConfirmPasswordLabel => 'أعد كتابة كلمة المرور الجديدة';
+
+  @override
+  String get adminAuthPasswordMismatch => 'كلمتا المرور غير متطابقتين';
+
+  @override
+  String get adminAuthReasonLabel => 'السبب (مطلوب)';
+
+  @override
+  String get adminAuthReasonRequired => 'اكتب السبب';
+
+  @override
+  String get adminAuthSubmitChangeEmail => 'غيّر البريد';
+
+  @override
+  String get adminAuthSubmitSendRecovery => 'أرسل';
+
+  @override
+  String get adminAuthSubmitSetPassword => 'عيّن كلمة المرور';
+
+  @override
+  String get adminAuthWorking => 'جارٍ التنفيذ…';
+
+  @override
+  String get adminAuthDoneButton => 'تم';
+
+  @override
+  String get adminAuthEmailChangedDone =>
+      'تم تغيير البريد وأُرسلت رسالة الاسترداد إلى العنوان الجديد.';
+
+  @override
+  String get adminAuthEmailChangedNoRecovery =>
+      'تم تغيير البريد، لكن رسالة الاسترداد لم تُرسل. يبقى التغيير قائماً.';
+
+  @override
+  String get adminAuthEmailChangedRateLimited =>
+      'تم تغيير البريد، لكن رسالة الاسترداد لم تُرسل لأن مزوّد البريد يحدّ من عدد الرسائل. حاول بعد دقيقة. يبقى التغيير قائماً.';
+
+  @override
+  String get adminAuthRetryRecovery => 'أعد إرسال رسالة الاسترداد';
+
+  @override
+  String get adminAuthRecoveryDone =>
+      'طُلب إرسال رسالة الاسترداد. لا نعرف إن كانت وصلت إلى صندوق الوارد.';
+
+  @override
+  String get adminAuthPasswordDone => 'تم تعيين كلمة المرور.';
+
+  @override
+  String get adminAuthAuditMissing =>
+      'تم التنفيذ، لكن تعذّر تسجيله في سجل التدقيق. دوّنه.';
+
+  @override
+  String get adminAuthNotAllowed => 'لا يمكنك تنفيذ ذلك لهذا الحساب.';
+
+  @override
+  String get adminAuthAccountGone => 'هذا الحساب لم يعد موجوداً.';
+
+  @override
+  String get adminAuthGoogleLinked =>
+      'هذا الحساب مرتبط بجوجل، لذا لا يمكن تغيير بريده الإلكتروني.';
+
+  @override
+  String get adminAuthEmailTaken => 'يستخدم حساب آخر هذا البريد بالفعل.';
+
+  @override
+  String get adminAuthEmailRejected => 'لا يمكن استخدام هذا البريد.';
+
+  @override
+  String get adminAuthNoEmail =>
+      'لا يوجد بريد إلكتروني لهذا الحساب، فلا يمكن إرسال رسالة استرداد.';
+
+  @override
+  String get adminAuthPasswordRejected =>
+      'لم تقبل خدمة تسجيل الدخول كلمة المرور هذه. اختر كلمة أطول أو أقل شيوعاً.';
+
+  @override
+  String get adminAuthRateLimited =>
+      'طلبات كثيرة. لم يتغير شيء. حاول بعد دقيقة.';
+
+  @override
+  String get adminAuthOutcomeUnknown =>
+      'لم تردّ خدمة تسجيل الدخول، فلا نعرف إن تم التنفيذ. تحقق من الحساب ثم أعد المحاولة عند الحاجة.';
+
+  @override
+  String get adminAuthFailed => 'تعذّر التنفيذ. لم يتغير شيء.';
 }

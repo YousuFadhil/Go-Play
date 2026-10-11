@@ -18,6 +18,7 @@ import 'admin_detail_row.dart';
 import 'admin_merge_preview_screen.dart';
 import 'admin_models.dart';
 import 'admin_repository.dart';
+import 'admin_user_auth_actions.dart';
 import 'admin_user_edit_screen.dart';
 
 /// Stands in for a figure the database genuinely does not have.
@@ -173,6 +174,22 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     if (mounted) _reloadAccount();
   }
 
+  /// One of the three sign-in actions (migration `0103`). The dialog answers `true` when
+  /// anything was changed, or may have been, and the section reads the account again: the
+  /// email on screen is whatever the account has now.
+  Future<void> _authAction(
+    AdminUserAccount account,
+    AdminUserAuthAction action,
+  ) async {
+    final changed = await showAdminUserAuthDialog(
+      context,
+      action: action,
+      account: account,
+      repository: _repository,
+    );
+    if (mounted && changed == true) _reloadAccount();
+  }
+
   /// The merge screen, with this account offered as the one to keep. It answers
   /// with the id of the account that survived when a merge was performed, and with
   /// nothing otherwise: a preview changes nothing, so nothing is reloaded.
@@ -272,6 +289,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                 currentUserId: _repository.currentUserId,
                 wilayats: _wilayats,
                 onEdit: _edit,
+                onAuthAction: _authAction,
                 onPreviewMerge: _previewMerge,
                 onPreviewDeletion: _previewDeletion,
                 onRetry: _reloadAccount,
@@ -550,6 +568,7 @@ class _AccountSection extends StatelessWidget {
     required this.currentUserId,
     required this.wilayats,
     required this.onEdit,
+    required this.onAuthAction,
     required this.onPreviewMerge,
     required this.onPreviewDeletion,
     required this.onRetry,
@@ -564,6 +583,8 @@ class _AccountSection extends StatelessWidget {
 
   final WilayatRepository wilayats;
   final void Function(AdminUserAccount account) onEdit;
+  final void Function(AdminUserAccount account, AdminUserAuthAction action)
+      onAuthAction;
   final void Function(AdminUserAccount account) onPreviewMerge;
   final void Function(AdminUserAccount account) onPreviewDeletion;
   final VoidCallback onRetry;
@@ -612,6 +633,7 @@ class _AccountSection extends StatelessWidget {
               isSelf: currentUserId != null && currentUserId == account.id,
               wilayats: wilayats,
               onEdit: () => onEdit(account),
+              onAuthAction: (action) => onAuthAction(account, action),
               onPreviewMerge: () => onPreviewMerge(account),
               onPreviewDeletion: () => onPreviewDeletion(account),
             );
@@ -629,6 +651,7 @@ class _AccountData extends StatelessWidget {
     required this.isSelf,
     required this.wilayats,
     required this.onEdit,
+    required this.onAuthAction,
     required this.onPreviewMerge,
     required this.onPreviewDeletion,
   });
@@ -637,6 +660,7 @@ class _AccountData extends StatelessWidget {
   final bool isSelf;
   final WilayatRepository wilayats;
   final VoidCallback onEdit;
+  final void Function(AdminUserAuthAction action) onAuthAction;
   final VoidCallback onPreviewMerge;
   final VoidCallback onPreviewDeletion;
 
@@ -660,6 +684,10 @@ class _AccountData extends StatelessWidget {
     final locale = Localizations.localeOf(context).toString();
     final suspended = !account.isActive;
     final canEdit = !isSelf && !account.isSystemAdmin;
+    // A linked Google identity keeps the address in its own right (migration `0103`). The
+    // database refuses regardless; the action is shown disabled, with the reason, rather
+    // than hidden or left to fail.
+    final hasGoogle = account.signInProviders.contains('google');
 
     String onOff(bool value) =>
         value ? l10n.adminAccountOn : l10n.adminAccountOff;
@@ -791,6 +819,48 @@ class _AccountData extends StatelessWidget {
                 ? l10n.adminEditUnavailableSelf
                 : l10n.adminEditUnavailableSystemAdmin,
           ),
+        // Sign-in (migration `0103`): the same people as the editor, for the same reasons.
+        if (canEdit) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: kPageMargin,
+              vertical: Gap.xs,
+            ),
+            child: OutlinedButton.icon(
+              key: const Key('adminAccountChangeEmail'),
+              onPressed: hasGoogle
+                  ? null
+                  : () => onAuthAction(AdminUserAuthAction.changeEmail),
+              icon: const Icon(Icons.alternate_email),
+              label: Text(l10n.adminAuthChangeEmailAction),
+            ),
+          ),
+          if (hasGoogle) FootNote(l10n.adminAuthGoogleNote),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: kPageMargin,
+              vertical: Gap.xs,
+            ),
+            child: OutlinedButton.icon(
+              key: const Key('adminAccountSendRecovery'),
+              onPressed: () => onAuthAction(AdminUserAuthAction.sendRecovery),
+              icon: const Icon(Icons.mark_email_read_outlined),
+              label: Text(l10n.adminAuthSendRecoveryAction),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: kPageMargin,
+              vertical: Gap.xs,
+            ),
+            child: OutlinedButton.icon(
+              key: const Key('adminAccountSetPassword'),
+              onPressed: () => onAuthAction(AdminUserAuthAction.setPassword),
+              icon: const Icon(Icons.password_outlined),
+              label: Text(l10n.adminAuthSetPasswordAction),
+            ),
+          ),
+        ],
         // Read-only previews (migration `0096`). Offered for every account,
         // including the administrator's own and a System Admin's: seeing why a
         // deletion or merge is blocked is the point, and they change nothing.

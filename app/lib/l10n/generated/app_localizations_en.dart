@@ -3523,4 +3523,153 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get deleteAccountDoneBody =>
       'You have been signed out. The matches you played stay in their communities, shown as Deleted Player.';
+
+  @override
+  String get adminActionUserEmailChanged => 'Email changed';
+
+  @override
+  String get adminActionUserRecoverySent => 'Recovery email sent';
+
+  @override
+  String get adminActionUserPasswordSet => 'Password set';
+
+  @override
+  String get adminAuthChangeEmailAction => 'Change email';
+
+  @override
+  String get adminAuthSendRecoveryAction => 'Send recovery email';
+
+  @override
+  String get adminAuthSetPasswordAction => 'Set password';
+
+  @override
+  String get adminAuthGoogleNote =>
+      'This account is linked to Google, so its email cannot be changed here. Recovery and setting a password are still available.';
+
+  @override
+  String get adminAuthChangeEmailTitle => 'Change email';
+
+  @override
+  String get adminAuthChangeEmailBody =>
+      'The new address takes effect immediately and the player does not confirm it. The standard password recovery email is then sent to the new address.';
+
+  @override
+  String adminAuthCurrentEmail(String email) {
+    return 'Current email: $email';
+  }
+
+  @override
+  String get adminAuthNewEmailLabel => 'New email';
+
+  @override
+  String get adminAuthConfirmEmailLabel => 'Repeat the new email';
+
+  @override
+  String get adminAuthEmailMismatch => 'The two addresses do not match';
+
+  @override
+  String get adminAuthEmailSame => 'That is already this account\'s email';
+
+  @override
+  String get adminAuthSendRecoveryTitle => 'Send recovery email';
+
+  @override
+  String adminAuthSendRecoveryBody(String email) {
+    return 'The standard password recovery email is sent to $email. Nothing about the account changes.';
+  }
+
+  @override
+  String get adminAuthSetPasswordTitle => 'Set password';
+
+  @override
+  String get adminAuthSetPasswordBody =>
+      'The player can sign in with this password right away. Tell them the password yourself: it is not stored or shown again. Devices that are signed in may stay signed in until their session expires.';
+
+  @override
+  String get adminAuthConfirmPasswordLabel => 'Repeat the new password';
+
+  @override
+  String get adminAuthPasswordMismatch => 'The two passwords do not match';
+
+  @override
+  String get adminAuthReasonLabel => 'Reason (required)';
+
+  @override
+  String get adminAuthReasonRequired => 'Enter the reason';
+
+  @override
+  String get adminAuthSubmitChangeEmail => 'Change email';
+
+  @override
+  String get adminAuthSubmitSendRecovery => 'Send';
+
+  @override
+  String get adminAuthSubmitSetPassword => 'Set password';
+
+  @override
+  String get adminAuthWorking => 'Working…';
+
+  @override
+  String get adminAuthDoneButton => 'Done';
+
+  @override
+  String get adminAuthEmailChangedDone =>
+      'Email changed. The recovery email was sent to the new address.';
+
+  @override
+  String get adminAuthEmailChangedNoRecovery =>
+      'Email changed, but the recovery email was not sent. The change stays in place.';
+
+  @override
+  String get adminAuthEmailChangedRateLimited =>
+      'Email changed, but the recovery email was not sent because the email provider limits how often it sends. Try again in a minute. The change stays in place.';
+
+  @override
+  String get adminAuthRetryRecovery => 'Send the recovery email again';
+
+  @override
+  String get adminAuthRecoveryDone =>
+      'The recovery email was requested. Whether it reaches the inbox is not known.';
+
+  @override
+  String get adminAuthPasswordDone => 'The password was set.';
+
+  @override
+  String get adminAuthAuditMissing =>
+      'This was done, but it could not be recorded in the audit log. Note it down.';
+
+  @override
+  String get adminAuthNotAllowed => 'You cannot do this for this account.';
+
+  @override
+  String get adminAuthAccountGone => 'This account no longer exists.';
+
+  @override
+  String get adminAuthGoogleLinked =>
+      'This account is linked to Google, so its email cannot be changed.';
+
+  @override
+  String get adminAuthEmailTaken => 'Another account already uses that email.';
+
+  @override
+  String get adminAuthEmailRejected => 'That email cannot be used.';
+
+  @override
+  String get adminAuthNoEmail =>
+      'This account has no email, so a recovery email cannot be sent.';
+
+  @override
+  String get adminAuthPasswordRejected =>
+      'The sign-in service did not accept that password. Choose a longer or less common one.';
+
+  @override
+  String get adminAuthRateLimited =>
+      'Too many requests. Nothing was changed. Try again in a minute.';
+
+  @override
+  String get adminAuthOutcomeUnknown =>
+      'The sign-in service did not answer, so it is not known whether this was done. Check the account, then try again if needed.';
+
+  @override
+  String get adminAuthFailed => 'This could not be done. Nothing was changed.';
 }

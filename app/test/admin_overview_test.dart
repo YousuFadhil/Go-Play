@@ -127,6 +127,31 @@ class _FakeAdminAdapter implements AdminAdapter {
       throw UnimplementedError();
 
   @override
+  Future<AdminUserAuthResult> changeUserEmail({
+    required String userId,
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminUserAuthResult> sendUserRecovery({
+    required String userId,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<AdminUserAuthResult> setUserPassword({
+    required String userId,
+    required String password,
+    required String reason,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<bool> isSystemAdmin() async => true;
 
   @override

@@ -156,6 +156,35 @@ abstract interface class AdminAdapter {
   /// The database refuses, and changes nothing, while the account owns a community
   /// and for a System Admin; the administrator's own account is refused too.
   Future<AdminDeletionResult> deleteAccount({required String userId});
+
+  /// Another account's sign-in (migration `0103`), through the `admin-user-auth` Edge
+  /// Function. The Auth service, the email provider and the audit trail are three services,
+  /// not one transaction: the result says which of them did what, and a failure says whether
+  /// anything changed.
+  ///
+  /// Sets the account's email at once (no confirmation by the player) and sends the standard
+  /// recovery email to the NEW address. Refused for a Google-linked account.
+  Future<AdminUserAuthResult> changeUserEmail({
+    required String userId,
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  });
+
+  /// Sends the standard recovery email to the account's CURRENT address. Changes nothing.
+  Future<AdminUserAuthResult> sendUserRecovery({
+    required String userId,
+    required String reason,
+    required String redirectTo,
+  });
+
+  /// Sets the account's password directly. [password] travels once, to the function, and is
+  /// never stored, logged or echoed.
+  Future<AdminUserAuthResult> setUserPassword({
+    required String userId,
+    required String password,
+    required String reason,
+  });
 }
 
 // The legacy `admin_delete_user`, `admin_delete_community` and `admin_delete_match` RPCs

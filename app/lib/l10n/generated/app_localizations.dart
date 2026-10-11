@@ -6097,6 +6097,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You have been signed out. The matches you played stay in their communities, shown as Deleted Player.'**
   String get deleteAccountDoneBody;
+
+  /// No description provided for @adminActionUserEmailChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Email changed'**
+  String get adminActionUserEmailChanged;
+
+  /// No description provided for @adminActionUserRecoverySent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery email sent'**
+  String get adminActionUserRecoverySent;
+
+  /// No description provided for @adminActionUserPasswordSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Password set'**
+  String get adminActionUserPasswordSet;
+
+  /// No description provided for @adminAuthChangeEmailAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get adminAuthChangeEmailAction;
+
+  /// No description provided for @adminAuthSendRecoveryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Send recovery email'**
+  String get adminAuthSendRecoveryAction;
+
+  /// No description provided for @adminAuthSetPasswordAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Set password'**
+  String get adminAuthSetPasswordAction;
+
+  /// No description provided for @adminAuthGoogleNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is linked to Google, so its email cannot be changed here. Recovery and setting a password are still available.'**
+  String get adminAuthGoogleNote;
+
+  /// No description provided for @adminAuthChangeEmailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get adminAuthChangeEmailTitle;
+
+  /// No description provided for @adminAuthChangeEmailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The new address takes effect immediately and the player does not confirm it. The standard password recovery email is then sent to the new address.'**
+  String get adminAuthChangeEmailBody;
+
+  /// No description provided for @adminAuthCurrentEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Current email: {email}'**
+  String adminAuthCurrentEmail(String email);
+
+  /// No description provided for @adminAuthNewEmailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New email'**
+  String get adminAuthNewEmailLabel;
+
+  /// No description provided for @adminAuthConfirmEmailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat the new email'**
+  String get adminAuthConfirmEmailLabel;
+
+  /// No description provided for @adminAuthEmailMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The two addresses do not match'**
+  String get adminAuthEmailMismatch;
+
+  /// No description provided for @adminAuthEmailSame.
+  ///
+  /// In en, this message translates to:
+  /// **'That is already this account\'s email'**
+  String get adminAuthEmailSame;
+
+  /// No description provided for @adminAuthSendRecoveryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send recovery email'**
+  String get adminAuthSendRecoveryTitle;
+
+  /// No description provided for @adminAuthSendRecoveryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The standard password recovery email is sent to {email}. Nothing about the account changes.'**
+  String adminAuthSendRecoveryBody(String email);
+
+  /// No description provided for @adminAuthSetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set password'**
+  String get adminAuthSetPasswordTitle;
+
+  /// No description provided for @adminAuthSetPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The player can sign in with this password right away. Tell them the password yourself: it is not stored or shown again. Devices that are signed in may stay signed in until their session expires.'**
+  String get adminAuthSetPasswordBody;
+
+  /// No description provided for @adminAuthConfirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat the new password'**
+  String get adminAuthConfirmPasswordLabel;
+
+  /// No description provided for @adminAuthPasswordMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The two passwords do not match'**
+  String get adminAuthPasswordMismatch;
+
+  /// No description provided for @adminAuthReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (required)'**
+  String get adminAuthReasonLabel;
+
+  /// No description provided for @adminAuthReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the reason'**
+  String get adminAuthReasonRequired;
+
+  /// No description provided for @adminAuthSubmitChangeEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get adminAuthSubmitChangeEmail;
+
+  /// No description provided for @adminAuthSubmitSendRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get adminAuthSubmitSendRecovery;
+
+  /// No description provided for @adminAuthSubmitSetPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set password'**
+  String get adminAuthSubmitSetPassword;
+
+  /// No description provided for @adminAuthWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get adminAuthWorking;
+
+  /// No description provided for @adminAuthDoneButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get adminAuthDoneButton;
+
+  /// No description provided for @adminAuthEmailChangedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Email changed. The recovery email was sent to the new address.'**
+  String get adminAuthEmailChangedDone;
+
+  /// No description provided for @adminAuthEmailChangedNoRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Email changed, but the recovery email was not sent. The change stays in place.'**
+  String get adminAuthEmailChangedNoRecovery;
+
+  /// No description provided for @adminAuthEmailChangedRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Email changed, but the recovery email was not sent because the email provider limits how often it sends. Try again in a minute. The change stays in place.'**
+  String get adminAuthEmailChangedRateLimited;
+
+  /// No description provided for @adminAuthRetryRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the recovery email again'**
+  String get adminAuthRetryRecovery;
+
+  /// No description provided for @adminAuthRecoveryDone.
+  ///
+  /// In en, this message translates to:
+  /// **'The recovery email was requested. Whether it reaches the inbox is not known.'**
+  String get adminAuthRecoveryDone;
+
+  /// No description provided for @adminAuthPasswordDone.
+  ///
+  /// In en, this message translates to:
+  /// **'The password was set.'**
+  String get adminAuthPasswordDone;
+
+  /// No description provided for @adminAuthAuditMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This was done, but it could not be recorded in the audit log. Note it down.'**
+  String get adminAuthAuditMissing;
+
+  /// No description provided for @adminAuthNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot do this for this account.'**
+  String get adminAuthNotAllowed;
+
+  /// No description provided for @adminAuthAccountGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This account no longer exists.'**
+  String get adminAuthAccountGone;
+
+  /// No description provided for @adminAuthGoogleLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is linked to Google, so its email cannot be changed.'**
+  String get adminAuthGoogleLinked;
+
+  /// No description provided for @adminAuthEmailTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Another account already uses that email.'**
+  String get adminAuthEmailTaken;
+
+  /// No description provided for @adminAuthEmailRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'That email cannot be used.'**
+  String get adminAuthEmailRejected;
+
+  /// No description provided for @adminAuthNoEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'This account has no email, so a recovery email cannot be sent.'**
+  String get adminAuthNoEmail;
+
+  /// No description provided for @adminAuthPasswordRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The sign-in service did not accept that password. Choose a longer or less common one.'**
+  String get adminAuthPasswordRejected;
+
+  /// No description provided for @adminAuthRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Nothing was changed. Try again in a minute.'**
+  String get adminAuthRateLimited;
+
+  /// No description provided for @adminAuthOutcomeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The sign-in service did not answer, so it is not known whether this was done. Check the account, then try again if needed.'**
+  String get adminAuthOutcomeUnknown;
+
+  /// No description provided for @adminAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This could not be done. Nothing was changed.'**
+  String get adminAuthFailed;
 }
 
 class _AppLocalizationsDelegate

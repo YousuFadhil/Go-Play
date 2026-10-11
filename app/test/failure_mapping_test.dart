@@ -242,6 +242,42 @@ void main() {
       }
     });
 
+    test('changing another account\'s sign-in: states are conflicts, rules are input',
+        () {
+      // Migration 0103.
+      final google = map(raised('GOOGLE_LINKED'));
+      expect(google, isA<ConflictFailure>());
+      expect(google.reason, FailureReason.googleLinked);
+      final taken = map(raised('EMAIL_TAKEN'));
+      expect(taken, isA<ConflictFailure>());
+      expect(taken.reason, FailureReason.emailAlreadyUsed);
+      expect(map(raised('NO_EMAIL')), isA<ConflictFailure>());
+      expect(map(raised('NO_EMAIL')).reason, isNull);
+      for (final token in [
+        'EMAIL_UNCHANGED',
+        'INVALID_EMAIL',
+        'INVALID_PASSWORD',
+        'INVALID_REASON',
+        'INVALID_ACTION',
+      ]) {
+        expect(map(raised(token)), isA<ValidationFailure>(), reason: token);
+      }
+    });
+
+    test('changing another account\'s sign-in: the provider\'s answers', () {
+      final limited = map(raised('RATE_LIMITED'));
+      expect(limited, isA<InfrastructureFailure>());
+      expect(limited.reason, FailureReason.tooManyRequests);
+      final unknown = map(raised('AUTH_OUTCOME_UNKNOWN'));
+      expect(unknown, isA<InfrastructureFailure>());
+      expect(unknown.reason, FailureReason.authOutcomeUnknown);
+      for (final token in ['AUTH_UPDATE_REFUSED', 'RECOVERY_SEND_FAILED']) {
+        final failure = map(raised(token));
+        expect(failure, isA<InfrastructureFailure>(), reason: token);
+        expect(failure.reason, isNull, reason: token);
+      }
+    });
+
     test('merging accounts: the merge checking its own work is a fault', () {
       // Each rolled the transaction back, and none is something the
       // administrator did.
@@ -463,6 +499,36 @@ void main() {
       expect(answered(502, {'error': 'DELETE_OUTCOME_UNKNOWN'}),
           isA<InfrastructureFailure>());
       expect(answered(404, {'error': 'USER_NOT_FOUND'}), isA<NotFoundFailure>());
+    });
+
+    test('the sign-in function answers in the same language, under its own statuses',
+        () {
+      for (final (status, token, type) in <(int, String, Type)>[
+        (401, 'NOT_AUTHENTICATED', AuthenticationFailure),
+        (403, 'NOT_AUTHORIZED', AuthorizationFailure),
+        (403, 'CANNOT_MODIFY_SELF', AuthorizationFailure),
+        (403, 'CANNOT_MODIFY_SYSTEM_ADMIN', AuthorizationFailure),
+        (404, 'USER_NOT_FOUND', NotFoundFailure),
+        (409, 'GOOGLE_LINKED', ConflictFailure),
+        (409, 'EMAIL_TAKEN', ConflictFailure),
+        (409, 'EMAIL_UNCHANGED', ValidationFailure),
+        (409, 'NO_EMAIL', ConflictFailure),
+        (400, 'INVALID_EMAIL', ValidationFailure),
+        (400, 'INVALID_PASSWORD', ValidationFailure),
+        (400, 'INVALID_REASON', ValidationFailure),
+        (400, 'BAD_REQUEST', ValidationFailure),
+        (429, 'RATE_LIMITED', InfrastructureFailure),
+        (502, 'AUTH_UPDATE_REFUSED', InfrastructureFailure),
+        (502, 'AUTH_OUTCOME_UNKNOWN', InfrastructureFailure),
+        (502, 'RECOVERY_SEND_FAILED', InfrastructureFailure),
+        (502, 'PREFLIGHT_FAILED', InfrastructureFailure),
+      ]) {
+        expect(answered(status, {'error': token}).runtimeType, type,
+            reason: '$status $token');
+      }
+      // The retry hint is the function's; the type and wording do not depend on it.
+      final limited = answered(429, {'error': 'RATE_LIMITED', 'retry_after': 42});
+      expect(limited.reason, FailureReason.tooManyRequests);
     });
 
     test('a picture already removed is said on top of a refused deletion', () {

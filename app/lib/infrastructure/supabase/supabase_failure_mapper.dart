@@ -272,6 +272,27 @@ class SupabaseFailureMapper {
     'DELETE_INVARIANT_BROKEN': InfrastructureFailure(),
     'DELETE_RESIDUAL_DATA': InfrastructureFailure(),
 
+    // Changing another account's sign-in from the console (migration `0103`), through the
+    // `admin-user-auth` Edge Function. Who may (`NOT_AUTHORIZED`, `CANNOT_MODIFY_SELF`,
+    // `CANNOT_MODIFY_SYSTEM_ADMIN`) and who exists (`USER_NOT_FOUND`) are mapped above. A Google
+    // identity and an address another account holds are STATES the administrator ran into, so
+    // conflicts; an address or password the rules refuse is input. A rate limit is the provider's
+    // (the same wording as a player's own). The three `AUTH_*` / `RECOVERY_*` tokens are the Auth
+    // service refusing (nothing changed), or answering nothing (it may have), or the recovery
+    // email not being requested after an email change (the change stays).
+    'GOOGLE_LINKED': ConflictFailure(FailureReason.googleLinked),
+    'EMAIL_TAKEN': ConflictFailure(FailureReason.emailAlreadyUsed),
+    'EMAIL_UNCHANGED': ValidationFailure(),
+    'INVALID_EMAIL': ValidationFailure(),
+    'INVALID_PASSWORD': ValidationFailure(),
+    'INVALID_REASON': ValidationFailure(),
+    'INVALID_ACTION': ValidationFailure(),
+    'NO_EMAIL': ConflictFailure(),
+    'RATE_LIMITED': InfrastructureFailure(FailureReason.tooManyRequests),
+    'AUTH_UPDATE_REFUSED': InfrastructureFailure(),
+    'AUTH_OUTCOME_UNKNOWN': InfrastructureFailure(FailureReason.authOutcomeUnknown),
+    'RECOVERY_SEND_FAILED': InfrastructureFailure(),
+
     // The permission refusal every guarded RPC shares. The type says it;
     // a reason would only repeat it.
     'NOT_AUTHORIZED': AuthorizationFailure(),

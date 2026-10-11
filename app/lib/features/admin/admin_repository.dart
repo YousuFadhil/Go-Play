@@ -1,6 +1,7 @@
 import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_admin_adapter.dart';
 import '../auth/auth_models.dart' show PlayerPosition;
+import '../auth/auth_service.dart' show AuthService;
 import '../profile/profile_models.dart' show ProfileVisibility;
 import 'admin_adapter.dart';
 import 'admin_models.dart';
@@ -245,6 +246,59 @@ class AdminRepository {
   /// whether anything stands in the way, is the server's to decide.
   Future<AdminDeletionResult> deleteAccount(String userId) =>
       _adapter.deleteAccount(userId: userId);
+
+  /// Changing another account's sign-in (migration `0103`). **Not reads: a failure is a
+  /// failure to report, never to swallow, and a success has already changed the account.**
+  /// The reason is required, and the address and password follow the application's own
+  /// rules; a request that breaks them is refused here, as a rejected Future, so the
+  /// function is not asked. Everything else is the server's to decide, twice, before it acts.
+  Future<AdminUserAuthResult> changeUserEmail(
+    String userId, {
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  }) async {
+    final trimmed = newEmail.trim();
+    if (!AuthService.isValidEmail(trimmed)) throw const ValidationFailure();
+    return _adapter.changeUserEmail(
+      userId: userId,
+      newEmail: trimmed,
+      reason: _requiredReason(reason),
+      redirectTo: redirectTo,
+    );
+  }
+
+  Future<AdminUserAuthResult> sendUserRecovery(
+    String userId, {
+    required String reason,
+    required String redirectTo,
+  }) async =>
+      _adapter.sendUserRecovery(
+        userId: userId,
+        reason: _requiredReason(reason),
+        redirectTo: redirectTo,
+      );
+
+  /// The password is passed on exactly as given: it is not trimmed, because a space can be
+  /// part of it.
+  Future<AdminUserAuthResult> setUserPassword(
+    String userId, {
+    required String password,
+    required String reason,
+  }) async {
+    if (!AuthService.isValidPassword(password)) throw const ValidationFailure();
+    return _adapter.setUserPassword(
+      userId: userId,
+      password: password,
+      reason: _requiredReason(reason),
+    );
+  }
+
+  static String _requiredReason(String reason) {
+    final trimmed = _reason(reason);
+    if (trimmed == null) throw const ValidationFailure();
+    return trimmed;
+  }
 
   static String? _reason(String? reason) {
     final trimmed = reason?.trim();

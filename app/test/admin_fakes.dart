@@ -229,6 +229,18 @@ class FakeAdminAdapter implements AdminAdapter {
   /// When set, the deletion waits on it, so a test can look at the screen mid-request.
   Completer<void>? deleteGate;
 
+  /// Admin authentication management (migration 0103). One entry per request, in order, with
+  /// exactly what the port was given -- including the password, which is how the tests prove it
+  /// is passed on untouched and nowhere else.
+  final List<Map<String, Object?>> authRequests = [];
+
+  /// What the next requests answer, consumed in order: a [Failure] is thrown, an
+  /// [AdminUserAuthResult] is returned. Empty means a complete success.
+  final List<Object> authQueue = [];
+
+  /// Held until completed, to prove the in-flight state and the single request.
+  Completer<void>? authGate;
+
   @override
   String? get currentUserId => signedInUserId;
 
@@ -428,6 +440,70 @@ class FakeAdminAdapter implements AdminAdapter {
     if (previewFailure != null) throw previewFailure!;
     return deletionPreview!;
   }
+
+  Future<AdminUserAuthResult> _auth(
+    AdminUserAuthAction action,
+    Map<String, Object?> request,
+  ) async {
+    calls.add('auth:${action.wire}:${request['userId']}');
+    authRequests.add({'action': action.wire, ...request});
+    final gate = authGate;
+    if (gate != null) await gate.future;
+    if (authQueue.isNotEmpty) {
+      final next = authQueue.removeAt(0);
+      if (next is Failure) throw next;
+      return next as AdminUserAuthResult;
+    }
+    return switch (action) {
+      AdminUserAuthAction.changeEmail => AdminUserAuthResult(
+          action: action,
+          emailChanged: true,
+          recoverySent: true,
+        ),
+      AdminUserAuthAction.sendRecovery =>
+        AdminUserAuthResult(action: action, recoverySent: true),
+      AdminUserAuthAction.setPassword =>
+        AdminUserAuthResult(action: action, passwordSet: true),
+    };
+  }
+
+  @override
+  Future<AdminUserAuthResult> changeUserEmail({
+    required String userId,
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      _auth(AdminUserAuthAction.changeEmail, {
+        'userId': userId,
+        'newEmail': newEmail,
+        'reason': reason,
+        'redirectTo': redirectTo,
+      });
+
+  @override
+  Future<AdminUserAuthResult> sendUserRecovery({
+    required String userId,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      _auth(AdminUserAuthAction.sendRecovery, {
+        'userId': userId,
+        'reason': reason,
+        'redirectTo': redirectTo,
+      });
+
+  @override
+  Future<AdminUserAuthResult> setUserPassword({
+    required String userId,
+    required String password,
+    required String reason,
+  }) =>
+      _auth(AdminUserAuthAction.setPassword, {
+        'userId': userId,
+        'password': password,
+        'reason': reason,
+      });
 
   @override
   Future<AdminDeletionResult> deleteAccount({required String userId}) async {

@@ -24,6 +24,11 @@ String _actionLabel(AppLocalizations l10n, String action) => switch (action) {
       // `metadata`, so the row cannot say which fields changed. Showing them
       // would need that RPC to change, which is its own decision.
       'USER_PROFILE_UPDATED' => l10n.adminActionUserProfileUpdated,
+      // Migration `0103`. The row carries the reason; it never carries an address or a
+      // password, so the label is all there is to say.
+      'USER_EMAIL_CHANGED' => l10n.adminActionUserEmailChanged,
+      'USER_RECOVERY_SENT' => l10n.adminActionUserRecoverySent,
+      'USER_PASSWORD_SET' => l10n.adminActionUserPasswordSet,
       _ => action,
     };
 

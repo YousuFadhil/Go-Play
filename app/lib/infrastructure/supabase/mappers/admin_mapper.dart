@@ -655,6 +655,51 @@ AdminMergeResult adminMergeResultFromJson(
   );
 }
 
+/// The body of an `admin-user-auth` request. Only what the action uses is sent, so a secret
+/// never travels where nothing needs it.
+Map<String, dynamic> adminUserAuthParams({
+  required AdminUserAuthAction action,
+  required String userId,
+  required String reason,
+  String? newEmail,
+  String? password,
+  String? redirectTo,
+}) =>
+    {
+      'action': action.wire,
+      'user_id': userId,
+      'reason': reason,
+      if (newEmail != null) 'new_email': newEmail,
+      if (password != null) 'password': password,
+      if (redirectTo != null) 'redirect_to': redirectTo,
+    };
+
+/// What `admin-user-auth` returned. **Never throws:** an answer that came back with a 2xx
+/// means the Auth change happened, and a document this build cannot fully read must still be
+/// reported as a change that happened. Only an explicit `audit_recorded: false` raises the
+/// audit warning.
+AdminUserAuthResult adminUserAuthResultFromJson(
+  Map<String, dynamic> json, {
+  required AdminUserAuthAction action,
+}) {
+  final recoverySent = json['recovery_sent'] == true;
+  final error = json['recovery_error'];
+  AdminRecoveryProblem? problem;
+  if (action == AdminUserAuthAction.changeEmail && !recoverySent) {
+    problem = error == 'RATE_LIMITED'
+        ? AdminRecoveryProblem.rateLimited
+        : AdminRecoveryProblem.failed;
+  }
+  return AdminUserAuthResult(
+    action: action,
+    emailChanged: action == AdminUserAuthAction.changeEmail,
+    recoverySent: action == AdminUserAuthAction.sendRecovery || recoverySent,
+    passwordSet: action == AdminUserAuthAction.setPassword,
+    recoveryProblem: problem,
+    auditRecorded: json['audit_recorded'] != false,
+  );
+}
+
 /// The body of the `delete-account` request for an administrator: the account to delete.
 /// (Without it the same function deletes the caller's own account.)
 Map<String, dynamic> adminDeleteAccountParams(String userId) =>
