@@ -1,6 +1,7 @@
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/failures.dart';
+import '../../features/sharing/share_service.dart';
 import 'native_share_service.dart';
 
 /// Text-only shares use the same OS share sheet as existing image shares.
@@ -11,9 +12,14 @@ class NativeTextShareService {
 
   final ShareSheet _shareSheet;
 
-  Future<void> shareText(String text) async {
+  Future<ShareOutcome> shareText(String text) async {
     try {
-      await _shareSheet(ShareParams(text: text));
+      final result = await _shareSheet(ShareParams(text: text));
+      return switch (result.status) {
+        ShareResultStatus.success => ShareOutcome.shared,
+        ShareResultStatus.dismissed => ShareOutcome.dismissed,
+        ShareResultStatus.unavailable => ShareOutcome.unknown,
+      };
     } catch (_) {
       throw const InfrastructureFailure();
     }

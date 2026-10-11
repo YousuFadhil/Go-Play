@@ -104,6 +104,11 @@ class PublicLink {
   static String format(PublicLinkKind kind, String id) =>
       '$webBase/#${path(kind, id)}';
 
+  /// A crawler-readable invitation page that opens the existing match route.
+  /// Other public destinations retain their hash links.
+  static String matchInvitation(String id, {String languageCode = 'ar'}) =>
+      '$webBase/share/match/$id?lang=${languageCode == 'en' ? 'en' : 'ar'}';
+
   /// What opens the app directly on a device that has it.
   static String appLink(PublicLinkKind kind, String id) =>
       '$scheme://${kind.segment}/$id';

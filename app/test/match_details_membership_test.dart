@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/club_place.dart';
 import 'package:go_play/core/failures.dart';
@@ -106,7 +107,8 @@ void main() {
   }
 
   group('Club Match Details presentation', () {
-    testWidgets('uses the Club hero and sheet for a long English title at 320px',
+    testWidgets(
+        'uses the Club hero and sheet for a long English title at 320px',
         (tester) async {
       const title =
           'Friday Night Championship Match at Al Amerat Football Complex';
@@ -140,7 +142,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('keeps a long Arabic title bounded at 320px RTL', (tester) async {
+    testWidgets('keeps a long Arabic title bounded at 320px RTL',
+        (tester) async {
       const title =
           'مباراة بطولة مساء الجمعة في مجمع العامرات لكرة القدم للمحترفين';
       final arabicTitleMatch = Match(
@@ -157,7 +160,8 @@ void main() {
       );
       await pumpDetails(
         tester,
-        matches: FakeMatchAdapter(match: arabicTitleMatch, access: memberContext),
+        matches:
+            FakeMatchAdapter(match: arabicTitleMatch, access: memberContext),
         locale: const Locale('ar'),
         size: const Size(320, 700),
       );
@@ -168,7 +172,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('maps full and completed matches through the Club status presentation',
+    testWidgets(
+        'maps full and completed matches through the Club status presentation',
         (tester) async {
       final fullMatch = Match(
         id: 'm1',
@@ -219,9 +224,7 @@ void main() {
       await pumpDetails(tester, matches: matches, role: CommunityRole.player);
       expect(find.text('Match management'), findsNothing);
       expect(
-        tester
-            .widget<ListTile>(find.widgetWithText(ListTile, 'Teams'))
-            .onTap,
+        tester.widget<ListTile>(find.widgetWithText(ListTile, 'Teams')).onTap,
         isNotNull,
       );
 
@@ -342,7 +345,8 @@ void main() {
           reason: 'a read that worked asks no follow-up question');
     });
 
-    testWidgets('a player on the roster is a face, a name and a way into '
+    testWidgets(
+        'a player on the roster is a face, a name and a way into '
         'their profile', (tester) async {
       final matches = FakeMatchAdapter(
         match: match,
@@ -603,7 +607,9 @@ void main() {
     // There is no live score and no provisional one, so the action is absent
     // until the match is over -- and migration 0074 refuses it at the database
     // either way, which is what this keeps the product from walking into.
-    Match matchIn({required Duration startsIn, Duration length = const Duration(hours: 2)}) {
+    Match matchIn(
+        {required Duration startsIn,
+        Duration length = const Duration(hours: 2)}) {
       final start = DateTime.now().add(startsIn);
       return Match(
         id: 'm1',
@@ -757,10 +763,36 @@ void main() {
       await tester.tap(find.text('Share match'));
       await tester.pumpAndSettle();
 
-      final lines = shared!.split('\n');
-      expect(lines.last, PublicLink.format(PublicLinkKind.match, 'm1'));
-      expect(shared, contains('Friday Night'));
-      expect(shared, contains('Al Amerat Pitch'));
+      expect(shared, PublicLink.matchInvitation('m1', languageCode: 'en'));
+    });
+
+    testWidgets('details sends one URL through the real share service', (
+      tester,
+    ) async {
+      final calls = <MethodCall>[];
+      const channel = MethodChannel('dev.fluttercommunity.plus/share');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        return 'dev.fluttercommunity.plus/share/unavailable';
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      await pumpDetails(
+        tester,
+        matches: FakeMatchAdapter(match: match, access: memberContext),
+      );
+      await tester.tap(find.text('Share match'));
+      await tester.pumpAndSettle();
+      expect(calls, hasLength(1));
+      final args = Map<String, dynamic>.from(calls.single.arguments as Map);
+      expect(
+        args['text'],
+        PublicLink.matchInvitation('m1', languageCode: 'en'),
+      );
+      expect(args['paths'], isNull);
+      expect(find.byType(MatchDetailsScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('a match that has started offers no invitation',
