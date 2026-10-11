@@ -1556,9 +1556,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareMyProfileAction => 'Share my profile';
 
   @override
-  String get shareTextMyStatistics => 'My statistics on Go Play.';
-
-  @override
   String get recentFormTitle => 'Recent form';
 
   @override

@@ -174,19 +174,6 @@ void main() {
       expect(source, isNot(contains('_Address')));
     });
 
-    test('no share sentence carries an address in either language', () {
-      for (final path in ['lib/l10n/app_en.arb', 'lib/l10n/app_ar.arb']) {
-        final lines = File(path)
-            .readAsLinesSync()
-            .where((line) => line.trimLeft().startsWith('"shareText'));
-        expect(lines, isNotEmpty, reason: path);
-        for (final line in lines) {
-          expect(line, isNot(contains('http')), reason: line);
-          expect(line, isNot(contains('/#/')), reason: line);
-        }
-      }
-    });
-
     test('public links themselves are still there for routes and arrivals', () {
       // Only the automatic inclusion was removed. The routing, the external
       // arrival and its Wave 3 evidence all still read `PublicLink`.
