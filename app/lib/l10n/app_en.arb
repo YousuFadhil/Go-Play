@@ -632,7 +632,6 @@
 
   "sharePlayerProfileAction": "Share profile",
   "shareMyProfileAction": "Share my profile",
-  "shareTextMyStatistics": "My statistics on Go Play.",
 
   "recentFormTitle": "Recent form",
   "recentFormNote": "The player's last {count} completed matches, most recent first.",

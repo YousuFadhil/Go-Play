@@ -1539,9 +1539,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shareMyProfileAction => 'مشاركة ملفي';
 
   @override
-  String get shareTextMyStatistics => 'إحصائياتي في Go Play.';
-
-  @override
   String get recentFormTitle => 'الأداء الأخير';
 
   @override

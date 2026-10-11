@@ -2750,12 +2750,6 @@ abstract class AppLocalizations {
   /// **'Share my profile'**
   String get shareMyProfileAction;
 
-  /// No description provided for @shareTextMyStatistics.
-  ///
-  /// In en, this message translates to:
-  /// **'My statistics on Go Play.'**
-  String get shareTextMyStatistics;
-
   /// No description provided for @recentFormTitle.
   ///
   /// In en, this message translates to:
