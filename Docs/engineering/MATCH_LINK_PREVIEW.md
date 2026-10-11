@@ -4,8 +4,9 @@ Match invitations from creation and match details send readable invitation text
 and exactly one URL:
 `https://<PUBLIC_WEB_BASE>/share/match/<uuid>?lang=ar|en&v=2`.
 The page returns server-rendered Open Graph metadata: the publicly readable
-match title, its date/time in Asia/Muscat and location, plus one reusable
-localized Go Play thumbnail. No PNG file is attached to the share sheet.
+match title, its date/time in Asia/Muscat and location (see "Details appear
+once" below for what the card itself shows), plus one reusable localized Go Play
+thumbnail. No PNG file is attached to the share sheet.
 JavaScript opens the existing `/#/match/<uuid>` route; an ordinary HTML link
 provides the same destination without JavaScript. Existing authentication and
 registration continue through that route. Existing hash links still work.
@@ -108,6 +109,16 @@ Upcoming match metadata also invites readers to join. Completed matches retain
 neutral metadata and the legacy neutral image. Missing matches/configuration do
 not acquire a registration claim. Existing hash links and app routes remain
 unchanged; no database, dependency, auth or registration behavior changes.
+
+Details appear once. The shared message already lists the date, time and place,
+and it is the only part that is guaranteed to arrive: the preview depends on the
+sender's WhatsApp fetching the page, and it can be missing or differ by app. For
+an upcoming match the card therefore shows the invitation title, the image and a
+one-line invitation (`og:description`), not the date, time and place again. The
+full details stay in `<meta name="description">` and in the page body that people
+without JavaScript see. A completed match has no shared message to repeat, so its
+card keeps the details. A link copied on its own, outside the app's share flow,
+therefore shows a card without the date and time.
 
 The two reusable images are `go-play-invite-v2-ar.jpg` and
 `go-play-invite-v2-en.jpg` (JPEG, 1200×630, about 130 KB each). They contain brand

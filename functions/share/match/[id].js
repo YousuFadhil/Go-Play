@@ -65,6 +65,7 @@ export async function onRequest({ request, params, env }) {
   let thumbnail = neutralThumbnail;
   let title = words.title;
   let summary = words.description;
+  let cardSummary = summary;
   let status = valid ? 503 : 400;
 
   if (valid && publicKey(env.SUPABASE_ANON_KEY)) {
@@ -94,7 +95,9 @@ export async function onRequest({ request, params, env }) {
         if (upcoming) thumbnail = thumbnails[language];
         title = name ? `${upcoming ? `${words.invite} ` : ''}${name} — Go Play` : words.title;
         summary = description(match, language);
-        if (upcoming) summary += ` • ${words.action}`;
+        // The shared message already lists the date, time and place, so the card of an
+        // upcoming match only adds the invitation instead of repeating them.
+        cardSummary = upcoming ? words.action : summary;
       }
     } catch {
       // No API errors, credentials, roster or session details reach the page.
@@ -113,7 +116,7 @@ export async function onRequest({ request, params, env }) {
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeHtml(summary)}">
 <meta property="og:title" content="${escapeHtml(title)}">
-<meta property="og:description" content="${escapeHtml(summary)}">
+<meta property="og:description" content="${escapeHtml(cardSummary)}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Go Play">
 <meta property="og:locale" content="${language === 'ar' ? 'ar_OM' : 'en_GB'}">
