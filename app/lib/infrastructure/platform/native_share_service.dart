@@ -53,9 +53,8 @@ class NativeShareService implements ShareService {
       final result = await _sheet(
         ShareParams(
           // Send the caller's text with the image in ONE share operation. The
-          // match invitation includes its public URL here; other cards keep
-          // their existing text. Whether a target app preserves both is up to
-          // that app. Null retains the original image-only share.
+          // caller supplies any text. Whether a target app preserves both is
+          // up to that app. Null retains the original image-only share.
           text: message?.body,
           files: [
             XFile.fromData(

@@ -24,8 +24,7 @@ import 'widget_share_card_renderer.dart';
 /// );
 /// ```
 ///
-/// [message] is the localized text that travels with the picture (including
-/// a match invitation URL only for the approved match-invitation flow);
+/// [message] is the localized text that travels with the picture;
 /// [shareType] and [source] identify the recorded share.
 /// All three are optional and all three are the caller's knowledge: the engine
 /// cannot compose a sentence about a card it deliberately knows nothing about.
