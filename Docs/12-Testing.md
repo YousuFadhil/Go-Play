@@ -12,8 +12,9 @@ flutter test
 Runs everywhere with no configuration. The integration files skip themselves
 when credentials are absent, so this stays usable by anyone.
 
-**Last executed: 172 passed, 7 skipped** — one skip per integration file.
-Observed on 2026-07-31, at the `OP-2` minimum match size change.
+A plain `flutter test` therefore proves the unit layer only. Results are not
+recorded in this document: a result is stale on the next commit, so run the
+command for the current one.
 
 Covered: phone and email validation, the `CommunityRole` enum including its
 cumulative precedence and the fallback for an unrecognised value, match
@@ -35,9 +36,8 @@ suite. The application suite does not re-assert its rules.
 cd packages/btge && dart test
 ```
 
-**Last executed: 49 passed**, observed on 2026-07-31. `TS-03` alone searches
-all 77,558,760 partitions of a 30-player pool, so a full run takes about two
-and a half minutes.
+`TS-03` alone searches all 77,558,760 partitions of a 30-player pool, so a full
+run takes minutes, not seconds.
 
 ## Running the integration suite
 
@@ -45,13 +45,11 @@ and a half minutes.
 flutter test --dart-define=SUPABASE_URL=https://<ref>.supabase.co --dart-define=SUPABASE_ANON_KEY=<publishable key>
 ```
 
-**Last executed: 267 passed, 0 failed, 267 total** — observed 2026-07-31
-against project `odhimoxvuhiyunwutzff`, on the six-account fixture model. That
-is 172 unit tests plus 95 integration tests; the seven per-file skip guards do
-not run when credentials are supplied.
+With credentials supplied the per-file skip guards do not apply and every
+integration file runs in full, against the six-account fixture model below.
 
-This is the full suite green. It is **not** BTGE Final Validation, which is a
-separate approved procedure and **has not been executed**.
+A green full run is **not** BTGE Final Validation, which is a separate approved
+procedure (see §18 of the BTGE Engineering Specification).
 
 > **Resolved — `saveLineup` now surfaces an unauthorized clear.** On its first
 > ever execution, "a player cannot write a lineup, and cannot destroy one
@@ -74,6 +72,9 @@ flutter test test/integration/authorization_test.dart --dart-define=SUPABASE_URL
 ```
 
 ### What it covers
+
+The table describes the first eight files. Later files are named for their
+scope; `ls app/test/integration` lists every one.
 
 | File | Scope |
 |---|---|
@@ -122,7 +123,9 @@ remove another admin" in `community_management_test.dart`. Do not broaden that
 exception.
 
 They share one password, held in `test/integration/support.dart`. If one is
-missing the suite fails with a message naming it — create it once by hand.
+missing the suite fails with a message naming it — create it once by hand. They
+are not created by any migration, so before relying on an integration run
+against a project, check that the six accounts exist there.
 
 Everything below the account level — communities, matches, memberships,
 registrations, lineups — is created per test and removed in teardown through
@@ -151,3 +154,23 @@ flutter build apk --release --dart-define=SUPABASE_URL=... --dart-define=SUPABAS
 
 Verify by installing it and signing in — a build that renders but cannot reach
 the database looks identical on the first screen.
+
+## Documentation tooling
+
+The checker that keeps the documentation in step with the repository is plain
+Node, with no Flutter and no credentials:
+
+```bash
+node tool/check-docs.mjs                 # fail on any drift
+node tool/check-docs.mjs --write         # regenerate engineering/DB_Object_Catalog.md first
+node --test tests/docs/sql-catalog.test.mjs tests/docs/check-docs.test.mjs
+```
+
+The Cloudflare Pages Function has its own Node tests:
+
+```bash
+node --test tests/pages/match-preview.test.mjs
+```
+
+`.github/workflows/docs-sync.yml` runs the first and third on every pull request
+that touches the migrations, the functions or the documents.

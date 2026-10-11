@@ -2,8 +2,10 @@
 
 **Database Design — Community-first (v3)**
 
-Supersedes the Groups-first v2 document. Reflects the schema as it stands
-after migration `0024`.
+Supersedes the Groups-first v2 document. Written against the schema through
+migration `0024`; later migrations are indexed in
+`engineering/DB_Object_Catalog.md` and recorded in `../CHANGELOG.md`, and where
+this document and the migrations differ, the migrations are right.
 
 ## Standards
 
@@ -139,7 +141,7 @@ follows it rather than rediscovering it.
 | Level | What it is | Where it lives today |
 |---|---|---|
 | **1 — Global** | The player's career: `player_statistics` counters plus `users.overall_rating` as the Global Rating | **Built** (`0022`) |
-| **2 — Community** | The player's record inside one community, plus a Community Rating | **Not built** |
+| **2 — Community** | The player's record inside one community, plus a Community Rating | **Built** — counters in `community_statistics` (`0028`); the rating is a derived read model (`0081`) |
 
 **Level 2 identity (`SL-1`).** One model, not three tables. A record is
 identified by `(player, community_id, period_type, period_key)`, where
@@ -280,9 +282,13 @@ future reader learns why the invitation tables existed and why they do not now.
 ## 3. Approved Scope
 
 - **All database tables specified.** Fifteen table specifications, each an
-  Engineering Authority: the eleven built tables, and the four approved but
-  unbuilt (`community_statistics`, `community_ratings`,
-  `community_rating_history`, and the relocated invitation credential).
+  Engineering Authority: the eleven tables built at the time, and four then
+  approved but unbuilt (`community_statistics`, `community_ratings`,
+  `community_rating_history`, and the relocated invitation credential). Since
+  then `community_statistics` was built (`0028`) and the community rating was
+  built as a derived read model (`0081`, `DD-17`); `community_ratings`,
+  `community_rating_history` and `community_invitations` exist as designs only.
+  `engineering/DB_Object_Catalog.md` is the current list.
 - **All Level 2 read models specified.** The Community Dashboard and the nine
   Community Leaderboards, each frozen before any view, RPC or query exists.
 - **Cross-document consistency verified.** Every specification was validated

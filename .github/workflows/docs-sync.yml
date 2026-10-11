@@ -1,0 +1,39 @@
+name: Docs sync check
+
+# Fails a pull request when the documentation has drifted from the repository:
+# a migration missing from CHANGELOG.md, a stale generated catalog, an Edge
+# Function without a README, a dead path in an entry-point document, or a number
+# that goes stale written into prose. See CLAUDE.md section 13 and Docs/README.md.
+#
+# Node only: no Flutter, no secrets, no network. It reads the checked-out files.
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'functions/**'
+      - 'Docs/**'
+      - 'CHANGELOG.md'
+      - 'SETUP.md'
+      - 'CLAUDE.md'
+      - 'tool/**'
+      - 'tests/docs/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  docs-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tests of the checker
+        run: node --test tests/docs/sql-catalog.test.mjs tests/docs/check-docs.test.mjs
+
+      - name: Documentation matches the repository
+        run: node tool/check-docs.mjs
