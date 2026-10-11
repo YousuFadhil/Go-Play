@@ -927,6 +927,11 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String shareMatchInviteTime(String start, String end) {
+    return 'من $start إلى $end';
+  }
+
+  @override
   String get shareMatchInviteAction =>
       'اضغط الرابط لعرض التفاصيل والانضمام إلى المباراة 👇';
 

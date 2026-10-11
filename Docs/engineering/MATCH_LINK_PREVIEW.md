@@ -101,8 +101,16 @@ Following real-device acceptance of the URL preview, the Product Owner requested
 a clearer invitation and approved its visual concept. The message now gives a
 localized invitation heading, date, twelve-hour time range, location (when set),
 and explicit instruction to open the link for details and registration. It uses
-the existing date/time formatters so the invitation agrees with the app screens.
+the existing date and clock formatters so the invitation agrees with the app screens.
 Both entry points retain one share operation, one URL and no file attachment.
+
+The time range is the exception: it is written with `shareMatchInviteTime`
+("من 4:30 م إلى 5:30 م" in Arabic, "4:30 PM - 5:30 PM" in English) rather than
+`formatTimeRange`. That helper wraps the range in a left-to-right direction
+isolate for the app's own screens. In WhatsApp the Arabic time line appeared out
+of order; the isolate is a likely cause, but it was not isolated from the rest of
+the line. The words fix the reading order in any chat app, and the message
+carries no direction-control characters (a test checks this).
 
 Upcoming match metadata also invites readers to join. Completed matches retain
 neutral metadata and the legacy neutral image. Missing matches/configuration do
