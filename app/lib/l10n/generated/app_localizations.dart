@@ -1730,6 +1730,12 @@ abstract class AppLocalizations {
   /// **'⚽ Join us for {title}!'**
   String shareMatchInviteHeading(String title);
 
+  /// No description provided for @shareMatchInviteTime.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} - {end}'**
+  String shareMatchInviteTime(String start, String end);
+
   /// No description provided for @shareMatchInviteAction.
   ///
   /// In en, this message translates to:

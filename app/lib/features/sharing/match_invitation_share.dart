@@ -36,7 +36,10 @@ class MatchInvitationShare {
           ? l10n.shareMatchInviteLead
           : l10n.shareMatchInviteHeading(name),
       '📅 ${formatMatchDay(context, startAt)}',
-      '🕗 ${formatTimeRange(context, startAt, endAt)}',
+      // Not formatTimeRange: that wraps the range in a direction isolate for the
+      // app's own screens, an invisible control a chat app may lay out
+      // differently. The words in the Arabic range fix its order in any app.
+      '🕗 ${l10n.shareMatchInviteTime(formatTime(context, startAt), formatTime(context, endAt))}',
       if (place.isNotEmpty) '📍 $place',
       '',
       l10n.shareMatchInviteAction,

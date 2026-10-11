@@ -11,6 +11,7 @@ import 'package:go_play/features/sharing/public_link.dart';
 import 'package:go_play/features/sharing/share_card_preview_screen.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/infrastructure/platform/native_text_share_service.dart';
+import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'product_analytics_test.dart' show FakeAnalyticsAdapter;
@@ -84,7 +85,28 @@ void main() {
                 ? '⚽ ننتظرك في Friday Football!'
                 : '⚽ Join us for Friday Football!'));
         expect(message, contains('📅 '));
-        expect(message, contains('🕗 '));
+        // The range is spelled out in words in Arabic, and carries no invisible
+        // direction control: a chat app may lay those out differently.
+        final clock = DateFormat.jm(code);
+        final start = clock.format(DateTime(2026, 10, 16, 20));
+        final end = clock.format(DateTime(2026, 10, 16, 22));
+        expect(
+          message.split('\n').where((line) => line.startsWith('🕗')),
+          [code == 'ar' ? '🕗 من $start إلى $end' : '🕗 $start - $end'],
+        );
+        // U+2066-2069 are the isolates, U+202A-202E the embeddings and overrides.
+        const controls = [
+          0x2066,
+          0x2067,
+          0x2068,
+          0x2069,
+          0x202a,
+          0x202b,
+          0x202c,
+          0x202d,
+          0x202e
+        ];
+        expect(message.runes.any(controls.contains), isFalse);
         expect(message, contains('📍 Sohar Pitch'));
         expect(
             message,

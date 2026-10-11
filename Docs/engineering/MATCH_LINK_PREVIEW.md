@@ -4,8 +4,9 @@ Match invitations from creation and match details send readable invitation text
 and exactly one URL:
 `https://<PUBLIC_WEB_BASE>/share/match/<uuid>?lang=ar|en&v=2`.
 The page returns server-rendered Open Graph metadata: the publicly readable
-match title, its date/time in Asia/Muscat and location, plus one reusable
-localized Go Play thumbnail. No PNG file is attached to the share sheet.
+match title, its date/time in Asia/Muscat and location (see "Details appear
+once" below for what the card itself shows), plus one reusable localized Go Play
+thumbnail. No PNG file is attached to the share sheet.
 JavaScript opens the existing `/#/match/<uuid>` route; an ordinary HTML link
 provides the same destination without JavaScript. Existing authentication and
 registration continue through that route. Existing hash links still work.
@@ -101,13 +102,31 @@ Following real-device acceptance of the URL preview, the Product Owner requested
 a clearer invitation and approved its visual concept. The message now gives a
 localized invitation heading, date, twelve-hour time range, location (when set),
 and explicit instruction to open the link for details and registration. It uses
-the existing date/time formatters so the invitation agrees with the app screens.
+the existing date and clock formatters so the invitation agrees with the app screens.
 Both entry points retain one share operation, one URL and no file attachment.
+
+The time range is the exception: it is written with `shareMatchInviteTime`
+("من 4:30 م إلى 5:30 م" in Arabic, "4:30 PM - 5:30 PM" in English) rather than
+`formatTimeRange`. That helper wraps the range in a left-to-right direction
+isolate for the app's own screens. In WhatsApp the Arabic time line appeared out
+of order; the isolate is a likely cause, but it was not isolated from the rest of
+the line. The words fix the reading order in any chat app, and the message
+carries no direction-control characters (a test checks this).
 
 Upcoming match metadata also invites readers to join. Completed matches retain
 neutral metadata and the legacy neutral image. Missing matches/configuration do
 not acquire a registration claim. Existing hash links and app routes remain
 unchanged; no database, dependency, auth or registration behavior changes.
+
+Details appear once. The shared message already lists the date, time and place,
+and it is the only part that is guaranteed to arrive: the preview depends on the
+sender's WhatsApp fetching the page, and it can be missing or differ by app. For
+an upcoming match the card therefore shows the invitation title, the image and a
+one-line invitation (`og:description`), not the date, time and place again. The
+full details stay in `<meta name="description">` and in the page body that people
+without JavaScript see. A completed match has no shared message to repeat, so its
+card keeps the details. A link copied on its own, outside the app's share flow,
+therefore shows a card without the date and time.
 
 The two reusable images are `go-play-invite-v2-ar.jpg` and
 `go-play-invite-v2-en.jpg` (JPEG, 1200×630, about 130 KB each). They contain brand

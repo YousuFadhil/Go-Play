@@ -325,6 +325,13 @@
   "@shareMatchInviteHeading": {
     "placeholders": { "title": { "type": "String" } }
   },
+  "shareMatchInviteTime": "من {start} إلى {end}",
+  "@shareMatchInviteTime": {
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" }
+    }
+  },
   "shareMatchInviteAction": "اضغط الرابط لعرض التفاصيل والانضمام إلى المباراة 👇",
   "inviteLinkCopied": "نُسخت الدعوة. الصقها حيث تريد مشاركتها.",
   "inviteShareCommunityBody": "انضم إلى {community} على Go Play:\n{link}",
