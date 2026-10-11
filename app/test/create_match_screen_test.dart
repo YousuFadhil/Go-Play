@@ -165,8 +165,8 @@ void main() {
     expect(adapter.writes, 1);
     expect(
         shared,
-        PublicLink.matchInvitation('00000000-0000-4000-8000-000000000001',
-            languageCode: 'en'));
+        endsWith(PublicLink.matchInvitation(
+          '00000000-0000-4000-8000-000000000001', languageCode: 'en')));
     expect(find.byType(CreateMatchScreen), findsNothing);
   });
 
@@ -194,10 +194,10 @@ void main() {
     final args = Map<String, dynamic>.from(calls.single.arguments as Map);
     expect(
       args['text'],
-      PublicLink.matchInvitation(
+      endsWith(PublicLink.matchInvitation(
         '00000000-0000-4000-8000-000000000001',
         languageCode: 'en',
-      ),
+      )),
     );
     expect(args['paths'], isNull);
     expect(find.byType(CreateMatchScreen), findsNothing);

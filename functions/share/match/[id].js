@@ -2,9 +2,14 @@
 // Pages discovers /functions. _routes.json invokes it only for match sharing.
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const copy = {
-  ar: { title: 'Go Play — دعوة إلى مباراة', description: 'افتح المباراة في Go Play لاستكمال التسجيل.', location: 'الموقع', open: 'فتح المباراة في Go Play' },
-  en: { title: 'Go Play — Match invitation', description: 'Open the match in Go Play to continue registration.', location: 'Location', open: 'Open match in Go Play' },
+  ar: { title: 'Go Play — دعوة إلى مباراة', description: 'افتح المباراة في Go Play لاستكمال التسجيل.', location: 'الموقع', open: 'فتح المباراة في Go Play', invite: '⚽ انضم إلى', action: 'افتح الرابط لعرض التفاصيل والانضمام' },
+  en: { title: 'Go Play — Match invitation', description: 'Open the match in Go Play to continue registration.', location: 'Location', open: 'Open match in Go Play', invite: '⚽ Join', action: 'Open the link to view details and join' },
 };
+const thumbnails = {
+  ar: { file: 'go-play-invite-v2-ar.png', width: 1730, height: 909 },
+  en: { file: 'go-play-invite-v2-en.png', width: 1731, height: 909 },
+};
+const neutralThumbnail = { file: 'go-play-thumbnail.png', width: 1200, height: 630 };
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -53,9 +58,10 @@ export async function onRequest({ request, params, env }) {
   const words = copy[language];
   const valid = typeof params.id === 'string' && uuid.test(params.id);
   const id = valid ? params.id.toLowerCase() : '';
-  const canonical = `${url.origin}/share/match/${id}?lang=${language}`;
+  const version = url.searchParams.get('v') === '2' ? '&v=2' : '';
+  const canonical = `${url.origin}/share/match/${id}?lang=${language}${version}`;
   const destination = valid ? `${url.origin}/#/match/${id}` : `${url.origin}/`;
-  const image = `${url.origin}/share/go-play-thumbnail.png`;
+  let thumbnail = neutralThumbnail;
   let title = words.title;
   let summary = words.description;
   let status = valid ? 503 : 400;
@@ -83,8 +89,11 @@ export async function onRequest({ request, params, env }) {
       status = match ? 200 : 404;
       if (match) {
         const name = text(match.title) || text(match.location);
-        title = name ? `${name} — Go Play` : words.title;
+        const upcoming = match.public_state !== 'COMPLETED';
+        if (upcoming) thumbnail = thumbnails[language];
+        title = name ? `${upcoming ? `${words.invite} ` : ''}${name} — Go Play` : words.title;
         summary = description(match, language);
+        if (upcoming) summary += ` • ${words.action}`;
       }
     } catch {
       // No API errors, credentials, roster or session details reach the page.
@@ -92,6 +101,7 @@ export async function onRequest({ request, params, env }) {
     }
   }
 
+  const image = `${url.origin}/share/${thumbnail.file}`;
   // Keep an HTML document for crawlers rather than an HTTP redirect to Flutter.
   // Human navigation uses the existing route; the link also works without JS.
   const html = `<!doctype html>
@@ -110,8 +120,8 @@ export async function onRequest({ request, params, env }) {
 <meta property="og:image" content="${escapeHtml(image)}">
 <meta property="og:image:secure_url" content="${escapeHtml(image)}">
 <meta property="og:image:type" content="image/png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image:width" content="${thumbnail.width}">
+<meta property="og:image:height" content="${thumbnail.height}">
 <meta property="og:image:alt" content="Go Play">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="${escapeHtml(canonical)}">

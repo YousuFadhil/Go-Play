@@ -1724,6 +1724,18 @@ abstract class AppLocalizations {
   /// **'You\'re invited to a match on Go Play:'**
   String get shareMatchInviteLead;
 
+  /// No description provided for @shareMatchInviteHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'⚽ Join us for {title}!'**
+  String shareMatchInviteHeading(String title);
+
+  /// No description provided for @shareMatchInviteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the link to view the details and join the match 👇'**
+  String get shareMatchInviteAction;
+
   /// No description provided for @inviteLinkCopied.
   ///
   /// In en, this message translates to:
