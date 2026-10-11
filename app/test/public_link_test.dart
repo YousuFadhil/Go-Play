@@ -16,6 +16,29 @@ void main() {
   const match = '11111111-2222-4333-8444-555555555555';
 
   group('writing a link', () {
+    test('match invitation pages round-trip without changing old links', () {
+      for (final language in ['ar', 'en']) {
+        final link = PublicLink.matchInvitation(match, languageCode: language);
+        expect(
+          link,
+          '${AppConfig.publicWebBase}/share/match/$match?lang=$language',
+        );
+        expect(Uri.parse(link).fragment, isEmpty);
+        expect(
+          PublicLink.parse(link),
+          const PublicLinkTarget(PublicLinkKind.match, match),
+        );
+      }
+      expect(
+        PublicLink.matchInvitation(match, languageCode: 'fr'),
+        endsWith('?lang=ar'),
+      );
+      expect(
+        PublicLink.format(PublicLinkKind.match, match),
+        endsWith('/#/match/$match'),
+      );
+    });
+
     test('a shared link points at the deployed web app', () {
       final url = PublicLink.format(PublicLinkKind.player, player);
       expect(url, startsWith(AppConfig.publicWebBase));

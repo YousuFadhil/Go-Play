@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodCall, MethodChannel;
+import 'package:go_play/features/sharing/public_link.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/app_header.dart';
 import 'package:go_play/core/club_task.dart';
@@ -30,8 +32,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: CreateMatchScreen(
           communityId: 'c1',
-          matchService:
-              adapter == null ? null : MatchService(adapter),
+          matchService: adapter == null ? null : MatchService(adapter),
           shareText: shareText,
         ),
       ),
@@ -96,7 +97,8 @@ void main() {
     expect(adapter.writes, 0);
   });
 
-  testWidgets('validation still prevents an invalid submission', (tester) async {
+  testWidgets('validation still prevents an invalid submission',
+      (tester) async {
     final adapter = CreateMatchAdapter();
     await pumpCreate(tester, adapter: adapter);
 
@@ -161,9 +163,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(adapter.writes, 1);
-    expect(shared, contains('/#/match/00000000-0000-4000-8000-000000000001'));
-    expect(shared, contains('Location:'));
+    expect(
+        shared,
+        PublicLink.matchInvitation('00000000-0000-4000-8000-000000000001',
+            languageCode: 'en'));
     expect(find.byType(CreateMatchScreen), findsNothing);
+  });
+
+  testWidgets('creation sends one URL through the real share service', (
+    tester,
+  ) async {
+    final calls = <MethodCall>[];
+    const channel = MethodChannel('dev.fluttercommunity.plus/share');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return 'dev.fluttercommunity.plus/share/unavailable';
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final adapter = CreateMatchAdapter();
+    await pumpCreate(tester, adapter: adapter);
+    await fillValidForm(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Create match'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Share match'));
+    await tester.pumpAndSettle();
+    expect(adapter.writes, 1);
+    expect(calls, hasLength(1));
+    final args = Map<String, dynamic>.from(calls.single.arguments as Map);
+    expect(
+      args['text'],
+      PublicLink.matchInvitation(
+        '00000000-0000-4000-8000-000000000001',
+        languageCode: 'en',
+      ),
+    );
+    expect(args['paths'], isNull);
+    expect(find.byType(CreateMatchScreen), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('optional share failure does not turn creation into a failure',
@@ -402,7 +440,6 @@ void main() {
       expect(find.text('Location is required'), findsOneWidget);
     });
   });
-
 }
 
 Future<void> fillValidForm(WidgetTester tester) async {

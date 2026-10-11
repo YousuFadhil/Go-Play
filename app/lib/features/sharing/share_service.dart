@@ -44,11 +44,10 @@ enum ShareOutcome {
 typedef ShareCardDownloader = Future<bool> Function(ShareCardImage image);
 
 /// The text that travels with a picture. Most cards carry only a localized
-/// sentence; the match invitation deliberately adds its existing public URL
-/// to the same text so its image and link can travel in one OS share action.
+/// sentence. Match invitations use their separate text-only URL flow.
 ///
-/// There is no URL field and no automatic link addition: the match invitation
-/// caller composes its destination explicitly; other share cards are unchanged.
+/// There is no URL field and no automatic link addition: callers compose
+/// their text explicitly.
 ///
 /// [text] is already localized when it arrives. Composing it is the calling
 /// feature's business — it is the one that knows whether this is a player's own
@@ -99,8 +98,7 @@ abstract interface class ShareService {
   ///
   /// **Still no destinations.** A message is words only; it names no
   /// application, and the sheet decides where it goes exactly as before. It
-  /// carries no link either, except in the approved match invitation, whose
-  /// caller writes the public match URL into the text itself.
+  /// adds no link automatically; the caller supplies the text.
   ///
   /// Throws [InfrastructureFailure] when the sheet could not be shown at all.
   /// A sheet that was shown and closed returns [ShareOutcome.dismissed].
