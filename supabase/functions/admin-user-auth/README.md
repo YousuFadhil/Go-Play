@@ -88,6 +88,13 @@ caller's token is forwarded and the database decides.
 The recovery link must be allowed by the project's Auth Redirect URLs: the same `/login-callback/recovery`
 forms the app's own "forgot password" already uses. Nothing in Auth settings is changed by this.
 
+The function accepts `redirect_to` only from an explicit allowlist, compared exactly: the production and
+staging web hosts (`https://go-play-44y.pages.dev`, `https://go-play-staging.pages.dev`),
+`goplay://login-callback/recovery`, and `http://localhost` or `http://127.0.0.1` with an optional port,
+each followed by `/login-callback/recovery` and nothing more (no query, fragment, username or other
+port). Anything else is `BAD_REQUEST` before any call is made. **A new web host needs a change to
+`index.ts`**, on purpose.
+
 ## Tests
 
 No dependencies, no project:

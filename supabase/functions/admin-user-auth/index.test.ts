@@ -213,20 +213,178 @@ test("a request that is not valid is refused before anything is called", async (
   assert.deepEqual(b.calls, []);
 });
 
-test("every redirect the app can use is accepted, and nothing else", async () => {
+const PROD = "https://go-play-44y.pages.dev";
+const STAGING = "https://go-play-staging.pages.dev";
+const PATH = "/login-callback/recovery";
+
+test("the redirect allowlist accepts exactly these: both hosts, the app scheme, and a local server on any valid port", async () => {
   for (const redirect of [
-    "goplay://login-callback/recovery",
-    "https://app.example.com/login-callback/recovery",
-    "https://app.example.com:8443/login-callback/recovery",
-    "http://localhost:5000/login-callback/recovery",
-    "http://127.0.0.1:8080/login-callback/recovery",
+    `${PROD}${PATH}`,
+    `${STAGING}${PATH}`,
+    `goplay://login-callback/recovery`,
+    `http://localhost${PATH}`,
+    `http://localhost:5000${PATH}`,
+    `http://localhost:1${PATH}`,
+    `http://localhost:65535${PATH}`,
+    `http://127.0.0.1${PATH}`,
+    `http://127.0.0.1:8080${PATH}`,
   ]) {
-    const b = backend();
-    const res = await handle(request({ ...RECOVER, redirect_to: redirect }), ENV, b.fetchFn);
-    assert.equal(res.status, 200, redirect);
-    const recover = b.calls.find((c) => c.path === "/auth/v1/recover")!;
-    assert.equal(new URLSearchParams(recover.search).get("redirect_to"), redirect);
+    for (const base of [RECOVER, CHANGE]) {
+      const b = backend();
+      const res = await handle(request({ ...base, redirect_to: redirect }), ENV, b.fetchFn);
+      assert.equal(res.status, 200, `${base.action}: ${redirect}`);
+      // the link the provider is asked to send is the one that was validated, byte for byte
+      const recover = b.calls.filter((c) => c.path === "/auth/v1/recover");
+      assert.equal(recover.length, 1);
+      assert.equal(new URLSearchParams(recover[0].search).get("redirect_to"), redirect);
+    }
   }
+});
+
+test("the redirect allowlist refuses everything else, before anything is called", async () => {
+  const refused: [string, string[]][] = [
+    ["an HTTPS domain nobody approved", [
+      `https://app.example.com${PATH}`,
+      `https://evil.example${PATH}`,
+      `https://pages.dev${PATH}`,
+      `https://go-play.pages.dev${PATH}`,
+      `https://go-play-44y.example.com${PATH}`,
+    ]],
+    ["a lookalike or a subdomain of an approved host", [
+      `https://go-play-44y.pages.dev.evil.example${PATH}`,
+      `https://evil.go-play-44y.pages.dev${PATH}`,
+      `https://www.go-play-44y.pages.dev${PATH}`,
+      `https://xgo-play-44y.pages.dev${PATH}`,
+      `https://go-play-44y-pages.dev${PATH}`,
+      `https://go-play-staging.pages.dev.evil.example${PATH}`,
+      `https://sub.go-play-staging.pages.dev${PATH}`,
+      `https://go-play-44y.pages.dev.${PATH}`,
+    ]],
+    ["a username or credentials in the address", [
+      `https://evil.example@go-play-44y.pages.dev${PATH}`,
+      `https://go-play-44y.pages.dev@evil.example${PATH}`,
+      `https://user:pass@go-play-44y.pages.dev${PATH}`,
+      `https://user@go-play-staging.pages.dev${PATH}`,
+      `http://evil.example@localhost${PATH}`,
+      `http://localhost@evil.example${PATH}`,
+      `goplay://user@login-callback/recovery`,
+    ]],
+    ["a port on a production host, even the default one", [
+      `${PROD}:443${PATH}`,
+      `${PROD}:8443${PATH}`,
+      `${PROD}:80${PATH}`,
+      `${PROD}:${PATH}`,
+      `${STAGING}:443${PATH}`,
+      `${STAGING}:8080${PATH}`,
+    ]],
+    ["a query string or a fragment", [
+      `${PROD}${PATH}?x=1`,
+      `${PROD}${PATH}?`,
+      `${PROD}${PATH}#access_token=x`,
+      `${PROD}${PATH}#`,
+      `${STAGING}${PATH}?next=https://evil.example`,
+      `goplay://login-callback/recovery?x=1`,
+      `goplay://login-callback/recovery#x`,
+      `http://localhost:5000${PATH}?x=1`,
+      `http://127.0.0.1${PATH}#x`,
+    ]],
+    ["another path", [
+      `${PROD}/login-callback`,
+      `${PROD}${PATH}/`,
+      `${PROD}${PATH}/x`,
+      `${PROD}/Login-Callback/Recovery`,
+      `${PROD}//login-callback/recovery`,
+      `${PROD}/login-callback/../login-callback/recovery`,
+      `${PROD}/login-callback/recovery%2f..`,
+      `${PROD}/`,
+      PROD,
+      `goplay://login-callback`,
+      `goplay://login-callback/recovery/`,
+      `goplay:///login-callback/recovery`,
+      `goplay://evil/login-callback/recovery`,
+      `http://localhost:5000/login-callback`,
+      `http://localhost${PATH}/`,
+    ]],
+    ["another scheme or another case", [
+      `http://go-play-44y.pages.dev${PATH}`,
+      `http://go-play-staging.pages.dev${PATH}`,
+      `HTTPS://go-play-44y.pages.dev${PATH}`,
+      `Https://go-play-44y.pages.dev${PATH}`,
+      `https://GO-PLAY-44Y.pages.dev${PATH}`,
+      `https://Go-Play-Staging.pages.dev${PATH}`,
+      `GoPlay://login-callback/recovery`,
+      `goplay://LOGIN-CALLBACK/recovery`,
+      `https://localhost${PATH}`,
+      `https://127.0.0.1${PATH}`,
+      `javascript:alert(1)`,
+      `data:text/html,x`,
+      `ftp://go-play-44y.pages.dev${PATH}`,
+    ]],
+    ["a local address that is not one of the two, or a port that is not one", [
+      `http://localhost.evil.example${PATH}`,
+      `http://127.0.0.1.evil.example${PATH}`,
+      `http://LOCALHOST${PATH}`,
+      `http://127.1${PATH}`,
+      `http://0.0.0.0:5000${PATH}`,
+      `http://[::1]:5000${PATH}`,
+      `http://192.168.1.10:5000${PATH}`,
+      `http://localhost:${PATH}`,
+      `http://localhost:0${PATH}`,
+      `http://localhost:05000${PATH}`,
+      `http://localhost:65536${PATH}`,
+      `http://localhost:99999${PATH}`,
+      `http://localhost:123456${PATH}`,
+      `http://localhost:80a${PATH}`,
+      `http://localhost:-1${PATH}`,
+    ]],
+    ["whitespace or control characters", [
+      ` ${PROD}${PATH}`,
+      `${PROD}${PATH} `,
+      `${PROD}${PATH}\n`,
+      `${PROD}${PATH}\r\n`,
+      `${PROD}${PATH}\t`,
+      `\n${PROD}${PATH}`,
+      `${PROD}${PATH}%20`,
+      `${PROD}${PATH}\u0000`,
+      `goplay://login-callback/recovery\n`,
+      `http://localhost:5000${PATH}\n`,
+      "",
+      "   ",
+    ]],
+  ];
+  let count = 0;
+  for (const [reason, urls] of refused) {
+    for (const redirect of urls) {
+      for (const base of [RECOVER, CHANGE]) {
+        const b = backend();
+        const res = await handle(request({ ...base, redirect_to: redirect }), ENV, b.fetchFn);
+        assert.equal(res.status, 400, `${reason}: ${JSON.stringify(redirect)} (${base.action})`);
+        assert.equal((await res.json()).error, "BAD_REQUEST");
+        assert.deepEqual(b.calls, [], `${reason}: ${JSON.stringify(redirect)}: nothing was called`);
+        count++;
+      }
+    }
+  }
+  assert.ok(count > 150, `only ${count} cases ran`);
+});
+
+test("a redirect that is not text, or is missing, is refused too", async () => {
+  for (const redirect of [undefined, null, 5, true, [`${PROD}${PATH}`], { url: `${PROD}${PATH}` }]) {
+    for (const base of [RECOVER, CHANGE]) {
+      const b = backend();
+      const res = await handle(request({ ...base, redirect_to: redirect }), ENV, b.fetchFn);
+      assert.equal(res.status, 400, JSON.stringify(redirect));
+      assert.deepEqual(b.calls, []);
+    }
+  }
+});
+
+test("setting a password does not take a redirect at all: the allowlist does not touch it", async () => {
+  const b = backend();
+  const res = await handle(request({ ...SETPW, redirect_to: "https://evil.example/x" }), ENV, b.fetchFn);
+  assert.equal(res.status, 200);
+  assert.equal(b.calls.filter((c) => c.path === "/auth/v1/recover").length, 0, "no mail, so no link");
+  assert.ok(!JSON.stringify(b.calls.map((c) => c.body)).includes("evil.example"), "and the address is forwarded nowhere");
 });
 
 // ----------------------------------------------------------------------------- authorization

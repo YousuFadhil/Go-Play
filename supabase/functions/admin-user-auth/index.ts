@@ -79,12 +79,30 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = /^[A-Z][A-Z0-9_]+$/;
 
 // The only places a recovery link may send the person: the app's own callback with `/recovery`
-// (`AuthService.recoveryRedirect`). The Auth service enforces its own allow-list on top of this.
-const REDIRECTS = [
-  /^goplay:\/\/login-callback\/recovery$/,
-  /^https:\/\/[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d{1,5})?\/login-callback\/recovery$/i,
-  /^http:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?\/login-callback\/recovery$/i,
-];
+// (`AuthService.recoveryRedirect`) on the two hosts it is served from, the native scheme, and a local
+// development server. The Auth service enforces its own allow-list on top of this.
+//
+// **Exact strings, not patterns, for everything that is not a local server.** A pattern that accepts
+// "any HTTPS host" lets an administrator's request send a recovery link anywhere; a string comparison
+// cannot be argued with. So a subdomain lookalike, an embedded username, a port the host does not use,
+// a query or a fragment, another case, a trailing slash or a trailing space all simply are not in the
+// list. A new web host is a code change here, deliberately.
+const RECOVERY_REDIRECTS: ReadonlySet<string> = new Set([
+  "https://go-play-44y.pages.dev/login-callback/recovery",
+  "https://go-play-staging.pages.dev/login-callback/recovery",
+  "goplay://login-callback/recovery",
+]);
+
+// A local development server may use any port, over plain http, on exactly these two names.
+const LOCAL_REDIRECT =
+  /^http:\/\/(?:localhost|127\.0\.0\.1)(?::([1-9][0-9]{0,4}))?\/login-callback\/recovery$/;
+
+function isAllowedRedirect(value: string): boolean {
+  if (RECOVERY_REDIRECTS.has(value)) return true;
+  const local = LOCAL_REDIRECT.exec(value);
+  if (local === null) return false;
+  return local[1] === undefined || Number(local[1]) <= 65535;
+}
 
 const REASON_MAX = 500;
 // The product's rule (`AuthService.minimumPasswordLength`) and the hash function's own ceiling.
@@ -311,7 +329,7 @@ export async function handle(
   let redirectTo = "";
   if (action !== "set_password") {
     const given = raw["redirect_to"];
-    if (typeof given !== "string" || !REDIRECTS.some((r) => r.test(given))) {
+    if (typeof given !== "string" || !isAllowedRedirect(given)) {
       return refuse("BAD_REQUEST");
     }
     redirectTo = given;
