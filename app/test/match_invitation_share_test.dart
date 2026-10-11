@@ -60,7 +60,7 @@ void main() {
 
   for (final code in ['en', 'ar']) {
     testWidgets(
-      'real invitation path ($code) sends one URL without a picture',
+      'real invitation path ($code) sends readable details, a CTA and one URL',
       (tester) async {
         final calls = <MethodCall>[];
         const channel = MethodChannel('dev.fluttercommunity.plus/share');
@@ -77,10 +77,26 @@ void main() {
         await tester.pumpAndSettle();
         expect(calls, hasLength(1));
         final args = Map<String, dynamic>.from(calls.single.arguments as Map);
+        final message = args['text'] as String;
         expect(
-          args['text'],
-          PublicLink.matchInvitation(matchId, languageCode: code),
-        );
+            message,
+            startsWith(code == 'ar'
+                ? '⚽ ننتظرك في Friday Football!'
+                : '⚽ Join us for Friday Football!'));
+        expect(message, contains('📅 '));
+        expect(message, contains('🕗 '));
+        expect(message, contains('📍 Sohar Pitch'));
+        expect(
+            message,
+            contains(code == 'ar'
+                ? 'اضغط الرابط لعرض التفاصيل والانضمام إلى المباراة 👇'
+                : 'Open the link to view the details and join the match 👇'));
+        expect(
+            message,
+            endsWith(
+              PublicLink.matchInvitation(matchId, languageCode: code),
+            ));
+        expect(RegExp(r'https?://\S+').allMatches(message), hasLength(1));
         expect(args['paths'], isNull);
         expect(args['mimeTypes'], isNull);
         expect(find.byType(ShareCardPreviewScreen), findsNothing);

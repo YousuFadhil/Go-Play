@@ -1,10 +1,11 @@
 # Match invitation link preview — Option A
 
-Match invitations from creation and match details send exactly one URL:
-`https://<PUBLIC_WEB_BASE>/share/match/<uuid>?lang=ar|en`.
+Match invitations from creation and match details send readable invitation text
+and exactly one URL:
+`https://<PUBLIC_WEB_BASE>/share/match/<uuid>?lang=ar|en&v=2`.
 The page returns server-rendered Open Graph metadata: the publicly readable
 match title, its date/time in Asia/Muscat and location, plus one reusable
-1200×630 Go Play thumbnail. No PNG file is attached to the share sheet.
+localized Go Play thumbnail. No PNG file is attached to the share sheet.
 JavaScript opens the existing `/#/match/<uuid>` route; an ordinary HTML link
 provides the same destination without JavaScript. Existing authentication and
 registration continue through that route. Existing hash links still work.
@@ -69,7 +70,7 @@ WhatsApp may keep its own cached preview; the application cannot control that.
 Automated tests verify the payload and HTML, not WhatsApp's final rendering.
 The Product Owner must authorize any merge or production deployment separately.
 
-## Implementation verification — 2026-10-11
+## Original Option A implementation verification — 2026-10-11
 
 Baseline: `develop` at `d1601bf75bcc3ea4f2957b4af08050986ddb5e3f`.
 
@@ -92,3 +93,33 @@ Local `wrangler pages dev` could not start because this container disallows
 network-interface enumeration (`uv_interface_addresses`). Handler tests and
 bundling passed; an actual hosted request and WhatsApp delivery remain to be
 checked after runtime configuration and an authorized deployment.
+
+## Invitation clarity — UX v2
+
+Following real-device acceptance of the URL preview, the Product Owner requested
+a clearer invitation and approved its visual concept. The message now gives a
+localized invitation heading, date, twelve-hour time range, location (when set),
+and explicit instruction to open the link for details and registration. It uses
+the existing date/time formatters so the invitation agrees with the app screens.
+Both entry points retain one share operation, one URL and no file attachment.
+
+Upcoming match metadata also invites readers to join. Completed matches retain
+neutral metadata and the legacy neutral image. Missing matches/configuration do
+not acquire a registration claim. Existing hash links and app routes remain
+unchanged; no database, dependency, auth or registration behavior changes.
+
+The two reusable images are `go-play-invite-v2-ar.png` (1730×909) and
+`go-play-invite-v2-en.png` (1731×909). They contain brand identity and a join
+instruction, with no per-match information. The old thumbnail is preserved for
+neutral responses and existing references. Generated images were visually
+checked for readable Arabic/English text. Metadata declares each actual size.
+The `v=2` query and new image filenames distinguish this presentation from older
+cached previews; WhatsApp still controls its own rendering and caching.
+
+Validation of this revision: 14/14 Pages handler tests passed, including
+localized assets/dimensions, versioned canonical links and completed-match
+behavior; `git diff --check` passed. Flutter sharing/link tests were updated but
+could not be executed because no Flutter SDK is available in this session.
+Before marking ready: regenerate localizations, format changed Dart files, run
+the four affected Flutter test files and analyzer against the current baseline.
+This revision is for review, with no production publication authorized yet.

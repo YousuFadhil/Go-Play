@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
+import '../../core/time_format.dart';
 import '../../infrastructure/platform/native_text_share_service.dart';
 import '../analytics/analytics_models.dart';
 import '../analytics/analytics_service.dart';
@@ -9,8 +11,8 @@ import 'share_service.dart';
 /// Optional text-sharing seam used by the two invitation entry points.
 typedef ShareMatchText = Future<void> Function(String text);
 
-/// A single public URL. The receiving app fetches its Open Graph thumbnail;
-/// no image attachment or card-preview screen is part of a match invitation.
+/// A readable invitation with one public URL. The receiving app fetches its
+/// Open Graph thumbnail. No image attachment or card-preview screen is used.
 class MatchInvitationShare {
   const MatchInvitationShare._();
 
@@ -21,11 +23,26 @@ class MatchInvitationShare {
     required String location,
     required DateTime startAt,
     required DateTime endAt,
-  }) =>
-      PublicLink.matchInvitation(
-        matchId,
-        languageCode: Localizations.localeOf(context).languageCode,
-      );
+  }) {
+    final l10n = context.l10n;
+    final name = title.trim();
+    final place = location.trim();
+    final url = PublicLink.matchInvitation(
+      matchId,
+      languageCode: Localizations.localeOf(context).languageCode,
+    );
+    return [
+      name.isEmpty
+          ? l10n.shareMatchInviteLead
+          : l10n.shareMatchInviteHeading(name),
+      '📅 ${formatMatchDay(context, startAt)}',
+      '🕗 ${formatTimeRange(context, startAt, endAt)}',
+      if (place.isNotEmpty) '📍 $place',
+      '',
+      l10n.shareMatchInviteAction,
+      url,
+    ].join('\n');
+  }
 
   static Future<void> present(
     BuildContext context, {
@@ -38,7 +55,7 @@ class MatchInvitationShare {
     String? communityId,
     NativeTextShareService? shareService,
   }) async {
-    final url = message(
+    final invitation = message(
       context,
       matchId: matchId,
       title: title,
@@ -47,7 +64,7 @@ class MatchInvitationShare {
       endAt: endAt,
     );
     final outcome = await (shareService ?? NativeTextShareService()).shareText(
-      url,
+      invitation,
     );
     if (outcome != ShareOutcome.dismissed) {
       ProductAnalytics.instance.track(

@@ -361,6 +361,11 @@
   "shareMatchCreatedPrompt": "Share this match to invite players.",
   "shareMatchLater": "Later",
   "shareMatchInviteLead": "You're invited to a match on Go Play:",
+  "shareMatchInviteHeading": "⚽ Join us for {title}!",
+  "@shareMatchInviteHeading": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "shareMatchInviteAction": "Open the link to view the details and join the match 👇",
   "inviteLinkCopied": "Invitation copied. Paste it wherever you share it.",
   "inviteShareCommunityBody": "Join {community} on Go Play:\n{link}",
   "@inviteShareCommunityBody": {

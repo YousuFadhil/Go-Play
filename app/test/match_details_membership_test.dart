@@ -763,7 +763,8 @@ void main() {
       await tester.tap(find.text('Share match'));
       await tester.pumpAndSettle();
 
-      expect(shared, PublicLink.matchInvitation('m1', languageCode: 'en'));
+      expect(shared,
+          endsWith(PublicLink.matchInvitation('m1', languageCode: 'en')));
     });
 
     testWidgets('details sends one URL through the real share service', (
@@ -788,7 +789,7 @@ void main() {
       final args = Map<String, dynamic>.from(calls.single.arguments as Map);
       expect(
         args['text'],
-        PublicLink.matchInvitation('m1', languageCode: 'en'),
+        endsWith(PublicLink.matchInvitation('m1', languageCode: 'en')),
       );
       expect(args['paths'], isNull);
       expect(find.byType(MatchDetailsScreen), findsOneWidget);
