@@ -1539,35 +1539,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shareMyProfileAction => 'مشاركة ملفي';
 
   @override
-  String get shareTextMyProfile => 'ملفي كلاعب في Go Play.';
-
-  @override
-  String shareTextPlayerProfile(String name) {
-    return '$name — ملف اللاعب في Go Play.';
-  }
-
-  @override
   String get shareTextMyStatistics => 'إحصائياتي في Go Play.';
-
-  @override
-  String shareTextCommunityStatistics(String community) {
-    return '$community — الإحصائيات في Go Play.';
-  }
-
-  @override
-  String shareTextTeamOfPeriod(String community) {
-    return '$community — تشكيلة الفترة في Go Play.';
-  }
-
-  @override
-  String shareTextMatchLineup(String match) {
-    return '$match — التشكيلة في Go Play.';
-  }
-
-  @override
-  String shareTextMatchResult(String match) {
-    return '$match — النتيجة في Go Play.';
-  }
 
   @override
   String get recentFormTitle => 'الأداء الأخير';

@@ -2750,47 +2750,11 @@ abstract class AppLocalizations {
   /// **'Share my profile'**
   String get shareMyProfileAction;
 
-  /// No description provided for @shareTextMyProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'My player profile on Go Play.'**
-  String get shareTextMyProfile;
-
-  /// No description provided for @shareTextPlayerProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} — player profile on Go Play.'**
-  String shareTextPlayerProfile(String name);
-
   /// No description provided for @shareTextMyStatistics.
   ///
   /// In en, this message translates to:
   /// **'My statistics on Go Play.'**
   String get shareTextMyStatistics;
-
-  /// No description provided for @shareTextCommunityStatistics.
-  ///
-  /// In en, this message translates to:
-  /// **'{community} — statistics on Go Play.'**
-  String shareTextCommunityStatistics(String community);
-
-  /// No description provided for @shareTextTeamOfPeriod.
-  ///
-  /// In en, this message translates to:
-  /// **'{community} — Team of the Period on Go Play.'**
-  String shareTextTeamOfPeriod(String community);
-
-  /// No description provided for @shareTextMatchLineup.
-  ///
-  /// In en, this message translates to:
-  /// **'{match} — the lineup on Go Play.'**
-  String shareTextMatchLineup(String match);
-
-  /// No description provided for @shareTextMatchResult.
-  ///
-  /// In en, this message translates to:
-  /// **'{match} — the result on Go Play.'**
-  String shareTextMatchResult(String match);
 
   /// No description provided for @recentFormTitle.
   ///
