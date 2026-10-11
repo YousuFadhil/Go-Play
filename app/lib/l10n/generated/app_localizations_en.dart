@@ -2755,4 +2755,1006 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get matchLiveBadge => 'LIVE';
+
+  @override
+  String get adminAccountDataTitle => 'Account data';
+
+  @override
+  String get adminAccountEditAction => 'Edit account';
+
+  @override
+  String get adminAccountActiveLabel => 'Account active';
+
+  @override
+  String get adminAccountNotSet => 'Not set';
+
+  @override
+  String get adminAccountYes => 'Yes';
+
+  @override
+  String get adminAccountNo => 'No';
+
+  @override
+  String get adminAccountOn => 'On';
+
+  @override
+  String get adminAccountOff => 'Off';
+
+  @override
+  String get adminAccountAgeVisibleLabel => 'Age visible to others';
+
+  @override
+  String get adminAccountProfileVisibilityLabel => 'Profile visibility';
+
+  @override
+  String get adminAccountSignInMethodsLabel => 'Sign-in method';
+
+  @override
+  String get adminProviderGoogle => 'Google';
+
+  @override
+  String get adminAccountEmailConfirmedLabel => 'Email confirmed';
+
+  @override
+  String get adminAccountEmailNotConfirmed => 'Not confirmed';
+
+  @override
+  String get adminAccountLastSignInLabel => 'Last sign-in';
+
+  @override
+  String get adminAccountNeverSignedIn => 'Never signed in';
+
+  @override
+  String get adminEditUnavailableSelf =>
+      'You can\'t edit your own account here.';
+
+  @override
+  String get adminEditUnavailableSystemAdmin =>
+      'System Admin accounts are managed outside the app.';
+
+  @override
+  String get adminEditGroupAccount => 'Name and phone';
+
+  @override
+  String get adminEditGroupPlayer => 'Date of birth and positions';
+
+  @override
+  String get adminEditReasonLabel => 'Reason (optional)';
+
+  @override
+  String get adminEditReasonHelp => 'Recorded in the audit log.';
+
+  @override
+  String get adminEditSaved => 'Saved.';
+
+  @override
+  String get adminEditClearDateOfBirth => 'Clear date of birth';
+
+  @override
+  String get adminEditNotAllowed => 'You can\'t edit this account.';
+
+  @override
+  String get adminEditInvalid =>
+      'One of the values isn\'t valid. Check them and try again.';
+
+  @override
+  String get adminEditUserNotFound => 'This account no longer exists.';
+
+  @override
+  String get adminActionUserProfileUpdated => 'Account updated';
+
+  @override
+  String get adminAccountCreatedLabel => 'Account created';
+
+  @override
+  String get adminPreviewMergeAction => 'Preview merge';
+
+  @override
+  String get adminPreviewDeletionAction => 'Preview deletion';
+
+  @override
+  String get adminPreviewMergeTitle => 'Merge accounts';
+
+  @override
+  String get adminPreviewDeletionTitle => 'Delete account';
+
+  @override
+  String get adminPreviewReadOnlyNote =>
+      'Read only. Nothing is merged, deleted or changed from this screen, and this preview does not make a merge or deletion available or authorised.';
+
+  @override
+  String get adminMergeRetainedLabel => 'Account to keep';
+
+  @override
+  String get adminMergeSourceLabel => 'Account to merge in';
+
+  @override
+  String get adminMergeChoose => 'Choose an account';
+
+  @override
+  String get adminMergeSwap => 'Swap accounts';
+
+  @override
+  String get adminMergeSearchHint => 'Search by name or email';
+
+  @override
+  String get adminMergePreviewButton => 'Preview';
+
+  @override
+  String get adminMergeNeedTwo => 'Choose two different accounts to preview.';
+
+  @override
+  String get adminPickerNoResults => 'No accounts found.';
+
+  @override
+  String get adminPreviewVerdictClear => 'No blockers found in this preview.';
+
+  @override
+  String adminPreviewVerdictBlocked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count blockers found.',
+      one: '1 blocker found.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminPreviewFindingsTitle => 'Findings';
+
+  @override
+  String get adminPreviewNothingInTheWay => 'Nothing in the way.';
+
+  @override
+  String get adminSeverityBlocker => 'Blocker';
+
+  @override
+  String get adminSeverityConflict => 'Needs a rule';
+
+  @override
+  String get adminSeverityConstraint => 'Cannot be changed';
+
+  @override
+  String get adminPreviewAccountsTitle => 'Accounts';
+
+  @override
+  String get adminPreviewActivityTitle => 'What names the accounts';
+
+  @override
+  String get adminPreviewRetainedColumn => 'Keep';
+
+  @override
+  String get adminPreviewSourceColumn => 'Merge in';
+
+  @override
+  String get adminPreviewOverlapTitle => 'Communities both belong to';
+
+  @override
+  String get adminPreviewSourceOwnedTitle =>
+      'Communities the merged-in account owns';
+
+  @override
+  String get adminPreviewSharedMatchesTitle => 'Matches both appear in';
+
+  @override
+  String get adminPreviewStatisticsTitle => 'Statistics that would collide';
+
+  @override
+  String get adminPreviewPersonalTitle => 'Personal data held';
+
+  @override
+  String get adminPreviewOwnedTitle => 'Communities owned';
+
+  @override
+  String get adminPreviewCreatedTitle => 'Matches created';
+
+  @override
+  String get adminPreviewHistoricalTitle => 'Football history';
+
+  @override
+  String get adminPreviewPreservedTitle => 'Cannot be changed by anyone';
+
+  @override
+  String get adminPreviewCoverageTitle => 'Not covered by this preview';
+
+  @override
+  String adminPreviewShowing(int shown, int total) {
+    return 'Showing $shown of $total';
+  }
+
+  @override
+  String adminPreviewOwnedRow(int members, int admins, int matches) {
+    return '$members members · $admins other admins · $matches matches';
+  }
+
+  @override
+  String get adminPreviewTagRoleConflict => 'Different roles';
+
+  @override
+  String get adminPreviewTagSourceOwns => 'Merged-in account owns it';
+
+  @override
+  String get adminPreviewTagRetainedOwns => 'Kept account owns it';
+
+  @override
+  String get adminPreviewRetainedNotMember => 'Kept account is not a member';
+
+  @override
+  String get adminPreviewCollision => 'Collision';
+
+  @override
+  String get adminPreviewHasResult => 'Has a recorded result';
+
+  @override
+  String get adminPreviewRating => 'Overall rating';
+
+  @override
+  String get adminEvidenceRegistration => 'Registration';
+
+  @override
+  String get adminEvidenceLineup => 'Lineup';
+
+  @override
+  String get adminEvidenceGoals => 'Goals';
+
+  @override
+  String get adminEvidenceMvp => 'MVP';
+
+  @override
+  String get adminEvidenceRating => 'Rating';
+
+  @override
+  String get adminTreatmentCascadeDelete => 'Erased with the account';
+
+  @override
+  String get adminTreatmentDetach => 'Link removed, record kept';
+
+  @override
+  String get adminTreatmentRetainedId => 'Kept, pointing at no account';
+
+  @override
+  String get adminCountMemberships => 'Community memberships';
+
+  @override
+  String get adminCountOwned => 'Communities owned';
+
+  @override
+  String get adminCountCreated => 'Matches created';
+
+  @override
+  String get adminCountRegistrations => 'Match registrations';
+
+  @override
+  String get adminCountUpcoming => 'Upcoming registrations';
+
+  @override
+  String get adminCountLineup => 'Lineup places';
+
+  @override
+  String get adminCountGoals => 'Goals scored';
+
+  @override
+  String get adminCountGoalRows => 'Goal records';
+
+  @override
+  String get adminCountMvp => 'MVP awards';
+
+  @override
+  String get adminCountCareerStats => 'Matches played (career)';
+
+  @override
+  String get adminCountRatingEntries => 'Rating entries';
+
+  @override
+  String get adminCountRatingArchive => 'Rating archive rows';
+
+  @override
+  String get adminCountCommunityStatistics => 'Community statistics rows';
+
+  @override
+  String get adminCountTeamAwards => 'Team of the period awards';
+
+  @override
+  String get adminCountNotifications => 'Notifications';
+
+  @override
+  String get adminCountPushTokens => 'Push tokens';
+
+  @override
+  String get adminCountActivityEvents => 'Activity events';
+
+  @override
+  String get adminCountAuditEntries => 'Audit log entries';
+
+  @override
+  String get adminPersonalProfile => 'Profile';
+
+  @override
+  String get adminPersonalIdentities => 'Sign-in identities';
+
+  @override
+  String get adminPersonalAvatar => 'Profile picture';
+
+  @override
+  String get adminPersonalPushPreferences => 'Push preferences';
+
+  @override
+  String get adminHistRecordedResults => 'Results recorded';
+
+  @override
+  String get adminHistGuestsAdded => 'Professional guests added';
+
+  @override
+  String get adminHistRegistrationEvents => 'Registration events';
+
+  @override
+  String get adminHistMembershipEvents => 'Membership events';
+
+  @override
+  String get adminHistGenerationRuns => 'Lineup generation runs';
+
+  @override
+  String get adminHistConfirmedLineups => 'Lineups confirmed';
+
+  @override
+  String get adminHistRatingHistoryArchive => 'Rating history archive';
+
+  @override
+  String get adminHistUserRatingArchive => 'Rating archive (per account)';
+
+  @override
+  String get adminCoverageGenerationEvidence =>
+      'Player ids embedded inside saved lineup-generation data are not scanned.';
+
+  @override
+  String get adminCoverageStorage =>
+      'The profile picture file in storage is not inspected.';
+
+  @override
+  String get adminCoverageSessions =>
+      'Sign-in sessions and tokens are not inspected.';
+
+  @override
+  String get adminFindingSourceIsCaller =>
+      'The account to merge in is your own';
+
+  @override
+  String get adminFindingRetainedIsCaller => 'The account to keep is your own';
+
+  @override
+  String get adminFindingSourceIsSystemAdmin =>
+      'The account to merge in is a System Admin';
+
+  @override
+  String get adminFindingRetainedIsSystemAdmin =>
+      'The account to keep is a System Admin';
+
+  @override
+  String get adminFindingOwnershipConflict =>
+      'Communities owned by the merged-in account that the kept account already belongs to';
+
+  @override
+  String get adminFindingSharedMatchCollision =>
+      'Matches where both accounts hold the same kind of record';
+
+  @override
+  String get adminFindingSourceOwnsCommunities =>
+      'Communities owned by the merged-in account need a new owner';
+
+  @override
+  String get adminFindingRoleConflict =>
+      'Communities where the two accounts have different roles';
+
+  @override
+  String get adminFindingSharedMatchParticipation =>
+      'Matches both accounts appear in, without the same kind of record';
+
+  @override
+  String get adminFindingSourceCreatedMatches =>
+      'Matches created by the merged-in account';
+
+  @override
+  String get adminFindingCommunityStatisticsCollision =>
+      'Community statistics rows both accounts hold';
+
+  @override
+  String get adminFindingTeamAwardCollision =>
+      'Both accounts hold an award in the same team of the period; none is discarded, so the merge is blocked';
+
+  @override
+  String get adminFindingPlayerStatisticsRecompute =>
+      'Career statistics would have to be recomputed (matches played)';
+
+  @override
+  String get adminFindingRatingReplayRequired =>
+      'Rating history would have to be replayed (entries)';
+
+  @override
+  String get adminFindingRatingArchiveImmutable =>
+      'Rating archive rows name this account and cannot be moved or deleted, so retiring it safely is not demonstrated';
+
+  @override
+  String get adminFindingEventLogsNameSource =>
+      'Event logs that name the merged-in account stay as they are';
+
+  @override
+  String get adminFindingAuditLogNamesSource =>
+      'Audit log entries name this account. They keep their date, action and ids; the name and e-mail in them are removed';
+
+  @override
+  String get adminFindingTargetIsCaller => 'This is your own account';
+
+  @override
+  String get adminFindingTargetIsSystemAdmin =>
+      'This account is a System Admin';
+
+  @override
+  String get adminFindingOwnsCommunities =>
+      'Owns communities: ownership must be transferred first';
+
+  @override
+  String get adminFindingCreatedMatches =>
+      'Created matches: they must be reassigned first';
+
+  @override
+  String get adminFindingMvpResultsWouldCascade =>
+      'Deleting would erase the results of matches where this player is the MVP';
+
+  @override
+  String get adminFindingHistoryWouldCascade =>
+      'Football history that would be erased with the account';
+
+  @override
+  String get adminFindingUpcomingRegistrations =>
+      'Registered for upcoming matches';
+
+  @override
+  String get adminFindingRatingHistoryImmutable =>
+      'Rating entries cannot be edited (updates are rejected), so they cannot be anonymised in place; deleting the account deletes them';
+
+  @override
+  String get adminFindingAuditLogAppendOnly =>
+      'Audit log entries naming this account are not erased by a deletion, so its name or email address would stay identifiable in them';
+
+  @override
+  String get adminFindingEventLogsNameAccount =>
+      'Event logs that name this account stay as they are';
+
+  @override
+  String get adminHistCareerStatistics => 'Career statistics';
+
+  @override
+  String get adminMergeNotice =>
+      'Merging is permanent. The account to merge in is deleted for good, including its sign-in and profile picture, and its football record is added to the account to keep. Nothing happens until you confirm.';
+
+  @override
+  String get adminMergePlanTitle => 'What the merge will do';
+
+  @override
+  String get adminMergePlanCommunitiesTransferred =>
+      'Communities passed to the account to keep';
+
+  @override
+  String get adminMergePlanMembershipsMoved => 'Memberships moved';
+
+  @override
+  String get adminMergePlanMembershipsMerged =>
+      'Duplicate memberships merged (the higher role stays)';
+
+  @override
+  String get adminMergePlanRolesUpgraded => 'Roles raised to the higher one';
+
+  @override
+  String get adminMergePlanRegistrationsMoved => 'Match registrations moved';
+
+  @override
+  String get adminMergePlanLineupPlacesMoved => 'Lineup places moved';
+
+  @override
+  String get adminMergePlanGoalRowsMoved => 'Goal records moved';
+
+  @override
+  String get adminMergePlanMvpAwardsMoved => 'MVP awards moved';
+
+  @override
+  String get adminMergePlanTeamAwardsMoved => 'Team of the period awards moved';
+
+  @override
+  String get adminMergePlanCreatedMatches =>
+      'Matches the merged-in account created, re-attributed';
+
+  @override
+  String get adminMergePlanFootnote =>
+      'The kept account\'s rating is recalculated match by match in date order, and its statistics are rebuilt from the records. Nobody else\'s rating or statistics change.';
+
+  @override
+  String get adminMergeChoiceTitle => 'Choose which participation to keep';
+
+  @override
+  String get adminMergeChoiceHelp =>
+      'A player has one place in a match. For each match below, choose whose participation stays; the other is removed. Goals, MVP awards, results and confirmed lineups are never removed.';
+
+  @override
+  String adminMergeKeepRetained(String name) {
+    return 'Keep $name';
+  }
+
+  @override
+  String adminMergeKeepSource(String name) {
+    return 'Keep $name';
+  }
+
+  @override
+  String adminMergeHeldBy(String name, String reasons) {
+    return '$name can\'t be removed here: $reasons';
+  }
+
+  @override
+  String get adminMergeBlockerGoals => 'scored goals';
+
+  @override
+  String get adminMergeBlockerMvp => 'is the match\'s MVP';
+
+  @override
+  String get adminMergeBlockerLineupInResult =>
+      'is in the lineup a result was recorded from';
+
+  @override
+  String get adminMergeBlockerConfirmedLineup => 'is in a confirmed lineup';
+
+  @override
+  String get adminMergeBlockerRating =>
+      'has a rating in effect from this match';
+
+  @override
+  String adminMergeNeedChoices(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Choose which participation to keep in $count matches.',
+      one: 'Choose which participation to keep in 1 match.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminMergeResolveBlockersFirst =>
+      'Resolve the blockers above first.';
+
+  @override
+  String get adminMergeExecuteButton => 'Merge accounts…';
+
+  @override
+  String get adminMergeConfirmTitle => 'Merge permanently?';
+
+  @override
+  String adminMergeConfirmBody(String source, String retained) {
+    return '$source will be deleted for good, including their sign-in and profile picture. Their football record will be added to $retained. This cannot be undone.';
+  }
+
+  @override
+  String adminMergeConfirmTypeLabel(String name) {
+    return 'Type the name of the account to delete: $name';
+  }
+
+  @override
+  String get adminMergeConfirmField => 'Name';
+
+  @override
+  String get adminMergeConfirmAction => 'Merge permanently';
+
+  @override
+  String get adminMergeRunning => 'Merging…';
+
+  @override
+  String get adminMergeDoneTitle => 'Accounts merged';
+
+  @override
+  String adminMergeDoneBody(String source, String retained) {
+    return '$source was deleted. Their football record now belongs to $retained.';
+  }
+
+  @override
+  String adminMergeDoneRating(String name, String before, String after) {
+    return '$name\'s rating was recalculated: $before → $after.';
+  }
+
+  @override
+  String get adminMergeDoneButton => 'Done';
+
+  @override
+  String get adminMergeFailedConflict =>
+      'The merge was not performed. Something changed or is in the way. Review the preview again.';
+
+  @override
+  String get adminMergeFailedNotFound =>
+      'One of the accounts no longer exists. If a merge just ran, the account to merge in is already gone.';
+
+  @override
+  String get adminMergeFailedAuthorization =>
+      'You are not allowed to merge these accounts.';
+
+  @override
+  String get adminMergeFailedValidation =>
+      'The request was not accepted. Nothing was changed.';
+
+  @override
+  String get adminMergeFailedUncertain =>
+      'The merge may or may not have been performed. Check the preview before trying again: if it went through, the account to merge in no longer exists.';
+
+  @override
+  String get adminMergeCheckAgain => 'Check again';
+
+  @override
+  String get adminFindingSharedMatchNotResolvable =>
+      'Matches where neither account\'s participation can be removed (goals, MVP awards, recorded lineups): correct them first';
+
+  @override
+  String get adminFindingSharedMatchLimitExceeded =>
+      'More shared matches than one merge can resolve (100)';
+
+  @override
+  String get adminFindingSharedMatchChoiceRequired =>
+      'Matches both accounts took part in: choose which participation to keep';
+
+  @override
+  String get adminFindingSourceHasStoredFiles =>
+      'The account to merge in has a profile picture in storage. The merge removes it first; if the merge then fails, the picture stays removed';
+
+  @override
+  String get adminFindingRetainedRatingInconsistent =>
+      'The rating of the account to keep does not follow from its rating history, so it cannot be recalculated safely';
+
+  @override
+  String get adminFindingRatingArchiveMapped =>
+      'Rating archive rows keep the old account id; the merge records which account it became';
+
+  @override
+  String get adminMergeFailedAvatarCleanup =>
+      'The merge was not performed. The profile picture of the account to merge in could not be removed, so nothing else was changed. Try again.';
+
+  @override
+  String get adminMergeAvatarRemovedNote =>
+      'The profile picture of the account to merge in had already been removed.';
+
+  @override
+  String get adminFindingHistoryKept =>
+      'The football history of matches played is kept and shown as Deleted Player';
+
+  @override
+  String get adminFindingCreatedMatchesKept =>
+      'Matches this account created are kept';
+
+  @override
+  String get adminFindingRatingArchiveKept =>
+      'Rating archive rows keep the old account id and stay as they are';
+
+  @override
+  String get adminFindingStoredFilesRemoved =>
+      'The account has a profile picture in storage. The deletion removes it first; if the deletion then fails, the picture stays removed';
+
+  @override
+  String get adminTreatmentKept => 'Kept, shown as Deleted Player';
+
+  @override
+  String get adminTreatmentRemoved => 'Removed';
+
+  @override
+  String get adminHistUpcomingLineup => 'Lineup places in upcoming matches';
+
+  @override
+  String get adminDeleteNotice =>
+      'Deleting is permanent. The account is deleted for good, including its sign-in, its profile data and its profile picture. Its football history stays and is shown as Deleted Player. Nothing happens until you confirm.';
+
+  @override
+  String get adminDeleteExecuteButton => 'Delete account…';
+
+  @override
+  String get adminDeleteAccountConfirmTitle => 'Delete permanently?';
+
+  @override
+  String adminDeleteConfirmBody(String name) {
+    return '$name will be deleted for good, including their sign-in and profile picture. Their football history stays and is shown as Deleted Player. This cannot be undone.';
+  }
+
+  @override
+  String get adminDeleteConfirmAction => 'Delete permanently';
+
+  @override
+  String get adminDeleteRunning => 'Deleting…';
+
+  @override
+  String get adminDeleteDoneTitle => 'Account deleted';
+
+  @override
+  String adminDeleteDoneBody(String name) {
+    return '$name was deleted. Their football history stays and is shown as Deleted Player.';
+  }
+
+  @override
+  String get adminDeleteFailedConflict =>
+      'The account was not deleted. Something changed or is in the way. Review the preview again.';
+
+  @override
+  String get adminDeleteFailedNotFound =>
+      'The account no longer exists. If a deletion just ran, it is already gone.';
+
+  @override
+  String get adminDeleteFailedAuthorization =>
+      'You are not allowed to delete this account.';
+
+  @override
+  String get adminDeleteFailedValidation =>
+      'The request was not accepted. Nothing was changed.';
+
+  @override
+  String get adminDeleteFailedUncertain =>
+      'The deletion may or may not have been performed. Check the preview before trying again: if it went through, the account no longer exists.';
+
+  @override
+  String get adminDeleteFailedAvatarCleanup =>
+      'The account was not deleted. Its profile picture could not be removed, so nothing else was changed. Try again.';
+
+  @override
+  String get adminDeleteAvatarRemovedNote =>
+      'The account\'s profile picture had already been removed.';
+
+  @override
+  String get settingsAccountSection => 'Account';
+
+  @override
+  String get deleteMyAccountTitle => 'Delete my account';
+
+  @override
+  String get deleteMyAccountSubtitle =>
+      'Permanently delete your account and personal data';
+
+  @override
+  String get deleteAccountIntro =>
+      'Deleting your account is permanent. Your sign-in, profile, picture and notifications are deleted for good, and you are removed from your communities. The matches you played stay in their communities\' history, shown as Deleted Player.';
+
+  @override
+  String get deleteAccountOwnsTitle => 'You own communities';
+
+  @override
+  String get deleteAccountOwnsBody =>
+      'Transfer ownership of each community below to another member first. Then you can delete your account.';
+
+  @override
+  String get deleteAccountManageMembers => 'Manage members';
+
+  @override
+  String deleteAccountOwnedRow(int members) {
+    String _temp0 = intl.Intl.pluralLogic(
+      members,
+      locale: localeName,
+      other: '$members members',
+      one: '1 member',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteAccountBlockedAdmin =>
+      'System Admin accounts cannot be deleted from the app.';
+
+  @override
+  String get deleteAccountBlockedSuspended =>
+      'A suspended account cannot be deleted.';
+
+  @override
+  String deleteAccountUpcoming(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'You will be withdrawn from $count upcoming matches.',
+      one: 'You will be withdrawn from 1 upcoming match.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteAccountButton => 'Delete my account…';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Delete your account permanently?';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'This cannot be undone. Your account, profile and picture will be deleted and you will be signed out.';
+
+  @override
+  String get deleteAccountConfirmWord => 'DELETE';
+
+  @override
+  String deleteAccountConfirmLabel(String word) {
+    return 'Type $word to confirm';
+  }
+
+  @override
+  String get deleteAccountConfirmAction => 'Delete permanently';
+
+  @override
+  String get deleteAccountRunning => 'Deleting your account…';
+
+  @override
+  String get deleteAccountFailedBlocked =>
+      'Your account was not deleted. Something is in the way. Check again.';
+
+  @override
+  String get deleteAccountFailedAuthorization =>
+      'You are not allowed to delete this account.';
+
+  @override
+  String get deleteAccountFailedGeneric =>
+      'Your account was not deleted. Nothing was changed. Try again.';
+
+  @override
+  String get deleteAccountFailedUncertain =>
+      'Deleting your account may or may not have worked. Sign in again to check: if it did, your account no longer exists.';
+
+  @override
+  String get deleteAccountFailedAvatarCleanup =>
+      'Your account was not deleted. Your profile picture could not be removed, so nothing else was changed. Try again.';
+
+  @override
+  String get deleteAccountAvatarRemovedNote =>
+      'Your profile picture had already been removed.';
+
+  @override
+  String get deleteAccountDoneTitle => 'Your account was deleted';
+
+  @override
+  String get deleteAccountDoneBody =>
+      'You have been signed out. The matches you played stay in their communities, shown as Deleted Player.';
+
+  @override
+  String get adminActionUserEmailChanged => 'Email changed';
+
+  @override
+  String get adminActionUserRecoverySent => 'Recovery email sent';
+
+  @override
+  String get adminActionUserPasswordSet => 'Password set';
+
+  @override
+  String get adminAuthChangeEmailAction => 'Change email';
+
+  @override
+  String get adminAuthSendRecoveryAction => 'Send recovery email';
+
+  @override
+  String get adminAuthSetPasswordAction => 'Set password';
+
+  @override
+  String get adminAuthGoogleNote =>
+      'This account is linked to Google, so its email cannot be changed here. Recovery and setting a password are still available.';
+
+  @override
+  String get adminAuthChangeEmailTitle => 'Change email';
+
+  @override
+  String get adminAuthChangeEmailBody =>
+      'The new address takes effect immediately and the player does not confirm it. The standard password recovery email is then sent to the new address.';
+
+  @override
+  String adminAuthCurrentEmail(String email) {
+    return 'Current email: $email';
+  }
+
+  @override
+  String get adminAuthNewEmailLabel => 'New email';
+
+  @override
+  String get adminAuthConfirmEmailLabel => 'Repeat the new email';
+
+  @override
+  String get adminAuthEmailMismatch => 'The two addresses do not match';
+
+  @override
+  String get adminAuthEmailSame => 'That is already this account\'s email';
+
+  @override
+  String get adminAuthSendRecoveryTitle => 'Send recovery email';
+
+  @override
+  String adminAuthSendRecoveryBody(String email) {
+    return 'The standard password recovery email is sent to $email. Nothing about the account changes.';
+  }
+
+  @override
+  String get adminAuthSetPasswordTitle => 'Set password';
+
+  @override
+  String get adminAuthSetPasswordBody =>
+      'The player can sign in with this password right away. Tell them the password yourself: it is not stored or shown again. Devices that are signed in may stay signed in until their session expires.';
+
+  @override
+  String get adminAuthConfirmPasswordLabel => 'Repeat the new password';
+
+  @override
+  String get adminAuthPasswordMismatch => 'The two passwords do not match';
+
+  @override
+  String get adminAuthReasonLabel => 'Reason (required)';
+
+  @override
+  String get adminAuthReasonRequired => 'Enter the reason';
+
+  @override
+  String get adminAuthSubmitChangeEmail => 'Change email';
+
+  @override
+  String get adminAuthSubmitSendRecovery => 'Send';
+
+  @override
+  String get adminAuthSubmitSetPassword => 'Set password';
+
+  @override
+  String get adminAuthWorking => 'Working…';
+
+  @override
+  String get adminAuthDoneButton => 'Done';
+
+  @override
+  String get adminAuthEmailChangedDone =>
+      'Email changed. The recovery email was sent to the new address.';
+
+  @override
+  String get adminAuthEmailChangedNoRecovery =>
+      'Email changed, but the recovery email was not sent. The change stays in place.';
+
+  @override
+  String get adminAuthEmailChangedRateLimited =>
+      'Email changed, but the recovery email was not sent because the email provider limits how often it sends. Try again in a minute. The change stays in place.';
+
+  @override
+  String get adminAuthRetryRecovery => 'Send the recovery email again';
+
+  @override
+  String get adminAuthRecoveryDone =>
+      'The recovery email was requested. Whether it reaches the inbox is not known.';
+
+  @override
+  String get adminAuthPasswordDone => 'The password was set.';
+
+  @override
+  String get adminAuthAuditMissing =>
+      'This was done, but it could not be recorded in the audit log. Note it down.';
+
+  @override
+  String get adminAuthNotAllowed => 'You cannot do this for this account.';
+
+  @override
+  String get adminAuthAccountGone => 'This account no longer exists.';
+
+  @override
+  String get adminAuthGoogleLinked =>
+      'This account is linked to Google, so its email cannot be changed.';
+
+  @override
+  String get adminAuthEmailTaken => 'Another account already uses that email.';
+
+  @override
+  String get adminAuthEmailRejected => 'That email cannot be used.';
+
+  @override
+  String get adminAuthNoEmail =>
+      'This account has no email, so a recovery email cannot be sent.';
+
+  @override
+  String get adminAuthPasswordRejected =>
+      'The sign-in service did not accept that password. Choose a longer or less common one.';
+
+  @override
+  String get adminAuthRateLimited =>
+      'Too many requests. Nothing was changed. Try again in a minute.';
+
+  @override
+  String get adminAuthOutcomeUnknown =>
+      'The sign-in service did not answer, so it is not known whether this was done. Check the account, then try again if needed.';
+
+  @override
+  String get adminAuthFailed => 'This could not be done. Nothing was changed.';
 }

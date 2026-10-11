@@ -3,7 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/failures.dart';
 import '../../features/admin/admin_adapter.dart';
 import '../../features/admin/admin_models.dart';
+import '../../features/auth/auth_models.dart' show PlayerPosition;
+import '../../features/profile/profile_models.dart' show ProfileVisibility;
 import 'mappers/admin_mapper.dart';
+import 'supabase_avatars.dart';
 import 'supabase_bootstrap.dart';
 import 'supabase_failure_mapper.dart';
 
@@ -305,5 +308,326 @@ class SupabaseAdminAdapter implements AdminAdapter {
           });
         },
         operation: 'rpc admin_reactivate_community',
+      );
+
+  /// The id of the session, which is all the console asks of it. No request.
+  @override
+  String? get currentUserId => _client.auth.currentUser?.id;
+
+  /// One account's data and settings, through `0095`.
+  ///
+  /// `returns table` with one row, so a one-element list arrives. The function
+  /// raises `USER_NOT_FOUND` rather than returning nothing, so an empty result
+  /// is not a state it can reach -- checked anyway, so a surprise becomes a
+  /// mapped failure and the section's retry rather than a range error.
+  @override
+  Future<AdminUserAccount> userAccount(String userId) => guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_get_user_account',
+            params: {'p_user_id': userId},
+          );
+          final rows = (result as List<dynamic>).cast<Map<String, dynamic>>();
+          if (rows.isEmpty) throw const InfrastructureFailure();
+          final row = rows.first;
+          return adminUserAccountFromRow(
+            row,
+            avatarUrl: SupabaseAvatars.publicUrl(
+              _client,
+              row['avatar_path'] as String?,
+            ),
+          );
+        },
+        operation: 'rpc admin_get_user_account',
+      );
+
+  /// The five account edits, through `0095`. Each checks `is_system_admin()`
+  /// server-side and refuses the caller themselves and any System Admin; each
+  /// is a no-op, with no audit event, when nothing it carries would change.
+  /// Nothing here is authorization and nothing here decides what a valid value
+  /// is.
+  @override
+  Future<void> updateUserAccount(
+    String userId, {
+    required String fullName,
+    required String phone,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_account',
+            params: adminUpdateAccountParams(
+              userId,
+              fullName: fullName,
+              phone: phone,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_account',
+      );
+
+  @override
+  Future<void> updateUserPlayerProfile(
+    String userId, {
+    required DateTime? dateOfBirth,
+    required PlayerPosition primaryPosition,
+    required PlayerPosition? secondaryPosition,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_player_profile',
+            params: adminUpdatePlayerProfileParams(
+              userId,
+              dateOfBirth: dateOfBirth,
+              primaryPosition: primaryPosition,
+              secondaryPosition: secondaryPosition,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_player_profile',
+      );
+
+  @override
+  Future<void> updateUserPrivacy(
+    String userId, {
+    required ProfileVisibility visibility,
+    required bool ageVisible,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_privacy',
+            params: adminUpdatePrivacyParams(
+              userId,
+              visibility: visibility,
+              ageVisible: ageVisible,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_privacy',
+      );
+
+  @override
+  Future<void> updateUserDefaultWilayat(
+    String userId, {
+    required int? wilayatCode,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_default_wilayat',
+            params: adminUpdateDefaultWilayatParams(
+              userId,
+              wilayatCode: wilayatCode,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_default_wilayat',
+      );
+
+  /// The two read-only previews, through `0096`. Each returns one jsonb
+  /// document, which PostgREST sends as a JSON object; anything else is a
+  /// surprise and becomes a mapped failure and the screen's retry. Nothing is
+  /// written, and no audit event is recorded.
+  @override
+  Future<AdminMergePreview> previewAccountMerge({
+    required String retainedUserId,
+    required String sourceUserId,
+  }) =>
+      guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_preview_account_merge',
+            params: {
+              'p_retained_user_id': retainedUserId,
+              'p_source_user_id': sourceUserId,
+            },
+          );
+          if (result is! Map) throw const InfrastructureFailure();
+          return adminMergePreviewFromJson(result.cast<String, dynamic>());
+        },
+        operation: 'rpc admin_preview_account_merge',
+      );
+
+  /// The permanent merge (migration `0101`), requested through the
+  /// `admin-merge-accounts` Edge Function. The function proves the caller is a System
+  /// Admin, preflights the preview, removes the merged-in account's profile picture
+  /// from Storage (which no SQL can do), and only then calls `admin_merge_accounts`:
+  /// one database transaction that deletes the source's `auth.users` row itself, so
+  /// there is no second call to make for the database or Auth side.
+  ///
+  /// **If the function answered 2xx, the merge happened.** The result is
+  /// read leniently for that reason: a shape this build does not recognise is
+  /// reported as a merge with an empty summary, never as a failure, because
+  /// "failed" would invite a second attempt at something already done.
+  @override
+  Future<AdminMergeResult> mergeAccounts({
+    required String retainedUserId,
+    required String sourceUserId,
+    required List<AdminMergeResolution> resolutions,
+  }) =>
+      guarded(
+        () async {
+          final response = await _client.functions.invoke(
+            'admin-merge-accounts',
+            body: adminMergeAccountsParams(
+              retainedUserId: retainedUserId,
+              sourceUserId: sourceUserId,
+              resolutions: resolutions,
+            ),
+          );
+          final result = response.data;
+          return adminMergeResultFromJson(
+            result is Map ? result.cast<String, dynamic>() : const {},
+            retainedUserId: retainedUserId,
+            sourceUserId: sourceUserId,
+          );
+        },
+        operation: 'function admin-merge-accounts',
+      );
+
+  @override
+  Future<AdminDeletionPreview> previewAccountDeletion(String userId) => guarded(
+        () async {
+          final result = await _client.rpc(
+            'admin_preview_account_deletion',
+            params: {'p_user_id': userId},
+          );
+          if (result is! Map) throw const InfrastructureFailure();
+          return adminDeletionPreviewFromJson(result.cast<String, dynamic>());
+        },
+        operation: 'rpc admin_preview_account_deletion',
+      );
+
+  /// The permanent deletion (migration `0102`), requested through the `delete-account`
+  /// Edge Function: it proves the caller is a System Admin, preflights the preview,
+  /// removes the account's profile picture from Storage (which no SQL can do), and only
+  /// then calls `admin_delete_account` -- one database transaction that deletes the Auth
+  /// user itself.
+  ///
+  /// **If the function answered 2xx, the deletion happened.** The result is read
+  /// leniently for that reason: a shape this build does not recognise is reported as a
+  /// deletion with an empty summary, never as a failure.
+  @override
+  Future<AdminDeletionResult> deleteAccount({required String userId}) => guarded(
+        () async {
+          final response = await _client.functions.invoke(
+            'delete-account',
+            body: adminDeleteAccountParams(userId),
+          );
+          final result = response.data;
+          return adminDeletionResultFromJson(
+            result is Map ? result.cast<String, dynamic>() : const {},
+            userId: userId,
+          );
+        },
+        operation: 'function delete-account',
+      );
+
+  /// Changing another account's sign-in (migration `0103`): one request to the
+  /// `admin-user-auth` Edge Function. **A 2xx means the Auth change happened**; the result is
+  /// read leniently for that reason. The request body is built by [adminUserAuthParams] and
+  /// the password, when there is one, is in no other place: it is not logged here, and the
+  /// function never echoes it.
+  Future<AdminUserAuthResult> _userAuth(
+    AdminUserAuthAction action,
+    Map<String, dynamic> body,
+  ) =>
+      guarded(
+        () async {
+          final response = await _client.functions.invoke(
+            'admin-user-auth',
+            body: body,
+          );
+          final result = response.data;
+          return adminUserAuthResultFromJson(
+            result is Map ? result.cast<String, dynamic>() : const {},
+            action: action,
+          );
+        },
+        operation: 'function admin-user-auth (${action.wire})',
+      );
+
+  @override
+  Future<AdminUserAuthResult> changeUserEmail({
+    required String userId,
+    required String newEmail,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      _userAuth(
+        AdminUserAuthAction.changeEmail,
+        adminUserAuthParams(
+          action: AdminUserAuthAction.changeEmail,
+          userId: userId,
+          reason: reason,
+          newEmail: newEmail,
+          redirectTo: redirectTo,
+        ),
+      );
+
+  @override
+  Future<AdminUserAuthResult> sendUserRecovery({
+    required String userId,
+    required String reason,
+    required String redirectTo,
+  }) =>
+      _userAuth(
+        AdminUserAuthAction.sendRecovery,
+        adminUserAuthParams(
+          action: AdminUserAuthAction.sendRecovery,
+          userId: userId,
+          reason: reason,
+          redirectTo: redirectTo,
+        ),
+      );
+
+  @override
+  Future<AdminUserAuthResult> setUserPassword({
+    required String userId,
+    required String password,
+    required String reason,
+  }) =>
+      _userAuth(
+        AdminUserAuthAction.setPassword,
+        adminUserAuthParams(
+          action: AdminUserAuthAction.setPassword,
+          userId: userId,
+          reason: reason,
+          password: password,
+        ),
+      );
+
+  @override
+  Future<void> updateUserPushPreferences(
+    String userId, {
+    required bool matchPush,
+    required bool communityPush,
+    required bool muteAll,
+    String? reason,
+  }) =>
+      guarded(
+        () async {
+          await _client.rpc(
+            'admin_update_user_push_preferences',
+            params: adminUpdatePushPreferencesParams(
+              userId,
+              matchPush: matchPush,
+              communityPush: communityPush,
+              muteAll: muteAll,
+              reason: reason,
+            ),
+          );
+        },
+        operation: 'rpc admin_update_user_push_preferences',
       );
 }
