@@ -62,7 +62,8 @@ WhatsApp may keep its own cached preview; the application cannot control that.
 - After configuring runtime variables and authorizing a deployment, fetch a
   real publicly visible match URL without running JavaScript: it must return
   HTTP 200, match-specific metadata, an absolute HTTPS image URL and a fallback
-  link to that same match. The image must return HTTP 200 and `image/png`.
+  link to that same match. The image must return HTTP 200 and its declared type (`image/jpeg` for an
+  upcoming match, `image/png` for the neutral thumbnail) and stay under 300 KB.
 - On a phone, share from each invitation entry point to WhatsApp. Verify that
   one clickable link has its thumbnail, and tapping it opens the correct match
   with the existing registration/login behavior. Test Arabic and English.
@@ -108,18 +109,22 @@ neutral metadata and the legacy neutral image. Missing matches/configuration do
 not acquire a registration claim. Existing hash links and app routes remain
 unchanged; no database, dependency, auth or registration behavior changes.
 
-The two reusable images are `go-play-invite-v2-ar.png` (1730×909) and
-`go-play-invite-v2-en.png` (1731×909). They contain brand identity and a join
-instruction, with no per-match information. The old thumbnail is preserved for
-neutral responses and existing references. Generated images were visually
-checked for readable Arabic/English text. Metadata declares each actual size.
-The `v=2` query and new image filenames distinguish this presentation from older
-cached previews; WhatsApp still controls its own rendering and caching.
+The two reusable images are `go-play-invite-v2-ar.jpg` and
+`go-play-invite-v2-en.jpg` (JPEG, 1200×630, about 130 KB each). They contain brand
+identity and a join instruction, with no per-match information. The old
+thumbnail is preserved for neutral responses and existing references. Metadata
+declares each image's type and size. The `v=2` query distinguishes this
+presentation from older cached previews; WhatsApp still controls its own
+rendering and caching, and caches a preview per URL, so a link already shared
+keeps the card WhatsApp first built for it.
 
-Validation of this revision: 14/14 Pages handler tests passed, including
-localized assets/dimensions, versioned canonical links and completed-match
-behavior; `git diff --check` passed. Flutter sharing/link tests were updated but
-could not be executed because no Flutter SDK is available in this session.
-Before marking ready: regenerate localizations, format changed Dart files, run
-the four affected Flutter test files and analyzer against the current baseline.
-This revision is for review, with no production publication authorized yet.
+Keep these images small. The first release shipped 1730×909 PNGs of about 2 MB
+each. On a real device WhatsApp built the card from the title and description
+but showed no picture, while the 19 KB neutral thumbnail had worked. The server
+returned the images correctly, so the size was the remaining difference. The
+Pages test now fails if either invitation image reaches 300 KB.
+
+Validation: 14/14 Pages handler tests passed (including image type, size and
+dimensions, versioned canonical links and completed-match behavior); Flutter
+sharing/link tests, `flutter analyze` (identical to the baseline) and the web
+build were verified on the original revision.

@@ -38,7 +38,7 @@ for (const language of ['en', 'ar']) {
       assert.ok(html.includes(`property="og:${property}"`));
     }
     assert.ok(html.includes('Friday Football — Go Play'));
-    assert.ok(html.includes(`https://go-play.example/share/go-play-invite-v2-${language}.png`));
+    assert.ok(html.includes(`https://go-play.example/share/go-play-invite-v2-${language}.jpg`));
     assert.ok(html.includes(`https://go-play.example/share/match/${id}?lang=${language}`));
     assert.ok(html.includes(`https://go-play.example/#/match/${id}`));
     assert.ok(html.includes("location.replace(document.getElementById('open-match').href)"));
@@ -126,12 +126,25 @@ test('unsupported methods do not call the read API', async t => {
   assert.equal(response.headers.get('allow'), 'GET, HEAD');
   assert.equal(calls.length, 0);
 });
-test('localized thumbnails match their metadata and avoid function routing', async () => {
-  for (const [language, width] of [['ar', 1730], ['en', 1731]]) {
-    const image = await readFile(new URL(`../../app/web/share/go-play-invite-v2-${language}.png`, import.meta.url));
-    assert.deepEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
-    assert.equal(image.readUInt32BE(16), width);
-    assert.equal(image.readUInt32BE(20), 909);
+// Width and height from a baseline/progressive JPEG's start-of-frame marker.
+function jpegSize(bytes) {
+  assert.deepEqual([...bytes.subarray(0, 3)], [0xff, 0xd8, 0xff]);
+  for (let at = 2; at + 9 < bytes.length;) {
+    assert.equal(bytes[at], 0xff);
+    const marker = bytes[at + 1];
+    if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+      return { height: bytes.readUInt16BE(at + 5), width: bytes.readUInt16BE(at + 7) };
+    }
+    at += 2 + bytes.readUInt16BE(at + 2);
+  }
+  assert.fail('no JPEG start-of-frame marker');
+}
+test('localized thumbnails match their metadata, stay small and avoid function routing', async () => {
+  for (const language of ['ar', 'en']) {
+    const image = await readFile(new URL(`../../app/web/share/go-play-invite-v2-${language}.jpg`, import.meta.url));
+    assert.deepEqual(jpegSize(image), { width: 1200, height: 630 });
+    // WhatsApp drops large preview images; the previous 2 MB PNGs showed a text-only card.
+    assert.ok(image.length < 300 * 1024, `${language} thumbnail is ${image.length} bytes`);
   }
   const routes = JSON.parse(await readFile(new URL('../../app/web/_routes.json', import.meta.url)));
   assert.deepEqual(routes, { version: 1, include: ['/share/match/*'], exclude: [] });
@@ -145,8 +158,9 @@ test('upcoming previews invite joining and preserve versioned canonical URLs', a
     assert.ok(html.includes(language === 'ar' ? '⚽ انضم إلى Friday Football' : '⚽ Join Friday Football'));
     assert.ok(html.includes(language === 'ar' ? 'افتح الرابط لعرض التفاصيل والانضمام' : 'Open the link to view details and join'));
     assert.ok(html.includes(`?lang=${language}&amp;v=2`));
-    assert.ok(html.includes(`property="og:image:width" content="${language === 'ar' ? 1730 : 1731}"`));
-    assert.ok(html.includes('property="og:image:height" content="909"'));
+    assert.ok(html.includes('property="og:image:type" content="image/jpeg"'));
+    assert.ok(html.includes('property="og:image:width" content="1200"'));
+    assert.ok(html.includes('property="og:image:height" content="630"'));
     assert.ok(html.includes(`/#/match/${id}`));
   }
 });
@@ -158,6 +172,7 @@ test('completed matches do not claim registration is available', async t => {
     assert.ok(!html.includes(language === 'ar' ? '⚽ انضم إلى' : '⚽ Join'));
     assert.ok(!html.includes(language === 'ar' ? 'افتح الرابط لعرض التفاصيل والانضمام' : 'Open the link to view details and join'));
     assert.ok(html.includes('https://go-play.example/share/go-play-thumbnail.png'));
+    assert.ok(html.includes('property="og:image:type" content="image/png"'));
     assert.ok(!html.includes('go-play-invite-v2-'));
   }
 });

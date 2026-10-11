@@ -5,11 +5,12 @@ const copy = {
   ar: { title: 'Go Play — دعوة إلى مباراة', description: 'افتح المباراة في Go Play لاستكمال التسجيل.', location: 'الموقع', open: 'فتح المباراة في Go Play', invite: '⚽ انضم إلى', action: 'افتح الرابط لعرض التفاصيل والانضمام' },
   en: { title: 'Go Play — Match invitation', description: 'Open the match in Go Play to continue registration.', location: 'Location', open: 'Open match in Go Play', invite: '⚽ Join', action: 'Open the link to view details and join' },
 };
+// Kept small (about 130 KB): WhatsApp skips large preview images and shows a text-only card.
 const thumbnails = {
-  ar: { file: 'go-play-invite-v2-ar.png', width: 1730, height: 909 },
-  en: { file: 'go-play-invite-v2-en.png', width: 1731, height: 909 },
+  ar: { file: 'go-play-invite-v2-ar.jpg', type: 'image/jpeg', width: 1200, height: 630 },
+  en: { file: 'go-play-invite-v2-en.jpg', type: 'image/jpeg', width: 1200, height: 630 },
 };
-const neutralThumbnail = { file: 'go-play-thumbnail.png', width: 1200, height: 630 };
+const neutralThumbnail = { file: 'go-play-thumbnail.png', type: 'image/png', width: 1200, height: 630 };
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -119,7 +120,7 @@ export async function onRequest({ request, params, env }) {
 <meta property="og:url" content="${escapeHtml(canonical)}">
 <meta property="og:image" content="${escapeHtml(image)}">
 <meta property="og:image:secure_url" content="${escapeHtml(image)}">
-<meta property="og:image:type" content="image/png">
+<meta property="og:image:type" content="${thumbnail.type}">
 <meta property="og:image:width" content="${thumbnail.width}">
 <meta property="og:image:height" content="${thumbnail.height}">
 <meta property="og:image:alt" content="Go Play">
