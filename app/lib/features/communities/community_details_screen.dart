@@ -15,6 +15,7 @@ import '../analytics/analytics_service.dart';
 import '../locations/wilayat_picker.dart';
 import '../locations/wilayat_repository.dart';
 import '../matches/compact_match_card.dart';
+import '../matches/match_card.dart';
 import '../matches/create_match_screen.dart';
 import 'member_card.dart';
 import '../matches/match_models.dart';
@@ -979,6 +980,11 @@ class _MatchesTab extends StatelessWidget {
 }
 
 /// One run of matches, two across.
+///
+/// A run of exactly one is the exception, by the Product Owner's decision: the
+/// grid would leave the other half of the row empty, so the match is drawn as
+/// the full-width row card instead. Two or more keep the grid, whose short last
+/// row still stays at column width.
 class _MatchGrid extends StatelessWidget {
   const _MatchGrid({required this.matches, required this.onChanged});
 
@@ -986,21 +992,31 @@ class _MatchGrid extends StatelessWidget {
   final VoidCallback onChanged;
 
   @override
-  Widget build(BuildContext context) => ResponsiveCardGrid(
-        maxColumns: 2,
-        minCardWidth: GridCard.matchMinWidth,
-        padding: const EdgeInsets.symmetric(
-          horizontal: Layout.sheetGutter,
-          vertical: Gap.xs,
-        ),
-        children: [
-          for (final match in matches)
-            // The community's name is not repeated on a card inside that
-            // community's own screen, which is the rule the row card used here
-            // as well.
-            CompactMatchCard(match: match, onChanged: onChanged),
-        ],
+  Widget build(BuildContext context) {
+    const padding = EdgeInsets.symmetric(
+      horizontal: Layout.sheetGutter,
+      vertical: Gap.xs,
+    );
+
+    // The community's name is not repeated on a card inside that community's
+    // own screen, which is the rule the row card used here as well.
+    if (matches.length == 1) {
+      return Padding(
+        padding: padding,
+        child: MatchCard(match: matches.single, onChanged: onChanged),
       );
+    }
+
+    return ResponsiveCardGrid(
+      maxColumns: 2,
+      minCardWidth: GridCard.matchMinWidth,
+      padding: padding,
+      children: [
+        for (final match in matches)
+          CompactMatchCard(match: match, onChanged: onChanged),
+      ],
+    );
+  }
 }
 
 /// Who is in the community — and, for an organizer, how to let more people in.
