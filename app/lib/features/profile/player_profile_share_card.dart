@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../core/club_place.dart' show MowingStripes;
 import '../../core/l10n.dart';
 import '../auth/auth_models.dart';
 import '../sharing/share_card_palette.dart';
+import '../sharing/share_poster.dart';
 import 'current_user.dart';
 import 'player_identity.dart';
 import 'player_record_models.dart';
@@ -101,51 +101,32 @@ class PlayerProfileShareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            ShareCardPalette.pitchTop,
-            ShareCardPalette.pitch,
-            ShareCardPalette.pitchDeep,
-          ],
-          stops: [0, 0.52, 1],
-        ),
-      ),
-      child: Stack(
-        children: [
-          const Positioned.fill(
-            child: MowingStripes(opacity: 0.06, bands: 8.4),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(_margin, 56, _margin, 64),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _Masthead(),
-                // **The card is sized by what the player has, and centred in
-                // what is left.** A player with no achievement and no form gets
-                // a shorter card, not one padded out to fill the frame; and the
-                // fullest card (five achievements, six results) is scaled down
-                // as one piece rather than overflowing the fixed surface.
-                Expanded(
-                  child: Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: SizedBox(
-                        width: 1080 - 2 * _margin,
-                        child: _PosterCard(data: data),
-                      ),
-                    ),
+    return SharePosterBackground(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(_margin, 56, _margin, 64),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _Masthead(),
+            // **The card is sized by what the player has, and centred in what
+            // is left.** A player with no achievement and no form gets a
+            // shorter card, not one padded out to fill the frame; and the
+            // fullest card (five achievements, six results) is scaled down as
+            // one piece rather than overflowing the fixed surface.
+            Expanded(
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: 1080 - 2 * _margin,
+                    child: _PosterCard(data: data),
                   ),
                 ),
-                const _Wordmark(),
-              ],
+              ),
             ),
-          ),
-        ],
+            const SharePosterWordmark(),
+          ],
+        ),
       ),
     );
   }
@@ -211,37 +192,6 @@ class _Ball extends StatelessWidget {
         Icons.sports_soccer,
         size: size * 0.66,
         color: ShareCardPalette.pitchDeep,
-      ),
-    );
-  }
-}
-
-/// The mark again, large, at the foot of the picture.
-class _Wordmark extends StatelessWidget {
-  const _Wordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 28),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        textDirection: TextDirection.ltr,
-        children: [
-          const _Ball(size: 88),
-          const SizedBox(width: 22),
-          Text(
-            context.l10n.appName,
-            textDirection: TextDirection.ltr,
-            style: const TextStyle(
-              color: ShareCardPalette.ink,
-              fontSize: 64,
-              height: 1,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -1.2,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -164,7 +164,12 @@ class StadiumBackdrop extends StatelessWidget {
 /// points and at 480, and nothing is random. Takes no colour from the theme, so
 /// a share card can draw the same stripes the hero does.
 class MowingStripes extends StatelessWidget {
-  const MowingStripes({super.key, this.opacity = 0.055, this.bands = 5.5});
+  const MowingStripes({
+    super.key,
+    this.opacity = 0.055,
+    this.bands = 5.5,
+    this.color = const Color(0xFFFFFFFF),
+  });
 
   /// How strongly the lit bands show, as the alpha of white.
   final double opacity;
@@ -172,16 +177,25 @@ class MowingStripes extends StatelessWidget {
   /// How many bands fit across the block's width.
   final double bands;
 
+  /// The lit bands' colour: white on a green block, green on a white one.
+  final Color color;
+
   @override
-  Widget build(BuildContext context) =>
-      CustomPaint(painter: _StripesPainter(opacity: opacity, bands: bands));
+  Widget build(BuildContext context) => CustomPaint(
+        painter: _StripesPainter(opacity: opacity, bands: bands, color: color),
+      );
 }
 
 class _StripesPainter extends CustomPainter {
-  const _StripesPainter({required this.opacity, required this.bands});
+  const _StripesPainter({
+    required this.opacity,
+    required this.bands,
+    required this.color,
+  });
 
   final double opacity;
   final double bands;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -189,8 +203,7 @@ class _StripesPainter extends CustomPainter {
     canvas.translate(size.width * 0.5, size.height * 0.5);
     canvas.rotate(-0.38);
     final band = size.width / bands;
-    final paint = Paint()
-      ..color = const Color(0xFFFFFFFF).withValues(alpha: opacity);
+    final paint = Paint()..color = color.withValues(alpha: opacity);
     final reach = size.width + size.height;
     for (var x = -reach; x < reach; x += band * 2) {
       canvas.drawRect(Rect.fromLTWH(x, -reach, band, reach * 2), paint);
@@ -200,7 +213,9 @@ class _StripesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _StripesPainter oldDelegate) =>
-      oldDelegate.opacity != opacity || oldDelegate.bands != bands;
+      oldDelegate.opacity != opacity ||
+      oldDelegate.bands != bands ||
+      oldDelegate.color != color;
 }
 
 /// The bar inside a [ClubHero]: back, title, actions — all reversed out.

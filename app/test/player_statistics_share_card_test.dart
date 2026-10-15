@@ -174,7 +174,7 @@ void main() {
         (tester) async {
       await pumpCard(tester, six);
 
-      final marks = find.text('GO PLAY');
+      final marks = find.text('Go Play');
       expect(marks, findsOneWidget);
       // Below the figures: the card is signed, not headed.
       expect(tester.getCenter(marks).dy,
@@ -218,7 +218,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('LOSSES'), findsOneWidget);
-      expect(find.text('GO PLAY'), findsOneWidget);
+      expect(find.text('Go Play'), findsOneWidget);
     });
   });
 
@@ -380,7 +380,7 @@ void main() {
       // CHANGED (B2): once, at the foot. The card used to carry the mark twice
       // — large at the top and muted at the bottom — which read as the product
       // signing its own picture twice.
-      expect(find.text('GO PLAY'), findsOneWidget);
+      expect(find.text('Go Play'), findsOneWidget);
     });
 
     testWidgets('the photo is passed to the existing avatar', (tester) async {
@@ -561,9 +561,9 @@ void main() {
       await pumpCard(tester, career, locale: const Locale('ar'));
 
       // One mark, at the foot (B2).
-      expect(find.text('GO PLAY'), findsOneWidget);
+      expect(find.text('Go Play'), findsOneWidget);
       expect(
-        Directionality.of(tester.element(find.text('GO PLAY').first)),
+        Directionality.of(tester.element(find.text('Go Play').first)),
         TextDirection.rtl,
         reason: 'the card is RTL; only the mark itself is set LTR',
       );
