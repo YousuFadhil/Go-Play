@@ -183,15 +183,12 @@ class TeamOfPeriodCard extends StatelessWidget {
 
       return DecoratedBox(
         key: const ValueKey('team-of-period-card-background'),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF063126), MatchStage.ground],
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: ShareStage.frame),
         child: Stack(
           children: [
+            const Positioned.fill(
+              child: MowingStripes(opacity: 0.06, bands: 8.4),
+            ),
             // The same restrained motif Share Result carries, at the same
             // weights, so the two read as one family at a glance.
             Positioned(
@@ -201,7 +198,7 @@ class TeamOfPeriodCard extends StatelessWidget {
               child: Icon(
                 Icons.sports_soccer,
                 size: 255 * sx,
-                color: Colors.white.withValues(alpha: .035),
+                color: Colors.white.withValues(alpha: .05),
               ),
             ),
             Positioned(
@@ -211,7 +208,7 @@ class TeamOfPeriodCard extends StatelessWidget {
               child: Icon(
                 Icons.sports_soccer,
                 size: 405 * sx,
-                color: Colors.white.withValues(alpha: .045),
+                color: Colors.white.withValues(alpha: .06),
               ),
             ),
             Positioned(
@@ -305,7 +302,7 @@ class _Heading extends StatelessWidget {
             name: data.communityName,
             logoUrl: data.communityLogoUrl,
             size: 150 * sx,
-            // The translucent treatment, because this crest sits on the green.
+            // The translucent treatment: the crest sits on the green top.
             onHero: true,
           ),
           SizedBox(height: 34 * sy),
@@ -316,7 +313,7 @@ class _Heading extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: MatchStage.inkMuted,
+              color: ShareStage.headerInkMuted,
               fontSize: 44 * sx,
               fontWeight: FontWeight.w600,
               height: 1.15,
@@ -330,7 +327,7 @@ class _Heading extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: MatchStage.ink,
+              color: ShareStage.headerInk,
               fontSize: 68 * sx,
               fontWeight: FontWeight.w800,
               height: 1.1,
@@ -344,7 +341,7 @@ class _Heading extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: MatchStage.accent,
+              color: ShareStage.headerAccent,
               fontSize: 42 * sx,
               fontWeight: FontWeight.w700,
             ),

@@ -1,10 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
 import '../auth/auth_models.dart';
 import '../sharing/share_card_palette.dart';
+import '../sharing/share_poster.dart';
 import 'current_user.dart';
 import 'player_identity.dart';
 import 'player_record_models.dart';
@@ -72,15 +71,20 @@ class PlayerProfileCardData {
 
 /// The Player Profile share card: who a player is, as a picture.
 ///
-/// **An identity card, not a statistics card.** The hierarchy is the approved
-/// one: the product's mark, then the player — face, name, position and the
-/// three career figures that describe them — then the rating beside the
-/// win/loss/draw record, then Recent Form, then the same Recent Achievements
-/// the profile shows. No address is printed on it: a share is the picture and a
-/// line of text, never a link. The Player Statistics
-/// card leads with a period and gives six counters equal weight; the two are
-/// different pictures
-/// of the same player on purpose, and neither is a variant of the other.
+/// **A poster with one white card on it.** The green of the product fills the
+/// whole picture, under the same mowing stripes the heroes carry, so the card is
+/// recognisable from across a chat list; the player sits on a single white card
+/// that overlaps it — face on the edge, then name and position, the career
+/// figures, Recent Form and the same Recent Achievements the profile shows.
+/// The mark closes the picture. No address is printed on it: a share is the
+/// picture and a line of text, never a link.
+///
+/// It reads as the profile screen does — green ground, round face, white card,
+/// figures in a grid — without copying the screen: the screen is a page, this is
+/// a picture that has to hold in a thumbnail. The Player Statistics card leads
+/// with a period and gives six counters equal weight; the two are different
+/// pictures of the same player on purpose, and neither is a variant of the
+/// other.
 ///
 /// Laid out in the engine's design units on the 1080×1920 surface
 /// `ShareCardSurface` fixes, so the same player produces the same picture on
@@ -92,43 +96,37 @@ class PlayerProfileShareCard extends StatelessWidget {
 
   final PlayerProfileCardData data;
 
-  /// The page margin, in design units. The statistics card's, so two cards
-  /// from the same product have the same edge.
-  static const _margin = 72.0;
+  /// The page margin, in design units.
+  static const _margin = 60.0;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [ShareCardPalette.pitch, ShareCardPalette.pitchDeep],
-        ),
-      ),
-      child: Stack(
-        children: [
-          const Positioned.fill(child: _PitchMarkings()),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(_margin, 96, _margin, 88),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _Masthead(),
-                // **The panel is sized by what the player has, and centred in
-                // what is left.** A card for a player with no achievement and
-                // no form holds two blocks instead of four; stretching those
-                // two over the whole frame put a hand's width of nothing
-                // between them. The room the content does not need is split
-                // above and below it instead, so every card is balanced and
-                // none of them is padded out with something to fill a gap.
-                const Spacer(),
-                _Panel(data: data),
-                const Spacer(),
-              ],
+    return SharePosterBackground(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(_margin, 56, _margin, 64),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _Masthead(),
+            // **The card is sized by what the player has, and centred in what
+            // is left.** A player with no achievement and no form gets a
+            // shorter card, not one padded out to fill the frame; and the
+            // fullest card (five achievements, six results) is scaled down as
+            // one piece rather than overflowing the fixed surface.
+            Expanded(
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: 1080 - 2 * _margin,
+                    child: _PosterCard(data: data),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+            const SharePosterWordmark(),
+          ],
+        ),
       ),
     );
   }
@@ -144,20 +142,7 @@ class _Masthead extends StatelessWidget {
 
     return Row(
       children: [
-        Container(
-          width: 76,
-          height: 76,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: ShareCardPalette.ink,
-          ),
-          child: const Icon(
-            Icons.sports_soccer,
-            size: 50,
-            color: ShareCardPalette.pitch,
-          ),
-        ),
+        const _Ball(size: 76),
         const SizedBox(width: 18),
         // Left to right in both languages: it is a name, and the product is
         // called Go Play in Arabic too.
@@ -187,140 +172,178 @@ class _Masthead extends StatelessWidget {
   }
 }
 
-/// The card's one panel: everything about the player, inside a single frame.
-class _Panel extends StatelessWidget {
-  const _Panel({required this.data});
+/// The product's ball, in a white disc.
+class _Ball extends StatelessWidget {
+  const _Ball({required this.size});
 
-  final PlayerProfileCardData data;
-
-  /// Between two blocks inside the panel.
-  static const _blockGap = 72.0;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(56, 66, 56, 66),
-      decoration: BoxDecoration(
-        color: ShareCardPalette.ink.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(44),
-        border: Border.all(
-          color: ShareCardPalette.accent.withValues(alpha: 0.28),
-          width: 3,
-        ),
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: ShareCardPalette.ink,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        // As tall as its blocks, with one gap between them: the distance
-        // between the identity and the record is the same on every card,
-        // whether or not the player has form and an achievement to follow it.
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _Identity(data: data),
-          const SizedBox(height: _blockGap),
-          _Record(data: data),
-          if (data.form.isNotEmpty) ...[
-            const SizedBox(height: _blockGap),
-            _FormStrip(form: data.form),
-          ],
-          if (data.achievements.isNotEmpty) ...[
-            const SizedBox(height: _blockGap),
-            _Achievements(achievements: data.achievements),
-          ],
-        ],
+      child: Icon(
+        Icons.sports_soccer,
+        size: size * 0.66,
+        color: ShareCardPalette.pitchDeep,
       ),
     );
   }
 }
 
-/// The player: their face, their name, where they play, and their career on
-/// one line.
-class _Identity extends StatelessWidget {
-  const _Identity({required this.data});
+/// The card: a white sheet with the player's face on its top edge.
+class _PosterCard extends StatelessWidget {
+  const _PosterCard({required this.data});
 
   final PlayerProfileCardData data;
+
+  /// The face's diameter. Half of it stands above the card.
+  static const _face = 272.0;
+
+  /// Between two blocks inside the card.
+  static const _blockGap = 40.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
       children: [
+        Padding(
+          padding: const EdgeInsets.only(top: _face / 2),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(44, _face / 2 + 30, 44, 48),
+            decoration: BoxDecoration(
+              color: ShareCardPalette.paper,
+              borderRadius: BorderRadius.circular(68),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x47000000),
+                  blurRadius: 80,
+                  offset: Offset(0, 36),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              // As tall as its blocks, with one gap between them: the distance
+              // between the figures and what follows is the same on every card,
+              // whether or not the player has form and an achievement.
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Scaled down rather than clipped: a long name is still that
+                // player's name, and a card that cut it off would be worse than
+                // one where it reads slightly smaller.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    data.fullName,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: ShareCardPalette.paperInk,
+                      fontSize: 72,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                      letterSpacing: -1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Center(child: _PositionChip(position: data.primaryPosition)),
+                const SizedBox(height: _blockGap),
+                _Figures(data: data),
+                if (data.form.isNotEmpty) ...[
+                  const SizedBox(height: _blockGap),
+                  _SectionTitle(l10n.shareCardFormLabel),
+                  const SizedBox(height: 16),
+                  _FormStrip(form: data.form),
+                ],
+                if (data.achievements.isNotEmpty) ...[
+                  const SizedBox(height: _blockGap),
+                  _SectionTitle(l10n.recentAchievementsTitle),
+                  const SizedBox(height: 16),
+                  _Achievements(achievements: data.achievements),
+                ],
+              ],
+            ),
+          ),
+        ),
         _CardAvatar(
           avatarUrl: data.avatarUrl,
           fullName: data.fullName,
-          size: 252,
-        ),
-        const SizedBox(width: 40),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Scaled down rather than clipped: a long name is still that
-              // player's name, and a card that cut it off would be worse than
-              // one where it reads slightly smaller.
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  data.fullName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: ShareCardPalette.ink,
-                    fontSize: 78,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                    letterSpacing: -1,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                positionLabel(l10n, data.primaryPosition),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: ShareCardPalette.inkMuted,
-                  fontSize: 38,
-                  height: 1.2,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 16),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  [
-                    '${data.matchesPlayed} ${l10n.shareCardStatMatches}',
-                    '${data.goals} ${l10n.shareCardStatGoals}',
-                    '${data.mvpCount} ${l10n.shareCardStatMvp}',
-                  ].join('   |   '),
-                  maxLines: 1,
-                  style: TextStyle(
-                    color: ShareCardPalette.inkMuted.withValues(alpha: 0.85),
-                    fontSize: 32,
-                    height: 1.2,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          size: _face,
         ),
       ],
     );
   }
 }
 
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: ShareCardPalette.paperInk,
+        fontSize: 34,
+        height: 1.2,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+/// Where they play. One position and not two: this is an identity card, and the
+/// second position is a detail of team generation rather than of who somebody
+/// is.
+class _PositionChip extends StatelessWidget {
+  const _PositionChip({required this.position});
+
+  final PlayerPosition position;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+      decoration: BoxDecoration(
+        color: ShareCardPalette.paperTint,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        positionLabel(context.l10n, position),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: ShareCardPalette.paperInk,
+          fontSize: 30,
+          height: 1.2,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 /// A face on a card: the picture, or the letters of a player who has not set
-/// one.
+/// one, in a round frame with a white ring.
 ///
-/// Its own widget rather than the app's avatar because the approved card draws
-/// a rounded square, and because a card must take no colour from the reader's
-/// theme — the initials sit on the card's own accent at a fixed strength.
+/// Its own widget rather than the app's avatar because a card must take no
+/// colour from the reader's theme — the initials sit on the card's own green at
+/// a fixed strength.
 class _CardAvatar extends StatelessWidget {
   const _CardAvatar({
     required this.avatarUrl,
@@ -343,12 +366,16 @@ class _CardAvatar extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: ShareCardPalette.accent.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(size * 0.22),
-        border: Border.all(
-          color: ShareCardPalette.accent.withValues(alpha: 0.5),
-          width: 3,
-        ),
+        shape: BoxShape.circle,
+        color: ShareCardPalette.avatarFill,
+        border: Border.all(color: ShareCardPalette.paper, width: 10),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 36,
+            offset: Offset(0, 12),
+          ),
+        ],
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -384,9 +411,14 @@ class _CardAvatar extends StatelessWidget {
   }
 }
 
-/// The rating, and the record it came out of.
-class _Record extends StatelessWidget {
-  const _Record({required this.data});
+/// The career, as the profile's own grid states it: four figures, then the
+/// rating beside the player-of-the-match and goal counts.
+///
+/// **No figure here is computed for the card** — every one of them is already on
+/// the screen the card was asked for from, which is what keeps "what you can
+/// see is what you can send" true in both directions.
+class _Figures extends StatelessWidget {
+  const _Figures({required this.data});
 
   final PlayerProfileCardData data;
 
@@ -394,169 +426,142 @@ class _Record extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: _RatingDial(rating: data.rating)),
-        Expanded(
-          child: _Figure(value: data.wins, label: l10n.shareCardStatWins),
-        ),
-        Expanded(
-          child: _Figure(value: data.losses, label: l10n.shareCardStatLosses),
-        ),
-        Expanded(
-          child: _Figure(value: data.draws, label: l10n.shareCardStatDraws),
-        ),
-      ],
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: ShareCardPalette.paperTint,
+        borderRadius: BorderRadius.circular(44),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _FigureRow(
+            cells: [
+              _Figure(
+                  value: '${data.matchesPlayed}',
+                  label: l10n.shareCardStatMatches),
+              _Figure(value: '${data.wins}', label: l10n.shareCardStatWins),
+              _Figure(value: '${data.losses}', label: l10n.shareCardStatLosses),
+              _Figure(value: '${data.draws}', label: l10n.shareCardStatDraws),
+            ],
+          ),
+          const Divider(
+            height: 2,
+            thickness: 2,
+            color: ShareCardPalette.paperLine,
+          ),
+          _FigureRow(
+            cells: [
+              _Figure(
+                // One decimal place, which is `OP-1`'s presentation rule and
+                // what every other surface shows. The disc is the profile
+                // screen's own: the rating is the one figure that is a score
+                // rather than a count.
+                value: data.rating.toStringAsFixed(1),
+                label: l10n.statCurrentRating,
+                disc: true,
+              ),
+              _Figure(value: '${data.mvpCount}', label: l10n.shareCardStatMvp),
+              _Figure(value: '${data.goals}', label: l10n.shareCardStatGoals),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// The Global Rating, in the ring the approved card gives it.
-///
-/// The arc is the rating against the scale it is stated on — `OP-1`'s 0 to 10 —
-/// so the ring says the same thing as the number inside it rather than a
-/// second, prettier one.
-class _RatingDial extends StatelessWidget {
-  const _RatingDial({required this.rating});
+/// One row of cells, divided by hairlines.
+class _FigureRow extends StatelessWidget {
+  const _FigureRow({required this.cells});
 
-  final double rating;
-
-  static const _max = 10.0;
+  final List<_Figure> cells;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 176,
-          height: 176,
-          child: CustomPaint(
-            painter: _DialPainter(rating / _max),
-            child: Center(
-              child: Text(
-                // One decimal place, which is `OP-1`'s presentation rule and
-                // what every other surface shows. Left-to-right whatever the
-                // card's direction: a number is a number in both languages.
-                rating.toStringAsFixed(1),
-                textDirection: TextDirection.ltr,
-                style: const TextStyle(
-                  color: ShareCardPalette.ink,
-                  fontSize: 60,
-                  height: 1,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1,
-                ),
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < cells.length; i++) ...[
+            if (i > 0)
+              const VerticalDivider(
+                width: 2,
+                thickness: 2,
+                color: ShareCardPalette.paperLine,
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            l10n.statCurrentRating,
-            maxLines: 1,
-            style: const TextStyle(
-              color: ShareCardPalette.inkMuted,
-              fontSize: 30,
-              height: 1.2,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
+            Expanded(child: cells[i]),
+          ],
+        ],
+      ),
     );
   }
-}
-
-class _DialPainter extends CustomPainter {
-  _DialPainter(this.fraction);
-
-  /// How much of the ring is filled, clamped so a rating outside the scale
-  /// cannot draw more than a circle.
-  final double fraction;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const stroke = 10.0;
-    final rect = Offset.zero & size;
-    final circle = rect.deflate(stroke / 2);
-
-    canvas.drawArc(
-      circle,
-      0,
-      math.pi * 2,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..color = ShareCardPalette.ink.withValues(alpha: 0.18),
-    );
-    canvas.drawArc(
-      circle,
-      -math.pi / 2,
-      math.pi * 2 * fraction.clamp(0.0, 1.0),
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.round
-        ..color = ShareCardPalette.accent,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _DialPainter oldDelegate) =>
-      oldDelegate.fraction != fraction;
 }
 
 /// One figure and what it counts.
 class _Figure extends StatelessWidget {
-  const _Figure({required this.value, required this.label});
+  const _Figure({required this.value, required this.label, this.disc = false});
 
-  final int value;
+  final String value;
   final String label;
+
+  /// Draw the value in the gold award disc.
+  final bool disc;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 176,
-          child: Center(
+    final number = Text(
+      value,
+      // Left-to-right whatever the card's direction: a number is a number in
+      // both languages.
+      textDirection: TextDirection.ltr,
+      style: TextStyle(
+        color: disc ? ShareCardPalette.onAward : ShareCardPalette.paperInk,
+        fontSize: disc ? 42 : 64,
+        height: 1,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -1,
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 26, 8, 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 92,
+            child: Center(
+              child: disc
+                  ? Container(
+                      width: 92,
+                      height: 92,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: ShareCardPalette.award,
+                      ),
+                      child: number,
+                    )
+                  : number,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FittedBox(
+            fit: BoxFit.scaleDown,
             child: Text(
-              '$value',
-              textDirection: TextDirection.ltr,
+              label,
+              maxLines: 1,
               style: const TextStyle(
-                color: ShareCardPalette.ink,
-                fontSize: 74,
-                height: 1,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1,
+                color: ShareCardPalette.paperMuted,
+                fontSize: 27,
+                height: 1.2,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 14),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            label,
-            maxLines: 1,
-            style: const TextStyle(
-              color: ShareCardPalette.inkMuted,
-              fontSize: 30,
-              height: 1.2,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -575,44 +580,26 @@ class _FormStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          l10n.shareCardFormLabel,
-          style: const TextStyle(
-            color: ShareCardPalette.ink,
-            fontSize: 36,
-            height: 1.2,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 22),
-        // Six badges fit the panel with their usual scorelines; a run of
-        // double-figure scores can be wider, and the strip then scales down
-        // as one piece rather than overflowing the fixed surface.
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: AlignmentDirectional.centerStart,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final entry in form.entries) ...[
-                if (entry != form.entries.first) const SizedBox(width: 28),
-                _FormBadge(entry: entry),
-              ],
-            ],
-          ),
-        ),
-      ],
+    // Six tiles fit the card with their usual scorelines; a run of double-figure
+    // scores can be wider, and the strip then scales down as one piece rather
+    // than overflowing the fixed surface.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final entry in form.entries) ...[
+            if (entry != form.entries.first) const SizedBox(width: 16),
+            _FormBadge(entry: entry),
+          ],
+        ],
+      ),
     );
   }
 }
 
-/// One result, as a letter in a disc.
+/// One result, as a letter in a disc on a tinted tile.
 class _FormBadge extends StatelessWidget {
   const _FormBadge({required this.entry});
 
@@ -621,77 +608,73 @@ class _FormBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final outcome = entry.outcome;
-    final (letter, background, ink) = switch (outcome) {
+    final (letter, background, ink) = switch (entry.outcome) {
       MatchOutcome.win => (
           l10n.recentFormWinShort,
-          ShareCardPalette.accent,
-          ShareCardPalette.pitchDeep,
+          ShareCardPalette.resultWin,
+          ShareCardPalette.ink,
         ),
       MatchOutcome.draw => (
           l10n.recentFormDrawShort,
-          ShareCardPalette.inkMuted,
-          ShareCardPalette.pitchDeep,
+          ShareCardPalette.resultDraw,
+          ShareCardPalette.onResultDraw,
         ),
-      // A loss is drawn rather than filled: three filled discs of three
-      // different colours would read as a traffic light, and the card is not
-      // grading the player.
       MatchOutcome.loss => (
           l10n.recentFormLossShort,
-          const Color(0x00000000),
-          ShareCardPalette.inkMuted,
+          ShareCardPalette.resultLoss,
+          ShareCardPalette.ink,
         ),
     };
 
     final scoreline = entry.scoreline;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 104,
-          height: 104,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: background,
-            border: Border.all(
-              color: outcome == MatchOutcome.loss
-                  ? ShareCardPalette.inkMuted.withValues(alpha: 0.45)
-                  : const Color(0x00000000),
-              width: 3,
-            ),
-          ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              letter,
-              maxLines: 1,
-              style: TextStyle(
-                color: ink,
-                fontSize: 46,
-                fontWeight: FontWeight.w800,
+    return Container(
+      width: 132,
+      padding: const EdgeInsets.fromLTRB(0, 22, 0, 18),
+      decoration: BoxDecoration(
+        color: ShareCardPalette.paperTint,
+        borderRadius: BorderRadius.circular(32),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            alignment: Alignment.center,
+            decoration:
+                BoxDecoration(shape: BoxShape.circle, color: background),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                letter,
+                maxLines: 1,
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 38,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
-        ),
-        if (scoreline != null) ...[
-          const SizedBox(height: 14),
-          Text(
-            // The player's own goals lead, in both languages: a scoreline is
-            // read home-then-away and its order is not the card's.
-            scoreline,
-            textDirection: TextDirection.ltr,
-            maxLines: 1,
-            style: const TextStyle(
-              color: ShareCardPalette.inkMuted,
-              fontSize: 28,
-              height: 1,
-              fontWeight: FontWeight.w600,
+          if (scoreline != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              // The player's own goals lead, in both languages: a scoreline is
+              // read home-then-away and its order is not the card's.
+              scoreline,
+              textDirection: TextDirection.ltr,
+              maxLines: 1,
+              style: const TextStyle(
+                color: ShareCardPalette.paperMuted,
+                fontSize: 26,
+                height: 1,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -699,7 +682,8 @@ class _FormBadge extends StatelessWidget {
 /// The same achievements the profile shows, in the same read order.
 ///
 /// A share card keeps all of them rather than silently choosing one, but
-/// presents them as compact rows so the fixed 1080x1920 surface stays balanced.
+/// presents them as compact rows on one tinted block so the fixed 1080x1920
+/// surface stays balanced.
 class _Achievements extends StatelessWidget {
   const _Achievements({required this.achievements});
 
@@ -709,25 +693,22 @@ class _Achievements extends StatelessWidget {
   Widget build(BuildContext context) {
     final visible = achievements.take(5).toList(growable: false);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          context.l10n.recentAchievementsTitle,
-          style: const TextStyle(
-            color: ShareCardPalette.ink,
-            fontSize: 36,
-            height: 1.2,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 16),
-        for (var i = 0; i < visible.length; i++) ...[
-          if (i > 0) const SizedBox(height: 10),
-          _AchievementRow(achievement: visible[i]),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      decoration: BoxDecoration(
+        color: ShareCardPalette.paperTint,
+        borderRadius: BorderRadius.circular(40),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < visible.length; i++) ...[
+            if (i > 0) const SizedBox(height: 16),
+            _AchievementRow(achievement: visible[i]),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -759,16 +740,16 @@ class _AchievementRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 64,
-          height: 64,
+          width: 72,
+          height: 72,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: ShareCardPalette.award,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: Icon(icon, size: 34, color: ShareCardPalette.onAward),
+          child: Icon(icon, size: 38, color: ShareCardPalette.onAward),
         ),
-        const SizedBox(width: 20),
+        const SizedBox(width: 22),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -779,33 +760,33 @@ class _AchievementRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: ShareCardPalette.ink,
-                  fontSize: 28,
+                  color: ShareCardPalette.paperInk,
+                  fontSize: 30,
                   height: 1.1,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               Text(
                 highlightPeriodLine(context, achievement),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: ShareCardPalette.inkMuted,
-                  fontSize: 21,
+                  color: ShareCardPalette.resultWin,
+                  fontSize: 23,
                   height: 1.15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               if (community != null && community.isNotEmpty) ...[
-                const SizedBox(height: 1),
+                const SizedBox(height: 2),
                 Text(
                   community,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ShareCardPalette.inkMuted.withValues(alpha: 0.8),
-                    fontSize: 20,
+                  style: const TextStyle(
+                    color: ShareCardPalette.paperMuted,
+                    fontSize: 22,
                     height: 1.15,
                   ),
                 ),
@@ -816,35 +797,4 @@ class _AchievementRow extends StatelessWidget {
       ],
     );
   }
-}
-
-/// The markings of a pitch, faintly — the statistics card's, so two cards from
-/// one product share a background rather than each inventing one.
-class _PitchMarkings extends StatelessWidget {
-  const _PitchMarkings();
-
-  @override
-  Widget build(BuildContext context) => CustomPaint(painter: _PitchPainter());
-}
-
-class _PitchPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..color = ShareCardPalette.accent.withValues(alpha: 0.10);
-
-    final centre = Offset(size.width / 2, size.height * 0.34);
-    canvas.drawCircle(centre, size.width * 0.42, paint);
-    canvas.drawCircle(centre, size.width * 0.60, paint);
-    canvas.drawLine(
-      Offset(0, centre.dy),
-      Offset(size.width, centre.dy),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _PitchPainter oldDelegate) => false;
 }

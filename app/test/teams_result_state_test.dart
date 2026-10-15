@@ -457,13 +457,13 @@ void main() {
       await pumpTeams(tester, match: playedMatch(), recorded: result());
 
       // The trophy was a third thing to read in a strip whose whole job is to
-      // be read at a glance. On the phone the winner is said in accent green
-      // and the loser in plain ink; the share card keeps its trophy, and keeps
+      // be read at a glance. On the phone the winner is said in green
+      // and the loser in plain ink, on the white strip; the share card keeps its trophy, and keeps
       // it in `match_result_share_card_test.dart`.
       expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
       expect(find.text('Winner'), findsNothing);
-      expect(_stripLabelColour(tester, 'Team A'), MatchStage.accent);
-      expect(_stripLabelColour(tester, 'Team B'), MatchStage.ink);
+      expect(_stripLabelColour(tester, 'Team A'), ShareStage.accent);
+      expect(_stripLabelColour(tester, 'Team B'), ShareStage.ink);
     });
 
     testWidgets('a right-to-left reading never swaps the two scores',
@@ -502,7 +502,7 @@ void main() {
         expect((one.dx - labelB.dx).abs(), lessThan((one.dx - labelA.dx).abs()),
             reason: '$locale: 1 belongs to Team B');
         // And the winner is still the side that scored three.
-        expect(_stripLabelColour(tester, l10nTeamA(locale)), MatchStage.accent,
+        expect(_stripLabelColour(tester, l10nTeamA(locale)), ShareStage.accent,
             reason: '$locale');
       }
     });
@@ -514,8 +514,8 @@ void main() {
         recorded: result(a: 0, b: 2, goals: const []),
       );
 
-      expect(_stripLabelColour(tester, 'Team B'), MatchStage.accent);
-      expect(_stripLabelColour(tester, 'Team A'), MatchStage.ink);
+      expect(_stripLabelColour(tester, 'Team B'), ShareStage.accent);
+      expect(_stripLabelColour(tester, 'Team A'), ShareStage.ink);
       expect(find.text('Winner'), findsNothing);
     });
 
@@ -529,8 +529,8 @@ void main() {
       expect(find.text('Winner'), findsNothing);
       expect(find.byKey(const ValueKey('winner-trophy')), findsNothing);
       // Neither side is marked, rather than both being marked faintly.
-      expect(_stripLabelColour(tester, 'Team A'), MatchStage.ink);
-      expect(_stripLabelColour(tester, 'Team B'), MatchStage.ink);
+      expect(_stripLabelColour(tester, 'Team A'), ShareStage.ink);
+      expect(_stripLabelColour(tester, 'Team B'), ShareStage.ink);
     });
 
     testWidgets('a scorer carries a ball and their count', (tester) async {

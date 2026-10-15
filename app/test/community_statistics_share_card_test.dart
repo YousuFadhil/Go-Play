@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/sharing/share_card_canvas.dart';
+import 'package:go_play/features/sharing/share_card_palette.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/features/statistics/community_statistics_card.dart';
@@ -261,9 +262,9 @@ void main() {
       // said whose software this is before it said whose football it is.
       await pumpCard(tester, data());
 
-      expect(find.text('GO PLAY'), findsOneWidget);
+      expect(find.text('Go Play'), findsOneWidget);
 
-      final mark = tester.getCenter(find.text('GO PLAY'));
+      final mark = tester.getCenter(find.text('Go Play'));
       final name = tester.getCenter(find.text('Al Amerat FC'));
       expect(mark.dy, greaterThan(name.dy),
           reason: 'the signature closes the card rather than opening it');
@@ -283,19 +284,19 @@ void main() {
     });
 
     testWidgets('but the green that structures content stays', (tester) async {
-      // Not a monochrome redesign. The accent still names the leaders section,
-      // and the rules bracketing the totals are still drawn — what was removed
-      // is the branding above the community, not the card's own structure.
+      // Not a monochrome redesign. The green still names the leaders section,
+      // and the three totals still sit together in their own tinted block —
+      // what was removed is the branding above the community, not the card's
+      // own structure.
       await pumpCard(tester, data());
 
       final heading = tester.widget<Text>(find.text('LEADERS'));
-      expect(heading.style?.color, const Color(0xFF3DDC84));
+      // The green words on the white card: the shared result green (5.3:1).
+      expect(heading.style?.color, ShareCardPalette.resultWin);
 
-      final rules = find.byWidgetPredicate(
-        (widget) => widget is Container && widget.constraints?.maxHeight == 2,
-      );
-      expect(rules, findsWidgets,
-          reason: 'the totals keep the rules that bracket them');
+      for (final label in ['MATCHES', 'PLAYERS', 'GOALS']) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
     });
   });
 

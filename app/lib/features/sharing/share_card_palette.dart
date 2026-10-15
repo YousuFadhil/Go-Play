@@ -1,3 +1,4 @@
+import 'package:flutter/painting.dart' show Alignment, LinearGradient;
 import 'dart:ui' show Color;
 
 /// The colours every share card is drawn in.
@@ -10,17 +11,25 @@ import 'dart:ui' show Color;
 /// rather than something one file states — and the second card is exactly when
 /// that stops being hypothetical.
 ///
-/// The green is the app's own seed colour, dark enough to sit behind white
-/// text.
+/// The green is the app's own, deep enough to sit behind white text (white on
+/// [pitch] is 5.3:1).
 abstract final class ShareCardPalette {
   /// The top of the card's gradient.
-  static const pitch = Color(0xFF07341C);
+  static const pitch = Color(0xFF1E7B45);
+
+  /// The very top of a poster-style card, a shade deeper than [pitch].
+  static const pitchTop = Color(0xFF176B3A);
 
   /// The bottom of it.
-  static const pitchDeep = Color(0xFF04180E);
+  static const pitchDeep = Color(0xFF145A32);
 
   /// The one accent: rules, badges, the disc behind a player's face.
   static const accent = Color(0xFF3DDC84);
+
+  /// The accent as TEXT on the green: a light mint, because [accent] itself is
+  /// 3:1 on [pitch] and a label at share-card scale needs better than that
+  /// (this is 4.7:1). Use [accent] for fills, rules and badges; this for words.
+  static const accentText = Color(0xFFD2FBDF);
 
   /// Text.
   static const ink = Color(0xFFFFFFFF);
@@ -38,6 +47,38 @@ abstract final class ShareCardPalette {
   /// drawn on it on screen as well as on a card.
   static const award = Color(0xFFC9A227);
   static const onAward = Color(0xFF3A2C05);
+
+  /// The poster ground: the product's green, deepest at the top (where the
+  /// masthead is reversed out of it) and fading to a near-white mint at the
+  /// foot, where the card's mark is drawn in green.
+  static const posterGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF145A32),
+      Color(0xFF1E7B45),
+      Color(0xFF7DC393),
+      Color(0xFFD9EEE0),
+      Color(0xFFF3F8F1),
+    ],
+    stops: [0, 0.26, 0.56, 0.82, 1],
+  );
+
+  /// The white sheet a poster-style card puts its content on, and the inks and
+  /// tints that go on it. Stated here for the same reason as the rest: a card
+  /// must not read a colour off the reader's theme.
+  static const paper = Color(0xFFFFFFFF);
+  static const paperInk = Color(0xFF181D18);
+  static const paperMuted = Color(0xFF717970);
+  static const paperTint = Color(0xFFF3F8F1);
+  static const paperLine = Color(0x80C1C9BF);
+
+  /// The disc behind a face with no picture, and the three results.
+  static const avatarFill = Color(0xFF2E6B45);
+  static const resultWin = Color(0xFF1E7B45);
+  static const resultLoss = Color(0xFFBA1A1A);
+  static const resultDraw = Color(0xFFC3C9C1);
+  static const onResultDraw = Color(0xFF414941);
 
   /// The seed a card pins its `ColorScheme` to before drawing anything that
   /// takes colours from one — an avatar's fallback disc, for instance.

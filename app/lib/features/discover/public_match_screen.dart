@@ -211,7 +211,7 @@ class _CompletedMatchPage extends StatelessWidget {
     // is no share action here, no management, and a name leads to a profile
     // only where the database published one.
     return Scaffold(
-      backgroundColor: MatchStage.ground,
+      backgroundColor: ShareStage.panel,
       appBar: matchStageAppBar(
         context,
         key: const ValueKey('public-match-app-bar'),
@@ -304,10 +304,10 @@ class _StageNote extends StatelessWidget {
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 13,
             height: 1.3,
-            color: Colors.white.withValues(alpha: 0.72),
+            color: ShareStage.inkMuted,
           ),
         ),
       );

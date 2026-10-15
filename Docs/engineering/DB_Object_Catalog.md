@@ -3,7 +3,7 @@
 > **Generated file. Do not edit by hand.** Regenerate it with `node tool/check-docs.mjs --write`;
 > `node tool/check-docs.mjs` fails when it is out of date.
 
-Source of truth: the 106 files in `supabase/migrations/`, newest `0105`.
+Source of truth: the 107 files in `supabase/migrations/`, newest `0106`.
 
 This is an **index** of what exists and which migration made it, not a specification. Behaviour is described
 in each migration's header comment, in the table specifications under `Docs/engineering/`, and in
@@ -303,11 +303,12 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 |---|---|
 | `/share/match/:id` | `functions/share/match/[id].js` |
 
-## GitHub Actions workflows (4)
+## GitHub Actions workflows (5)
 
 | Workflow | Name | Triggers |
 |---|---|---|
 | `.github/workflows/deploy-staging.yml` | Deploy staging web app to Cloudflare Pages | workflow_dispatch |
 | `.github/workflows/deploy-web.yml` | Deploy web app to Cloudflare Pages | push, workflow_dispatch |
 | `.github/workflows/docs-sync.yml` | Docs sync check | pull_request |
+| `.github/workflows/flutter-ci.yml` | Flutter checks | pull_request |
 | `.github/workflows/team-of-period-snapshot.yml` | Team of Period snapshot | workflow_dispatch |

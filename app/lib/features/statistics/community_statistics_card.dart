@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-
+import '../../core/club_place.dart' show CommunityCrest;
 import '../../core/l10n.dart';
+import '../sharing/share_card_palette.dart';
+import '../sharing/share_poster.dart';
 import '../profile/player_identity.dart';
 import 'statistics_models.dart';
 import 'statistics_period.dart';
@@ -134,85 +136,99 @@ class CommunityStatisticsCard extends StatelessWidget {
 
   final CommunityStatisticsCardData data;
 
-  /// The card's own palette, stated here rather than taken from the app theme:
-  /// a picture that leaves the phone must not change because the reader has
-  /// dark mode on.
-  ///
-  /// Deliberately the same greens as the Player Statistics card — the two are
-  /// the same product's cards and should be recognisable as a pair. They are
-  /// restated rather than shared because a template owns its own composition;
-  /// when a third card arrives and all three agree, a brand palette will have
-  /// earned its own home.
-  static const _pitch = Color(0xFF07341C);
-  static const _pitchDeep = Color(0xFF04180E);
-  static const _accent = Color(0xFF3DDC84);
-  static const _ink = Color(0xFFFFFFFF);
-  static const _inkMuted = Color(0xB3FFFFFF);
-
-  static const _margin = 88.0;
+  static const _margin = 60.0;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_pitch, _pitchDeep],
-        ),
-      ),
-      child: Stack(
-        children: [
-          const Positioned.fill(child: _PitchMarkings()),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(_margin, 96, _margin, 84),
-            child: Column(
-              children: [
-                // **The card opens on the community, not on the product.** It
-                // used to carry a large GO PLAY wordmark and an accent bar above
-                // the name, which said whose software this is before it said
-                // whose football it is. The small mark at the foot is the
-                // signature, and one signature is enough.
-                //
-                // With leaders, fixed gaps down to the totals and the leaders
-                // take the rest: before this, four elastic gaps shared the
-                // slack and left a band of empty green between every pair.
-                //
-                // With none, the same fixed block is centred instead — slack
-                // above it and below — because pinning it to the top would
-                // leave the whole lower half of the frame empty.
-                if (!data.hasLeaders) const Spacer(),
-                const SizedBox(height: 40),
-                _CommunityName(name: data.communityName),
-                const SizedBox(height: 28),
-                _PeriodBadge(
-                  label: StatisticsPeriodSelector.label(
-                    context.l10n,
-                    data.period,
+    return SharePosterBackground(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(_margin, 56, _margin, 64),
+        child: Column(
+          children: [
+            // **The card opens on the community, not on the product.** One
+            // white card carries the community, its period, its totals and its
+            // leaders, like the player's profile card; the mark closes the
+            // picture. The card is sized by what the community has and centred
+            // in what is left, and the fullest one is scaled down as a piece
+            // rather than overflowing the fixed surface.
+            Expanded(
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: 1080 - 2 * _margin,
+                    child: _PosterCard(data: data),
                   ),
                 ),
-                const SizedBox(height: 56),
+              ),
+            ),
+            const SharePosterWordmark(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The card: a white sheet with the community's crest on its top edge.
+class _PosterCard extends StatelessWidget {
+  const _PosterCard({required this.data});
+
+  final CommunityStatisticsCardData data;
+
+  /// The crest's diameter. Half of it stands above the card.
+  static const _crest = 220.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: _crest / 2),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(44, _crest / 2 + 28, 44, 48),
+            decoration: BoxDecoration(
+              color: ShareCardPalette.paper,
+              borderRadius: BorderRadius.circular(68),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x47000000),
+                  blurRadius: 80,
+                  offset: Offset(0, 36),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _CommunityName(name: data.communityName),
+                const SizedBox(height: 22),
+                Center(
+                  child: _PeriodBadge(
+                    label: StatisticsPeriodSelector.label(
+                      context.l10n,
+                      data.period,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 36),
                 _Totals(data: data),
                 // A community with nothing to show leaves the section out
                 // rather than printing three empty rows: an absence stated
                 // three times reads as a broken card.
-                //
-                // Where there are leaders they take the rest of the card and
-                // space themselves down it; where there are none the slack
-                // goes above and below the totals instead, so the figures sit
-                // in the middle of the frame rather than clinging to the top.
                 if (data.hasLeaders) ...[
-                  const SizedBox(height: 40),
-                  Expanded(child: _Leaders(data: data)),
-                ] else
-                  const Spacer(),
-                const SizedBox(height: 28),
-                const _Wordmark(size: 30, spacing: 10, muted: true),
+                  const SizedBox(height: 36),
+                  _Leaders(data: data),
+                ],
               ],
             ),
           ),
-        ],
-      ),
+        ),
+        CommunityCrest(name: data.communityName, size: _crest),
+      ],
     );
   }
 }
@@ -235,11 +251,11 @@ class _CommunityName extends StatelessWidget {
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
-          color: CommunityStatisticsCard._ink,
-          fontSize: 88,
+          color: ShareCardPalette.paperInk,
+          fontSize: 72,
           fontWeight: FontWeight.w800,
-          height: 1.1,
-          letterSpacing: -1.5,
+          height: 1.15,
+          letterSpacing: -1.4,
         ),
       ),
     );
@@ -260,36 +276,34 @@ class _Totals extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const _Rule(),
-        const SizedBox(height: 44),
-        Row(
-          children: [
-            Expanded(
-              child: _Total(
-                value: data.completedMatches,
-                label: l10n.shareCardStatMatches,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
+      decoration: BoxDecoration(
+        color: ShareCardPalette.paperTint,
+        borderRadius: BorderRadius.circular(44),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _Total(
+              value: data.completedMatches,
+              label: l10n.shareCardStatMatches,
             ),
-            Expanded(
-              child: _Total(
-                value: data.totalPlayers,
-                label: l10n.shareCardStatPlayers,
-              ),
+          ),
+          Expanded(
+            child: _Total(
+              value: data.totalPlayers,
+              label: l10n.shareCardStatPlayers,
             ),
-            Expanded(
-              child: _Total(
-                value: data.totalGoals,
-                label: l10n.shareCardStatGoals,
-              ),
+          ),
+          Expanded(
+            child: _Total(
+              value: data.totalGoals,
+              label: l10n.shareCardStatGoals,
             ),
-          ],
-        ),
-        const SizedBox(height: 44),
-        const _Rule(),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -309,11 +323,11 @@ class _Total extends StatelessWidget {
         Text(
           '$value',
           style: const TextStyle(
-            color: CommunityStatisticsCard._ink,
-            fontSize: 112,
+            color: ShareCardPalette.paperInk,
+            fontSize: 96,
             fontWeight: FontWeight.w900,
             height: 1,
-            letterSpacing: -3,
+            letterSpacing: -2,
           ),
         ),
         const SizedBox(height: 12),
@@ -323,8 +337,8 @@ class _Total extends StatelessWidget {
             label.toUpperCase(),
             maxLines: 1,
             style: const TextStyle(
-              color: CommunityStatisticsCard._inkMuted,
-              fontSize: 30,
+              color: ShareCardPalette.paperMuted,
+              fontSize: 28,
               fontWeight: FontWeight.w600,
               letterSpacing: 3,
             ),
@@ -346,35 +360,26 @@ class _Leaders extends StatelessWidget {
     final l10n = context.l10n;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           l10n.statLeadersTitle.toUpperCase(),
           style: const TextStyle(
-            color: CommunityStatisticsCard._accent,
+            color: ShareCardPalette.resultWin,
             fontSize: 34,
             fontWeight: FontWeight.w700,
             letterSpacing: 6,
           ),
         ),
-        const SizedBox(height: 16),
-        // The rows share whatever the card has left, so the section fills its
-        // part of the frame instead of sitting in a corner of it.
-        //
+        const SizedBox(height: 10),
         // Only the measures somebody actually leads. A row saying "Not yet" on
         // a picture sent to other people is an absence they cannot act on.
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              for (final leader in data.leaders)
-                _LeaderRow(
-                  label: labelOf(l10n, leader.kind),
-                  leader: leader,
-                  describeValue: describeOf(l10n, leader.kind),
-                ),
-            ],
+        for (final leader in data.leaders)
+          _LeaderRow(
+            label: labelOf(l10n, leader.kind),
+            leader: leader,
+            describeValue: describeOf(l10n, leader.kind),
           ),
-        ),
       ],
     );
   }
@@ -434,7 +439,7 @@ class _LeaderRow extends StatelessWidget {
     final l10n = context.l10n;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
           // The app's own avatar, at card scale. Its fallback is the app's —
@@ -456,7 +461,7 @@ class _LeaderRow extends StatelessWidget {
             child: PlayerAvatar(
               avatarUrl: leader.avatarUrl,
               fullName: leader.fullName,
-              radius: 54,
+              radius: 48,
             ),
           ),
           const SizedBox(width: 24),
@@ -475,8 +480,8 @@ class _LeaderRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: CommunityStatisticsCard._inkMuted,
-                    fontSize: 26,
+                    color: ShareCardPalette.paperMuted,
+                    fontSize: 24,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 3,
                   ),
@@ -491,8 +496,8 @@ class _LeaderRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: CommunityStatisticsCard._ink,
-                    fontSize: 46,
+                    color: ShareCardPalette.paperInk,
+                    fontSize: 42,
                     fontWeight: FontWeight.w700,
                     height: 1.1,
                   ),
@@ -503,8 +508,8 @@ class _LeaderRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: CommunityStatisticsCard._accent,
-                    fontSize: 40,
+                    color: ShareCardPalette.resultWin,
+                    fontSize: 36,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -526,101 +531,20 @@ class _PeriodBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
       decoration: BoxDecoration(
-        color: CommunityStatisticsCard._accent.withValues(alpha: 0.16),
+        color: ShareCardPalette.paperTint,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: CommunityStatisticsCard._accent.withValues(alpha: 0.55),
-          width: 3,
-        ),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: CommunityStatisticsCard._accent,
-          fontSize: 40,
+          color: ShareCardPalette.pitchDeep,
+          fontSize: 34,
           fontWeight: FontWeight.w700,
           letterSpacing: 2,
         ),
       ),
     );
   }
-}
-
-/// A hairline separating the totals from everything else.
-class _Rule extends StatelessWidget {
-  const _Rule();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 2,
-      color: CommunityStatisticsCard._inkMuted.withValues(alpha: 0.18),
-    );
-  }
-}
-
-/// The Go Play name, as the card's mark.
-///
-/// Set in letterspaced capitals rather than drawn: the app ships no logo asset.
-class _Wordmark extends StatelessWidget {
-  const _Wordmark({
-    required this.size,
-    required this.spacing,
-    this.muted = false,
-  });
-
-  final double size;
-  final double spacing;
-  final bool muted;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      context.l10n.appName.toUpperCase(),
-      // The mark reads left to right in both languages: it is a name, and the
-      // product is called Go Play in Arabic too.
-      textDirection: TextDirection.ltr,
-      style: TextStyle(
-        color: muted
-            ? CommunityStatisticsCard._inkMuted
-            : CommunityStatisticsCard._ink,
-        fontSize: size,
-        fontWeight: FontWeight.w800,
-        letterSpacing: spacing,
-      ),
-    );
-  }
-}
-
-/// The markings of a pitch, faintly. Drawn rather than photographed: a
-/// photograph behind this much text would compete with all of it.
-class _PitchMarkings extends StatelessWidget {
-  const _PitchMarkings();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _PitchPainter());
-  }
-}
-
-class _PitchPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..color = CommunityStatisticsCard._accent.withValues(alpha: 0.10);
-
-    // Behind the community's name, where the player's face sits on the other
-    // card — the same geometry, anchored to whatever the card is about.
-    final centre = Offset(size.width / 2, size.height * 0.28);
-    canvas.drawCircle(centre, size.width * 0.44, paint);
-    canvas.drawCircle(centre, size.width * 0.62, paint);
-    canvas.drawLine(Offset(0, centre.dy), Offset(size.width, centre.dy), paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PitchPainter oldDelegate) => false;
 }

@@ -1,0 +1,63 @@
+name: Flutter checks
+
+# The independent test gate of a pull request. `deploy-web.yml` publishes
+# whatever reaches `main` without running a test, and since 2026-10-15 an
+# approved task is implemented, tested and merged by the same agent; this job
+# is the check that does not depend on anyone's report. `develop` requires it
+# to pass before a pull request can merge.
+#
+# No path filter on purpose: a required check that does not run leaves the pull
+# request waiting forever, so this runs on every pull request, including those
+# that touch only documentation.
+#
+# No secrets and no network beyond the package downloads. Integration tests
+# under `app/test/integration/` skip without their fixture accounts, exactly as
+# they do locally.
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          # The version `deploy-web.yml` builds production with.
+          flutter-version: 3.44.7
+          cache: true
+
+      - name: Fetch dependencies
+        run: flutter pub get
+
+      # The generated localizations are tracked in git. An ARB change committed
+      # without regenerating them builds locally and then ships stale strings.
+      - name: Generated localizations are up to date
+        run: |
+          flutter gen-l10n
+          git diff --exit-code -- lib/l10n/generated
+
+      # Fails on errors only. A known baseline of older infos and warnings
+      # exists in files no recent change touched, and failing on those would
+      # make every pull request red for reasons it did not cause.
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test
+        run: flutter test

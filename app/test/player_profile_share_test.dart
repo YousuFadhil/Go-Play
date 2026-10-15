@@ -120,29 +120,34 @@ void main() {
       expect(find.text('Noor Al Kindi'), findsOneWidget);
       expect(find.text('Midfielder'), findsOneWidget);
       expect(find.text('7.4'), findsOneWidget);
-      expect(find.text('Go Play'), findsOneWidget);
+      // The mark opens the picture and closes it: two, by design.
+      expect(find.text('Go Play'), findsNWidgets(2));
       expect(find.text('Player profile'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
     testWidgets(
-        'states the career on one line and the record beside the '
-        'rating', (tester) async {
+        'states the career as one grid: the record, then the rating beside '
+        'the match-winner and goal counts', (tester) async {
       await pumpCard(tester, cardOf());
 
-      // The approved composition: the three career figures support the name,
-      // and the record is what the rating is read against.
-      expect(
-        find.text('24 Matches   |   11 Goals   |   3 MVP'),
-        findsOneWidget,
-      );
-      expect(find.text('Current rating'), findsOneWidget);
-      for (final label in ['Wins', 'Losses', 'Draws']) {
+      // Seven figures, each with its own label and none computed for the card.
+      for (final label in [
+        'Matches',
+        'Wins',
+        'Losses',
+        'Draws',
+        'Current rating',
+        'MVP',
+        'Goals',
+      ]) {
         expect(find.text(label), findsOneWidget, reason: label);
       }
-      expect(find.text('14'), findsOneWidget);
-      expect(find.text('6'), findsOneWidget);
-      expect(find.text('4'), findsOneWidget);
+      for (final value in ['24', '14', '6', '4', '7.4', '3', '11']) {
+        expect(find.text(value), findsOneWidget, reason: value);
+      }
+      // The old one-line summary is gone: the grid says it.
+      expect(find.textContaining('|'), findsNothing);
     });
 
     testWidgets('prints no address, and no code for one', (tester) async {
@@ -192,8 +197,7 @@ void main() {
       });
     }
 
-    testWidgets(
-        'every visible achievement is on the card in profile order',
+    testWidgets('every visible achievement is on the card in profile order',
         (tester) async {
       await pumpCard(tester, cardOf());
       expect(find.text('Recent achievements'), findsNothing);
@@ -241,9 +245,7 @@ void main() {
       final achievements = List.generate(
         6,
         (index) => RecentHighlight(
-          kind: index.isEven
-              ? HighlightKind.teamOfPeriod
-              : HighlightKind.mvp,
+          kind: index.isEven ? HighlightKind.teamOfPeriod : HighlightKind.mvp,
           period: index.isEven ? HighlightPeriod.week : null,
           periodKey: index.isEven ? '2026-W38' : null,
           occurredAt: DateTime.utc(2026, 9, 19 - index),
@@ -395,7 +397,7 @@ void main() {
       // The rating is a number and reads left to right in both languages.
       expect(find.text('7.4'), findsOneWidget);
       // The mark is a name, not a sentence: Go Play in Arabic too.
-      expect(find.text('Go Play'), findsOneWidget);
+      expect(find.text('Go Play'), findsNWidgets(2));
       expect(tester.takeException(), isNull);
     });
 

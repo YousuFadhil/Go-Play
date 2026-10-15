@@ -50,7 +50,7 @@ AppBar matchStageAppBar(
   return AppBar(
     key: key,
     toolbarHeight: 82 * screenScale,
-    backgroundColor: MatchStage.ground,
+    backgroundColor: ShareStage.barGreen,
     foregroundColor: Colors.white,
     iconTheme: const IconThemeData(color: Colors.white),
     actionsIconTheme: const IconThemeData(color: Colors.white),
@@ -69,7 +69,7 @@ AppBar matchStageAppBar(
         height: 1.25,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
-        color: MatchStage.ink,
+        color: ShareStage.headerInk,
       ),
     ),
     leading: IconButton(
@@ -81,7 +81,7 @@ AppBar matchStageAppBar(
   );
 }
 
-/// The dark ground a match is drawn on.
+/// The page a match is drawn on: white, under a green band at the top.
 ///
 /// The watermark is the one decoration on it: a ball, large, cropped by the
 /// corner and barely lighter than what it sits on. It says "football" without
@@ -92,14 +92,8 @@ class MatchStageGround extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF063126), MatchStage.ground],
-          ),
-        ),
+  Widget build(BuildContext context) => ColoredBox(
+        color: ShareStage.panel,
         child: Stack(
           children: [
             Positioned(
@@ -222,19 +216,27 @@ class MatchStageBoard extends StatelessWidget {
         // The one header, in both states. Before a result it is the community,
         // the match and the date; after one it grows the score strip, and
         // nothing else about the surface changes.
-        const SizedBox(height: 4),
-        MatchStageHeader(
-          community: communityName,
-          title: matchTitle,
-          playedAt: playedAt,
-          teamAScore: teamAScore,
-          teamBScore: teamBScore,
+        //
+        // On a green band that eases to white: the app bar's green at the top,
+        // the header's words reversed out of it, and the first team on white.
+        DecoratedBox(
+          decoration: const BoxDecoration(gradient: ShareStage.phoneBand),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 36),
+            child: MatchStageHeader(
+              community: communityName,
+              title: matchTitle,
+              playedAt: playedAt,
+              teamAScore: teamAScore,
+              teamBScore: teamBScore,
+            ),
+          ),
         ),
         // The gaps are phone points rather than fractions of the 941-wide
         // masters. On the masters they were reserving room inside a picture;
         // here they are separating two things a thumb scrolls past, and the
         // pitch below wants every point they were spending.
-        SizedBox(height: hasResult ? 16 : 20),
+        SizedBox(height: hasResult ? 0 : 0),
         _section(
           context,
           title: l10n.teamAName,
