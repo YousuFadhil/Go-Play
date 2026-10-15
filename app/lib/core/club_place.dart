@@ -75,8 +75,7 @@ class ClubHero extends StatelessWidget {
     final stack = Stack(
       children: [
         if (stadium) const Positioned.fill(child: StadiumBackdrop()),
-        if (ball && !stadium)
-          const Positioned.fill(child: CustomPaint(painter: _StripesPainter())),
+        if (ball && !stadium) const Positioned.fill(child: MowingStripes()),
         Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -156,25 +155,42 @@ class StadiumBackdrop extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) =>
-      const CustomPaint(painter: _StripesPainter());
+  Widget build(BuildContext context) => const MowingStripes();
 }
 
 /// Mowing stripes: diagonal bands, alternately lit.
 ///
 /// Every value is a fraction of the block, so the same composition holds at 320
-/// points and at 480, and nothing is random.
+/// points and at 480, and nothing is random. Takes no colour from the theme, so
+/// a share card can draw the same stripes the hero does.
+class MowingStripes extends StatelessWidget {
+  const MowingStripes({super.key, this.opacity = 0.055, this.bands = 5.5});
+
+  /// How strongly the lit bands show, as the alpha of white.
+  final double opacity;
+
+  /// How many bands fit across the block's width.
+  final double bands;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _StripesPainter(opacity: opacity, bands: bands));
+}
+
 class _StripesPainter extends CustomPainter {
-  const _StripesPainter();
+  const _StripesPainter({required this.opacity, required this.bands});
+
+  final double opacity;
+  final double bands;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.translate(size.width * 0.5, size.height * 0.5);
     canvas.rotate(-0.38);
-    final band = size.width / 5.5;
+    final band = size.width / bands;
     final paint = Paint()
-      ..color = const Color(0xFFFFFFFF).withValues(alpha: 0.055);
+      ..color = const Color(0xFFFFFFFF).withValues(alpha: opacity);
     final reach = size.width + size.height;
     for (var x = -reach; x < reach; x += band * 2) {
       canvas.drawRect(Rect.fromLTWH(x, -reach, band, reach * 2), paint);
@@ -183,7 +199,8 @@ class _StripesPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _StripesPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _StripesPainter oldDelegate) =>
+      oldDelegate.opacity != opacity || oldDelegate.bands != bands;
 }
 
 /// The bar inside a [ClubHero]: back, title, actions — all reversed out.

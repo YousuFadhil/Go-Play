@@ -14,8 +14,8 @@ abstract final class MatchStage {
   static const canonicalWidth = 1080.0;
   static const canonicalHeight = 1920.0;
 
-  static const ground = Color(0xFF05281D);
-  static const section = Color(0xFF0B3A29);
+  static const ground = Color(0xFF0E4D2A);
+  static const section = Color(0xFF17703E);
   static const pitchDark = Color(0xFF237A3A);
   static const pitchLight = Color(0xFF3B9B43);
   static const pitchLine = Color(0xB3F5F8F6);
