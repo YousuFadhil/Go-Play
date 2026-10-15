@@ -1592,6 +1592,30 @@ abstract class AppLocalizations {
   /// **'Community deleted.'**
   String get communityDeleted;
 
+  /// No description provided for @leaveCommunityButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave community'**
+  String get leaveCommunityButton;
+
+  /// No description provided for @leaveCommunityConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave this community?'**
+  String get leaveCommunityConfirmTitle;
+
+  /// No description provided for @leaveCommunityConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will be withdrawn from its upcoming matches. Matches you have already played stay in its history.'**
+  String get leaveCommunityConfirmBody;
+
+  /// No description provided for @leftCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'You left the community.'**
+  String get leftCommunity;
+
   /// No description provided for @permissionOwnerOnly.
   ///
   /// In en, this message translates to:
@@ -1633,6 +1657,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The owner cannot be removed. Transfer ownership first.'**
   String get errCannotRemoveOwner;
+
+  /// No description provided for @errOwnerCannotLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'The owner cannot leave. Transfer ownership or delete the community first.'**
+  String get errOwnerCannotLeave;
 
   /// No description provided for @errAlreadyOwner.
   ///

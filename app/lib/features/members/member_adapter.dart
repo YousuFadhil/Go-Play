@@ -23,4 +23,7 @@ abstract interface class MemberAdapter {
   Future<void> transferOwnership(String communityId, String newOwnerId);
 
   Future<void> removeMember(String communityId, String userId);
+
+  /// The signed-in member ends their own membership of [communityId].
+  Future<void> leaveCommunity(String communityId);
 }

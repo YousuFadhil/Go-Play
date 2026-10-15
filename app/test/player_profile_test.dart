@@ -870,6 +870,10 @@ class _FakeMemberAdapter implements MemberAdapter {
       throw UnimplementedError();
 
   @override
+  Future<void> leaveCommunity(String communityId) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> removeMember(String communityId, String userId) =>
       throw UnimplementedError();
 }

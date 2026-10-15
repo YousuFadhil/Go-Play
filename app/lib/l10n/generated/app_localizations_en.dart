@@ -868,6 +868,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get communityDeleted => 'Community deleted.';
 
   @override
+  String get leaveCommunityButton => 'Leave community';
+
+  @override
+  String get leaveCommunityConfirmTitle => 'Leave this community?';
+
+  @override
+  String get leaveCommunityConfirmBody =>
+      'You will be withdrawn from its upcoming matches. Matches you have already played stay in its history.';
+
+  @override
+  String get leftCommunity => 'You left the community.';
+
+  @override
   String get permissionOwnerOnly => 'Only the owner can do this.';
 
   @override
@@ -892,6 +905,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errCannotRemoveOwner =>
       'The owner cannot be removed. Transfer ownership first.';
+
+  @override
+  String get errOwnerCannotLeave =>
+      'The owner cannot leave. Transfer ownership or delete the community first.';
 
   @override
   String get errAlreadyOwner => 'That member is already the owner.';

@@ -92,6 +92,7 @@ enum _CommunityAction {
   changeLogo,
   removeLogo,
   delete,
+  leave,
 }
 
 class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
@@ -420,6 +421,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
     required Community community,
     required bool isOwner,
     required bool isOrganizer,
+    required bool canLeave,
     required String? joinCode,
   }) async {
     final l10n = context.l10n;
@@ -554,6 +556,21 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                       Navigator.of(sheetContext).pop(_CommunityAction.delete),
                 ),
               ],
+              // Every member but the owner, last and in the error colour like
+              // deletion: the owner leaves by transferring ownership first.
+              if (canLeave) ...[
+                const Divider(),
+                ListTile(
+                  key: const Key('communityLeaveAction'),
+                  leading: Icon(Icons.logout, color: scheme.error),
+                  title: Text(
+                    l10n.leaveCommunityButton,
+                    style: TextStyle(color: scheme.error),
+                  ),
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_CommunityAction.leave),
+                ),
+              ],
               const SizedBox(height: Gap.sm),
             ],
           ),
@@ -581,6 +598,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
         await _openMembers(community.name);
       case _CommunityAction.delete:
         await _deleteCommunity();
+      case _CommunityAction.leave:
+        await _leaveCommunity();
     }
   }
 
@@ -625,6 +644,38 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
       navigator.pop();
     } on AuthorizationFailure {
       _say(l10n.permissionOwnerOnly);
+    } catch (_) {
+      _say(l10n.genericError);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Ends the signed-in member's own membership, then leaves the page: what is
+  /// left of it is a community they no longer belong to.
+  Future<void> _leaveCommunity() async {
+    final l10n = context.l10n;
+    final navigator = Navigator.of(context);
+    if (!await _confirm(
+      l10n.leaveCommunityConfirmTitle,
+      l10n.leaveCommunityConfirmBody,
+      l10n.leaveCommunityButton,
+    )) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await _memberRepository.leaveCommunity(widget.communityId);
+      _say(l10n.leftCommunity);
+      navigator.pop();
+    } on AuthorizationFailure {
+      _say(l10n.errNotAuthorized);
+    } on Failure catch (failure) {
+      _say(switch (failure.reason) {
+        FailureReason.ownerCannotLeave => l10n.errOwnerCannotLeave,
+        FailureReason.communityInactive => l10n.errCommunityInactive,
+        _ => l10n.genericError,
+      });
     } catch (_) {
       _say(l10n.genericError);
     } finally {
@@ -705,6 +756,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> {
                                     community: community,
                                     isOwner: isOwner,
                                     isOrganizer: isOrganizer,
+                                    canLeave: myRole != null && !isOwner,
                                     joinCode: joinCode,
                                   ),
                         ),
