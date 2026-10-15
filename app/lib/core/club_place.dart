@@ -49,23 +49,22 @@ class ClubHero extends StatelessWidget {
   /// At most one row of actions.
   final Widget? action;
 
-  /// The texture. A single very large, very faint ball, most of it outside the
-  /// block — so it reads as a surface rather than as an icon somebody forgot to
-  /// position. It is the Material glyph the app already draws from: no asset,
-  /// no package, and nothing to load.
+  /// The texture: soft diagonal mowing stripes, the one cue every football
+  /// ground shares. Drawn as bands in white at a few percent, so it reads as a
+  /// lit surface and never competes with the text on it. The parameter keeps
+  /// its old name because it used to be a faint ball, and no caller needs to
+  /// change.
   final bool ball;
 
   /// Whether this hero is drawn as a ground rather than as a flat block.
   ///
-  /// The approved Package 5 direction opens a player's record — and the public
-  /// page of a match that has been played — on football rather than on a colour:
-  /// a dark sky, floodlights, the far stand, and the pitch coming up to meet the
-  /// page. It is [StadiumBackdrop], which is drawn from the product's own greens
-  /// with a painter: no photograph, no licence, no asset to load, and the same
-  /// picture on every device because nothing in it is random.
+  /// A player's record, a community's public page and a played match open on
+  /// football rather than on a flat colour: a green that shades from a deeper
+  /// top, where the identity is reversed out, to the product's green, under the
+  /// same stripes. It is [StadiumBackdrop], drawn with a painter: no photograph,
+  /// no asset to load, and the same picture on every device.
   ///
-  /// Opt-in, and false everywhere it is not asked for: a community's hero is
-  /// still the flat block the frozen direction specifies.
+  /// Opt-in, and false everywhere it is not asked for.
   final bool stadium;
 
   @override
@@ -77,18 +76,7 @@ class ClubHero extends StatelessWidget {
       children: [
         if (stadium) const Positioned.fill(child: StadiumBackdrop()),
         if (ball && !stadium)
-          PositionedDirectional(
-            // Mirrored under Arabic rather than pinned to a physical edge.
-            // It is decoration, and decoration that ignores the reading
-            // direction is the thing a reader notices about it.
-            end: -44,
-            top: -50,
-            child: Icon(
-              Icons.sports_soccer,
-              size: 190,
-              color: Colors.white.withValues(alpha: 0.055),
-            ),
-          ),
+          const Positioned.fill(child: CustomPaint(painter: _StripesPainter())),
         Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -144,32 +132,24 @@ class ClubHero extends StatelessWidget {
 
 /// A ground, drawn rather than photographed.
 ///
-/// **Why a painter and not a picture.** The approved reference puts a stadium
-/// behind the player. A photograph would be an asset to licence, a download on
-/// every cold start and a different picture at every width; this is four shapes
-/// in the product's own colours — so it costs nothing to load, scales to any
-/// hero, mirrors nothing it should not, and renders identically on every device
-/// and in every test.
-///
-/// What is drawn, from the top down: the night above the ground, two floodlight
-/// glows, the far stand as a band of seats, and the pitch — a touchline, the
-/// halfway line and the centre circle in perspective — rising to meet the page
-/// that slides over it. Every value is a fraction of the block, so the same
-/// composition holds at 320 points and at 480.
+/// A painter and not a picture: it costs nothing to load, scales to any hero,
+/// and renders identically on every device and in every test. What is drawn is
+/// the stripes of a mown pitch over a green that shades from a deeper top to
+/// the product's own green where the page slides over it.
 class StadiumBackdrop extends StatelessWidget {
   const StadiumBackdrop({super.key});
 
-  /// The sky and the grass behind everything else. Dark at the top, because the
-  /// identity is reversed out of it, and the product's own green where the page
-  /// meets it — so the sheet slides off a colour it belongs to rather than off a
-  /// photograph's edge.
+  /// The green behind the stripes. Deeper at the top, because the identity is
+  /// reversed out of it (white on every stop clears 4.5:1), and the product's
+  /// own green where the sheet meets it, so the sheet slides off a colour it
+  /// belongs to.
   static const LinearGradient sky = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFF07200F),
-      Color(0xFF0E3720),
-      GoColors.primaryDeep,
+      Color(0xFF176B3A),
+      Color(0xFF1B7541),
+      GoColors.primary,
       GoColors.primary,
     ],
     stops: [0, 0.38, 0.72, 1],
@@ -177,105 +157,33 @@ class StadiumBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      const CustomPaint(painter: _StadiumPainter());
+      const CustomPaint(painter: _StripesPainter());
 }
 
-class _StadiumPainter extends CustomPainter {
-  const _StadiumPainter();
+/// Mowing stripes: diagonal bands, alternately lit.
+///
+/// Every value is a fraction of the block, so the same composition holds at 320
+/// points and at 480, and nothing is random.
+class _StripesPainter extends CustomPainter {
+  const _StripesPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    // Where the grass starts: the far touchline, low enough that the identity
-    // sits against the stand and the pitch reads as distance.
-    final horizon = h * 0.52;
-
-    // --- the floodlights -----------------------------------------------------
-    for (final x in [w * 0.16, w * 0.84]) {
-      final centre = Offset(x, -h * 0.18);
-      final radius = w * 0.58;
-      canvas.drawCircle(
-        centre,
-        radius,
-        Paint()
-          ..shader = RadialGradient(
-            colors: [
-              const Color(0xFFFFFFFF).withValues(alpha: 0.16),
-              const Color(0x00FFFFFF),
-            ],
-          ).createShader(Rect.fromCircle(center: centre, radius: radius)),
-      );
+    canvas.save();
+    canvas.translate(size.width * 0.5, size.height * 0.5);
+    canvas.rotate(-0.38);
+    final band = size.width / 5.5;
+    final paint = Paint()
+      ..color = const Color(0xFFFFFFFF).withValues(alpha: 0.055);
+    final reach = size.width + size.height;
+    for (var x = -reach; x < reach; x += band * 2) {
+      canvas.drawRect(Rect.fromLTWH(x, -reach, band, reach * 2), paint);
     }
-
-    // --- the far stand -------------------------------------------------------
-    final standTop = horizon - h * 0.22;
-    canvas.drawRect(
-      Rect.fromLTRB(0, standTop, w, horizon),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0x00000000), Color(0x33000000)],
-        ).createShader(Rect.fromLTRB(0, standTop, w, horizon)),
-    );
-    // Seats: three rows of short strokes, fading upwards. Regular on purpose —
-    // a crowd read from this distance is a texture, not people.
-    final seat = Paint()..strokeWidth = 2;
-    for (var row = 0; row < 3; row++) {
-      final y = standTop + h * 0.05 + row * h * 0.05;
-      seat.color =
-          const Color(0xFFFFFFFF).withValues(alpha: 0.05 - row * 0.012);
-      for (var x = w * 0.02; x < w; x += w * 0.045) {
-        canvas.drawLine(Offset(x, y), Offset(x + w * 0.022, y), seat);
-      }
-    }
-
-    // --- the pitch -----------------------------------------------------------
-    final line = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..color = const Color(0xFFFFFFFF).withValues(alpha: 0.18);
-
-    // The touchline, and the halfway line running back from it.
-    canvas.drawLine(Offset(0, horizon), Offset(w, horizon), line);
-    canvas.drawLine(Offset(w / 2, horizon), Offset(w / 2, h), line);
-
-    // The centre circle, flattened by the angle it is seen at.
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w / 2, horizon + h * 0.30),
-        width: w * 0.62,
-        height: h * 0.42,
-      ),
-      line,
-    );
-
-    // A goal area at the far end, narrowing with distance.
-    final boxPath = Path()
-      ..moveTo(w * 0.30, horizon)
-      ..lineTo(w * 0.24, horizon - h * 0.07)
-      ..lineTo(w * 0.76, horizon - h * 0.07)
-      ..lineTo(w * 0.70, horizon);
-    canvas.drawPath(boxPath, line);
-
-    // --- and the grass, lit unevenly ----------------------------------------
-    canvas.drawRect(
-      Rect.fromLTRB(0, horizon, w, h),
-      Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(0, -0.6),
-          radius: 0.9,
-          colors: [
-            const Color(0xFFFFFFFF).withValues(alpha: 0.07),
-            const Color(0x00FFFFFF),
-          ],
-        ).createShader(Rect.fromLTRB(0, horizon, w, h)),
-    );
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _StadiumPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _StripesPainter oldDelegate) => false;
 }
 
 /// The bar inside a [ClubHero]: back, title, actions — all reversed out.
