@@ -448,7 +448,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // shell is not used here: the bar, the ground and the sections are the Teams
     // feature's own, and nothing about the other five task screens changes.
     return Scaffold(
-      backgroundColor: MatchStage.ground,
+      backgroundColor: ShareStage.panel,
       appBar: matchStageAppBar(
         context,
         key: const ValueKey('teams-app-bar'),
@@ -507,7 +507,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
           child: Text(
             l10n.teamsEmpty,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: MatchStage.ink),
+            style: const TextStyle(color: ShareStage.ink),
           ),
         ),
         // Adding somebody who played, on a match that has no lineup yet.
@@ -611,8 +611,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
             icon: const Icon(Icons.workspace_premium_outlined),
             label: Text(l10n.addGuestButton),
             style: OutlinedButton.styleFrom(
-              foregroundColor: MatchStage.ink,
-              side: const BorderSide(color: MatchStage.inkMuted),
+              foregroundColor: ShareStage.accent,
+              side: const BorderSide(color: ShareStage.panelEdge),
             ),
           ),
         ),
@@ -817,8 +817,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
             icon: const Icon(Icons.person_add_alt),
             label: Text(l10n.editPlayedParticipantsAction),
             style: OutlinedButton.styleFrom(
-              foregroundColor: MatchStage.ink,
-              side: const BorderSide(color: MatchStage.inkMuted),
+              foregroundColor: ShareStage.accent,
+              side: const BorderSide(color: ShareStage.panelEdge),
             ),
           ),
         ),
@@ -860,7 +860,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
-                ?.copyWith(color: MatchStage.inkMuted),
+                ?.copyWith(color: ShareStage.inkMuted),
           ),
         ),
       ];

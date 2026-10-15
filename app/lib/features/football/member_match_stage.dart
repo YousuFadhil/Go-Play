@@ -104,7 +104,7 @@ class _MatchFacts extends StatelessWidget {
         if (!match.hasResult)
           _StageNote(
             l10n.resultPendingLabel,
-            color: MatchStage.ink,
+            color: ShareStage.ink,
             padding: const EdgeInsets.fromLTRB(
               kPageMargin,
               Gap.sm,
@@ -154,7 +154,7 @@ class _StageNote extends StatelessWidget {
             fontSize: 13,
             height: 1.3,
             fontWeight: color == null ? FontWeight.w400 : FontWeight.w700,
-            color: color ?? Colors.white.withValues(alpha: 0.72),
+            color: color ?? ShareStage.inkMuted,
           ),
         ),
       );

@@ -182,7 +182,7 @@ void main() {
         find.byKey(const ValueKey('team-a-indicator')),
       );
       final teamADecoration = teamA.decoration! as BoxDecoration;
-      expect(teamADecoration.color, MatchStage.accent);
+      expect(teamADecoration.color, ShareStage.accent);
       expect(teamADecoration.boxShadow, isNotNull,
           reason: 'Team A carries the glow');
 

@@ -748,7 +748,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
           // lineup only through the existing Teams action. No permission
           // changes; only the default presentation differs by role.
           return Scaffold(
-            backgroundColor: MatchStage.ground,
+            backgroundColor: ShareStage.panel,
             appBar: matchStageAppBar(
               context,
               key: const ValueKey('member-match-app-bar'),

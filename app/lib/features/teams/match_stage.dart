@@ -137,6 +137,22 @@ abstract final class ShareStage {
     stops: [0, 0.16, 0.42, 0.62, 1],
   );
 
+  /// The green band at the top of a phone stage screen, under the app bar and
+  /// the match header: the app bar's own green, easing to white where the
+  /// first team begins.
+  static const barGreen = Color(0xFF145A32);
+  static const phoneBand = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF145A32),
+      Color(0xFF1E7B45),
+      Color(0xFFD9EEE0),
+      Color(0xFFFFFFFF),
+    ],
+    stops: [0, 0.5, 0.84, 1],
+  );
+
   /// Words on the green at the top of the frame.
   static const headerInk = Color(0xFFFFFFFF);
   static const headerInkMuted = Color(0xCCFFFFFF);
@@ -224,7 +240,7 @@ class MatchStageHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: MatchStage.ink,
+                    color: ShareStage.headerInk,
                     fontSize: 21,
                     fontWeight: FontWeight.w700,
                     height: 1.15,
@@ -238,17 +254,19 @@ class MatchStageHeader extends StatelessWidget {
                       if (community != null)
                         TextSpan(
                           text: community,
-                          style: const TextStyle(color: MatchStage.accent),
+                          style:
+                              const TextStyle(color: ShareStage.headerAccent),
                         ),
                       if (community != null && date != null)
                         const TextSpan(
                           text: '  ·  ',
-                          style: TextStyle(color: MatchStage.inkMuted),
+                          style: TextStyle(color: ShareStage.headerInkMuted),
                         ),
                       if (date != null)
                         TextSpan(
                           text: date,
-                          style: const TextStyle(color: MatchStage.inkMuted),
+                          style:
+                              const TextStyle(color: ShareStage.headerInkMuted),
                         ),
                     ],
                   ),
@@ -461,12 +479,9 @@ class _PhoneScoreStrip extends StatelessWidget {
         height: 62,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF0A3928),
+          color: ShareStage.panel,
           borderRadius: BorderRadius.circular(17),
-          border: Border.all(
-            color: MatchStage.accent.withValues(alpha: .28),
-            width: 1,
-          ),
+          border: Border.all(color: ShareStage.panelEdge, width: 1.2),
         ),
         child: Row(
           children: [
@@ -503,7 +518,7 @@ class _PhoneStripLabel extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: won ? MatchStage.accent : MatchStage.ink,
+            color: won ? ShareStage.accent : ShareStage.ink,
             fontSize: 15,
             fontWeight: won ? FontWeight.w800 : FontWeight.w600,
             height: 1,
@@ -529,7 +544,7 @@ class _PhoneScorePod extends StatelessWidget {
           '$value',
           textDirection: TextDirection.ltr,
           style: TextStyle(
-            color: won ? MatchStage.accent : MatchStage.ink,
+            color: won ? ShareStage.accent : ShareStage.ink,
             fontSize: 26,
             fontWeight: FontWeight.w800,
             height: 1,
@@ -541,12 +556,9 @@ class _PhoneScorePod extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: MatchStage.phoneScorePod,
+        color: ShareStage.tint,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: MatchStage.accent.withValues(alpha: .38),
-          width: 1,
-        ),
+        border: Border.all(color: ShareStage.panelEdge, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -558,7 +570,7 @@ class _PhoneScorePod extends StatelessWidget {
               '–',
               textDirection: TextDirection.ltr,
               style: TextStyle(
-                color: MatchStage.inkMuted,
+                color: ShareStage.inkMuted,
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
                 height: 1,
@@ -925,7 +937,7 @@ class _TeamHeading extends StatelessWidget {
       style: TextStyle(
         // The share heading is dark on the white card; the phone's is light on
         // the dark stage.
-        color: team == null ? ShareStage.ink : MatchStage.ink,
+        color: ShareStage.ink,
         fontSize: team == null ? 35 * sx : 16.5,
         fontWeight: FontWeight.w700,
         height: 1,
@@ -944,12 +956,12 @@ class _TeamHeading extends StatelessWidget {
             width: 9,
             height: 9,
             decoration: BoxDecoration(
-              color: isTeamA ? MatchStage.accent : MatchStage.phoneTeamB,
+              color: isTeamA ? ShareStage.accent : MatchStage.phoneTeamB,
               shape: BoxShape.circle,
               boxShadow: isTeamA
                   ? [
                       BoxShadow(
-                        color: MatchStage.accent.withValues(alpha: .55),
+                        color: ShareStage.accent.withValues(alpha: .35),
                         blurRadius: 7,
                         spreadRadius: 1,
                       ),
