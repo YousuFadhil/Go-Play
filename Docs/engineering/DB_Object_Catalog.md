@@ -303,11 +303,12 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 |---|---|
 | `/share/match/:id` | `functions/share/match/[id].js` |
 
-## GitHub Actions workflows (4)
+## GitHub Actions workflows (5)
 
 | Workflow | Name | Triggers |
 |---|---|---|
 | `.github/workflows/deploy-staging.yml` | Deploy staging web app to Cloudflare Pages | workflow_dispatch |
 | `.github/workflows/deploy-web.yml` | Deploy web app to Cloudflare Pages | push, workflow_dispatch |
 | `.github/workflows/docs-sync.yml` | Docs sync check | pull_request |
+| `.github/workflows/flutter-ci.yml` | Flutter checks | pull_request |
 | `.github/workflows/team-of-period-snapshot.yml` | Team of Period snapshot | workflow_dispatch |
