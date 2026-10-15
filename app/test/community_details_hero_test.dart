@@ -8,6 +8,7 @@ import 'package:go_play/core/l10n.dart';
 import 'package:go_play/core/theme.dart';
 import 'package:go_play/features/communities/member_card.dart';
 import 'package:go_play/features/matches/compact_match_card.dart';
+import 'package:go_play/features/matches/match_card.dart';
 import 'package:go_play/core/tokens.dart';
 import 'package:go_play/features/communities/community_adapter.dart';
 import 'package:go_play/features/communities/community_details_screen.dart';
@@ -96,6 +97,9 @@ void main() {
     _FakeCommunityAdapter? adapter,
     _FakeMemberAdapter? memberAdapter,
     WilayatRepository? wilayats,
+    // Matches of the caller's own, for the tests that need a run of a
+    // particular length.
+    List<Match>? matchList,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -114,7 +118,7 @@ void main() {
           memberAdapter ??
               _FakeMemberAdapter(members: roster ?? members, role: role),
         ),
-        matchService: MatchService(_FakeMatchAdapter(matches)),
+        matchService: MatchService(_FakeMatchAdapter(matchList ?? matches)),
         wilayatRepository: wilayats,
       ),
     ));
@@ -644,16 +648,15 @@ void main() {
             ),
         ];
 
-    testWidgets('matches sit two across, both the coming and the played',
+    testWidgets('a lone match is a full-width row card, coming and played',
         (tester) async {
       await pumpCommunity(tester);
 
-      // The fixture carries one of each, and the two lists stay separate: a
-      // plan and a record are different things to a member, so the played match
-      // must not come up beside the coming one on a shared row.
-      expect(find.byType(CompactMatchCard), findsNWidgets(2));
-      expect(columnsOf(tester, find.byType(CompactMatchCard)), 1,
-          reason: 'one upcoming and one played, in two sections');
+      // The fixture carries one of each, in two sections. A run of exactly one
+      // would leave half its row empty in the grid, so it is drawn as the row
+      // card instead; the two lists stay separate all the same.
+      expect(find.byType(MatchCard), findsNWidgets(2));
+      expect(find.byType(CompactMatchCard), findsNothing);
 
       expect(find.text('Friday Night'), findsOneWidget);
       expect(find.text('Last Sunday'), findsOneWidget);
@@ -662,6 +665,30 @@ void main() {
       // grid arrived.
       expect(find.text('Upcoming matches'), findsWidgets);
       expect(find.text('Completed matches'), findsWidgets);
+    });
+
+    testWidgets('two or more matches still sit two across', (tester) async {
+      Match upcoming(String id, String title) => Match(
+            id: id,
+            communityId: 'c1',
+            createdBy: 'u9',
+            location: 'Al Amerat Pitch',
+            startAt: kickOff,
+            endAt: kickOff.add(const Duration(hours: 2)),
+            startingPlayers: 10,
+            maxRegistration: 16,
+            status: MatchStatus.open,
+            title: title,
+          );
+
+      await pumpCommunity(
+        tester,
+        matchList: [upcoming('a', 'Friday Night'), upcoming('b', 'Late Game')],
+      );
+
+      expect(find.byType(CompactMatchCard), findsNWidgets(2));
+      expect(find.byType(MatchCard), findsNothing);
+      expect(columnsOf(tester, find.byType(CompactMatchCard)), 2);
     });
 
     testWidgets('members sit three across on a phone', (tester) async {
