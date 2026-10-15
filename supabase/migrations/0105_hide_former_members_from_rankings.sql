@@ -10,18 +10,20 @@
 -- The Product Owner's rule (2026-10-15, DD-21 phase 2):
 --
 --   * the community's current rankings show current members only -- the five
---     boards of the Statistics tab, the public Top Players, and the read model
---     below;
+--     boards and the three leaders of the Statistics tab, the public Top
+--     Players, and the read model below;
 --   * the record itself is history and stays exactly as it is: match details,
 --     the Team of the Period, and the community's totals (goals, MVPs, players
 --     who played) keep counting what a former member did;
 --   * nothing is deleted. A former member who joins again appears again, with
 --     the same record, because the row was never removed.
 --
--- The five boards are built by the application from the same rows as the
--- totals, so the boards are filtered there (the read now carries whether each
--- player is still a member) and the totals are untouched. The two database
--- objects below are rankings and nothing else, so they are filtered here.
+-- The five boards of the Statistics tab already ranked current members: the
+-- application builds them from the member roster, not from these rows. What
+-- still ranked a former member there were the summary card's three leaders,
+-- which the application now draws from the roster as well, leaving the totals
+-- untouched. The two database objects below are rankings and nothing else, so
+-- they are filtered here.
 --
 -- "Still a member" is a `community_members` row for the same community and
 -- user, the same test `has_community_role` makes. No column, index or grant
