@@ -1500,7 +1500,8 @@ void main() {
         'playedPosition_u5_MID',
         'playedPosition_u5_FWD',
       ]) {
-        expect(tester.widget<ChoiceChip>(find.byKey(Key(key))).selected, isFalse,
+        expect(
+            tester.widget<ChoiceChip>(find.byKey(Key(key))).selected, isFalse,
             reason: '$key must not be pre-selected from the profile');
       }
       expect(
@@ -1552,8 +1553,7 @@ void main() {
       expect(teams.correctionCalls, 1,
           reason: 'two players, one atomic save -- not one call each');
       expect([for (final c in teams.corrections) c.userId], ['u5', 'u6']);
-      expect([for (final c in teams.corrections) c.team],
-          [TeamId.a, TeamId.b]);
+      expect([for (final c in teams.corrections) c.team], [TeamId.a, TeamId.b]);
       expect([for (final c in teams.corrections) c.position],
           [Position.mid, Position.fwd]);
     });
@@ -1830,8 +1830,8 @@ void main() {
       final colour = empty.style?.color;
       expect(colour, isNotNull,
           reason: 'the colour must be stated, not inherited from the light '
-              'theme this dark screen sits under');
-      expect(luminanceGap(colour!, MatchStage.ground), greaterThan(0.4),
+              'theme this screen sits under');
+      expect(luminanceGap(colour!, ShareStage.panel), greaterThan(0.4),
           reason: 'it has to stand off the ground it is drawn on');
     });
 
@@ -1849,10 +1849,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final note = tester.widget<Text>(find.textContaining('confirmed players'));
+      final note =
+          tester.widget<Text>(find.textContaining('confirmed players'));
       final colour = note.style?.color;
       expect(colour, isNotNull);
-      expect(luminanceGap(colour!, MatchStage.ground), greaterThan(0.3));
+      expect(luminanceGap(colour!, ShareStage.panel), greaterThan(0.3));
     });
 
     testWidgets('and the actions offered beside them', (tester) async {
@@ -1869,7 +1870,7 @@ void main() {
       final foreground =
           button.style?.foregroundColor?.resolve(<WidgetState>{});
       expect(foreground, isNotNull);
-      expect(luminanceGap(foreground!, MatchStage.ground), greaterThan(0.4));
+      expect(luminanceGap(foreground!, ShareStage.panel), greaterThan(0.4));
     });
   });
 
@@ -2052,8 +2053,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      final saved = teams.savedLineup!
-          .singleWhere((a) => a.professionalGuestId == 'g1');
+      final saved =
+          teams.savedLineup!.singleWhere((a) => a.professionalGuestId == 'g1');
       expect(saved.assignedPosition, Position.mid);
       expect(saved.professionalGuestId, 'g1');
       expect(saved.userId, isNull,
@@ -2159,8 +2160,8 @@ void main() {
       await tester.tap(find.text('Move to the other team'));
       await tester.pumpAndSettle();
 
-      final moved = teams.savedLineup!
-          .singleWhere((a) => a.professionalGuestId == 'g1');
+      final moved =
+          teams.savedLineup!.singleWhere((a) => a.professionalGuestId == 'g1');
       expect(moved.team, TeamId.b);
       expect(moved.userId, isNull);
       expect(moved.professionalGuestId, 'g1',
@@ -2288,7 +2289,8 @@ void main() {
               'the screen never puts them on a side itself');
     });
 
-    testWidgets('on a played match it is a factual correction, not a roster add',
+    testWidgets(
+        'on a played match it is a factual correction, not a roster add',
         (tester) async {
       // The defect this fixes: the roster path created the guest and a confirmed
       // seat, and `recompute_match_status` returned at its completed branch
@@ -2354,8 +2356,8 @@ void main() {
       await tester.tap(find.byKey(const Key('teamsAddGuestButton')));
       await tester.pumpAndSettle();
 
-      FilledButton saveButton() => tester.widget<FilledButton>(
-          find.byKey(const Key('savePlayedGuestButton')));
+      FilledButton saveButton() => tester
+          .widget<FilledButton>(find.byKey(const Key('savePlayedGuestButton')));
 
       expect(saveButton().onPressed, isNull, reason: 'nothing said yet');
 
@@ -2405,7 +2407,8 @@ void main() {
       await tester.tap(find.byKey(const Key('teamsGuestNameSubmit')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Faisal was added to the reserve list.'), findsOneWidget);
+      expect(
+          find.text('Faisal was added to the reserve list.'), findsOneWidget);
       expect(teams.savedLineup, isNull);
     });
 
@@ -3112,8 +3115,7 @@ class FakeMemberAdapter implements MemberAdapter {
       throw UnimplementedError();
 
   @override
-  Future<void> leaveCommunity(String communityId) =>
-      throw UnimplementedError();
+  Future<void> leaveCommunity(String communityId) => throw UnimplementedError();
 
   @override
   Future<void> removeMember(String communityId, String userId) =>

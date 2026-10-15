@@ -202,7 +202,7 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
     // product draws one. The Club task shell is not used here, for the same
     // reason it is not used on the Teams screen.
     return Scaffold(
-      backgroundColor: MatchStage.ground,
+      backgroundColor: ShareStage.panel,
       appBar: matchStageAppBar(
         context,
         key: const ValueKey('football-match-app-bar'),
@@ -276,7 +276,7 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
       if (!match.hasResult)
         _StageNote(
           l10n.resultPendingLabel,
-          color: MatchStage.ink,
+          color: ShareStage.ink,
           padding: const EdgeInsets.fromLTRB(
             kPageMargin,
             Gap.sm,
@@ -344,7 +344,7 @@ class _FootballMatchScreenState extends State<FootballMatchScreen> {
           child: Text(
             l10n.latestResultsEmpty,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: MatchStage.ink),
+            style: const TextStyle(color: ShareStage.ink),
           ),
         )
       else
@@ -375,7 +375,7 @@ class _StageHeading extends StatelessWidget {
         child: Text(
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: MatchStage.ink,
+                color: ShareStage.ink,
                 fontWeight: FontWeight.w700,
               ),
         ),
@@ -391,7 +391,7 @@ class _StageNote extends StatelessWidget {
   const _StageNote(
     this.text, {
     required this.padding,
-    this.color = MatchStage.inkMuted,
+    this.color = ShareStage.inkMuted,
     this.align = TextAlign.center,
   });
 
@@ -451,7 +451,7 @@ class _ParticipantRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style:
-                    theme.textTheme.bodyMedium?.copyWith(color: MatchStage.ink),
+                    theme.textTheme.bodyMedium?.copyWith(color: ShareStage.ink),
               ),
             ),
           ],

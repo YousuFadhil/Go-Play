@@ -249,8 +249,8 @@ void main() {
       );
       // The approved Discover is three tabs in this order, not three
       // sections stacked down one page.
-      final tabs = find
-          .descendant(of: find.byType(DiscoverTabs), matching: find.byType(Tab));
+      final tabs = find.descendant(
+          of: find.byType(DiscoverTabs), matching: find.byType(Tab));
       expect(tabs, findsNWidgets(3));
       expect(find.text('Upcoming matches'), findsOneWidget);
       expect(find.text('Latest results'), findsOneWidget);
@@ -262,8 +262,8 @@ void main() {
       expect(resultsX, lessThan(upcomingX));
       expect(upcomingX, lessThan(communitiesX));
       expect(find.text('Latest results'), findsOneWidget);
-      expect(
-          (tester.widget<Tab>(tabs.at(0)).child! as Text).data, 'Latest results');
+      expect((tester.widget<Tab>(tabs.at(0)).child! as Text).data,
+          'Latest results');
 
       // And only the selected tab's football is on screen: the results, on
       // the tab Discover opens on.
@@ -410,6 +410,7 @@ void main() {
       List<PublicCommunity> communities = const [],
       List<PublicMatch> matches = const [],
       List<String> joined = const [],
+
       /// Which Discover tab the target lives on. Results by default, because
       /// that is what most of this suite is about -- and the first tab.
       int tab = 0,
@@ -911,9 +912,9 @@ void main() {
         of: find.byKey(const ValueKey('result-strip')),
         matching: find.text('Team B'),
       ));
-      expect(winner.style?.color, MatchStage.accent,
+      expect(winner.style?.color, ShareStage.accent,
           reason: 'one side won, so exactly one side is marked');
-      expect(loser.style?.color, MatchStage.ink);
+      expect(loser.style?.color, ShareStage.ink);
     });
 
     testWidgets('a drawn match marks neither side', (tester) async {
@@ -1408,7 +1409,7 @@ void main() {
       // this section. Opening it is presentation, not a request.
       final ports =
           await pumpDiscover(tester, signedIn: true, results: feed(5));
-          await openResults(tester);
+      await openResults(tester);
       final callsAfterLoad = ports.football.completedCalls;
       expect(callsAfterLoad, 1);
 
@@ -1471,7 +1472,7 @@ void main() {
         (tester) async {
       final ports =
           await pumpDiscover(tester, signedIn: true, results: feed(5));
-          await openResults(tester);
+      await openResults(tester);
       expect(ports.football.completedCalls, 1);
       expect(ports.football.lastLimit, 6);
 
@@ -1494,7 +1495,7 @@ void main() {
     testWidgets('the read is capped at the approved six', (tester) async {
       final ports =
           await pumpDiscover(tester, signedIn: true, results: feed(5));
-          await openResults(tester);
+      await openResults(tester);
 
       expect(ports.football.lastLimit, 6,
           reason: 'UAT round 1 moved the recent window from five to six');
