@@ -1,3 +1,4 @@
+import 'package:flutter/painting.dart' show Alignment, LinearGradient;
 import 'dart:ui' show Color;
 
 /// The colours every share card is drawn in.
@@ -46,6 +47,22 @@ abstract final class ShareCardPalette {
   /// drawn on it on screen as well as on a card.
   static const award = Color(0xFFC9A227);
   static const onAward = Color(0xFF3A2C05);
+
+  /// The poster ground: the product's green, deepest at the top (where the
+  /// masthead is reversed out of it) and fading to a near-white mint at the
+  /// foot, where the card's mark is drawn in green.
+  static const posterGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF145A32),
+      Color(0xFF1E7B45),
+      Color(0xFF7DC393),
+      Color(0xFFD9EEE0),
+      Color(0xFFF3F8F1),
+    ],
+    stops: [0, 0.26, 0.56, 0.82, 1],
+  );
 
   /// The white sheet a poster-style card puts its content on, and the inks and
   /// tints that go on it. Stated here for the same reason as the rest: a card

@@ -142,17 +142,11 @@ class MatchResultCard extends StatelessWidget {
 
       return DecoratedBox(
         key: const ValueKey('match-card-background'),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [MatchStage.groundTop, MatchStage.ground],
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: ShareStage.frame),
         child: Stack(
           children: [
             const Positioned.fill(
-              child: MowingStripes(opacity: 0.05, bands: 8.4),
+              child: MowingStripes(opacity: 0.06, bands: 8.4),
             ),
             Positioned(
               key: const ValueKey('share-header-ball-left'),
@@ -161,7 +155,7 @@ class MatchResultCard extends StatelessWidget {
               child: Icon(
                 Icons.sports_soccer,
                 size: 255 * sx,
-                color: Colors.white.withValues(alpha: .035),
+                color: Colors.white.withValues(alpha: .05),
               ),
             ),
             Positioned(
@@ -171,7 +165,7 @@ class MatchResultCard extends StatelessWidget {
               child: Icon(
                 Icons.sports_soccer,
                 size: 405 * sx,
-                color: Colors.white.withValues(alpha: .045),
+                color: Colors.white.withValues(alpha: .06),
               ),
             ),
             Positioned(
@@ -314,7 +308,7 @@ class ShareCardSignature extends StatelessWidget {
                           Text(
                             'G',
                             style: TextStyle(
-                              color: MatchStage.accent,
+                              color: ShareStage.accent,
                               fontSize: 66,
                               fontWeight: FontWeight.w900,
                               fontStyle: FontStyle.italic,
@@ -326,13 +320,13 @@ class ShareCardSignature extends StatelessWidget {
                             child: Icon(
                               Icons.sports_soccer,
                               size: 56,
-                              color: MatchStage.ink,
+                              color: ShareStage.ink,
                             ),
                           ),
                           Text(
                             ' PLAY',
                             style: TextStyle(
-                              color: MatchStage.ink,
+                              color: ShareStage.ink,
                               fontSize: 56,
                               fontWeight: FontWeight.w900,
                               fontStyle: FontStyle.italic,
@@ -365,7 +359,7 @@ class _StripeGroupPainter extends CustomPainter {
       final progress = index / 8;
       final x = origin + direction * size.width * (.04 + progress * .88);
       final paint = Paint()
-        ..color = MatchStage.accent.withValues(alpha: .62 - progress * .38)
+        ..color = ShareStage.accent.withValues(alpha: .62 - progress * .38)
         ..strokeWidth = size.height * .16
         ..strokeCap = StrokeCap.square;
       canvas.drawLine(
@@ -387,7 +381,7 @@ class _FooterPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final line = Paint()
-      ..color = MatchStage.accent.withValues(alpha: .28)
+      ..color = ShareStage.accent.withValues(alpha: .28)
       ..strokeWidth = 1;
     canvas.drawLine(Offset(0, size.height * .08),
         Offset(size.width, size.height * .08), line);
