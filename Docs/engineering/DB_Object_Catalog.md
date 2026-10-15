@@ -3,7 +3,7 @@
 > **Generated file. Do not edit by hand.** Regenerate it with `node tool/check-docs.mjs --write`;
 > `node tool/check-docs.mjs` fails when it is out of date.
 
-Source of truth: the 106 files in `supabase/migrations/`, newest `0105`.
+Source of truth: the 107 files in `supabase/migrations/`, newest `0106`.
 
 This is an **index** of what exists and which migration made it, not a specification. Behaviour is described
 in each migration's header comment, in the table specifications under `Docs/engineering/`, and in
