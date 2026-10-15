@@ -60,8 +60,9 @@ void main() {
       // lifted it to the vivid pitch greens (DD-24), but none of these is
       // derived from the hero token, and this is what says so if one ever
       // becomes so.
-      expect(MatchStage.ground, const Color(0xFF0E4D2A));
-      expect(MatchStage.section, const Color(0xFF17703E));
+      expect(MatchStage.groundTop, const Color(0xFF1E7B45));
+      expect(MatchStage.ground, const Color(0xFF145A32));
+      expect(MatchStage.section, const Color(0xFF0E4D2A));
       expect(MatchStage.accent, const Color(0xFF45DF7C));
       expect(MatchStage.ink, const Color(0xFFF5F8F6));
     });

@@ -1,4 +1,5 @@
 import 'package:btge/btge.dart';
+import '../../core/club_place.dart' show MowingStripes;
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
@@ -145,11 +146,14 @@ class MatchResultCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF063126), MatchStage.ground],
+            colors: [MatchStage.groundTop, MatchStage.ground],
           ),
         ),
         child: Stack(
           children: [
+            const Positioned.fill(
+              child: MowingStripes(opacity: 0.05, bands: 8.4),
+            ),
             Positioned(
               key: const ValueKey('share-header-ball-left'),
               top: -70 * sy,

@@ -25,6 +25,11 @@ abstract final class ShareCardPalette {
   /// The one accent: rules, badges, the disc behind a player's face.
   static const accent = Color(0xFF3DDC84);
 
+  /// The accent as TEXT on the green: a light mint, because [accent] itself is
+  /// 3:1 on [pitch] and a label at share-card scale needs better than that
+  /// (this is 4.7:1). Use [accent] for fills, rules and badges; this for words.
+  static const accentText = Color(0xFFD2FBDF);
+
   /// Text.
   static const ink = Color(0xFFFFFFFF);
 

@@ -97,7 +97,7 @@ class MatchStageGround extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF063126), MatchStage.ground],
+            colors: [MatchStage.groundTop, MatchStage.ground],
           ),
         ),
         child: Stack(

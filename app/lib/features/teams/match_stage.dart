@@ -14,8 +14,16 @@ abstract final class MatchStage {
   static const canonicalWidth = 1080.0;
   static const canonicalHeight = 1920.0;
 
-  static const ground = Color(0xFF0E4D2A);
-  static const section = Color(0xFF17703E);
+  /// The top of the stage's gradient: the product's own green, so a stage reads
+  /// as the same family as the heroes and the other share cards.
+  static const groundTop = Color(0xFF1E7B45);
+
+  /// The bottom of it, and the page a phone stage screen sits on.
+  static const ground = Color(0xFF145A32);
+
+  /// The panel a team lives in: deeper than the frame, so the grass inside it
+  /// still stands off it.
+  static const section = Color(0xFF0E4D2A);
   static const pitchDark = Color(0xFF237A3A);
   static const pitchLight = Color(0xFF3B9B43);
   static const pitchLine = Color(0xB3F5F8F6);
