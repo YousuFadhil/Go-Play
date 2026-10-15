@@ -43,6 +43,12 @@ class StatisticsRepository {
   /// (`0028` §2.3). That is the honest reading of "players" beside "goals in
   /// this week", and it is why a quiet week reports zero players rather than
   /// the full roster with nothing next to their names.
+  ///
+  /// **The totals count everyone; the leaders are current members.** A former
+  /// member's record is history (DD-21): their goals were scored for this
+  /// community and stay in its totals. Leading it is a ranking, and rankings
+  /// are of current members, so the roster is read beside the counters for the
+  /// three leaders alone.
   Future<CommunityDashboard> fetchDashboard(
     String communityId, [
     StatisticsPeriod period = StatisticsPeriod.allTime,
@@ -51,24 +57,16 @@ class StatisticsRepository {
       _adapter.fetchCommunityPlayerStatistics(communityId, period),
       _adapter.fetchCompletedMatches(communityId, period),
       _adapter.fetchAchievementRecency(communityId, period),
+      _adapter.fetchCommunityMemberRatings(communityId),
     ]);
-    final players = results[0] as List<CommunityPlayerStatistics>;
-    final completedMatches = results[1] as int;
-    final recency = results[2] as Map<String, PlayerAchievementRecency>;
-
-    // The population is unchanged: these are the community's records for the
-    // period, players who have since left included. Recency decides which of
-    // two equal players leads, and nothing about who is eligible to.
-    return CommunityDashboard(
-      completedMatches: completedMatches,
-      totalPlayers: players.length,
-      totalGoals: players.fold(0, (sum, player) => sum + player.goals),
-      topScorer: _leaderBy(players, recency, LeaderboardKind.topScorer,
-          (player) => player.goals),
-      mostActivePlayer: _leaderBy(players, recency, LeaderboardKind.mostActive,
-          (player) => player.matchesPlayed),
-      mostMvp: _leaderBy(players, recency, LeaderboardKind.mostMvp,
-          (player) => player.mvpCount),
+    return _dashboardOf(
+      results[0] as List<CommunityPlayerStatistics>,
+      results[1] as int,
+      results[2] as Map<String, PlayerAchievementRecency>,
+      {
+        for (final member in results[3] as List<CommunityMemberRating>)
+          member.userId,
+      },
     );
   }
 
@@ -158,7 +156,8 @@ class StatisticsRepository {
     };
 
     return CommunityStatistics(
-      dashboard: _dashboardOf(players, completedMatches, recency),
+      dashboard: _dashboardOf(players, completedMatches, recency,
+          {for (final member in members) member.userId}),
       boards: _boardsOf(members, players, recency, scoped),
       reverseBoards: _reverseBoardsOf(members, players, recency, scoped),
     );
@@ -169,22 +168,32 @@ class StatisticsRepository {
   /// Extracted so [fetchDashboard] and [fetchCommunityStatistics] compose the
   /// same figures out of the same rows rather than two similar blocks that
   /// could drift.
+  ///
+  /// The totals are every row, former members included; the leaders are drawn
+  /// from [memberIds] only (DD-21). Recency decides which of two equal players
+  /// leads, and nothing about who is eligible to.
   static CommunityDashboard _dashboardOf(
     List<CommunityPlayerStatistics> players,
     int completedMatches,
     Map<String, PlayerAchievementRecency> recency,
-  ) =>
-      CommunityDashboard(
-        completedMatches: completedMatches,
-        totalPlayers: players.length,
-        totalGoals: players.fold(0, (sum, player) => sum + player.goals),
-        topScorer: _leaderBy(
-            players, recency, LeaderboardKind.topScorer, (p) => p.goals),
-        mostActivePlayer: _leaderBy(players, recency,
-            LeaderboardKind.mostActive, (p) => p.matchesPlayed),
-        mostMvp: _leaderBy(
-            players, recency, LeaderboardKind.mostMvp, (p) => p.mvpCount),
-      );
+    Set<String> memberIds,
+  ) {
+    final members = [
+      for (final player in players)
+        if (memberIds.contains(player.userId)) player,
+    ];
+    return CommunityDashboard(
+      completedMatches: completedMatches,
+      totalPlayers: players.length,
+      totalGoals: players.fold(0, (sum, player) => sum + player.goals),
+      topScorer: _leaderBy(
+          members, recency, LeaderboardKind.topScorer, (p) => p.goals),
+      mostActivePlayer: _leaderBy(
+          members, recency, LeaderboardKind.mostActive, (p) => p.matchesPlayed),
+      mostMvp: _leaderBy(
+          members, recency, LeaderboardKind.mostMvp, (p) => p.mvpCount),
+    );
+  }
 
   /// The five boards, from rows already read. The counterpart of [_dashboardOf].
   static List<Leaderboard> _boardsOf(
