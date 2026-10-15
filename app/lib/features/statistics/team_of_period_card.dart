@@ -9,6 +9,7 @@ import '../teams/match_stage.dart';
 import '../teams/pitch_view.dart';
 import '../teams/team_models.dart';
 import 'team_of_period_models.dart';
+import '../sharing/share_card_palette.dart';
 
 /// One awarded player, as the picture needs them.
 ///
@@ -187,7 +188,7 @@ class TeamOfPeriodCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF063126), MatchStage.ground],
+            colors: [MatchStage.groundTop, MatchStage.ground],
           ),
         ),
         child: Stack(
@@ -344,7 +345,7 @@ class _Heading extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: MatchStage.accent,
+              color: ShareCardPalette.accentText,
               fontSize: 42 * sx,
               fontWeight: FontWeight.w700,
             ),

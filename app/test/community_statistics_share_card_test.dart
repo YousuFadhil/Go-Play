@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/l10n.dart';
 import 'package:go_play/features/profile/player_identity.dart';
 import 'package:go_play/features/sharing/share_card_canvas.dart';
+import 'package:go_play/features/sharing/share_card_palette.dart';
 import 'package:go_play/features/sharing/share_card_renderer.dart';
 import 'package:go_play/features/sharing/share_service.dart';
 import 'package:go_play/features/statistics/community_statistics_card.dart';
@@ -289,7 +290,8 @@ void main() {
       await pumpCard(tester, data());
 
       final heading = tester.widget<Text>(find.text('LEADERS'));
-      expect(heading.style?.color, const Color(0xFF3DDC84));
+      // The accent as text: the light mint, readable on the green.
+      expect(heading.style?.color, ShareCardPalette.accentText);
 
       final rules = find.byWidgetPredicate(
         (widget) => widget is Container && widget.constraints?.maxHeight == 2,

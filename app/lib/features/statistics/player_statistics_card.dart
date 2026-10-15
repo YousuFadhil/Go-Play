@@ -252,7 +252,7 @@ class _PeriodBadge extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-          color: PlayerStatisticsCard._accent,
+          color: ShareCardPalette.accentText,
           fontSize: 40,
           fontWeight: FontWeight.w700,
           letterSpacing: 2,

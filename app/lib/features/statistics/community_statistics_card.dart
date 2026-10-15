@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../sharing/share_card_palette.dart';
 
 import '../../core/l10n.dart';
 import '../profile/player_identity.dart';
@@ -138,16 +139,13 @@ class CommunityStatisticsCard extends StatelessWidget {
   /// a picture that leaves the phone must not change because the reader has
   /// dark mode on.
   ///
-  /// Deliberately the same greens as the Player Statistics card — the two are
-  /// the same product's cards and should be recognisable as a pair. They are
-  /// restated rather than shared because a template owns its own composition;
-  /// when a third card arrives and all three agree, a brand palette will have
-  /// earned its own home.
-  static const _pitch = Color(0xFF07341C);
-  static const _pitchDeep = Color(0xFF04180E);
-  static const _accent = Color(0xFF3DDC84);
-  static const _ink = Color(0xFFFFFFFF);
-  static const _inkMuted = Color(0xB3FFFFFF);
+  /// The shared share-card palette, so this card and the Player Statistics card
+  /// are the same product's cards and stay a pair.
+  static const _pitch = ShareCardPalette.pitch;
+  static const _pitchDeep = ShareCardPalette.pitchDeep;
+  static const _accent = ShareCardPalette.accent;
+  static const _ink = ShareCardPalette.ink;
+  static const _inkMuted = ShareCardPalette.inkMuted;
 
   static const _margin = 88.0;
 
@@ -350,7 +348,7 @@ class _Leaders extends StatelessWidget {
         Text(
           l10n.statLeadersTitle.toUpperCase(),
           style: const TextStyle(
-            color: CommunityStatisticsCard._accent,
+            color: ShareCardPalette.accentText,
             fontSize: 34,
             fontWeight: FontWeight.w700,
             letterSpacing: 6,
@@ -503,7 +501,7 @@ class _LeaderRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: CommunityStatisticsCard._accent,
+                    color: ShareCardPalette.accentText,
                     fontSize: 40,
                     fontWeight: FontWeight.w800,
                   ),
@@ -538,7 +536,7 @@ class _PeriodBadge extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-          color: CommunityStatisticsCard._accent,
+          color: ShareCardPalette.accentText,
           fontSize: 40,
           fontWeight: FontWeight.w700,
           letterSpacing: 2,
