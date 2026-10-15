@@ -21,7 +21,7 @@ void main() {
       // the top of every place-screen down; it is now the same green the filled
       // controls and the brand accents are drawn in.
       expect(GoColors.bgHero, GoColors.primary);
-      expect(GoColors.bgHero, const Color(0xFF306A42));
+      expect(GoColors.bgHero, const Color(0xFF1E7B45));
     });
 
     test('the deeper green is still itself, and still available', () {
@@ -29,7 +29,7 @@ void main() {
       // job: it is what the crest letters, the hero's own filled button and the
       // selected navigation destination are drawn in, each of which wants the
       // darker green *against* something.
-      expect(GoColors.primaryDeep, const Color(0xFF123D24));
+      expect(GoColors.primaryDeep, const Color(0xFF145A32));
       expect(GoColors.bgHero, isNot(GoColors.primaryDeep));
       expect(ClubHeroButtons.filled.foregroundColor?.resolve({}),
           GoColors.primaryDeep);

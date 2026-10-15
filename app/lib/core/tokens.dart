@@ -34,18 +34,18 @@ abstract final class GoColors {
   static const Color seed = Color(0xFF1B7A43);
 
   // ---- primary ----
-  static const Color primary = Color(0xFF306A42);
+  static const Color primary = Color(0xFF1E7B45);
   static const Color onPrimary = Color(0xFFFFFFFF);
   static const Color primaryContainer = Color(0xFFB3F1BF);
   static const Color onPrimaryContainer = Color(0xFF15512C);
   static const Color inversePrimary = Color(0xFF98D5A6);
 
   /// The crest hero and every filled control.
-  static const Color primaryDeep = Color(0xFF123D24);
+  static const Color primaryDeep = Color(0xFF145A32);
 
   /// The only green that reads correctly at small sizes on a light surface:
   /// capacity-bar fill, stat glyphs, the "next up" dot.
-  static const Color primaryMid = Color(0xFF4E8A62);
+  static const Color primaryMid = Color(0xFF2E9B5B);
 
   // ---- secondary ----
   static const Color secondary = Color(0xFF52634F);
@@ -91,7 +91,7 @@ abstract final class GoColors {
   // ---- semantic surfaces ----
   /// The sheet a screen's content sits on. Not [surface]: the page ground is a
   /// shade below the card ramp so a white card reads as lifted off it.
-  static const Color bgPage = Color(0xFFEEF3EB);
+  static const Color bgPage = Color(0xFFF3F8F1);
 
   /// The crest hero block. Flat — the hero is never a gradient.
   ///
@@ -116,7 +116,7 @@ abstract final class GoColors {
   static const Color surfaceSheet = bgPage;
 
   // ---- match and registration status. The app uses exactly these. ----
-  static const Color statusOpenBg = Color(0xFFDCEEDF);
+  static const Color statusOpenBg = Color(0xFFD6F2DD);
   static const Color statusOpenFg = Color(0xFF12492A);
   static const Color statusFullBg = warnContainer;
   static const Color statusFullFg = onWarnContainer;
