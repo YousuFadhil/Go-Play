@@ -71,14 +71,21 @@ void main() {
         ),
       ).fetchLeaderboards('c1', period);
 
+  /// The dashboard's roster is everyone with a record except [formerMembers]:
+  /// its leaders rank current members only (DD-21).
   Future<CommunityDashboard> dashboard(
     List<CommunityPlayerStatistics> records,
     Map<String, PlayerAchievementRecency> recency, {
     StatisticsPeriod period = StatisticsPeriod.allTime,
+    Set<String> formerMembers = const {},
   }) =>
       StatisticsRepository(
         _FakeStatisticsAdapter(
-          members: const [],
+          members: [
+            for (final record in records)
+              if (!formerMembers.contains(record.userId))
+                member(record.userId, record.fullName ?? '', 5.0),
+          ],
           records: records,
           recency: recency,
         ),
@@ -390,9 +397,11 @@ void main() {
       expect(orderOf(boardOf(all, LeaderboardKind.mostMvp)).first, 'u2');
     });
 
-    test('a departed player still leads if their achievement stands', () async {
-      // The dashboard preserves records of players who have left, and Cycle B1
-      // does not change that population — only which of two equals is named.
+    test('a departed player counts in the totals but leads nothing', () async {
+      // The dashboard preserves records of players who have left: their goals
+      // stay in the totals. Leading is a ranking, and since DD-21 phase 2 a
+      // ranking is of current members -- even where the departed player's
+      // achievement is the newer one and would win the tie.
       final leaders = await dashboard(
         [
           counters('gone', name: 'Departed', goals: 8),
@@ -402,9 +411,11 @@ void main() {
           'gone': when(goal: at(2026, 6, 1)),
           'u1': when(goal: at(2026, 5, 1)),
         },
+        formerMembers: {'gone'},
       );
 
-      expect(leaders.topScorer!.userId, 'gone');
+      expect(leaders.totalGoals, 16);
+      expect(leaders.topScorer!.userId, 'u1');
     });
 
     test('a record with no name still ties deterministically', () async {

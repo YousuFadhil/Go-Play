@@ -278,6 +278,50 @@ void main() {
       expect(dashboard.mostMvp, isNull);
     });
   });
+
+  group('a former member (DD-21)', () {
+    // Ali left the community. His record stays -- it is history -- so the
+    // totals still count his five goals; leading is a ranking, and rankings
+    // are of current members only.
+    test('counts in the totals but leads nothing', () async {
+      final dashboard = await StatisticsRepository(
+        FakeStatisticsAdapter(players: squad, completedMatches: 6)
+          ..formerMembers = {'u1'},
+      ).fetchDashboard('c1');
+
+      expect(dashboard.totalPlayers, 3);
+      expect(dashboard.totalGoals, 7);
+      expect(dashboard.topScorer?.userId, 'u2');
+      expect(dashboard.topScorer?.value, 2);
+      expect(dashboard.mostActivePlayer?.userId, 'u2');
+      expect(dashboard.mostMvp?.userId, 'u2');
+    });
+
+    test('the whole Statistics tab reads it the same way', () async {
+      final statistics = await StatisticsRepository(
+        FakeStatisticsAdapter(players: squad, completedMatches: 6)
+          ..formerMembers = {'u1'},
+      ).fetchCommunityStatistics('c1');
+
+      expect(statistics.dashboard.totalGoals, 7);
+      expect(statistics.dashboard.topScorer?.userId, 'u2');
+      for (final board in statistics.boards) {
+        expect(
+          board.entries.map((entry) => entry.userId),
+          isNot(contains('u1')),
+          reason: '${board.kind} ranks current members only',
+        );
+      }
+    });
+
+    test('joining again brings the record back to the top', () async {
+      final dashboard = await StatisticsRepository(
+        FakeStatisticsAdapter(players: squad, completedMatches: 6),
+      ).fetchDashboard('c1');
+
+      expect(dashboard.topScorer?.userId, 'u1');
+    });
+  });
 }
 
 /// The statistics port, answering from memory and counting what it was asked.
@@ -378,13 +422,35 @@ class FakeStatisticsAdapter implements StatisticsAdapter {
         : periodMatches[period] ?? 0;
   }
 
-  /// The dashboard ranks nobody, so it never reads the roster. Reaching this
-  /// from it would be a defect, so it fails loudly rather than answering.
+  /// Players whose record survives but who are no longer members (DD-21).
+  /// Empty means everybody with a record is still a member.
+  Set<String> formerMembers = const {};
+
+  /// The roster: every player with a record in any period, except
+  /// [formerMembers]. The dashboard reads it for its three leaders, which rank
+  /// current members only; the totals still count every record.
   @override
   Future<List<CommunityMemberRating>> fetchCommunityMemberRatings(
     String communityId,
-  ) =>
-      throw UnimplementedError('the Community Dashboard reads no roster');
+  ) async {
+    final everyone = {
+      for (final player in [
+        ...players,
+        for (final rows in periodPlayers.values) ...rows,
+      ])
+        player.userId: player,
+    };
+    return [
+      for (final player in everyone.values)
+        if (!formerMembers.contains(player.userId))
+          CommunityMemberRating(
+            userId: player.userId,
+            fullName: player.fullName ?? '',
+            rating: 5.0,
+            avatarUrl: player.avatarUrl,
+          ),
+    ];
+  }
 
   /// When each player last achieved each measure. Empty means nobody has any
   /// recency, which is the state before a test says otherwise — every tie then

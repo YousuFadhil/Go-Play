@@ -3,7 +3,7 @@
 > **Generated file. Do not edit by hand.** Regenerate it with `node tool/check-docs.mjs --write`;
 > `node tool/check-docs.mjs` fails when it is out of date.
 
-Source of truth: the 105 files in `supabase/migrations/`, newest `0104`.
+Source of truth: the 106 files in `supabase/migrations/`, newest `0105`.
 
 This is an **index** of what exists and which migration made it, not a specification. Behaviour is described
 in each migration's header comment, in the table specifications under `Docs/engineering/`, and in
@@ -72,7 +72,7 @@ Treat the specification as the design as approved, not as the schema; the migrat
 | `v_community_members` | `0025` | `0073` | Read model: community roster -- membership joined to the member profile. |
 | `v_community_summary` | `0025` | `0025` | Read model: one row per community with member and match counts. |
 | `v_completed_matches` | `0037` | `0037` | Read model: matches that are completed under 0029's rule — status is |
-| `v_football_community_player_stats` | `0057` | `0073` | Cycle 2 read model: one row per player with an all-time record in a |
+| `v_football_community_player_stats` | `0057` | `0105` | Cycle 2 read model: one row per current member with an all-time record in a |
 | `v_football_community_stats` | `0057` | `0057` | Cycle 2 read model: a community's football record -- completed matches, |
 | `v_football_completed_matches` | `0057` | `0057` | Cycle 2 read model: one row per completed match in an active community, with |
 | `v_football_match_lineup` | `0057` | `0073` | Cycle 2 read model: the stored lineup of a completed match -- side, assigned |
@@ -224,7 +224,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `preview_my_account_deletion` | `0102` | `0102` | Account deletion (0102): whether anything blocks the signed-in user deleting their own account, |
 | `public_community_football_record` | `0093` | `0093` | The public football record of one active community: completed matches, |
 | `public_community_recent_results` | `0081` | `0081` | One active community's most recent completed results, in the same public |
-| `public_community_top_players` | `0093` | `0093` | The Top 11 players of one active community, for the public community page: |
+| `public_community_top_players` | `0093` | `0105` | The Top 11 players of one active community, for the public community page: |
 | `public_match_detail` | `0079` | `0079` | One match for the /match/{id} link, upcoming or completed, in an active |
 | `public_match_lineup` | `0079` | `0079` | The lineup of a completed match in an active community, for the /match/{id} |
 | `public_player_profile` | `0079` | `0079` | The public Player Profile a /player/{id} link opens: name, positions, |
