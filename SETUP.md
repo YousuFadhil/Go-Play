@@ -1,4 +1,4 @@
-# دليل الإعداد والتشغيل — Go Play (`v0.6.0-mvp`)
+# دليل الإعداد والتشغيل — Go Play
 
 خطوات تشغيل التطبيق لأول مرة. خطوتان فقط تتطلبان تدخل مالك المنتج:
 إنشاء مشروع Supabase، وتثبيت Flutter SDK.
@@ -17,35 +17,27 @@
      والهجرة `0092`؛ الخطوات والروابط المسموحة ومتطلب SMTP في
      `Docs/engineering/SUPABASE_OPERATIONAL_GUIDELINES.md` §10.*
    - لا تفعّل مزوّد Phone (يتطلب Twilio — انظر DD-02).
-4. من **SQL Editor** الصق `supabase/setup_all.sql` مرة واحدة — وهو تجميع
-   لملفات الهجرة الثمانية عشر بالترتيب:
+4. **قاعدة البيانات.** المصدر الوحيد للحقيقة هو الملفات المرقّمة في
+   `supabase/migrations/`، وتُطبَّق بترتيب أرقامها من `0001` إلى الأحدث.
 
-   | | |
-   |---|---|
-   | `0001_users.sql` | المستخدمون |
-   | `0002_groups.sql` | الجداول الأساسية (باسمها القديم) |
-   | `0003_matches.sql` | المباريات |
-   | `0004_match_registrations.sql` | التسجيلات والاحتياط |
-   | `0005_security_hardening.sql` | تشديد RLS |
-   | `0006_match_management_v2.sql` | دورة حياة المباراة، السعة المشتقة، الإشعارات |
-   | `0007_community_rename.sql` | `groups` → `communities`، و`member` → `player` |
-   | `0008_role_based_authorization.sql` | `has_community_role` والدعوات |
-   | `0009_community_management.sql` | نقل الملكية، إزالة عضو، حذف مجتمع |
-   | `0010_invite_links.sql` | روابط الدعوة (أُزيلت لاحقاً في 0012) |
-   | `0011_match_title_required.sql` | عنوان المباراة إجباري |
-   | `0012_community_first_simplification.sql` | إزالة نظامَي الدعوة، ورمز الانضمام يصبح المعرّف الوحيد |
-   | `0013_update_match_requires_title.sql` | منع إزالة عنوان المباراة بالتعديل |
-   | `0014_delete_community_without_invitations.sql` | إصلاح حذف المجتمع بعد إزالة الجدول |
-   | `0015_regenerate_join_code.sql` | تجديد رمز الانضمام |
-   | `0016_join_policy.sql` | سياسة الانضمام بدل الخصوصية |
-   | `0017_system_admin.sql` | دور مدير النظام وشاشات الإدارة |
-   | `0018_btge_schema.sql` | مدخلات اللاعب لمحرك BTGE وتوزيع الفرق المسجَّل |
+   - `supabase/setup_all.sql` ملف مولَّد للتسهيل فقط، وهو يجمع الملفات من
+     `0001` إلى `0024` ولا يُحدَّث بعدها. الصقه في **SQL Editor** مرة
+     واحدة، ثم طبّق بقية الملفات (`0025` فما بعد) **واحداً واحداً بالترتيب**،
+     وتوقف عند أول خطأ.
+   - `0036` يفعّل الإضافة `pg_net`، و`0100` يفعّل `pg_cron` ويجدول مهمة
+     تعمل كل دقيقة عند تطبيقه؛ اقرأ رأس كل منهما قبل تطبيقه على بيئة حية.
+   - لكل مرحلة حديثة ملف تحقق في `supabase/tool/` وملف تراجع في
+     `supabase/rollback/` حين وُجد.
+   - لا يوجد اختبار آلي يبني قاعدة فارغة من هذه الملفات. تاريخ الهجرات على
+     مشروع `Go-Play` الحي يختلف عن المستودع في الأسماء لا في المخطط الناتج
+     (انظر `Docs/engineering/MIGRATION_BASELINE_RECONCILIATION_2026-10-06.md`)،
+     فتحقق من أي بيئة جديدة قبل الاعتماد عليها.
+   - ما الذي يُنشئه كل ملف: `Docs/engineering/DB_Object_Catalog.md` (مولَّد).
 
    > **منح دور مدير النظام** يدوياً فقط:
    > `insert into system_admins (user_id) values ('<uuid>');`
 
-   > على مشروع `Go-Play` الحالي المخطط **مطبّق بالكامل** — لا حاجة لإعادة
-   > تنفيذ أي SQL.
+   > على مشروع `Go-Play` الحالي لا حاجة لإعادة تنفيذ أي SQL.
 
    > الملفات `0001`–`0006` تُنشئ الأسماء القديمة ثم يُعيد `0007` تسميتها.
    > هذا مقصود: تسلسل الهجرة يعكس تاريخ المشروع ولا يُعاد كتابته.
@@ -60,7 +52,9 @@
 
 ## 2. Flutter SDK
 
-Flutter 3.44.7 مثبّت في `C:\Users\yousi\flutter`.
+Flutter مثبّت في `C:\Users\yousi\flutter` على جهاز مالك المنتج. الإصدار
+المطلوب هو قيمة `flutter-version` في `.github/workflows/deploy-web.yml`؛
+استخدم الإصدار نفسه محلياً حتى يطابق ما يُبنى في النشر.
 
 1. أضف `C:\Users\yousi\flutter\bin` إلى متغير PATH.
 2. لتشغيل التطبيق على جهاز أو محاكي: ثبّت Android Studio ثم نفّذ
@@ -70,13 +64,17 @@ Flutter 3.44.7 مثبّت في `C:\Users\yousi\flutter`.
 
 ---
 
-## 3. توليد ملفات المنصات (مرة واحدة)
+## 3. ملفات المنصات
 
-مجلد `app/` يحتوي كود المشروع فقط:
+مجلدات `app/android` و`app/ios` و`app/web` موجودة في المستودع، فلا تنفّذ
+`flutter create`. يكفي جلب الحزم:
 
 ```bash
-cd app && flutter create . --org com.goplay --project-name go_play --platforms android,ios && flutter pub get
+cd app && flutter pub get
 ```
+
+الملفات الناقصة في المستودع عمداً (مثل `local.properties` و`google-services.json`
+وإعدادات Firebase للويب) تُولَّد محلياً أو تُمرَّر عند البناء؛ انظر القسم 7.
 
 ---
 
@@ -115,8 +113,16 @@ flutter build apk --release --dart-define=SUPABASE_URL=... --dart-define=SUPABAS
 cd app && flutter test
 ```
 
-اختبارات الوحدة فقط (54 ناجح، 4 متجاوَز). لتشغيل اختبارات التكامل الـ68
-أضف نفس مفتاحي `--dart-define`.
+يشغّل اختبارات الوحدة، وتتخطى ملفات التكامل نفسها حين لا تُمرَّر المفاتيح. لتشغيلها
+أضف نفس مفتاحي `--dart-define` (وهي تكتب على المشروع الذي تشير إليه، انظر
+`Docs/12-Testing.md`). أرقام النتائج لا تُدوَّن في الوثائق؛ شغّل الأمر لترى الحالية.
+
+أدوات التوثيق والكتالوج (Node فقط، بلا Flutter):
+
+```bash
+node tool/check-docs.mjs
+node --test tests/docs/sql-catalog.test.mjs tests/docs/check-docs.test.mjs
+```
 
 ---
 
@@ -148,3 +154,18 @@ cd app && flutter test
 الواجهة عربية افتراضياً مع الإنجليزية متاحة. النصوص في
 `app/lib/l10n/app_ar.arb` و`app_en.arb`، وتُولَّد أصناف الترجمة تلقائياً عند
 البناء. لإضافة لغة يكفي ملف `app_xx.arb` واحد.
+
+---
+
+## 7. ما بعد الإعداد الأساسي
+
+كل ما يلي له مصدره؛ لا تُنسخ تفاصيله هنا حتى لا تتقادم.
+
+| ما تحتاجه | أين تجده |
+|---|---|
+| نشر الوظائف الخلفية (Edge Functions) وأسرارها | `README.md` داخل كل مجلد في `supabase/functions/` |
+| الإشعارات: ملف خدمة Firebase على الويب | `app/tool/generate_firebase_sw.dart` (يولّد الملف وقت البناء) |
+| نشر الويب: الإنتاج والتجريبي | `.github/workflows/deploy-web.yml` و`.github/workflows/deploy-staging.yml` |
+| النسخ الاحتياطي، المصادقة، SMTP، قواعد تغيير القاعدة | `Docs/engineering/SUPABASE_OPERATIONAL_GUIDELINES.md` |
+| ما الموجود في قاعدة البيانات الآن | `Docs/engineering/DB_Object_Catalog.md` (مولَّد) |
+| الاختبارات | `Docs/12-Testing.md` |

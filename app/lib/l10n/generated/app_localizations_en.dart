@@ -868,6 +868,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get communityDeleted => 'Community deleted.';
 
   @override
+  String get leaveCommunityButton => 'Leave community';
+
+  @override
+  String get leaveCommunityConfirmTitle => 'Leave this community?';
+
+  @override
+  String get leaveCommunityConfirmBody =>
+      'You will be withdrawn from its upcoming matches. Matches you have already played stay in its history.';
+
+  @override
+  String get leftCommunity => 'You left the community.';
+
+  @override
   String get permissionOwnerOnly => 'Only the owner can do this.';
 
   @override
@@ -892,6 +905,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errCannotRemoveOwner =>
       'The owner cannot be removed. Transfer ownership first.';
+
+  @override
+  String get errOwnerCannotLeave =>
+      'The owner cannot leave. Transfer ownership or delete the community first.';
 
   @override
   String get errAlreadyOwner => 'That member is already the owner.';
@@ -1554,37 +1571,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareMyProfileAction => 'Share my profile';
-
-  @override
-  String get shareTextMyProfile => 'My player profile on Go Play.';
-
-  @override
-  String shareTextPlayerProfile(String name) {
-    return '$name — player profile on Go Play.';
-  }
-
-  @override
-  String get shareTextMyStatistics => 'My statistics on Go Play.';
-
-  @override
-  String shareTextCommunityStatistics(String community) {
-    return '$community — statistics on Go Play.';
-  }
-
-  @override
-  String shareTextTeamOfPeriod(String community) {
-    return '$community — Team of the Period on Go Play.';
-  }
-
-  @override
-  String shareTextMatchLineup(String match) {
-    return '$match — the lineup on Go Play.';
-  }
-
-  @override
-  String shareTextMatchResult(String match) {
-    return '$match — the result on Go Play.';
-  }
 
   @override
   String get recentFormTitle => 'Recent form';

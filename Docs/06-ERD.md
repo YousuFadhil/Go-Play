@@ -7,8 +7,10 @@ migration (`v0.4.0-mvp`). Community is the aggregate root: everything below
 belongs to exactly one community, and nothing is owned by a user.
 
 **§1 and §2 describe the model as built.** §3 is the **conceptual** model for
-statistics and leaderboards, added 2026-08-01: approved, not built, and
-deliberately free of physical design.
+statistics and leaderboards, added 2026-08-01 when it was approved and not yet
+built. It has since been built (see the *State* line of §3) and it stays
+deliberately free of physical design; the physical schema is indexed in
+`engineering/DB_Object_Catalog.md`.
 
 ## 1. Entities as built
 
@@ -80,14 +82,19 @@ questions a physical design must answer, not the answers.
 v2.0, decisions `SL-1` … `SL-5`, approved 2026-08-01. Where this section and
 that document differ, that document governs.
 
-**State.** Level 1 is built (migration `0022`). **Level 2 is not built.**
+**State (updated 2026-10-11).** Level 1 is built (migration `0022`). Level 2 is
+built too: its counters are the `community_statistics` table (`0028`), and the
+Community/Period Rating shipped as a **derived read model**
+(`community_scoped_rating`, `0081`; see `DD-17`) instead of the stored
+`community_ratings` and `community_rating_history` tables this section describes.
+Read this section as the approved design, and the migrations as what was built.
 
 ### 3.1 The two levels
 
 | Level | What it represents | Scope | State |
 |---|---|---|---|
 | **1 — Global** | The player's complete football career across the app | The player | **Built** |
-| **2 — Community** | The player's performance inside one community | The player, in one community | **Not built** |
+| **2 — Community** | The player's performance inside one community | The player, in one community | **Built** (counters; the rating is derived) |
 
 The levels are additive, never substitutes. A screen reads from exactly one of
 them (`SL-2`).
@@ -216,7 +223,7 @@ see §3.9.
 | **Ownership** | The Player. One per player, no community, no period | The Player **and** the Community. One per pair, no period |
 | **Lifecycle** | Exists with the player; moved by **every** completed match in any community | Created once at first join, at the neutral baseline; moved **only** by matches in that community; preserved on departure; restored on return; **never reset** (`SL-4`) |
 | **Consumers** | The **Player Profile only** | The **Community Dashboard** and the **Community Leaderboards** only |
-| **History** | Global Rating History (`E6`) — built, immutable | Community Rating History (`E9`) — not built, preserved on departure |
+| **History** | Global Rating History (`E6`) — built, immutable | Community Rating History (`E9`) — designed as a stored table, never built as one (the rating is derived, `DD-17`) |
 
 Conceptual rules that hold across both:
 

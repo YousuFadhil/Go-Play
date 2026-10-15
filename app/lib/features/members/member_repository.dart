@@ -37,4 +37,10 @@ class MemberRepository {
   /// member is also withdrawn from every match in the community.
   Future<void> removeMember(String communityId, String userId) =>
       _adapter.removeMember(communityId, userId);
+
+  /// Any member but the owner leaves on their own. They are withdrawn from the
+  /// community's matches not yet played; matches already played stay as they
+  /// are.
+  Future<void> leaveCommunity(String communityId) =>
+      _adapter.leaveCommunity(communityId);
 }

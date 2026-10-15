@@ -94,6 +94,7 @@ void main() {
     List<CommunityMember>? roster,
     // A port of the caller's own, for the tests that write through it.
     _FakeCommunityAdapter? adapter,
+    _FakeMemberAdapter? memberAdapter,
     WilayatRepository? wilayats,
   }) async {
     tester.view.physicalSize = size;
@@ -110,7 +111,8 @@ void main() {
         communityRepository:
             CommunityRepository(adapter ?? _FakeCommunityAdapter(which)),
         memberRepository: MemberRepository(
-          _FakeMemberAdapter(members: roster ?? members, role: role),
+          memberAdapter ??
+              _FakeMemberAdapter(members: roster ?? members, role: role),
         ),
         matchService: MatchService(_FakeMatchAdapter(matches)),
         wilayatRepository: wilayats,
@@ -379,6 +381,115 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(ClubHero), findsOneWidget);
       expect(find.byType(Tab), findsNWidgets(3));
+    });
+  });
+
+  group('leaving the community', () {
+    final leave = find.byKey(const Key('communityLeaveAction'));
+
+    Future<void> openActions(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is offered to a player and an admin', (tester) async {
+      for (final role in [CommunityRole.player, CommunityRole.admin]) {
+        await pumpCommunity(tester, role: role);
+        await openActions(tester);
+        expect(leave, findsOneWidget);
+        expect(find.text('Leave community'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('is not offered to the owner or to a visitor', (tester) async {
+      // The owner leaves by transferring ownership first; a visitor has
+      // nothing to leave.
+      for (final role in [CommunityRole.owner, null]) {
+        await pumpCommunity(tester, role: role);
+        await openActions(tester);
+        expect(leave, findsNothing);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('asks first, and cancelling leaves nothing', (tester) async {
+      final adapter =
+          _FakeMemberAdapter(members: members, role: CommunityRole.player);
+      await pumpCommunity(tester, memberAdapter: adapter);
+      await openActions(tester);
+      await tester.tap(leave);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Leave this community?'), findsOneWidget);
+      await tester.tap(find.text('Back'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.leaves, isEmpty);
+    });
+
+    testWidgets('confirmed, it leaves and returns to the previous page',
+        (tester) async {
+      final adapter =
+          _FakeMemberAdapter(members: members, role: CommunityRole.player);
+      await tester.pumpWidget(MaterialApp(
+        theme: buildAppTheme(),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        // A page with a Scaffold to come back to, as the app's always is: the
+        // confirmation is shown there once this one has gone.
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => CommunityDetailsScreen(
+                  communityId: 'c1',
+                  communityRepository:
+                      CommunityRepository(_FakeCommunityAdapter(community)),
+                  memberRepository: MemberRepository(adapter),
+                  matchService: MatchService(_FakeMatchAdapter(matches)),
+                ),
+              )),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      await openActions(tester);
+      await tester.tap(leave);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Leave community'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.leaves, ['c1']);
+      expect(find.text('You left the community.'), findsOneWidget);
+      expect(find.byType(CommunityDetailsScreen), findsNothing);
+      expect(find.text('open'), findsOneWidget);
+    });
+
+    testWidgets("the server's refusal is said, and the page stays",
+        (tester) async {
+      final adapter = _FakeMemberAdapter(
+        members: members,
+        role: CommunityRole.player,
+        leaveFailure: const ValidationFailure(FailureReason.ownerCannotLeave),
+      );
+      await pumpCommunity(tester, memberAdapter: adapter);
+      await openActions(tester);
+      await tester.tap(leave);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Leave community'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('The owner cannot leave. '
+            'Transfer ownership or delete the community first.'),
+        findsOneWidget,
+      );
+      expect(find.byType(CommunityDetailsScreen), findsOneWidget);
     });
   });
 
@@ -875,10 +986,16 @@ class _FakeCommunityAdapter implements CommunityAdapter {
 }
 
 class _FakeMemberAdapter implements MemberAdapter {
-  _FakeMemberAdapter({required this.members, this.role});
+  _FakeMemberAdapter({required this.members, this.role, this.leaveFailure});
 
   final List<CommunityMember> members;
   final CommunityRole? role;
+
+  /// Raised by [leaveCommunity] when set, as the server would refuse.
+  final Failure? leaveFailure;
+
+  /// Every community [leaveCommunity] was asked to leave, in order.
+  final List<String> leaves = [];
 
   @override
   Future<CommunityRole?> fetchMyRole(String communityId) async => role;
@@ -902,6 +1019,12 @@ class _FakeMemberAdapter implements MemberAdapter {
   @override
   Future<void> removeMember(String communityId, String userId) =>
       throw UnimplementedError();
+
+  @override
+  Future<void> leaveCommunity(String communityId) async {
+    if (leaveFailure != null) throw leaveFailure!;
+    leaves.add(communityId);
+  }
 }
 
 class _FakeMatchAdapter implements MatchAdapter {

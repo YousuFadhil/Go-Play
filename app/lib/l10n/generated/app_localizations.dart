@@ -1592,6 +1592,30 @@ abstract class AppLocalizations {
   /// **'Community deleted.'**
   String get communityDeleted;
 
+  /// No description provided for @leaveCommunityButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave community'**
+  String get leaveCommunityButton;
+
+  /// No description provided for @leaveCommunityConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave this community?'**
+  String get leaveCommunityConfirmTitle;
+
+  /// No description provided for @leaveCommunityConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will be withdrawn from its upcoming matches. Matches you have already played stay in its history.'**
+  String get leaveCommunityConfirmBody;
+
+  /// No description provided for @leftCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'You left the community.'**
+  String get leftCommunity;
+
   /// No description provided for @permissionOwnerOnly.
   ///
   /// In en, this message translates to:
@@ -1633,6 +1657,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The owner cannot be removed. Transfer ownership first.'**
   String get errCannotRemoveOwner;
+
+  /// No description provided for @errOwnerCannotLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'The owner cannot leave. Transfer ownership or delete the community first.'**
+  String get errOwnerCannotLeave;
 
   /// No description provided for @errAlreadyOwner.
   ///
@@ -2749,48 +2779,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Share my profile'**
   String get shareMyProfileAction;
-
-  /// No description provided for @shareTextMyProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'My player profile on Go Play.'**
-  String get shareTextMyProfile;
-
-  /// No description provided for @shareTextPlayerProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} — player profile on Go Play.'**
-  String shareTextPlayerProfile(String name);
-
-  /// No description provided for @shareTextMyStatistics.
-  ///
-  /// In en, this message translates to:
-  /// **'My statistics on Go Play.'**
-  String get shareTextMyStatistics;
-
-  /// No description provided for @shareTextCommunityStatistics.
-  ///
-  /// In en, this message translates to:
-  /// **'{community} — statistics on Go Play.'**
-  String shareTextCommunityStatistics(String community);
-
-  /// No description provided for @shareTextTeamOfPeriod.
-  ///
-  /// In en, this message translates to:
-  /// **'{community} — Team of the Period on Go Play.'**
-  String shareTextTeamOfPeriod(String community);
-
-  /// No description provided for @shareTextMatchLineup.
-  ///
-  /// In en, this message translates to:
-  /// **'{match} — the lineup on Go Play.'**
-  String shareTextMatchLineup(String match);
-
-  /// No description provided for @shareTextMatchResult.
-  ///
-  /// In en, this message translates to:
-  /// **'{match} — the result on Go Play.'**
-  String shareTextMatchResult(String match);
 
   /// No description provided for @recentFormTitle.
   ///

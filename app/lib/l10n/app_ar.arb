@@ -299,6 +299,10 @@
   "deleteCommunityConfirmTitle": "حذف هذا المجتمع؟",
   "deleteCommunityConfirmBody": "ستُحذف جميع المباريات والتسجيلات والأعضاء والدعوات. لا يمكن التراجع.",
   "communityDeleted": "تم حذف المجتمع.",
+  "leaveCommunityButton": "مغادرة المجتمع",
+  "leaveCommunityConfirmTitle": "مغادرة هذا المجتمع؟",
+  "leaveCommunityConfirmBody": "سيتم سحبك من مبارياته القادمة، وتبقى المباريات التي لعبتها في سجله.",
+  "leftCommunity": "غادرت المجتمع.",
   "permissionOwnerOnly": "المالك وحده يمكنه القيام بذلك.",
   "permissionOrganizersOnly": "المالك والمشرفون فقط يمكنهم القيام بذلك.",
   "matchCreateOrganizersOnly": "إنشاء المباريات متاح للمالك والمشرفين فقط في هذا المجتمع.",
@@ -306,6 +310,7 @@
   "errCannotChangeOwnRole": "لا يمكنك تغيير صلاحيتك الخاصة.",
   "errCannotRemoveSelf": "لا يمكنك إزالة نفسك من هنا. استخدم مغادرة المجتمع.",
   "errCannotRemoveOwner": "لا يمكن إزالة المالك. انقل الملكية أولاً.",
+  "errOwnerCannotLeave": "لا يمكن للمالك المغادرة. انقل الملكية أو احذف المجتمع أولاً.",
   "errAlreadyOwner": "هذا العضو هو المالك بالفعل.",
   "errMemberNotFound": "هذا الشخص ليس عضواً في هذا المجتمع.",
   "errInvalidRole": "لا يمكن تعيين هذه الصلاحية.",
@@ -548,28 +553,6 @@
 
   "sharePlayerProfileAction": "مشاركة الملف",
   "shareMyProfileAction": "مشاركة ملفي",
-  "shareTextMyProfile": "ملفي كلاعب في Go Play.",
-  "shareTextPlayerProfile": "{name} — ملف اللاعب في Go Play.",
-  "@shareTextPlayerProfile": {
-    "placeholders": { "name": { "type": "String" } }
-  },
-  "shareTextMyStatistics": "إحصائياتي في Go Play.",
-  "shareTextCommunityStatistics": "{community} — الإحصائيات في Go Play.",
-  "@shareTextCommunityStatistics": {
-    "placeholders": { "community": { "type": "String" } }
-  },
-  "shareTextTeamOfPeriod": "{community} — تشكيلة الفترة في Go Play.",
-  "@shareTextTeamOfPeriod": {
-    "placeholders": { "community": { "type": "String" } }
-  },
-  "shareTextMatchLineup": "{match} — التشكيلة في Go Play.",
-  "@shareTextMatchLineup": {
-    "placeholders": { "match": { "type": "String" } }
-  },
-  "shareTextMatchResult": "{match} — النتيجة في Go Play.",
-  "@shareTextMatchResult": {
-    "placeholders": { "match": { "type": "String" } }
-  },
 
   "recentFormTitle": "الأداء الأخير",
   "recentFormNote": "آخر {count} مباريات مكتملة للاعب، الأحدث أولاً.",
