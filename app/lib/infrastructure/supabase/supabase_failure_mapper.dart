@@ -141,6 +141,7 @@ class SupabaseFailureMapper {
     ),
     'CANNOT_REMOVE_SELF': ValidationFailure(FailureReason.cannotRemoveSelf),
     'CANNOT_REMOVE_OWNER': ValidationFailure(FailureReason.cannotRemoveOwner),
+    'OWNER_CANNOT_LEAVE': ValidationFailure(FailureReason.ownerCannotLeave),
     'INVALID_ROLE': ValidationFailure(FailureReason.invalidRole),
     'ALREADY_OWNER': ConflictFailure(FailureReason.alreadyOwner),
     'MEMBER_NOT_FOUND': NotFoundFailure(FailureReason.memberNotFound),

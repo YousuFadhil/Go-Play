@@ -280,6 +280,10 @@ class FakeMemberAdapter implements MemberAdapter {
   }
 
   @override
+  Future<void> leaveCommunity(String communityId) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> removeMember(String communityId, String userId) async {
     removals.add(userId);
     _members = _members.where((member) => member.userId != userId).toList();

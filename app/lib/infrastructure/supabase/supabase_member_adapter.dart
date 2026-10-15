@@ -86,4 +86,11 @@ class SupabaseMemberAdapter implements MemberAdapter {
           'p_user_id': userId,
         });
       });
+
+  @override
+  Future<void> leaveCommunity(String communityId) => guarded(() async {
+        await _client.rpc('leave_community', params: {
+          'p_community_id': communityId,
+        });
+      });
 }

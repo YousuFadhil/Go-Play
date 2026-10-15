@@ -124,6 +124,8 @@ void main() {
           FailureReason.cannotRemoveSelf);
       expect(map(raised('CANNOT_REMOVE_OWNER')).reason,
           FailureReason.cannotRemoveOwner);
+      expect(map(raised('OWNER_CANNOT_LEAVE')).reason,
+          FailureReason.ownerCannotLeave);
       expect(map(raised('INVALID_ROLE')).reason, FailureReason.invalidRole);
       expect(map(raised('ALREADY_OWNER')),
           isA<ConflictFailure>()

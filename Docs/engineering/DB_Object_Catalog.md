@@ -3,7 +3,7 @@
 > **Generated file. Do not edit by hand.** Regenerate it with `node tool/check-docs.mjs --write`;
 > `node tool/check-docs.mjs` fails when it is out of date.
 
-Source of truth: the 104 files in `supabase/migrations/`, newest `0103`.
+Source of truth: the 105 files in `supabase/migrations/`, newest `0104`.
 
 This is an **index** of what exists and which migration made it, not a specification. Behaviour is described
 in each migration's header comment, in the table specifications under `Docs/engineering/`, and in
@@ -86,7 +86,7 @@ Treat the specification as the design as approved, not as the schema; the migrat
 | `v_upcoming_matches` | `0025` | `0025` | Read model: matches starting after now() that are not completed, with |
 | `v_user_profile` | `0025` | `0073` | Read model: a player identity joined to the global career counters in |
 
-## Functions (194)
+## Functions (195)
 
 RPCs, helpers and trigger functions in the `public` schema, by name. Overloads are counted once.
 
@@ -199,6 +199,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `join_community_by_code` | `0007` | `0065` |  |
 | `last_completed_statistics_period` | `0070` | `0070` | The last COMPLETED ISO week or calendar month, in Asia/Muscat, as |
 | `last_completed_team_of_period_week` | `0084` | `0084` | The last FULLY CLOSED Team of Period week: Sunday to Saturday, Asia/Muscat, |
+| `leave_community` | `0104` | `0104` |  |
 | `match_community_contribution` | `0028` | `0028` |  |
 | `match_membership_context` | `0042` | `0042` | Why a match did not load: whether the id names one, which community it |
 | `match_result_contribution` | `0023` | `0046` |  |
@@ -233,7 +234,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `public_recent_results` | `0081` | `0081` | The most recent completed matches with a recorded result, across every |
 | `purge_community` | `0017` | `0017` |  |
 | `purge_match` | `0017` | `0045` |  |
-| `purge_membership` | `0017` | `0053` |  |
+| `purge_membership` | `0017` | `0104` |  |
 | `push_dispatch_payload` | `0036` | `0036` |  |
 | `rebalance_roster` | `0006` | `0053` |  |
 | `rebase_ratings_to_0078` | `0082` | `0082` | The approved one-time rebase: archives the operational rating history and |

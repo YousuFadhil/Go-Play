@@ -849,6 +849,19 @@ class AppLocalizationsAr extends AppLocalizations {
   String get communityDeleted => 'تم حذف المجتمع.';
 
   @override
+  String get leaveCommunityButton => 'مغادرة المجتمع';
+
+  @override
+  String get leaveCommunityConfirmTitle => 'مغادرة هذا المجتمع؟';
+
+  @override
+  String get leaveCommunityConfirmBody =>
+      'سيتم سحبك من مبارياته القادمة، وتبقى المباريات التي لعبتها في سجله.';
+
+  @override
+  String get leftCommunity => 'غادرت المجتمع.';
+
+  @override
   String get permissionOwnerOnly => 'المالك وحده يمكنه القيام بذلك.';
 
   @override
@@ -873,6 +886,10 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errCannotRemoveOwner =>
       'لا يمكن إزالة المالك. انقل الملكية أولاً.';
+
+  @override
+  String get errOwnerCannotLeave =>
+      'لا يمكن للمالك المغادرة. انقل الملكية أو احذف المجتمع أولاً.';
 
   @override
   String get errAlreadyOwner => 'هذا العضو هو المالك بالفعل.';

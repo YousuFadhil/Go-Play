@@ -115,6 +115,9 @@ enum FailureReason {
   cannotChangeOwnRole,
   cannotRemoveSelf,
   cannotRemoveOwner,
+  // The owner asked to leave. A community always has one owner, so the owner
+  // transfers ownership or deletes the community instead.
+  ownerCannotLeave,
   alreadyOwner,
   memberNotFound,
   invalidRole,
