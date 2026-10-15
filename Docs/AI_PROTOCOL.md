@@ -29,7 +29,14 @@ AI context and token consumption.
 -   Read the minimum files.
 -   Implement.
 -   Run only relevant validation.
--   Commit only if requested.
+-   One approval per task: once the Product Owner approves the task summary,
+    carry it through without per-step questions -- commit, pull request,
+    merge to `develop` once the `Flutter checks` workflow passes, a safe
+    migration, and a staging deploy. The Product Owner tests on staging and
+    then decides the release to `main`. See `CLAUDE.md` §2.
+-   Stop and ask mid-task only for a finding that changes the approved scope
+    or needs a product decision, a failing check, an irreversible step, or a
+    migration that changes what users of the deployed app see.
 
 ## Phase 3 -- ChatGPT
 
@@ -46,7 +53,8 @@ AI context and token consumption.
   L                        25
   XL        Approval required
 
-Claude must stop before exceeding the limit.
+Exceeding the estimate up to L is reported, not asked; XL needs approval
+before work starts.
 
 # Execution Modes
 
