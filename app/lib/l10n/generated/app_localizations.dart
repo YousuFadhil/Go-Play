@@ -2216,41 +2216,35 @@ abstract class AppLocalizations {
   /// **'Move to the other team'**
   String get movePlayerAction;
 
-  /// No description provided for @swapPlayerAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Swap with a player'**
-  String get swapPlayerAction;
-
-  /// No description provided for @swapPositionsAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Swap positions'**
-  String get swapPositionsAction;
-
   /// No description provided for @changePositionAction.
   ///
   /// In en, this message translates to:
   /// **'Change position'**
   String get changePositionAction;
 
-  /// No description provided for @swapPlayerTitle.
+  /// No description provided for @teamsDragHint.
   ///
   /// In en, this message translates to:
-  /// **'Swap with'**
-  String get swapPlayerTitle;
+  /// **'Drag a player onto another to swap'**
+  String get teamsDragHint;
 
-  /// No description provided for @swapPositionsTitle.
+  /// No description provided for @swapCompletedConfirmTitle.
   ///
   /// In en, this message translates to:
-  /// **'Swap positions with'**
-  String get swapPositionsTitle;
+  /// **'Swap in a finished match?'**
+  String get swapCompletedConfirmTitle;
 
-  /// No description provided for @swapNobodyAvailable.
+  /// No description provided for @swapCompletedConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'The other team has nobody to swap with.'**
-  String get swapNobodyAvailable;
+  /// **'This swap corrects the match record and recalculates ratings and statistics.'**
+  String get swapCompletedConfirmBody;
+
+  /// No description provided for @swapConfirmButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap'**
+  String get swapConfirmButton;
 
   /// No description provided for @changePositionTitle.
   ///

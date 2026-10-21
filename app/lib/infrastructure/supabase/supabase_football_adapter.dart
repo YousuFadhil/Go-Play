@@ -47,7 +47,7 @@ class SupabaseFootballAdapter implements FootballAdapter {
 
   static const _lineupColumns =
       'match_id, team, assigned_position, is_out_of_position, goals, is_mvp, '
-      '$_participantColumns';
+      'line_order, $_participantColumns';
 
   static const _communityStatsColumns =
       'community_id, community_name, completed_matches, players, goals, '

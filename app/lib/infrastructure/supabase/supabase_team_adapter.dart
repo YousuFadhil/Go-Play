@@ -23,7 +23,8 @@ class SupabaseTeamAdapter implements TeamAdapter {
   final SupabaseClient _client;
 
   static const _assignmentColumns = 'user_id, professional_guest_id, team, '
-      'assigned_position, assignment_basis, team_manually_overridden';
+      'assigned_position, assignment_basis, team_manually_overridden, '
+      'line_order';
 
   /// The generation set: **registered community players only**.
   ///
@@ -132,6 +133,25 @@ class SupabaseTeamAdapter implements TeamAdapter {
           'p_completed_correction': completedCorrection,
         });
       });
+
+  /// `set_match_lineup_line_order` (migration `0107`). The function holds the
+  /// permission (`is_match_community_admin`, as for every lineup edit) and the
+  /// rule that the ids are exactly the line, so neither is checked here.
+  @override
+  Future<void> setLineOrder(
+    String matchId, {
+    required TeamId team,
+    required Position position,
+    required List<String> participantIds,
+  }) =>
+      guarded(() async {
+        await _client.rpc('set_match_lineup_line_order', params: {
+          'p_match_id': matchId,
+          'p_team': teamToDb(team),
+          'p_assigned_position': positionToDb(position),
+          'p_participant_ids': participantIds,
+        });
+      }, operation: 'rpc set_match_lineup_line_order');
 
   /// Both of these go through `set_completed_match_player` (migration `0029`).
   ///

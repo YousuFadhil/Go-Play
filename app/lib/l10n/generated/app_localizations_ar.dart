@@ -1206,23 +1206,20 @@ class AppLocalizationsAr extends AppLocalizations {
   String get movePlayerAction => 'نقل إلى الفريق الآخر';
 
   @override
-  String get swapPlayerAction => 'تبديل مع لاعب';
-
-  @override
-  String get swapPositionsAction => 'تبديل المراكز';
-
-  @override
   String get changePositionAction => 'تغيير المركز';
 
   @override
-  String get swapPlayerTitle => 'التبديل مع';
+  String get teamsDragHint => 'اسحب اللاعب إلى لاعب آخر للتبديل';
 
   @override
-  String get swapPositionsTitle => 'تبديل المركز مع';
+  String get swapCompletedConfirmTitle => 'تبديل في مباراة منتهية؟';
 
   @override
-  String get swapNobodyAvailable =>
-      'لا يوجد في الفريق الآخر من يمكن التبديل معه.';
+  String get swapCompletedConfirmBody =>
+      'هذا التبديل يصحّح سجل المباراة ويعيد حساب التقييمات والإحصائيات.';
+
+  @override
+  String get swapConfirmButton => 'تبديل';
 
   @override
   String get changePositionTitle => 'المركز في هذه المباراة';

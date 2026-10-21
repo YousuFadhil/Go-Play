@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'formation.dart';
 import 'match_stage.dart';
+import 'pitch_drag.dart';
 import 'team_models.dart';
 
 enum PitchPresentation { phone, shareBeforeResult, shareResult }
@@ -42,6 +43,8 @@ class PitchView extends StatelessWidget {
     this.avatarUrlOf,
     this.ratingOf,
     this.onTapPlayer,
+    this.canSwapPlayers,
+    this.onSwapPlayers,
     this.goalsOf,
     this.isMvpOf,
     this.presentation = PitchPresentation.phone,
@@ -102,6 +105,19 @@ class PitchView extends StatelessWidget {
 
   final String Function(String userId) nameOf;
   final void Function(TeamAssignment assignment)? onTapPlayer;
+
+  /// Drag-to-swap, for a caller that may edit the lineup and nobody else.
+  ///
+  /// With [onSwapPlayers] a long press picks a card up and a drop on another
+  /// card calls it with both; [canSwapPlayers] says which cards accept the
+  /// drop and are lit while dragging (any other player, when null). A long
+  /// press let go without moving calls [onTapPlayer], as a tap does. Without
+  /// [onSwapPlayers] nothing can be dragged: this widget is not told a role,
+  /// so it cannot be the thing that gets one wrong.
+  final bool Function(TeamAssignment dragged, TeamAssignment target)?
+      canSwapPlayers;
+  final void Function(TeamAssignment dragged, TeamAssignment target)?
+      onSwapPlayers;
   final int Function(String participantId)? goalsOf;
   final bool Function(String participantId)? isMvpOf;
   final PitchPresentation presentation;
@@ -250,8 +266,8 @@ class PitchView extends StatelessWidget {
         ? null
         : buildFormation(
             assignments,
-            order: (a, b) =>
-                nameOf(a.participantId).compareTo(nameOf(b.participantId)),
+            // The stored order inside the line, then the name (0107).
+            order: lineOrderThenName(nameOf),
           );
     final approvedDenseRows = exact ? null : _approvedDenseRows();
     final rows = exact
@@ -837,8 +853,7 @@ class PitchView extends StatelessWidget {
     List<TeamAssignment> at(Position position) => [
           for (final item in assignments)
             if (item.assignedPosition == position) item,
-        ]..sort((a, b) =>
-            nameOf(a.participantId).compareTo(nameOf(b.participantId)));
+        ]..sort(lineOrderThenName(nameOf));
 
     final goalkeepers = at(Position.gk);
     final defence = at(Position.def);
@@ -870,27 +885,45 @@ class PitchView extends StatelessWidget {
   }) {
     final markerWidth =
         slot.markerWidth ?? (dense ? 118.0 : 228.0) * slot.scale;
+    final onTap =
+        onTapPlayer == null ? null : () => onTapPlayer!(assignment);
+    PlayerCard card({VoidCallback? onTap}) => PlayerCard(
+          assignment: assignment,
+          avatarUrl: avatarUrlOf?.call(assignment.participantId) ??
+              players[assignment.participantId]?.avatarUrl,
+          rating: ratingOf?.call(assignment.participantId) ??
+              players[assignment.participantId]?.overallRating,
+          name: nameOf(assignment.participantId),
+          movedFrom: movedFrom,
+          goals: goalsOf?.call(assignment.participantId) ?? 0,
+          isMvp: isMvpOf?.call(assignment.participantId) ?? false,
+          avatarDiameter: slot.avatarDiameter,
+          layoutScale: slot.scale,
+          badgeScale: badgeScale,
+          markerWidth: markerWidth,
+          dense: dense,
+          onTap: onTap,
+        );
+    final onSwap = onSwapPlayers;
     return Positioned(
       left: slot.center.dx - markerWidth / 2,
       top: slot.center.dy - slot.avatarDiameter / 2,
       width: markerWidth,
-      child: PlayerCard(
-        assignment: assignment,
-        avatarUrl: avatarUrlOf?.call(assignment.participantId) ??
-            players[assignment.participantId]?.avatarUrl,
-        rating: ratingOf?.call(assignment.participantId) ??
-            players[assignment.participantId]?.overallRating,
-        name: nameOf(assignment.participantId),
-        movedFrom: movedFrom,
-        goals: goalsOf?.call(assignment.participantId) ?? 0,
-        isMvp: isMvpOf?.call(assignment.participantId) ?? false,
-        avatarDiameter: slot.avatarDiameter,
-        layoutScale: slot.scale,
-        badgeScale: badgeScale,
-        markerWidth: markerWidth,
-        dense: dense,
-        onTap: onTapPlayer == null ? null : () => onTapPlayer!(assignment),
-      ),
+      // Only a caller that passes [onSwapPlayers] gets a draggable card; every
+      // other pitch -- the public page, the share cards -- draws it as before.
+      child: onSwap == null
+          ? card(onTap: onTap)
+          : SwappablePlayer(
+              assignment: assignment,
+              canSwap: canSwapPlayers ??
+                  (dragged, target) =>
+                      dragged.participantId != target.participantId,
+              onSwap: onSwap,
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(18 * slot.scale),
+              feedback: SizedBox(width: markerWidth, child: card()),
+              child: card(onTap: onTap),
+            ),
     );
   }
 
