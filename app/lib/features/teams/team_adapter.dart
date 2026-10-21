@@ -86,6 +86,21 @@ abstract interface class TeamAdapter {
     bool completedCorrection = false,
   });
 
+  /// Stores the order of one line of [matchId] -- the participants of [team]
+  /// at [position] -- as [participantIds], first to last.
+  ///
+  /// The whole line, never a pair: [participantIds] must be exactly the line's
+  /// current members, and the database refuses anything else
+  /// (`set_match_lineup_line_order`, migration `0107`). Presentation only, so
+  /// it carries no correction flag: it is written the same way before and after
+  /// the final whistle and moves no rating or statistic.
+  Future<void> setLineOrder(
+    String matchId, {
+    required TeamId team,
+    required Position position,
+    required List<String> participantIds,
+  });
+
   /// Records that [userId] played [matchId] on [team] at [position].
   ///
   /// For a **completed** match only: correcting who was on the pitch is a

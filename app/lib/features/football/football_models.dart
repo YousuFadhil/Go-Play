@@ -159,6 +159,7 @@ class LineupSlot {
     required this.isMvp,
     required this.isOutOfPosition,
     this.assignedPosition,
+    this.lineOrder,
   });
 
   final String matchId;
@@ -178,6 +179,9 @@ class LineupSlot {
   /// Playing away from their primary position, per BTGE §5.1. Always false for
   /// a guest, whose assignment basis is GUEST rather than TRANSITION.
   final bool isOutOfPosition;
+
+  /// The stored order inside the line (migration `0107`), or null: by name.
+  final int? lineOrder;
 }
 
 /// A community's football record.

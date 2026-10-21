@@ -947,7 +947,6 @@ void main() {
         'Add professional guest',
         'Add a professional guest',
         'Move to the other team',
-        'Swap with a player',
         'Change position',
         'Assigned position',
         'Remove',
