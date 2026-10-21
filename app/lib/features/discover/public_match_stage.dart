@@ -71,6 +71,7 @@ class PublicMatchStage extends StatelessWidget {
                 entry.isProfessionalGuest ? null : _participantId(entry, index),
             professionalGuestId:
                 entry.isProfessionalGuest ? _participantId(entry, index) : null,
+            lineOrder: entry.lineOrder,
           ),
       ];
 

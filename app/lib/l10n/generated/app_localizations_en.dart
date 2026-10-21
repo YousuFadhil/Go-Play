@@ -1231,22 +1231,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get movePlayerAction => 'Move to the other team';
 
   @override
-  String get swapPlayerAction => 'Swap with a player';
-
-  @override
-  String get swapPositionsAction => 'Swap positions';
-
-  @override
   String get changePositionAction => 'Change position';
 
   @override
-  String get swapPlayerTitle => 'Swap with';
+  String get teamsDragHint => 'Drag a player onto another to swap';
 
   @override
-  String get swapPositionsTitle => 'Swap positions with';
+  String get swapCompletedConfirmTitle => 'Swap in a finished match?';
 
   @override
-  String get swapNobodyAvailable => 'The other team has nobody to swap with.';
+  String get swapCompletedConfirmBody =>
+      'This swap corrects the match record and recalculates ratings and statistics.';
+
+  @override
+  String get swapConfirmButton => 'Swap';
 
   @override
   String get changePositionTitle => 'Assigned position';

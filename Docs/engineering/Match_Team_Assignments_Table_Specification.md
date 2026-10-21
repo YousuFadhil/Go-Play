@@ -394,7 +394,9 @@ everything they hold. Recorded as `TA-R4`.
 
 ## 6. Columns
 
-Eight columns.
+Eight columns as first specified. Later migrations added more; the generated
+`Docs/engineering/DB_Object_Catalog.md` lists the live set. `line_order`
+(migration 0107) is described in §6.4.
 
 ### 6.1 Summary
 
@@ -408,6 +410,7 @@ Eight columns.
 | 6 | `assignment_basis` | `text` | No | none | **Replaced, never edited** |
 | 7 | `created_at` | `timestamptz` | No | `now()` | **Never** |
 | 8 | `updated_at` | `timestamptz` | No | `now()` | **Trigger only** — and vestigial, §6.3 |
+| — | `line_order` | `smallint` | Yes | none | **`set_match_lineup_line_order` only**, §6.4 |
 
 **"Replaced, never edited" is a fourth editability class, and it is specific to
 this table.** No operation updates a row: an organiser's change deletes every
@@ -563,6 +566,28 @@ records as missing `updated_at` while carrying a mutable column — **this table
 has both, with a trigger.** It satisfies the Standards in full.
 
 ---
+
+### 6.4 `line_order` — the order inside a line (migration 0107, DD-28)
+
+*Purpose.* Where a participant stands inside their line (same match, `team`
+and `assigned_position`), counted from 1: who is drawn right, centre and left.
+Presentation only; no rating, statistic or participation evidence reads it.
+
+*Null* means no stored order, and is the state of every row written before
+0107: the pitch then orders the line by name, as it always did. Within a line
+the pitch sorts by `line_order` first, nulls last, then by name.
+
+*Writer.* `set_match_lineup_line_order(match, team, position, ids)` writes a
+whole line at once, and only when the ids are exactly that line's members. Same
+permission as every lineup edit (`is_match_community_admin`). It is the one
+UPDATE this table takes outside the replace path, and it is the exception to
+"replaced, never edited" above.
+
+*Reset.* A BEFORE UPDATE trigger clears it whenever `team` or
+`assigned_position` changes. `replace_match_lineup` carries it across the
+delete-and-insert only for a participant who keeps the same team and position,
+and never for a generation. `advance_match_participation_revision` ignores an
+update that changes `line_order` alone.
 
 ## 7. Business Constraints
 

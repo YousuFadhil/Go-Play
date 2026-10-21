@@ -18,6 +18,7 @@ import '../sharing/share_card_flow.dart';
 import '../sharing/share_card_renderer.dart';
 import '../sharing/share_service.dart';
 import 'generated_lineup_repository.dart';
+import 'lineup_swap.dart';
 import 'match_stage.dart';
 import 'played_participants_sheet.dart';
 import 'match_stage_board.dart';
@@ -581,7 +582,26 @@ class _TeamsScreenState extends State<TeamsScreen> {
                   final userId = assignment.userId;
                   if (userId != null) openPlayerProfile(context, userId);
                 },
+          // Drag-to-swap, for the same readers the sheet above is for and on
+          // the same terms: the database checks the role on every write, and
+          // nobody else is handed a callback to begin with.
+          canSwapPlayers: view.canManageLineup && !_busy
+              ? (dragged, target) => resolvePitchSwap(dragged, target) != null
+              : null,
+          onSwapPlayers: view.canManageLineup && !_busy
+              ? (dragged, target) => _swapOnPitch(l10n, view, dragged, target)
+              : null,
         ),
+        if (view.canManageLineup)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+            child: Text(
+              l10n.teamsDragHint,
+              key: const ValueKey('teams-drag-hint'),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
         if (view.canEditPlayed) ...[
           const Divider(height: 32),
           ..._playedParticipantsAction(l10n, view),
@@ -900,12 +920,20 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
   // --- Manual Override (§13) -------------------------------------------------
   //
-  // Four operations and nothing else: move a player to the other side, swap
-  // two of them across the sides, exchange the positions of two on the same
-  // side, change the position one is playing. The screen chooses which
-  // to ask for; `TeamRepository` decides what each one means and writes it, so
-  // no lineup reasoning happens here. `BTGE-MO-2` is what makes them possible
-  // without the engine, and nothing below reaches for it.
+  // Two ways in, and the same operations behind them.
+  //
+  //   * The player's sheet (a tap, or a long press let go without moving):
+  //     move to the other side, change the position one is playing, and take
+  //     somebody out of the match where that is allowed.
+  //   * Dragging one player onto another (`_swapOnPitch`): the two take each
+  //     other's exact place. Which operation that is follows from where they
+  //     stand (`resolvePitchSwap`): a side swap inside one line, a position
+  //     swap on one team, or a swap across the teams.
+  //
+  // The screen chooses which to ask for; `TeamRepository` decides what each one
+  // means and writes it, so no lineup reasoning happens here. `BTGE-MO-2` is
+  // what makes them possible without the engine, and nothing below reaches for
+  // it.
 
   /// The actions offered on a player, and what each one runs.
   Future<void> _editPlayer(
@@ -915,8 +943,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
   ) async {
     if (_busy) return;
     // A Professional Guest is offered the same actions, on the same terms as
-    // anybody else on the pitch -- a position swap included, once they have a
-    // position to exchange.
+    // anybody else on the pitch.
     //
     // Which side somebody is on and where they stood are both facts about this
     // match rather than about a profile, so both are answerable for a guest.
@@ -927,9 +954,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     // Removing one means something different from removing a player, and it is
     // routed accordingly — see [_removeParticipant].
     final guest = assignment.isProfessionalGuest;
-    // Offered only when there is somebody to exchange with: a position swap
-    // between two identical positions would be an edit that changes nothing.
-    final canSwapPositions = _positionSwapPartners(view, assignment).isNotEmpty;
+    // Swapping two players is a drag on the pitch, not an entry here.
     final action = await showDialog<_PlayerAction>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
@@ -939,13 +964,6 @@ class _TeamsScreenState extends State<TeamsScreen> {
           for (final (action, label, icon)
               in <(_PlayerAction, String, IconData)>[
             (_PlayerAction.move, l10n.movePlayerAction, Icons.swap_horiz),
-            (_PlayerAction.swap, l10n.swapPlayerAction, Icons.swap_vert),
-            if (canSwapPositions)
-              (
-                _PlayerAction.swapPositions,
-                l10n.swapPositionsAction,
-                Icons.compare_arrows,
-              ),
             (
               _PlayerAction.position,
               l10n.changePositionAction,
@@ -985,10 +1003,6 @@ class _TeamsScreenState extends State<TeamsScreen> {
             completedCorrection: view.match.isCompleted,
           ),
         );
-      case _PlayerAction.swap:
-        await _swap(l10n, view, assignment);
-      case _PlayerAction.swapPositions:
-        await _swapPositions(l10n, view, assignment);
       case _PlayerAction.position:
         await _changePosition(l10n, view, assignment);
       case _PlayerAction.remove:
@@ -1113,134 +1127,52 @@ class _TeamsScreenState extends State<TeamsScreen> {
     );
   }
 
-  /// Asks who on the other side to swap with, then swaps them.
+  /// Drops [dragged] onto [target]: the two take each other's exact place.
   ///
-  /// Everybody on the other side is offered, Professional Guests included. A
-  /// swap exchanges two sides and `KB-D6` gives the labels no other meaning, so
-  /// which column names a participant has no bearing on whether they can be one
-  /// half of it. All four combinations are the same operation: player with
-  /// player, player with guest, guest with player, guest with guest.
-  Future<void> _swap(
+  /// A cross-team swap or a position swap on a played match corrects the record
+  /// of who played where, and the existing correction path recalculates the
+  /// ratings and statistics for it -- so it is confirmed first, in the same
+  /// dialog as the sheet's other corrections. A side swap only reorders a line
+  /// and recalculates nothing, so it is never asked about.
+  Future<void> _swapOnPitch(
     AppLocalizations l10n,
     _TeamsView view,
-    TeamAssignment assignment,
+    TeamAssignment dragged,
+    TeamAssignment target,
   ) async {
-    final others = [
-      for (final other in view.lineup)
-        if (other.team != assignment.team) other,
-    ];
-    if (others.isEmpty) {
-      _showMessage(l10n.swapNobodyAvailable);
-      return;
+    final kind = resolvePitchSwap(dragged, target);
+    if (kind == null || _busy) return;
+
+    if (view.match.isCompleted && kind != PitchSwapKind.sideSwap) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.swapCompletedConfirmTitle),
+          content: Text(l10n.swapCompletedConfirmBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.confirmNo),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.swapConfirmButton),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
     }
 
-    final partner = await showDialog<TeamAssignment>(
-      context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: Text(l10n.swapPlayerTitle),
-        children: [
-          for (final other in others)
-            ListTile(
-              leading: PlayerAvatar(
-                avatarUrl: view.players[other.participantId]?.avatarUrl,
-                fullName: _nameOf(view, other.participantId),
-                isProfessionalGuest: other.isProfessionalGuest,
-              ),
-              title: Text(_nameOf(view, other.participantId)),
-              // A guest may have no position — an ordinary roster-derived
-              // lineup invents none for them — and the row says what they are
-              // instead of inventing one here either. A guest recorded by a
-              // completed-match correction does carry the position they played,
-              // and it is shown like anybody else's. A registered player always
-              // carries one: the database refuses a lineup row naming a user
-              // without.
-              subtitle: Text(
-                other.assignedPosition == null
-                    ? l10n.professionalGuestLabel
-                    : _positionLabel(l10n, other.assignedPosition!.code),
-              ),
-              onTap: () => Navigator.of(dialogContext).pop(other),
-            ),
-        ],
-      ),
-    );
-    if (partner == null || !mounted) return;
-
     await _runEdit(
       l10n,
-      // Participant ids on both sides. `userId!` threw for a guest, which is
-      // half of why guests could not be swapped at all.
-      () => _teams.swapPlayers(
+      () => _teams.swapOnPitch(
         widget.matchId,
-        assignment.participantId,
-        partner.participantId,
-        completedCorrection: view.match.isCompleted,
-      ),
-    );
-  }
-
-  /// Who on [assignment]'s own side could exchange positions with them.
-  ///
-  /// Both need an assigned position -- a Professional Guest in an ordinary
-  /// lineup has none, and there is nothing of theirs to exchange -- and the two
-  /// positions must differ, or the exchange would change nothing.
-  List<TeamAssignment> _positionSwapPartners(
-    _TeamsView view,
-    TeamAssignment assignment,
-  ) {
-    final position = assignment.assignedPosition;
-    if (position == null) return const [];
-    return [
-      for (final other in view.lineup)
-        if (other.team == assignment.team &&
-            other.participantId != assignment.participantId &&
-            other.assignedPosition != null &&
-            other.assignedPosition != position)
-          other,
-    ];
-  }
-
-  /// Asks who on the same side to exchange positions with, then exchanges
-  /// them in one save.
-  ///
-  /// Nobody changes side. `TeamRepository.swapAssignedPositions` decides what
-  /// that means for each participant's basis and writes it; this only asks.
-  Future<void> _swapPositions(
-    AppLocalizations l10n,
-    _TeamsView view,
-    TeamAssignment assignment,
-  ) async {
-    final partners = _positionSwapPartners(view, assignment);
-    if (partners.isEmpty) return;
-
-    final partner = await showDialog<TeamAssignment>(
-      context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: Text(l10n.swapPositionsTitle),
-        children: [
-          for (final other in partners)
-            ListTile(
-              leading: PlayerAvatar(
-                avatarUrl: view.players[other.participantId]?.avatarUrl,
-                fullName: _nameOf(view, other.participantId),
-                isProfessionalGuest: other.isProfessionalGuest,
-              ),
-              title: Text(_nameOf(view, other.participantId)),
-              subtitle:
-                  Text(_positionLabel(l10n, other.assignedPosition!.code)),
-              onTap: () => Navigator.of(dialogContext).pop(other),
-            ),
-        ],
-      ),
-    );
-    if (partner == null || !mounted) return;
-
-    await _runEdit(
-      l10n,
-      () => _teams.swapAssignedPositions(
-        widget.matchId,
-        assignment.participantId,
-        partner.participantId,
+        dragged.participantId,
+        target.participantId,
+        // The drawing's own order, so a line nobody has ordered yet is stored
+        // exactly as it was on screen.
+        order: lineOrderThenName((id) => _nameOf(view, id)),
         completedCorrection: view.match.isCompleted,
       ),
     );
@@ -1367,7 +1299,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
 }
 
 /// What an organizer picked from a player's row.
-enum _PlayerAction { move, swap, swapPositions, position, remove }
+enum _PlayerAction { move, position, remove }
 
 /// Everything one build of the screen needs, read in one pass.
 class _TeamsView {
