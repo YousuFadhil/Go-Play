@@ -13,15 +13,24 @@ enum PitchPresentation { phone, shareBeforeResult, shareResult }
 /// The approved pitch is one perspective drawing with deterministic anchors.
 /// How a pitch decides which row a player stands in.
 enum PitchLayoutMode {
-  /// The match presentation, unchanged: [buildFormation] groups the side and
-  /// may move a player into a neighbouring line so a real squad reads as a
-  /// shape. Every match screen and every share card uses this.
+  /// The balanced presentation: [buildFormation] groups the side and may move
+  /// a player into a neighbouring line so a squad reads as a familiar shape.
+  ///
+  /// No match screen uses it any more (DD-29): a drawing that moves somebody
+  /// out of the line they are recorded in disagrees with the drag that reads
+  /// that line. Kept as the default so a caller that names no layout is not
+  /// changed behind its back.
   matchFormation,
 
   /// Rows taken **strictly** from each assignment's `assignedPosition`, in the
   /// order GK, DEF, MID, FWD, with empty rows omitted.
   ///
-  /// For the Team of Period, where the position is the award itself. Nobody
+  /// Every match pitch -- the Teams screen, the member's and the public
+  /// completed match, the share card -- draws this (DD-29): the row a player
+  /// stands in is the position recorded for them, so what the organizer drags
+  /// is what is stored, and no line has a minimum or a maximum.
+  ///
+  /// The Team of Period draws it too, where the position is the award itself. Nobody
   /// there was placed by an engine balancing a match -- they were given the
   /// position because it is where they actually played most of the period --
   /// so borrowing a midfielder into defence to make a familiar shape would
@@ -50,6 +59,7 @@ class PitchView extends StatelessWidget {
     this.presentation = PitchPresentation.phone,
     this.team = TeamId.a,
     this.pitchKey,
+    this.order,
   });
 
   /// A phone pitch at the width a 390pt screen leaves it. A reference, not a
@@ -123,6 +133,15 @@ class PitchView extends StatelessWidget {
   final PitchPresentation presentation;
   final TeamId team;
   final Key? pitchKey;
+
+  /// The order inside each line in [PitchLayoutMode.exactAssignedPositions],
+  /// or null to keep the order [assignments] arrived in.
+  ///
+  /// The match pitches pass [lineOrderThenName], so the side order an
+  /// organizer stored is drawn. The Team of Period passes nothing: it hands
+  /// its players over already ranked. The balanced layout ignores it and keeps
+  /// its own rule.
+  final Comparator<TeamAssignment>? order;
 
   static Key avatarKey(String id) => ValueKey('player-avatar-$id');
   static Key nameKey(String id) => ValueKey('player-name-$id');
@@ -829,17 +848,32 @@ class PitchView extends StatelessWidget {
   ///
   /// Empty lines are omitted rather than drawn empty, so a period with no
   /// goalkeeper evidence produces a pitch with no goalkeeper row instead of a
-  /// gap where the product would like one to be. Within a line the order is the
-  /// caller's: the Team of Period screen hands them over already ranked.
+  /// gap where the product would like one to be. Within a line the order is
+  /// [order] when one is given, and otherwise the caller's: the Team of Period
+  /// screen hands them over already ranked.
+  ///
+  /// A participant with no position -- a Professional Guest in an ordinary
+  /// lineup -- stands in no line, and is still drawn: in a row of their own
+  /// between the midfield and the attack (DD-29), so nobody who played is left
+  /// off and nobody is drawn in a line they are not recorded in. The Team of
+  /// Period never has one, so it never gets the row.
   List<_FormationRow> _exactRows() {
-    List<TeamAssignment> at(Position position) => [
-          for (final item in assignments)
-            if (item.assignedPosition == position) item,
-        ];
+    final order = this.order;
+    List<TeamAssignment> at(Position? position) {
+      final line = [
+        for (final item in assignments)
+          if (item.assignedPosition == position) item,
+      ];
+      if (order != null) line.sort(order);
+      return line;
+    }
+
     final lines = <(_Line, List<TeamAssignment>)>[
       (_Line.goalkeeper, at(Position.gk)),
       (_Line.defence, at(Position.def)),
       (_Line.midfield, at(Position.mid)),
+      // Drawn as a second midfield row: the geometry for two already exists.
+      (_Line.midfield, at(null)),
       (_Line.attack, at(Position.fwd)),
     ];
     return [

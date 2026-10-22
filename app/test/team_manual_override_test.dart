@@ -168,18 +168,61 @@ void main() {
       expect(written(adapter), ['a/DEF/u2,u1']);
     });
 
-    test('a team swap is the existing swap, then the arrivals\' lines',
-        () async {
+    test(
+        'across the teams at two positions: team and position, in one write '
+        '(DD-29)', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
 
+      // u2 defends for A, u3 plays midfield for B.
       await TeamRepository(adapter).swapOnPitch('m1', 'u2', 'u3',
           order: byName, completedCorrection: false);
 
-      expect(adapter.saveCount, 1);
+      expect(adapter.saveCount, 1, reason: 'one write, one recalculation');
       expect(adapter.lastCompletedCorrection, isFalse);
-      expect(saved(adapter, 'u2').team, TeamId.b);
-      expect(saved(adapter, 'u3').team, TeamId.a);
-      expect(written(adapter), ['b/DEF/u2', 'a/MID/u3']);
+      expect((saved(adapter, 'u2').team, saved(adapter, 'u2').assignedPosition),
+          (TeamId.b, Position.mid));
+      expect((saved(adapter, 'u3').team, saved(adapter, 'u3').assignedPosition),
+          (TeamId.a, Position.def));
+      expect(saved(adapter, 'u2').teamManuallyOverridden, isFalse,
+          reason: 'the flag is for guests; a player keeps false');
+      expect(written(adapter), ['b/MID/u2', 'a/DEF/u3']);
+    });
+
+    test('across the teams at one position: the plain team swap', () async {
+      final adapter = FakeTeamAdapter(lineup: [
+        at('u1', TeamId.a, Position.def),
+        at('u2', TeamId.b, Position.def),
+      ]);
+
+      await TeamRepository(adapter).swapOnPitch('m1', 'u1', 'u2',
+          order: byName, completedCorrection: false);
+
+      expect(adapter.saveCount, 1);
+      expect((saved(adapter, 'u1').team, saved(adapter, 'u1').assignedPosition),
+          (TeamId.b, Position.def));
+      expect(written(adapter), ['b/DEF/u1', 'a/DEF/u2']);
+    });
+
+    test('a guest with no position swaps teams and keeps none', () async {
+      final adapter = FakeTeamAdapter(lineup: [
+        ...lineup(),
+        const TeamAssignment(
+          professionalGuestId: 'g1',
+          team: TeamId.a,
+          assignedPosition: null,
+          basis: null,
+        ),
+      ]);
+
+      await TeamRepository(adapter).swapOnPitch('m1', 'g1', 'u3',
+          order: byName, completedCorrection: false);
+
+      final guest = adapter.savedLineup!
+          .singleWhere((a) => a.professionalGuestId == 'g1');
+      expect((guest.team, guest.assignedPosition), (TeamId.b, null));
+      expect((saved(adapter, 'u3').team, saved(adapter, 'u3').assignedPosition),
+          (TeamId.a, Position.mid),
+          reason: 'a registered player is never left without a position');
     });
 
     test('a position swap carries the correction flag it is given', () async {
