@@ -152,6 +152,7 @@ class MatchStageBoard extends StatelessWidget {
     this.onSwapPlayers,
     this.avatarUrlOf,
     this.ratingOf,
+    this.layout = PitchLayoutMode.matchFormation,
   });
 
   /// The stored lineup, both sides. Split by [team] below rather than taken as
@@ -208,6 +209,13 @@ class MatchStageBoard extends StatelessWidget {
       canSwapPlayers;
   final void Function(TeamAssignment dragged, TeamAssignment target)?
       onSwapPlayers;
+
+  /// How each side's rows are decided, handed to both [PitchView]s.
+  ///
+  /// Every board in the app passes [PitchLayoutMode.exactAssignedPositions]
+  /// (DD-29). The default stays the balanced layout so a caller that names
+  /// none is not changed silently.
+  final PitchLayoutMode layout;
 
   bool get hasResult => teamAScore != null && teamBScore != null;
 
@@ -312,6 +320,10 @@ class MatchStageBoard extends StatelessWidget {
           onTapPlayer: onTapPlayer,
           canSwapPlayers: canSwapPlayers,
           onSwapPlayers: onSwapPlayers,
+          layout: layout,
+          // Used by the exact layout only: the side order an organizer stored,
+          // then the name (0107).
+          order: lineOrderThenName(nameOf),
         ),
       ),
     );

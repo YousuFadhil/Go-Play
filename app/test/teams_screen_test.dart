@@ -459,13 +459,12 @@ void main() {
       final midfielder = tester.getCenter(find.text('Noor Al Kindi')).dy;
       expect(keeper, lessThan(midfielder));
 
-      // Team B is a defender and a forward, and both are drawn on one line.
-      // That is the approved rule rather than a compromise: defence is filled
-      // to three before attack takes anybody, so a two-player side is all
-      // defence. `formation_test.dart` states this directly.
+      // Team B is a defender and a forward, each drawn in their own line (DD-29):
+      // the row is the recorded position, with no minimum defence to fill
+      // first. Team B defends the far end, so its attack is nearer the middle.
       final defender = tester.getCenter(find.text('Ahmed Al Harthy')).dy;
       final forward = tester.getCenter(find.text('Yousef Al Amri')).dy;
-      expect(forward, equals(defender));
+      expect(forward, lessThan(defender));
     });
 
     testWidgets('a squad with nobody who keeps goal fields no goalkeeper',
@@ -1107,8 +1106,9 @@ void main() {
         expect(teams.lineOrderWrites, isEmpty);
       });
 
-      testWidgets('across the teams: a team swap, each in the other\'s place',
-          (tester) async {
+      testWidgets(
+          'across the teams at two positions: team and position, each in the '
+          'other\'s place', (tester) async {
         final teams =
             FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
         await pumpTeams(
@@ -1126,16 +1126,20 @@ void main() {
         final saved = teams.savedLineup!;
         expect(teams.saveCount, 1);
         expect(teams.lastCompletedCorrection, isFalse);
-        expect(saved.singleWhere((a) => a.userId == 'u1').team, TeamId.b);
-        expect(saved.singleWhere((a) => a.userId == 'u2').team, TeamId.a);
+        // Sara lands in the line she was dropped onto, and Ahmed in hers
+        // (DD-29), in one write.
+        final sara = saved.singleWhere((a) => a.userId == 'u1');
+        final ahmed = saved.singleWhere((a) => a.userId == 'u2');
+        expect((sara.team, sara.assignedPosition), (TeamId.b, Position.def));
+        expect((ahmed.team, ahmed.assignedPosition), (TeamId.a, Position.gk));
         expect(
           {
             for (final (team, position, ids) in teams.lineOrderWrites)
               (team, position): ids
           },
           {
-            (TeamId.b, Position.gk): ['u1'],
-            (TeamId.a, Position.def): ['u2'],
+            (TeamId.b, Position.def): ['u1'],
+            (TeamId.a, Position.gk): ['u2'],
           },
         );
         expect(find.text('Lineup updated.'), findsOneWidget);
@@ -1153,7 +1157,16 @@ void main() {
         await tester.pumpAndSettle();
 
         // Sara keeps goal for A; Noor plays midfield for A.
+        final keeperRow = tester.getCenter(find.text('Sara Al Balushi')).dy;
+        final midfieldRow = tester.getCenter(find.text('Noor Al Kindi')).dy;
         await dragOnto(tester, 'Sara Al Balushi', 'Noor Al Kindi');
+
+        // Drawn where they now stand, after the fresh read, and left there:
+        // nothing rebalances the rows (DD-29).
+        expect(tester.getCenter(find.text('Sara Al Balushi')).dy, midfieldRow);
+        expect(tester.getCenter(find.text('Noor Al Kindi')).dy, keeperRow);
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.getCenter(find.text('Sara Al Balushi')).dy, midfieldRow);
 
         final saved = teams.savedLineup!;
         expect(teams.saveCount, 1, reason: 'one exchange, one write');

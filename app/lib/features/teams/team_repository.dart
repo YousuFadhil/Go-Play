@@ -455,12 +455,21 @@ class TeamRepository {
   /// Drops [draggedId] onto [targetId] on the pitch: the two take each other's
   /// exact place.
   ///
-  /// [resolvePitchSwap] decides which operation that is, and the two that
-  /// change a lineup are the existing ones, untouched: [swapAssignedPositions]
-  /// for two positions on one team and [swapPlayers] across the teams, each
-  /// with its [completedCorrection] as the screen states it. A side swap is
-  /// neither -- two players of one line exchange places -- and writes nothing
-  /// but that line's order, so it never recalculates a played match.
+  /// [resolvePitchSwap] decides which operation that is, each written with its
+  /// [completedCorrection] as the screen states it:
+  ///
+  ///  * two positions on one team: [swapAssignedPositions];
+  ///  * across the teams at one position, or where either has no position:
+  ///    [swapPlayers];
+  ///  * across the teams at two different positions: team **and** position
+  ///    are exchanged in one lineup write (DD-29), so each lands in the line
+  ///    they were dropped onto -- one recalculation on a played match, not two,
+  ///    and no stored lineup with half of it done. Only when both have a
+  ///    position: a registered player can never be left without one.
+  ///
+  /// A side swap is none of these -- two players of one line exchange places --
+  /// and writes nothing but that line's order, so it never recalculates a
+  /// played match.
   ///
   /// Afterwards the line(s) the two arrived in are stored in full
   /// ([lineOrdersAfterSwap]), so each stands where the other stood rather than
@@ -498,12 +507,35 @@ class TeamRepository {
           completedCorrection: completedCorrection,
         );
       case PitchSwapKind.teamSwap:
-        await swapPlayers(
-          matchId,
-          draggedId,
-          targetId,
-          completedCorrection: completedCorrection,
-        );
+        final from = dragged.assignedPosition;
+        final to = target.assignedPosition;
+        if (from != null && to != null && from != to) {
+          final roster = await _adapter.fetchConfirmedPlayerInputs(matchId);
+          final moved = dragged.movedToOtherTeam(manualOverride: true);
+          final other = target.movedToOtherTeam(manualOverride: true);
+          await _replace(
+            matchId,
+            before,
+            {
+              draggedId: moved.withPosition(
+                to,
+                _basisIn(roster, dragged.userId, to, dragged.basis),
+              ),
+              targetId: other.withPosition(
+                from,
+                _basisIn(roster, target.userId, from, target.basis),
+              ),
+            },
+            completedCorrection: completedCorrection,
+          );
+        } else {
+          await swapPlayers(
+            matchId,
+            draggedId,
+            targetId,
+            completedCorrection: completedCorrection,
+          );
+        }
     }
 
     final after = kind == PitchSwapKind.sideSwap

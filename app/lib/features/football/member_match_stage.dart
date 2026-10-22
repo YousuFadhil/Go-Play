@@ -6,6 +6,7 @@ import '../../core/time_format.dart';
 import '../profile/player_identity.dart';
 import '../teams/match_stage.dart';
 import '../teams/match_stage_board.dart';
+import '../teams/pitch_view.dart';
 import 'completed_match_presentation.dart';
 import 'football_repository.dart';
 
@@ -46,6 +47,8 @@ class MemberMatchStage extends StatelessWidget {
       children: [
         if (presentation.hasLineup)
           MatchStageBoard(
+            // The recorded position decides the row (DD-29).
+            layout: PitchLayoutMode.exactAssignedPositions,
             lineup: presentation.lineup,
             players: presentation.players,
             nameOf: presentation.nameOf,
