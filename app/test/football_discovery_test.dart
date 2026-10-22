@@ -679,6 +679,40 @@ void main() {
           isOutOfPosition: false,
         );
 
+    testWidgets('the pitch draws the recorded positions, with no cap (DD-29)',
+        (tester) async {
+      await pumpMatch(
+        tester,
+        match: completed('p1', a: 2, b: 1),
+        lineup: [
+          slot(player('k', 'Keeper Ali'), position: 'GK'),
+          for (var i = 0; i < 6; i++)
+            slot(player('d$i', 'Back $i'), position: 'DEF'),
+          slot(player('k2', 'Keeper Omar'),
+              team: FootballTeam.b, position: 'GK'),
+          slot(player('f2', 'Wing Omar'),
+              team: FootballTeam.b, position: 'FWD'),
+        ],
+      );
+
+      final pitches = tester.widgetList<PitchView>(find.byType(PitchView));
+      expect(pitches, isNotEmpty);
+      for (final pitch in pitches) {
+        expect(pitch.layout, PitchLayoutMode.exactAssignedPositions);
+        expect(pitch.order, isNotNull);
+      }
+      for (var i = 0; i < 6; i++) {
+        expect(find.text('Back $i'), findsWidgets);
+      }
+      // Six defenders, one row: nobody moved into a midfield the match did not
+      // have.
+      final rows = {
+        for (var i = 0; i < 6; i++)
+          tester.getCenter(find.byKey(PitchView.avatarKey('d$i'))).dy,
+      };
+      expect(rows, hasLength(1));
+    });
+
     testWidgets('shows the score', (tester) async {
       await pumpMatch(tester, match: completed('p1', a: 4, b: 1));
       expect(find.textContaining('4'), findsWidgets);

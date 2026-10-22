@@ -2,6 +2,7 @@ import 'package:btge/btge.dart';
 import 'package:flutter/material.dart';
 
 import '../teams/match_stage_board.dart';
+import '../teams/pitch_view.dart';
 import '../teams/team_models.dart';
 import 'discover_models.dart';
 
@@ -107,6 +108,8 @@ class PublicMatchStage extends StatelessWidget {
     final open = onOpenPlayer;
 
     return MatchStageBoard(
+      // The recorded position decides the row (DD-29).
+      layout: PitchLayoutMode.exactAssignedPositions,
       lineup: _lineup,
       // The public read produces no profile objects; the two callbacks below
       // carry everything the cards need.

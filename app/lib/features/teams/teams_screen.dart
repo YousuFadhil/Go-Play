@@ -22,6 +22,7 @@ import 'lineup_swap.dart';
 import 'match_stage.dart';
 import 'played_participants_sheet.dart';
 import 'match_stage_board.dart';
+import 'pitch_view.dart';
 import 'team_generation_settings.dart';
 import 'team_models.dart';
 import 'team_repository.dart';
@@ -545,6 +546,8 @@ class _TeamsScreenState extends State<TeamsScreen> {
   ) =>
       [
         MatchStageBoard(
+          // The recorded position decides the row (DD-29).
+          layout: PitchLayoutMode.exactAssignedPositions,
           lineup: view.lineup,
           players: view.players,
           nameOf: (participantId) => _nameOf(view, participantId),
