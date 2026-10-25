@@ -7,6 +7,7 @@ import 'formation.dart';
 import 'match_stage.dart';
 import 'pitch_drag.dart';
 import 'team_models.dart';
+import '../../core/rating_format.dart';
 
 enum PitchPresentation { phone, shareBeforeResult, shareResult }
 
@@ -919,8 +920,7 @@ class PitchView extends StatelessWidget {
   }) {
     final markerWidth =
         slot.markerWidth ?? (dense ? 118.0 : 228.0) * slot.scale;
-    final onTap =
-        onTapPlayer == null ? null : () => onTapPlayer!(assignment);
+    final onTap = onTapPlayer == null ? null : () => onTapPlayer!(assignment);
     PlayerCard card({VoidCallback? onTap}) => PlayerCard(
           assignment: assignment,
           avatarUrl: avatarUrlOf?.call(assignment.participantId) ??
@@ -1090,6 +1090,7 @@ class PlayerCard extends StatelessWidget {
   });
 
   final TeamAssignment assignment;
+
   /// Resolved by [PitchView] from its callbacks or its profile map. A null
   /// rating draws no rating badge, which is what a participant the caller knows
   /// nothing numeric about looks like.
@@ -1307,7 +1308,7 @@ class _RatingBadge extends StatelessWidget {
           ],
         ),
         child: Text(
-          rating.toStringAsFixed(1),
+          formatPlayerRating(rating),
           textDirection: TextDirection.ltr,
           style: TextStyle(
             color: MatchStage.ink,

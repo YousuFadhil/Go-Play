@@ -4,7 +4,7 @@ library;
 import 'package:btge/btge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_play/core/failures.dart';
-import 'package:go_play/features/results/rating_rules.dart';
+import 'package:go_play/features/results/weighted_rating.dart';
 import 'package:go_play/features/results/result_models.dart';
 import 'package:go_play/features/results/result_repository.dart';
 import 'package:go_play/features/teams/team_models.dart';
@@ -16,13 +16,9 @@ import 'support.dart';
 /// Migration `0022_match_results.sql` — recording a result, and everything that
 /// follows from it.
 ///
-/// This is where the two statements of the rating engine are held to each other.
-/// `ratingRules` in Dart is readable and unit-tested but moves nothing; the
-/// database is what actually applies a change, because `OP-1` makes the rating
-/// system-managed and no client may write it. So the tests below record real
-/// results and check the ratings, the audit and the counters against what
-/// `ratingDeltasFor` predicts — if the two ever disagree, this suite says so.
-///
+/// Migration 0108: SQL is checked against the weighted arithmetic mirror.
+/// Run this file alone against an isolated project whose fixture accounts have
+/// no recorded matches; it refuses a dirty baseline instead of assuming one.
 /// Day 26 is this file's match window; nothing else uses it. Ratings and
 /// counters belong to the six permanent accounts, so teardown puts both back.
 void main() {
@@ -58,6 +54,7 @@ void main() {
   /// way to check the arithmetic. Teardown deletes the match, which gives every
   /// change back, so each test starts from the same place it left.
   late Map<String, double> baseline;
+  Map<String, double> expectedRatings = {};
 
   setUp(() async {
     communityId = await createCommunity(owner, 'ITest Results');
@@ -148,6 +145,12 @@ void main() {
 
   Future<void> captureBaseline() async {
     baseline = {for (final user in squad) user.id: await ratingOf(user)};
+    for (final user in squad) {
+      expect((await repositoryFor(owner).fetchStatistics(user.id)).matchesPlayed, 0,
+          reason:
+              'Weighted result tests require isolated clean fixture accounts');
+      expect(baseline[user.id], 5);
+    }
   }
 
   /// How far [user]'s rating has moved since the baseline was taken. Asserting
@@ -177,6 +180,19 @@ void main() {
       ],
       lineup: await lineup(),
     );
+    expectedRatings = {
+      for (final user in squad)
+        user.id: storedWeightedRating(weightedRating([
+          RatedMatch(
+              teamA == teamB
+                  ? MatchOutcome.draw
+                  : ((squad.indexOf(user) < 2) == (teamA > teamB))
+                      ? MatchOutcome.win
+                      : MatchOutcome.loss,
+              goals: goals[user] ?? 0,
+              mvp: user.id == mvp.id),
+        ])),
+    };
   }
 
   /// Sends the numbers straight to the RPC, past the repository's checks, so
@@ -395,51 +411,45 @@ void main() {
       await captureBaseline();
     });
 
-    test('the winners gain 0.10 and the losers are charged 0.10', () async {
+    test('wins and losses contribute their weighted match scores', () async {
       await record(owner, teamA: 1, teamB: 0, mvp: player, goals: {owner: 1});
 
-      // Everyone +0.005 for playing, then (migration 0078)
-      // owner: win 0.10 + goal 0.01   admin: win 0.10
-      // player: loss -0.10 + mvp 0.02  player2: loss -0.10
-      expect(await gainOf(owner), closeTo(0.115, 0.001));
-      expect(await gainOf(admin), closeTo(0.105, 0.001));
-      expect(await gainOf(player), closeTo(-0.075, 0.001));
-      expect(await gainOf(player2), closeTo(-0.095, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
+      expect(await ratingOf(admin), closeTo(expectedRatings[admin.id]!, 0.001));
+      expect(
+          await ratingOf(player), closeTo(expectedRatings[player.id]!, 0.001));
+      expect(await ratingOf(player2),
+          closeTo(expectedRatings[player2.id]!, 0.001));
     });
 
-    test('a draw rewards everyone who played it', () async {
+    test('a draw contributes 4.4 plus individual quality', () async {
       await record(owner,
           teamA: 1, teamB: 1, mvp: owner, goals: {owner: 1, player: 1});
-
-      // Everyone: participation 0.005 + draw 0.010; on top of that
-      // owner: goal 0.01 + mvp 0.02; player: goal 0.01.
-      expect(await gainOf(owner), closeTo(0.045, 0.001));
-      expect(await gainOf(admin), closeTo(0.015, 0.001));
-      expect(await gainOf(player), closeTo(0.025, 0.001));
-      expect(await gainOf(player2), closeTo(0.015, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
+      expect(await ratingOf(admin), closeTo(expectedRatings[admin.id]!, 0.001));
+      expect(
+          await ratingOf(player), closeTo(expectedRatings[player.id]!, 0.001));
+      expect(await ratingOf(player2),
+          closeTo(expectedRatings[player2.id]!, 0.001));
     });
 
     test('a goalless match still moves the outcome and the best player',
         () async {
       await record(owner, teamA: 0, teamB: 0, mvp: player2);
 
-      expect(await gainOf(owner), closeTo(0.015, 0.001));
-      // participation 0.005 + draw 0.010 + mvp 0.020.
-      expect(await gainOf(player2), closeTo(0.035, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
+      expect(await ratingOf(player2),
+          closeTo(expectedRatings[player2.id]!, 0.001));
     });
 
-    test('several goals by one player are worth 0.01 each', () async {
+    test('goals improve the weighted match score', () async {
       await record(owner, teamA: 3, teamB: 0, mvp: player, goals: {owner: 3});
-
-      // participation 0.005 + win 0.10 + three goals 0.03.
-      expect(await gainOf(owner), closeTo(0.135, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
     });
 
-    test('a scorer past the seventh goal gains no more than the cap', () async {
+    test('goals above seven still improve the score', () async {
       await record(owner, teamA: 9, teamB: 0, mvp: player, goals: {owner: 9});
-
-      // participation 0.005 + win 0.10 + goals capped at 0.07.
-      expect(await gainOf(owner), closeTo(0.175, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
     });
 
     test('the losing top scorer with the MVP stays below a plain winner',
@@ -448,54 +458,27 @@ void main() {
       // loses, scores five and is named best on the pitch; admin only won.
       await record(owner,
           teamA: 6, teamB: 5, mvp: player, goals: {owner: 6, player: 5});
-
-      // participation 0.005, loss -0.100, five goals 0.050, mvp 0.020.
-      expect(await gainOf(player), closeTo(-0.025, 0.001));
-      expect(await gainOf(admin), closeTo(0.105, 0.001));
+      expect(
+          await ratingOf(player), closeTo(expectedRatings[player.id]!, 0.001));
+      expect(await ratingOf(admin), closeTo(expectedRatings[admin.id]!, 0.001));
       expect(await gainOf(player), lessThan(await gainOf(admin)));
     });
 
-    test('the database agrees with the Dart statement of the rules', () async {
-      // The point of the whole file: `ratingRules` is readable and testable but
-      // moves nothing, and the database is what actually applies a change. If
-      // the two ever drift apart, this is what says so.
-      final assignments = await lineup();
-      final result = MatchResult(
-        matchId: matchId,
-        teamAScore: 2,
-        teamBScore: 1,
-        mvpUserId: admin.id,
-        goals: [
-          GoalTally(userId: admin.id, goals: 2),
-          GoalTally(userId: player.id, goals: 1),
-        ],
-      );
-
+    test('the database agrees with the weighted Dart mirror', () async {
       await record(owner,
           teamA: 2, teamB: 1, mvp: admin, goals: {admin: 2, player: 1});
-
-      final predicted = ratingDeltasFor(result, assignments);
       for (final user in squad) {
-        final expected = applyRatingDeltas(
-          baseline[user.id]!,
-          [
-            for (final delta in predicted)
-              if (delta.userId == user.id) delta.delta,
-          ],
-        );
-        expect(await ratingOf(user), closeTo(expected, 0.001),
-            reason: '${user.label}: the database and ratingRules disagree');
+        expect(await ratingOf(user), closeTo(expectedRatings[user.id]!, 0.001));
       }
     });
 
     test('a rating cannot pass the top of the range', () async {
-      // A player at 10.00 who wins and scores gains nothing, and the audit says
-      // so rather than pretending otherwise.
+      // The stored mean and every audit movement must respect the scale.
       await record(owner, teamA: 1, teamB: 0, mvp: owner, goals: {owner: 1});
       final history = await repositoryFor(owner).fetchRatingHistory(matchId);
 
       for (final change in history) {
-        expect(change.ratingAfter, lessThanOrEqualTo(10.0));
+        expect(change.ratingAfter, lessThan(10.0));
         expect(change.ratingAfter, greaterThanOrEqualTo(0.0));
         expect(change.delta,
             closeTo(change.ratingAfter - change.ratingBefore, 0.001),
@@ -510,7 +493,7 @@ void main() {
       await captureBaseline();
     });
 
-    test('every change is recorded, one entry per reason', () async {
+    test('one weighted match movement is recorded per player', () async {
       await record(owner, teamA: 1, teamB: 0, mvp: owner, goals: {owner: 1});
 
       final history = await repositoryFor(owner).fetchRatingHistory(matchId);
@@ -520,10 +503,7 @@ void main() {
       ];
 
       expect(mine.map((c) => c.reason), [
-        RatingChangeReason.participation,
         RatingChangeReason.win,
-        RatingChangeReason.goal,
-        RatingChangeReason.mvp,
       ]);
       expect(history.where((c) => c.reason == RatingChangeReason.loss),
           hasLength(2));
@@ -533,13 +513,10 @@ void main() {
       await record(owner, teamA: 0, teamB: 0, mvp: owner);
 
       final history = await repositoryFor(owner).fetchRatingHistory(matchId);
-      final mvp =
-          history.singleWhere((c) => c.reason == RatingChangeReason.mvp);
-
-      // Participation (+0.005) and the draw (+0.010) are applied first.
-      expect(mvp.ratingBefore, closeTo(5.015, 0.001));
-      expect(mvp.ratingAfter, closeTo(5.035, 0.001));
-      expect(mvp.delta, closeTo(0.02, 0.001));
+      final mvp = history.singleWhere((c) => c.userId == owner.id);
+      expect(mvp.ratingBefore, 5);
+      expect(mvp.ratingAfter, expectedRatings[owner.id]);
+      expect(mvp.delta, closeTo(mvp.ratingAfter - 5, 0.001));
       expect(mvp.reversesId, isNull);
     });
   });
@@ -561,8 +538,7 @@ void main() {
       expect(mine.draws, 0);
       expect(mine.goals, 1);
       expect(mine.mvpCount, 1);
-      // participation 0.005 + win 0.10 + goal 0.01 + mvp 0.02.
-      expect(mine.currentRating, closeTo(baseline[owner.id]! + 0.135, 0.001));
+      expect(mine.currentRating, expectedRatings[owner.id]);
 
       final theirs = await statisticsOf(player);
       expect(theirs.matchesPlayed, 1);
@@ -599,8 +575,7 @@ void main() {
 
     test('the ratings end where the new result alone would put them', () async {
       await record(owner, teamA: 3, teamB: 0, mvp: owner, goals: {owner: 3});
-      // 3-0 with a hat-trick and the MVP: 0.005 + 0.10 + 0.03 + 0.02.
-      expect(await gainOf(owner), closeTo(0.155, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
 
       await record(owner, teamA: 0, teamB: 1, mvp: player, goals: {player: 1});
       // Every change the 3-0 made is given back, and the 0-1 applied in its
@@ -608,9 +583,9 @@ void main() {
       // now on the winning side, having scored it and taken the MVP — collects
       // all three. Neither carries anything over from the result that was
       // replaced.
-      expect(await gainOf(owner), closeTo(-0.095, 0.001));
-      // participation 0.005 + win 0.10 + goal 0.01 + mvp 0.02.
-      expect(await gainOf(player), closeTo(0.135, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
+      expect(
+          await ratingOf(player), closeTo(expectedRatings[player.id]!, 0.001));
     });
 
     test('the counters end where the new result alone would put them',
@@ -678,8 +653,8 @@ void main() {
       await record(owner, teamA: 0, teamB: 0, mvp: admin);
 
       // Only the last result stands: a draw, with admin as best player.
-      expect(await gainOf(owner), closeTo(0.015, 0.001));
-      expect(await gainOf(admin), closeTo(0.065, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
+      expect(await ratingOf(admin), closeTo(expectedRatings[admin.id]!, 0.001));
 
       final mine = await statisticsOf(owner);
       expect(mine.matchesPlayed, 1);
@@ -723,8 +698,7 @@ void main() {
       // Without this a deleted match would leave the ratings it produced
       // standing, credited to something that no longer exists.
       await record(owner, teamA: 2, teamB: 0, mvp: owner, goals: {owner: 2});
-      // participation 0.005 + win 0.10 + two goals 0.02 + mvp 0.02.
-      expect(await gainOf(owner), closeTo(0.145, 0.001));
+      expect(await ratingOf(owner), closeTo(expectedRatings[owner.id]!, 0.001));
 
       await owner.client.rpc('delete_match', params: {'p_match_id': matchId});
 

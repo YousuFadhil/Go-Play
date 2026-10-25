@@ -198,7 +198,7 @@ void main() {
     });
 
     test('the rating follows it too', () async {
-      final before = await ratingOf(player2);
+      final equivalentWinner = await ratingOf(admin);
 
       await owner.client.rpc('replace_match_lineup', params: {
         'p_match_id': matchId,
@@ -215,8 +215,8 @@ void main() {
         ],
       });
 
-      // A loss came off and a win went on: +0.10 - (-0.10) = +0.20.
-      expect(await ratingOf(player2), closeTo(before + 0.20, 0.001));
+      // Both players have one win with no goal or MVP in this isolated fixture.
+      expect(await ratingOf(player2), closeTo(equivalentWinner, 0.001));
     });
 
     test('a match with no result is untouched by any of it', () async {
@@ -250,8 +250,8 @@ void main() {
     test('an added member gains what the match was worth', () async {
       final before = await countersOf(player3);
 
-      expect(await setPlayer(owner, player3, team: 'B', position: 'DEF'),
-          'ALLOW');
+      expect(
+          await setPlayer(owner, player3, team: 'B', position: 'DEF'), 'ALLOW');
 
       final after = await countersOf(player3);
       expect(after['matches_played'], before['matches_played']! + 1);
@@ -277,18 +277,15 @@ void main() {
     test('a removed player gives back everything the match gave them',
         () async {
       final before = await countersOf(player2);
-      final ratingBefore = await ratingOf(player2);
 
       expect(await setPlayer(owner, player2), 'ALLOW');
 
       final after = await countersOf(player2);
       expect(after['matches_played'], before['matches_played']! - 1);
       expect(after['losses'], before['losses']! - 1);
-      // Rating Engine v2: the match cost them 0.095, not 0.100 -- the loss was
-      // -0.100 and taking part was worth +0.005 -- and removal gives back
-      // everything the match gave them, the participation included.
-      expect(await ratingOf(player2), closeTo(ratingBefore + 0.095, 0.001),
-          reason: 'the 0.095 the match cost them comes back');
+      expect(after['matches_played'], 0);
+      expect(await ratingOf(player2), 5,
+          reason: 'removing the only match restores the neutral prior');
     });
 
     test('the assignment basis is derived, never taken from the caller',
@@ -380,8 +377,8 @@ void main() {
     setUp(storeLineup);
 
     test('an admin may', () async {
-      expect(await setPlayer(admin, player3, team: 'A', position: 'MID'),
-          'ALLOW');
+      expect(
+          await setPlayer(admin, player3, team: 'A', position: 'MID'), 'ALLOW');
     });
 
     test('an ordinary player may not', () async {
