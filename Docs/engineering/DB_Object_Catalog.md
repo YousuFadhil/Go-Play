@@ -3,7 +3,7 @@
 > **Generated file. Do not edit by hand.** Regenerate it with `node tool/check-docs.mjs --write`;
 > `node tool/check-docs.mjs` fails when it is out of date.
 
-Source of truth: the 109 files in `supabase/migrations/`, newest `0108`.
+Source of truth: the 110 files in `supabase/migrations/`, newest `0109`.
 
 This is an **index** of what exists and which migration made it, not a specification. Behaviour is described
 in each migration's header comment, in the table specifications under `Docs/engineering/`, and in
@@ -164,7 +164,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `community_period_xi_matches_in` | `0079` | `0084` |  |
 | `community_period_xi_window` | `0070` | `0079` | Team of Period, the period itself: exactly one row naming the CURRENT ISO |
 | `community_period_xi_window_in` | `0079` | `0079` |  |
-| `community_scoped_rating` | `0081` | `0081` | The Community/Period Rating: one rating per player, from 5.000, over the |
+| `community_scoped_rating` | `0081` | `0109` | The Community/Period Rating: one rating per player over the matches played |
 | `community_statistics_recency` | `0060` | `0060` | Per-player timestamps of the most recent goal, MVP, played match and win in |
 | `complete_my_player_profile` | `0092` | `0092` | Creates the signed-in caller's player profile when none exists. |
 | `confirm_match_participation` | `0088` | `0088` | Wave 2 organizer confirmation that the current completed lineup is the factual participation record. |
