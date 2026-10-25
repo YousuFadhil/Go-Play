@@ -1,5 +1,18 @@
 # Global Rating History (`rating_history`) — Table Engineering Specification
 
+> **0108 amendment — live since 2026-10-25 (activation run).** Global Rating v1
+> records one weighted match movement (WIN/DRAW/LOSS), with nullable columns
+> `engine_version text`, `match_score numeric`, `played_at timestamptz`, and
+> `raw_rating_after numeric`. Weighted originals require all four fields and
+> values in [0,10); legacy/reversal rows keep them null. `delta`, before/after
+> ratings and the public rating retain numeric(5,3). Corrections reverse the
+> affected chronological suffix and append its replacement; untouched prefixes
+> retain their IDs. The same fields are added to `rating_history_archive` so
+> rollback preserves the new evidence. No new foreign keys or client writes.
+> This amendment supersedes the per-reason additive constants below only after
+> activation; see [the exact contract and rollout](Weighted_Rating_v1_Review.md).
+
+
 | Field | Value |
 |---|---|
 | Version | 1.0 |

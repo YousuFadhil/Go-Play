@@ -246,6 +246,11 @@ class MatchResultCard extends StatelessWidget {
           isMvpOf: data.hasResult ? data.isMvp : null,
           presentation: pitchPresentation,
           team: team,
+          // The card is a picture of the same match the screen draws: the
+          // recorded position decides the row, and the stored side order the
+          // place in it (DD-29).
+          layout: PitchLayoutMode.exactAssignedPositions,
+          order: lineOrderThenName((id) => data.names[id] ?? '—'),
           pitchKey: ValueKey(
             team == TeamId.a ? 'team-a-pitch' : 'team-b-pitch',
           ),

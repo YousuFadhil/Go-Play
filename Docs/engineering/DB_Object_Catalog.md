@@ -3,7 +3,7 @@
 > **Generated file. Do not edit by hand.** Regenerate it with `node tool/check-docs.mjs --write`;
 > `node tool/check-docs.mjs` fails when it is out of date.
 
-Source of truth: the 107 files in `supabase/migrations/`, newest `0106`.
+Source of truth: the 110 files in `supabase/migrations/`, newest `0109`.
 
 This is an **index** of what exists and which migration made it, not a specification. Behaviour is described
 in each migration's header comment, in the table specifications under `Docs/engineering/`, and in
@@ -34,7 +34,7 @@ in each migration's header comment, in the table specifications under `Docs/engi
 | `match_result_reminder_activation` | `0100` | `0100` |  |  |
 | `match_result_reminder_dispatches` | `0100` | `0100` |  |  |
 | `match_results` | `0022` | `0044` | [Match_Results](Match_Results_Table_Specification.md) |  |
-| `match_team_assignments` | `0018` | `0058` | [Match_Team_Assignments](Match_Team_Assignments_Table_Specification.md) |  |
+| `match_team_assignments` | `0018` | `0107` | [Match_Team_Assignments](Match_Team_Assignments_Table_Specification.md) |  |
 | `matches` | `0003` | `0054` | [Matches](Matches_Table_Specification.md) |  |
 | `notification_push_preferences` | `0036` | `0036` |  |  |
 | `notification_push_tokens` | `0036` | `0038` |  |  |
@@ -45,8 +45,8 @@ in each migration's header comment, in the table specifications under `Docs/engi
 | `product_events` | `0067` | `0091` |  | Product analytics (migration 0067). |
 | `push_config` | `0036` | `0036` |  |  |
 | `push_dispatch_outcomes` | `0090` | `0090` |  | Wave 4 (migration 0090): append-only push transport evidence, one row per |
-| `rating_history` | `0022` | `0073` | [Rating_History](Rating_History_Table_Specification.md) |  |
-| `rating_history_archive` | `0082` | `0082` |  | The operational rating_history as it stood before a rebase, row for row and |
+| `rating_history` | `0022` | `0108` | [Rating_History](Rating_History_Table_Specification.md) |  |
+| `rating_history_archive` | `0082` | `0108` |  | The operational rating_history as it stood before a rebase, row for row and |
 | `rating_rebase_runs` | `0082` | `0082` |  | One row per historical rating rebase: the marker that makes it one-time, |
 | `system_admins` | `0017` | `0017` |  |  |
 | `team_of_period_awards` | `0079` | `0079` |  | The players a stored Team of Period snapshot selected, one row each. |
@@ -75,7 +75,7 @@ Treat the specification as the design as approved, not as the schema; the migrat
 | `v_football_community_player_stats` | `0057` | `0105` | Cycle 2 read model: one row per current member with an all-time record in a |
 | `v_football_community_stats` | `0057` | `0057` | Cycle 2 read model: a community's football record -- completed matches, |
 | `v_football_completed_matches` | `0057` | `0057` | Cycle 2 read model: one row per completed match in an active community, with |
-| `v_football_match_lineup` | `0057` | `0073` | Cycle 2 read model: the stored lineup of a completed match -- side, assigned |
+| `v_football_match_lineup` | `0057` | `0107` | Cycle 2 read model: the stored lineup of a completed match -- side, assigned |
 | `v_football_match_participants` | `0057` | `0073` | Cycle 2 read model: the roster of a completed match, confirmed and reserve, |
 | `v_match_details` | `0025` | `0025` | Read model: a match with its community, organizer, registration counts and |
 | `v_match_registrations` | `0025` | `0073` | Read model: match registrations (confirmed and reserve) for both kinds of |
@@ -86,7 +86,7 @@ Treat the specification as the design as approved, not as the schema; the migrat
 | `v_upcoming_matches` | `0025` | `0025` | Read model: matches starting after now() that are not completed, with |
 | `v_user_profile` | `0025` | `0073` | Read model: a player identity joined to the global career counters in |
 
-## Functions (195)
+## Functions (201)
 
 RPCs, helpers and trigger functions in the `public` schema, by name. Overloads are counted once.
 
@@ -140,7 +140,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `admin_user_activity_summary` | `0068` | `0091` | Platform Admin: one account in figures (migrations 0068, 0091). |
 | `admin_user_activity_timeline` | `0068` | `0091` | Platform Admin: one account's recent activity, newest first (migrations |
 | `admin_user_auth_guard` | `0103` | `0103` | Admin authentication management (0103), INTERNAL: the gate shared by the check and the audit |
-| `advance_match_participation_revision` | `0088` | `0101` |  |
+| `advance_match_participation_revision` | `0088` | `0107` |  |
 | `anonymize_user_profile` | `0102` | `0102` | Account deletion (0102), INTERNAL: turns a live profile into the anonymised stand-in. |
 | `apply_community_statistics` | `0028` | `0028` |  |
 | `apply_match_rating_effects` | `0022` | `0078` |  |
@@ -164,7 +164,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `community_period_xi_matches_in` | `0079` | `0084` |  |
 | `community_period_xi_window` | `0070` | `0079` | Team of Period, the period itself: exactly one row naming the CURRENT ISO |
 | `community_period_xi_window_in` | `0079` | `0079` |  |
-| `community_scoped_rating` | `0081` | `0081` | The Community/Period Rating: one rating per player, from 5.000, over the |
+| `community_scoped_rating` | `0081` | `0109` | The Community/Period Rating: one rating per player over the matches played |
 | `community_statistics_recency` | `0060` | `0060` | Per-player timestamps of the most recent goal, MVP, played match and win in |
 | `complete_my_player_profile` | `0092` | `0092` | Creates the signed-in caller's player profile when none exists. |
 | `confirm_match_participation` | `0088` | `0088` | Wave 2 organizer confirmation that the current completed lineup is the factual participation record. |
@@ -226,7 +226,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `public_community_recent_results` | `0081` | `0081` | One active community's most recent completed results, in the same public |
 | `public_community_top_players` | `0093` | `0105` | The Top 11 players of one active community, for the public community page: |
 | `public_match_detail` | `0079` | `0079` | One match for the /match/{id} link, upcoming or completed, in an active |
-| `public_match_lineup` | `0079` | `0079` | The lineup of a completed match in an active community, for the /match/{id} |
+| `public_match_lineup` | `0079` | `0107` | The lineup of a completed match in an active community, for the /match/{id} |
 | `public_player_profile` | `0079` | `0079` | The public Player Profile a /player/{id} link opens: name, positions, |
 | `public_player_recent_achievements` | `0081` | `0081` | The public Recent Achievements: kind, date, community name and period, for |
 | `public_player_recent_form` | `0079` | `0080` | The public Recent Form: the last N results newest first, as sequence_no, |
@@ -237,6 +237,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `purge_membership` | `0017` | `0104` |  |
 | `push_dispatch_payload` | `0036` | `0036` |  |
 | `rebalance_roster` | `0006` | `0053` |  |
+| `rebase_rating_engine_v1` | `0108` | `0108` |  |
 | `rebase_ratings_to_0078` | `0082` | `0082` | The approved one-time rebase: archives the operational rating history and |
 | `rebuild_community_statistics` | `0028` | `0028` |  |
 | `rebuild_player_statistics` | `0032` | `0032` |  |
@@ -262,8 +263,10 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `remove_player` | `0006` | `0065` |  |
 | `remove_professional_guest` | `0047` | `0065` |  |
 | `rename_professional_guest` | `0047` | `0065` |  |
-| `replace_match_lineup` | `0020` | `0071` | Replaces a match lineup atomically. |
+| `replace_match_lineup` | `0020` | `0107` | Replaces a match lineup atomically. |
+| `replay_weighted_player_v1` | `0108` | `0108` |  |
 | `report_client_error_v1` | `0090` | `0090` | Wave 4 (migration 0090): records one uncaught client error against an |
+| `reset_lineup_line_order` | `0107` | `0107` |  |
 | `reverse_match_effects_before_delete` | `0022` | `0022` |  |
 | `reverse_match_rating_effects` | `0022` | `0022` |  |
 | `run_retention_cleanup_v1` | `0091` | `0091` | Migration 0091: internal retention cleanup. |
@@ -272,6 +275,7 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `set_community_wilayat` | `0094` | `0094` | Owner only: moves a community to another active wilayat. |
 | `set_completed_match_player` | `0029` | `0065` |  |
 | `set_match_capacity` | `0006` | `0006` |  |
+| `set_match_lineup_line_order` | `0107` | `0107` | Stores the order of one line (match, team, assigned position): the given |
 | `set_match_roster_order` | `0053` | `0065` |  |
 | `set_member_role` | `0008` | `0065` |  |
 | `set_updated_at` | `0001` | `0005` |  |
@@ -286,6 +290,8 @@ RPCs, helpers and trigger functions in the `public` schema, by name. Overloads a
 | `team_of_period_week_of_key` | `0084` | `0084` | The canonical Sunday-to-Saturday Team of Period week a YYYY-W## key names -- |
 | `transfer_ownership` | `0009` | `0065` |  |
 | `update_match` | `0006` | `0091` | Owner/admin match administration in every lifecycle state (migrations |
+| `weighted_match_score_v1` | `0108` | `0108` |  |
+| `weighted_rating_storage_v1` | `0108` | `0108` |  |
 | `withdraw_from_match` | `0004` | `0065` |  |
 
 ## Edge Functions (4)

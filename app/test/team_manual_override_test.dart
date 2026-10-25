@@ -144,6 +144,134 @@ void main() {
     });
   });
 
+  group('swap on the pitch (drag, migration 0107)', () {
+    final byName = lineOrderThenName((id) => 'Player $id');
+
+    /// Each line written, as `team/position/ids`.
+    List<String> written(FakeTeamAdapter adapter) => [
+          for (final (team, position, ids) in adapter.lineOrderWrites)
+            '${team.name}/${position.code}/${ids.join(',')}',
+        ];
+
+    test('a side swap writes only the line order', () async {
+      final adapter = FakeTeamAdapter(lineup: [
+        at('u1', TeamId.a, Position.def),
+        at('u2', TeamId.a, Position.def),
+        at('u3', TeamId.b, Position.mid),
+      ]);
+
+      await TeamRepository(adapter).swapOnPitch('m1', 'u1', 'u2',
+          order: byName, completedCorrection: true);
+
+      expect(adapter.saveCount, 0,
+          reason: 'no lineup write, so nothing is recalculated');
+      expect(written(adapter), ['a/DEF/u2,u1']);
+    });
+
+    test(
+        'across the teams at two positions: team and position, in one write '
+        '(DD-29)', () async {
+      final adapter = FakeTeamAdapter(lineup: lineup());
+
+      // u2 defends for A, u3 plays midfield for B.
+      await TeamRepository(adapter).swapOnPitch('m1', 'u2', 'u3',
+          order: byName, completedCorrection: false);
+
+      expect(adapter.saveCount, 1, reason: 'one write, one recalculation');
+      expect(adapter.lastCompletedCorrection, isFalse);
+      expect((saved(adapter, 'u2').team, saved(adapter, 'u2').assignedPosition),
+          (TeamId.b, Position.mid));
+      expect((saved(adapter, 'u3').team, saved(adapter, 'u3').assignedPosition),
+          (TeamId.a, Position.def));
+      expect(saved(adapter, 'u2').teamManuallyOverridden, isFalse,
+          reason: 'the flag is for guests; a player keeps false');
+      expect(written(adapter), ['b/MID/u2', 'a/DEF/u3']);
+    });
+
+    test('across the teams at one position: the plain team swap', () async {
+      final adapter = FakeTeamAdapter(lineup: [
+        at('u1', TeamId.a, Position.def),
+        at('u2', TeamId.b, Position.def),
+      ]);
+
+      await TeamRepository(adapter).swapOnPitch('m1', 'u1', 'u2',
+          order: byName, completedCorrection: false);
+
+      expect(adapter.saveCount, 1);
+      expect((saved(adapter, 'u1').team, saved(adapter, 'u1').assignedPosition),
+          (TeamId.b, Position.def));
+      expect(written(adapter), ['b/DEF/u1', 'a/DEF/u2']);
+    });
+
+    test('a guest with no position swaps teams and keeps none', () async {
+      final adapter = FakeTeamAdapter(lineup: [
+        ...lineup(),
+        const TeamAssignment(
+          professionalGuestId: 'g1',
+          team: TeamId.a,
+          assignedPosition: null,
+          basis: null,
+        ),
+      ]);
+
+      await TeamRepository(adapter).swapOnPitch('m1', 'g1', 'u3',
+          order: byName, completedCorrection: false);
+
+      final guest = adapter.savedLineup!
+          .singleWhere((a) => a.professionalGuestId == 'g1');
+      expect((guest.team, guest.assignedPosition), (TeamId.b, null));
+      expect((saved(adapter, 'u3').team, saved(adapter, 'u3').assignedPosition),
+          (TeamId.a, Position.mid),
+          reason: 'a registered player is never left without a position');
+    });
+
+    test('a position swap carries the correction flag it is given', () async {
+      final adapter = FakeTeamAdapter(lineup: lineup());
+
+      await TeamRepository(adapter).swapOnPitch('m1', 'u1', 'u2',
+          order: byName, completedCorrection: true);
+
+      expect(adapter.saveCount, 1);
+      expect(adapter.lastCompletedCorrection, isTrue);
+      expect(saved(adapter, 'u1').assignedPosition, Position.def);
+      expect(saved(adapter, 'u2').assignedPosition, Position.gk);
+    });
+
+    test('a refused order write leaves the swap standing and is reported',
+        () async {
+      final adapter = FakeTeamAdapter(lineup: lineup())
+        ..lineOrderFailure = const ConflictFailure();
+
+      await expectLater(
+        TeamRepository(adapter).swapOnPitch('m1', 'u2', 'u3',
+            order: byName, completedCorrection: false),
+        throwsA(isA<ConflictFailure>()),
+      );
+      expect(adapter.saveCount, 1, reason: 'the swap was written first');
+      expect(saved(adapter, 'u2').team, TeamId.b);
+    });
+
+    test('an invalid drop is refused before anything is written', () async {
+      final adapter = FakeTeamAdapter(lineup: [
+        ...lineup(),
+        const TeamAssignment(
+          professionalGuestId: 'g1',
+          team: TeamId.a,
+          assignedPosition: null,
+          basis: null,
+        ),
+      ]);
+
+      await expectLater(
+        TeamRepository(adapter).swapOnPitch('m1', 'u1', 'g1',
+            order: byName, completedCorrection: false),
+        throwsA(isA<ValidationFailure>()),
+      );
+      expect(adapter.saveCount, 0);
+      expect(adapter.lineOrderWrites, isEmpty);
+    });
+  });
+
   group('swap two players (BTGE-MO-2)', () {
     test('they exchange sides', () async {
       final adapter = FakeTeamAdapter(lineup: lineup());
@@ -1119,6 +1247,40 @@ class FakeTeamAdapter implements TeamAdapter {
   }) async {
     historyReads++;
     return const [];
+  }
+
+  /// Every line order stored, in the order it was asked for.
+  final lineOrderWrites = <(TeamId, Position, List<String>)>[];
+
+  /// Refuses the line-order write, after whatever swap came before it.
+  Failure? lineOrderFailure;
+
+  /// Stores the order the way `set_match_lineup_line_order` does: the line's
+  /// rows take 1..n, every other row is left alone.
+  @override
+  Future<void> setLineOrder(
+    String matchId, {
+    required TeamId team,
+    required Position position,
+    required List<String> participantIds,
+  }) async {
+    if (lineOrderFailure != null) throw lineOrderFailure!;
+    lineOrderWrites.add((team, position, participantIds));
+    _lineup = [
+      for (final a in _lineup)
+        if (a.team == team && a.assignedPosition == position)
+          TeamAssignment(
+            userId: a.userId,
+            professionalGuestId: a.professionalGuestId,
+            team: a.team,
+            assignedPosition: a.assignedPosition,
+            basis: a.basis,
+            teamManuallyOverridden: a.teamManuallyOverridden,
+            lineOrder: participantIds.indexOf(a.participantId) + 1,
+          )
+        else
+          a,
+    ];
   }
 
   @override

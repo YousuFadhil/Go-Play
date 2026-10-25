@@ -588,10 +588,6 @@ void main() {
 
     test('a removed player gives back everything the match gave them',
         () async {
-      // Their rating as the recorded result left it: the loss (-0.100) and the
-      // participation (+0.005) are both on it, so the match is worth -0.095 to
-      // them.
-      final afterResult = await ratingOf(player2);
       final counters = await countersOf(player2);
       expect(counters['matches_played'], 1);
 
@@ -600,10 +596,8 @@ void main() {
       final after = await countersOf(player2);
       expect(after['matches_played'], 0);
       expect(after['losses'], 0);
-      // Everything the match gave them, given back: the loss and the
-      // participation with it, which is +0.095 from where the result left them.
-      expect(await ratingOf(player2), closeTo(afterResult + 0.095, 0.0005),
-          reason: 'the loss and the participation both came back off');
+      expect(await ratingOf(player2), 5,
+          reason: 'removing the only match restores the neutral prior');
     });
 
     test('a side change moves the effects from one side to the other',

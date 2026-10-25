@@ -288,6 +288,7 @@ class PublicLineupEntry {
     this.assignedPosition,
     this.avatarUrl,
     this.playerId,
+    this.lineOrder,
   });
 
   /// `A` or `B`, as the lineup stores it.
@@ -304,6 +305,9 @@ class PublicLineupEntry {
   /// open. Null for a Professional Guest and for a player whose profile is not
   /// available; the database decides both.
   final String? playerId;
+
+  /// The stored order inside the line (migration `0107`), or null: by name.
+  final int? lineOrder;
 }
 
 /// A community's football record, as a visitor reads it above the tabs.

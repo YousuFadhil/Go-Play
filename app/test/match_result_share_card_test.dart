@@ -114,6 +114,37 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('the card draws the recorded positions, with no cap (DD-29)',
+      (tester) async {
+    await pumpCard(
+      tester,
+      cardData(
+        goals: const {},
+        mvp: null,
+        assignments: [
+          assignment('u1', TeamId.a, Position.gk),
+          for (var i = 0; i < 6; i++) assignment('d$i', TeamId.a, Position.def),
+          assignment('u2', TeamId.b, Position.gk),
+          assignment('u4', TeamId.b, Position.fwd),
+        ],
+        teamAScore: 0,
+        teamBScore: 0,
+      ),
+    );
+
+    final pitches = tester.widgetList<PitchView>(find.byType(PitchView));
+    expect(pitches, hasLength(2));
+    for (final pitch in pitches) {
+      expect(pitch.layout, PitchLayoutMode.exactAssignedPositions);
+      expect(pitch.order, isNotNull);
+    }
+    final rows = {
+      for (var i = 0; i < 6; i++)
+        tester.getCenter(find.byKey(PitchView.avatarKey('d$i'))).dy,
+    };
+    expect(rows, hasLength(1), reason: 'all six defenders on one row');
+  });
+
   group('Gate 1 - REF04 canonical result share', () {
     testWidgets('matches every authoritative region and seven-player anchor',
         (tester) async {

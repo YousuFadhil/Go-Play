@@ -137,6 +137,23 @@ void main() {
         assignment('u4', TeamId.b, Position.fwd),
       ];
 
+  /// Long-presses [from]'s card, drags it onto [to]'s and lets go.
+  ///
+  /// Both centres are read before the drag begins: once it has, the card
+  /// following the pointer is a second copy of the name.
+  Future<void> dragOnto(WidgetTester tester, String from, String to) async {
+    final start = tester.getCenter(find.text(from));
+    final end = tester.getCenter(find.text(to));
+    final gesture = await tester.startGesture(start);
+    await tester.pump(const Duration(milliseconds: 700));
+    await gesture.moveTo(Offset.lerp(start, end, .5)!);
+    await tester.pump();
+    await gesture.moveTo(end);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+  }
+
   Future<void> pumpTeams(
     WidgetTester tester, {
     required FakeTeamAdapter teams,
@@ -442,13 +459,12 @@ void main() {
       final midfielder = tester.getCenter(find.text('Noor Al Kindi')).dy;
       expect(keeper, lessThan(midfielder));
 
-      // Team B is a defender and a forward, and both are drawn on one line.
-      // That is the approved rule rather than a compromise: defence is filled
-      // to three before attack takes anybody, so a two-player side is all
-      // defence. `formation_test.dart` states this directly.
+      // Team B is a defender and a forward, each drawn in their own line (DD-29):
+      // the row is the recorded position, with no minimum defence to fill
+      // first. Team B defends the far end, so its attack is nearer the middle.
       final defender = tester.getCenter(find.text('Ahmed Al Harthy')).dy;
       final forward = tester.getCenter(find.text('Yousef Al Amri')).dy;
-      expect(forward, equals(defender));
+      expect(forward, lessThan(defender));
     });
 
     testWidgets('a squad with nobody who keeps goal fields no goalkeeper',
@@ -942,7 +958,6 @@ void main() {
       await tapPlayer(tester, 'Sara Al Balushi');
 
       expect(find.text('Move to the other team'), findsNothing);
-      expect(find.text('Swap with a player'), findsNothing);
       expect(find.text('Change position'), findsNothing);
     });
 
@@ -961,7 +976,7 @@ void main() {
     });
 
     for (final role in [CommunityRole.owner, CommunityRole.admin]) {
-      testWidgets('an ${role.name} is offered the three operations',
+      testWidgets('an ${role.name} is offered move and position, and no swap',
           (tester) async {
         await pumpTeams(
           tester,
@@ -975,10 +990,40 @@ void main() {
 
         expect(find.text('Edit Sara Al Balushi'), findsOneWidget);
         expect(find.text('Move to the other team'), findsOneWidget);
-        expect(find.text('Swap with a player'), findsOneWidget);
         expect(find.text('Change position'), findsOneWidget);
+        // Swapping is a drag on the pitch now, never an entry here.
+        expect(find.text('Swap with a player'), findsNothing);
+        expect(find.text('Swap positions'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(SimpleDialog),
+            matching: find.byType(ListTile),
+          ),
+          findsNWidgets(2),
+          reason: 'a match still to come has no removal for a player',
+        );
       });
     }
+
+    testWidgets('on a played match the sheet holds exactly the three actions',
+        (tester) async {
+      await pumpTeams(
+        tester,
+        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+        matches:
+            FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+      );
+      await tester.pumpAndSettle();
+
+      await tapPlayer(tester, 'Sara Al Balushi');
+
+      Finder inDialog(Finder finder) =>
+          find.descendant(of: find.byType(SimpleDialog), matching: finder);
+      expect(inDialog(find.byType(ListTile)), findsNWidgets(3));
+      expect(inDialog(find.text('Move to the other team')), findsOneWidget);
+      expect(inDialog(find.text('Change position')), findsOneWidget);
+      expect(inDialog(find.text('Remove from the match')), findsOneWidget);
+    });
 
     testWidgets('a move is persisted and read back', (tester) async {
       final teams =
@@ -1004,130 +1049,241 @@ void main() {
       expect(find.text('Lineup updated.'), findsOneWidget);
     });
 
-    testWidgets('a swap asks which player, then persists it', (tester) async {
-      final teams =
-          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
-      await pumpTeams(
-        tester,
-        teams: teams,
-        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
-      );
-      await tester.pumpAndSettle();
-
-      await tapPlayer(tester, 'Sara Al Balushi');
-      await tester.tap(find.text('Swap with a player'));
-      await tester.pumpAndSettle();
-
-      // Only the other side is offered: a swap within one team is not one.
-      // The finders are scoped to the dialog because the lineup behind it
-      // names all four players too.
-      Finder inDialog(String name) => find.descendant(
-            of: find.byType(SimpleDialog),
-            matching: find.text(name),
-          );
-
-      expect(find.text('Swap with'), findsOneWidget);
-      expect(inDialog('Ahmed Al Harthy'), findsOneWidget);
-      expect(inDialog('Yousef Al Amri'), findsOneWidget);
-      expect(inDialog('Noor Al Kindi'), findsNothing,
-          reason: 'Noor is on the same side as Sara');
-      expect(inDialog('Sara Al Balushi'), findsNothing,
-          reason: 'nobody swaps with themselves');
-
-      await tester.tap(inDialog('Ahmed Al Harthy'));
-      await tester.pumpAndSettle();
-
-      final saved = teams.savedLineup!;
-      expect(saved.singleWhere((a) => a.userId == 'u1').team, TeamId.b);
-      expect(saved.singleWhere((a) => a.userId == 'u2').team, TeamId.a);
-      expect(saved, hasLength(4));
-      expect(find.text('Team A'), findsOneWidget,
-          reason: 'a swap leaves the sides the size they were');
-    });
-
-    testWidgets('swap positions offers only the same side, then saves once',
-        (tester) async {
-      final teams =
-          FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
-      await pumpTeams(
-        tester,
-        teams: teams,
-        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
-      );
-      await tester.pumpAndSettle();
-
-      // Sara keeps goal for A; Noor plays midfield for A.
-      await tapPlayer(tester, 'Sara Al Balushi');
-      expect(find.text('Swap positions'), findsOneWidget);
-      await tester.tap(find.text('Swap positions'));
-      await tester.pumpAndSettle();
-
-      Finder inDialog(String name) => find.descendant(
-            of: find.byType(SimpleDialog),
-            matching: find.text(name),
-          );
-
-      expect(find.text('Swap positions with'), findsOneWidget);
-      expect(inDialog('Noor Al Kindi'), findsOneWidget);
-      expect(inDialog('Ahmed Al Harthy'), findsNothing,
-          reason: 'the other side is the other swap');
-      expect(inDialog('Yousef Al Amri'), findsNothing);
-      expect(inDialog('Sara Al Balushi'), findsNothing);
-
-      await tester.tap(inDialog('Noor Al Kindi'));
-      await tester.pumpAndSettle();
-
-      final saved = teams.savedLineup!;
-      expect(teams.saveCount, 1, reason: 'one exchange, one write');
-      expect(teams.lastFromGeneration, isFalse);
-      expect(saved.singleWhere((a) => a.userId == 'u1').assignedPosition,
-          Position.mid);
-      expect(saved.singleWhere((a) => a.userId == 'u3').assignedPosition,
-          Position.gk);
-      expect(saved.singleWhere((a) => a.userId == 'u1').team, TeamId.a);
-      expect(saved.singleWhere((a) => a.userId == 'u3').team, TeamId.a);
-      expect(find.text('Lineup updated.'), findsOneWidget);
-    });
-
-    testWidgets('swap positions is not offered when there is nothing to swap',
-        (tester) async {
-      // Both players on A play midfield: exchanging them changes nothing.
-      await pumpTeams(
-        tester,
-        teams: FakeTeamAdapter(
-          lineup: [
+    group('drag to swap', () {
+      /// A, two midfielders; B, a defender and a forward.
+      List<TeamAssignment> twoMidfielders() => [
             assignment('u1', TeamId.a, Position.mid),
             assignment('u3', TeamId.a, Position.mid),
             assignment('u2', TeamId.b, Position.def),
             assignment('u4', TeamId.b, Position.fwd),
-          ],
-          roster: fourInputs(),
-        ),
-        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
-      );
-      await tester.pumpAndSettle();
+          ];
 
-      await tapPlayer(tester, 'Sara Al Balushi');
+      testWidgets('an organizer gets the hint and four draggable cards',
+          (tester) async {
+        await pumpTeams(
+          tester,
+          teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+          matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Drag a player onto another to swap'), findsOneWidget);
+        expect(
+            find.byType(LongPressDraggable<TeamAssignment>), findsNWidgets(4));
+      });
 
-      expect(find.text('Swap with a player'), findsOneWidget);
-      expect(find.text('Swap positions'), findsNothing);
+      testWidgets('a player can neither drag nor read the hint',
+          (tester) async {
+        await pumpTeams(
+          tester,
+          teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
+          matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+          role: CommunityRole.player,
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Drag a player onto another to swap'), findsNothing);
+        expect(find.byType(LongPressDraggable<TeamAssignment>), findsNothing);
+      });
+
+      testWidgets('a long press let go without moving opens the sheet',
+          (tester) async {
+        final teams =
+            FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+        await pumpTeams(
+          tester,
+          teams: teams,
+          matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+
+        final gesture = await tester
+            .startGesture(tester.getCenter(find.text('Sara Al Balushi')));
+        await tester.pump(const Duration(milliseconds: 700));
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Edit Sara Al Balushi'), findsOneWidget);
+        expect(teams.saveCount, 0);
+        expect(teams.lineOrderWrites, isEmpty);
+      });
+
+      testWidgets(
+          'across the teams at two positions: team and position, each in the '
+          'other\'s place', (tester) async {
+        final teams =
+            FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+        await pumpTeams(
+          tester,
+          teams: teams,
+          matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+
+        // Sara keeps goal for A, Ahmed defends for B.
+        await dragOnto(tester, 'Sara Al Balushi', 'Ahmed Al Harthy');
+
+        expect(find.byType(AlertDialog), findsNothing,
+            reason: 'a match still to come is not a correction');
+        final saved = teams.savedLineup!;
+        expect(teams.saveCount, 1);
+        expect(teams.lastCompletedCorrection, isFalse);
+        // Sara lands in the line she was dropped onto, and Ahmed in hers
+        // (DD-29), in one write.
+        final sara = saved.singleWhere((a) => a.userId == 'u1');
+        final ahmed = saved.singleWhere((a) => a.userId == 'u2');
+        expect((sara.team, sara.assignedPosition), (TeamId.b, Position.def));
+        expect((ahmed.team, ahmed.assignedPosition), (TeamId.a, Position.gk));
+        expect(
+          {
+            for (final (team, position, ids) in teams.lineOrderWrites)
+              (team, position): ids
+          },
+          {
+            (TeamId.b, Position.def): ['u1'],
+            (TeamId.a, Position.gk): ['u2'],
+          },
+        );
+        expect(find.text('Lineup updated.'), findsOneWidget);
+      });
+
+      testWidgets('same team, other position: a position swap, saved once',
+          (tester) async {
+        final teams =
+            FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+        await pumpTeams(
+          tester,
+          teams: teams,
+          matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+
+        // Sara keeps goal for A; Noor plays midfield for A.
+        final keeperRow = tester.getCenter(find.text('Sara Al Balushi')).dy;
+        final midfieldRow = tester.getCenter(find.text('Noor Al Kindi')).dy;
+        await dragOnto(tester, 'Sara Al Balushi', 'Noor Al Kindi');
+
+        // Drawn where they now stand, after the fresh read, and left there:
+        // nothing rebalances the rows (DD-29).
+        expect(tester.getCenter(find.text('Sara Al Balushi')).dy, midfieldRow);
+        expect(tester.getCenter(find.text('Noor Al Kindi')).dy, keeperRow);
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.getCenter(find.text('Sara Al Balushi')).dy, midfieldRow);
+
+        final saved = teams.savedLineup!;
+        expect(teams.saveCount, 1, reason: 'one exchange, one write');
+        expect(saved.singleWhere((a) => a.userId == 'u1').assignedPosition,
+            Position.mid);
+        expect(saved.singleWhere((a) => a.userId == 'u3').assignedPosition,
+            Position.gk);
+        expect(saved.singleWhere((a) => a.userId == 'u1').team, TeamId.a);
+      });
+
+      testWidgets('same line: a side swap writes only the order and redraws it',
+          (tester) async {
+        final teams =
+            FakeTeamAdapter(lineup: twoMidfielders(), roster: fourInputs());
+        await pumpTeams(
+          tester,
+          teams: teams,
+          matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+
+        double x(String name) => tester.getCenter(find.text(name)).dx;
+        final saraWasRightOfNoor = x('Sara Al Balushi') > x('Noor Al Kindi');
+
+        await dragOnto(tester, 'Sara Al Balushi', 'Noor Al Kindi');
+
+        expect(teams.saveCount, 0, reason: 'nobody changed team or position');
+        expect(teams.lineOrderWrites, hasLength(1));
+        final (team, position, ids) = teams.lineOrderWrites.single;
+        expect((team, position), (TeamId.a, Position.mid));
+        // Drawn by name before (Noor, Sara); exchanged now.
+        expect(ids, ['u1', 'u3']);
+        expect(x('Sara Al Balushi') > x('Noor Al Kindi'), !saraWasRightOfNoor,
+            reason: 'the two stand in each other\'s place');
+      });
+
+      testWidgets('a played match confirms a team swap before correcting it',
+          (tester) async {
+        final teams =
+            FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+        await pumpTeams(
+          tester,
+          teams: teams,
+          matches:
+              FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+
+        await dragOnto(tester, 'Sara Al Balushi', 'Ahmed Al Harthy');
+        expect(find.text('Swap in a finished match?'), findsOneWidget);
+        await tester.tap(find.text('Back'));
+        await tester.pumpAndSettle();
+        expect(teams.saveCount, 0, reason: 'declined, nothing written');
+
+        await dragOnto(tester, 'Sara Al Balushi', 'Ahmed Al Harthy');
+        await tester.tap(find.widgetWithText(FilledButton, 'Swap'));
+        await tester.pumpAndSettle();
+        expect(teams.saveCount, 1);
+        expect(teams.lastCompletedCorrection, isTrue);
+      });
+
+      testWidgets('a played match confirms a position swap too',
+          (tester) async {
+        final teams =
+            FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs());
+        await pumpTeams(
+          tester,
+          teams: teams,
+          matches:
+              FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+
+        await dragOnto(tester, 'Sara Al Balushi', 'Noor Al Kindi');
+        expect(find.text('Swap in a finished match?'), findsOneWidget);
+      });
+
+      testWidgets(
+          'a played match takes a side swap without asking or '
+          'correcting', (tester) async {
+        final teams =
+            FakeTeamAdapter(lineup: twoMidfielders(), roster: fourInputs());
+        await pumpTeams(
+          tester,
+          teams: teams,
+          matches:
+              FakeMatchAdapter(match: playedMatch, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+
+        await dragOnto(tester, 'Sara Al Balushi', 'Noor Al Kindi');
+
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(teams.saveCount, 0, reason: 'no correction, no recalculation');
+        expect(teams.lineOrderWrites, hasLength(1));
+      });
+
+      testWidgets('a refused order write after a swap is reported',
+          (tester) async {
+        final teams =
+            FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs())
+              ..lineOrderFailure = const ConflictFailure();
+        await pumpTeams(
+          tester,
+          teams: teams,
+          matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
+        );
+        await tester.pumpAndSettle();
+
+        await dragOnto(tester, 'Sara Al Balushi', 'Ahmed Al Harthy');
+
+        expect(teams.saveCount, 1, reason: 'the swap stands');
+        expect(find.text('Lineup updated.'), findsNothing);
+      });
     });
 
-    testWidgets('a player is not offered swap positions', (tester) async {
-      await pumpTeams(
-        tester,
-        teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
-        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
-        role: CommunityRole.player,
-      );
-      await tester.pumpAndSettle();
-
-      await tapPlayer(tester, 'Sara Al Balushi');
-
-      expect(find.text('Swap positions'), findsNothing);
-    });
-
-    testWidgets('the action reads in Arabic', (tester) async {
+    testWidgets('the sheet and the hint read in Arabic', (tester) async {
       await pumpTeams(
         tester,
         teams: FakeTeamAdapter(lineup: storedLineup(), roster: fourInputs()),
@@ -1136,9 +1292,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.text('اسحب اللاعب إلى لاعب آخر للتبديل'), findsOneWidget);
       await tapPlayer(tester, 'Sara Al Balushi');
 
-      expect(find.text('تبديل المراكز'), findsOneWidget);
+      expect(find.text('تغيير المركز'), findsOneWidget);
+      expect(find.text('تبديل المراكز'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -1297,31 +1455,6 @@ void main() {
       gate.complete();
       await tester.pumpAndSettle();
       expect(teams.saveCount, 1, reason: 'one edit, one write');
-    });
-
-    testWidgets('a match with one side empty says there is nobody to swap with',
-        (tester) async {
-      final teams = FakeTeamAdapter(
-        lineup: [
-          assignment('u1', TeamId.a, Position.gk),
-          assignment('u3', TeamId.a, Position.mid),
-        ],
-        roster: fourInputs(),
-      );
-      await pumpTeams(
-        tester,
-        teams: teams,
-        matches: FakeMatchAdapter(match: match, registrations: fourSeats()),
-      );
-      await tester.pumpAndSettle();
-
-      await tapPlayer(tester, 'Sara Al Balushi');
-      await tester.tap(find.text('Swap with a player'));
-      await tester.pumpAndSettle();
-
-      expect(
-          find.text('The other team has nobody to swap with.'), findsOneWidget);
-      expect(teams.savedLineup, isNull);
     });
 
     testWidgets('regenerating still replaces a manually edited lineup (§11)',
@@ -1782,7 +1915,6 @@ void main() {
 
       expect(find.text('تعديل Sara Al Balushi'), findsOneWidget);
       expect(find.text('نقل إلى الفريق الآخر'), findsOneWidget);
-      expect(find.text('تبديل مع لاعب'), findsOneWidget);
       expect(find.text('تغيير المركز'), findsOneWidget);
       expect(
           Directionality.of(tester.element(find.text('نقل إلى الفريق الآخر'))),
@@ -2031,7 +2163,6 @@ void main() {
 
       expect(find.text('Edit Faisal'), findsOneWidget);
       expect(find.text('Move to the other team'), findsOneWidget);
-      expect(find.text('Swap with a player'), findsOneWidget);
       expect(find.text('Change position'), findsOneWidget);
       expect(find.text('Remove guest'), findsOneWidget);
     });
@@ -2184,43 +2315,26 @@ void main() {
       expect(teams.lastFromGeneration, isFalse);
     });
 
-    testWidgets('the swap list offers guests as well as players',
+    testWidgets('a guest with no position is no drop on their own team',
         (tester) async {
       final teams = withTwoGuests();
       await pumpWithGuests(tester, teams);
 
-      await tapParticipant(tester, 'Faisal');
-      await tester.tap(find.text('Swap with a player'));
-      await tester.pumpAndSettle();
+      // Faisal (A, no position) onto Noor (A, midfield): no line, no position
+      // of his to exchange, so nothing happens.
+      await dragOnto(tester, 'Faisal', 'Noor Al Kindi');
 
-      Finder inDialog(String text) => find.descendant(
-            of: find.byType(SimpleDialog),
-            matching: find.text(text),
-          );
-
-      // Team B, whoever is on it: the two community players and the guest.
-      expect(inDialog('Ahmed Al Harthy'), findsOneWidget);
-      expect(inDialog('Yousef Al Amri'), findsOneWidget);
-      expect(inDialog('Khalid'), findsOneWidget,
-          reason: 'a guest is half of a swap like anybody else');
-      // The guest's row says what they are where a position would go, and does
-      // not crash on the null one.
-      expect(inDialog('Professional guest'), findsOneWidget);
+      expect(teams.saveCount, 0);
+      expect(teams.lineOrderWrites, isEmpty);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a guest swaps with a community player', (tester) async {
+    testWidgets('a guest dragged onto a community player swaps teams',
+        (tester) async {
       final teams = withTwoGuests();
       await pumpWithGuests(tester, teams);
 
-      await tapParticipant(tester, 'Faisal');
-      await tester.tap(find.text('Swap with a player'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(SimpleDialog),
-        matching: find.text('Ahmed Al Harthy'),
-      ));
-      await tester.pumpAndSettle();
+      await dragOnto(tester, 'Faisal', 'Ahmed Al Harthy');
 
       final guest =
           teams.savedLineup!.singleWhere((a) => a.professionalGuestId == 'g1');
@@ -2233,18 +2347,12 @@ void main() {
       expect(player.teamManuallyOverridden, isFalse);
     });
 
-    testWidgets('a guest swaps with another guest', (tester) async {
+    testWidgets('a guest dragged onto another guest swaps teams in one write',
+        (tester) async {
       final teams = withTwoGuests();
       await pumpWithGuests(tester, teams);
 
-      await tapParticipant(tester, 'Faisal');
-      await tester.tap(find.text('Swap with a player'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(SimpleDialog),
-        matching: find.text('Khalid'),
-      ));
-      await tester.pumpAndSettle();
+      await dragOnto(tester, 'Faisal', 'Khalid');
 
       final first =
           teams.savedLineup!.singleWhere((a) => a.professionalGuestId == 'g1');
@@ -2257,6 +2365,8 @@ void main() {
       // One write, not two: a swap saved in halves could show both on the same
       // side in between.
       expect(teams.saveCount, 1);
+      expect(teams.lineOrderWrites, isEmpty,
+          reason: 'neither guest stands in a line');
     });
 
     testWidgets('can be added from Teams through the roster', (tester) async {
@@ -2821,6 +2931,40 @@ class FakeTeamAdapter implements TeamAdapter {
   Position? addedPosition;
   String? removedUserId;
   Failure? participationFailure;
+
+  /// Every line order stored, in the order it was asked for.
+  final lineOrderWrites = <(TeamId, Position, List<String>)>[];
+
+  /// Refuses the line-order write, after whatever swap came before it.
+  Failure? lineOrderFailure;
+
+  /// Stores the order the way `set_match_lineup_line_order` does: the line's
+  /// rows take 1..n, every other row is left alone.
+  @override
+  Future<void> setLineOrder(
+    String matchId, {
+    required TeamId team,
+    required Position position,
+    required List<String> participantIds,
+  }) async {
+    if (lineOrderFailure != null) throw lineOrderFailure!;
+    lineOrderWrites.add((team, position, participantIds));
+    _lineup = [
+      for (final a in _lineup)
+        if (a.team == team && a.assignedPosition == position)
+          TeamAssignment(
+            userId: a.userId,
+            professionalGuestId: a.professionalGuestId,
+            team: a.team,
+            assignedPosition: a.assignedPosition,
+            basis: a.basis,
+            teamManuallyOverridden: a.teamManuallyOverridden,
+            lineOrder: participantIds.indexOf(a.participantId) + 1,
+          )
+        else
+          a,
+    ];
+  }
 
   @override
   Future<void> addPlayedPlayer(

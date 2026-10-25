@@ -126,6 +126,7 @@ PublicLineupEntry publicLineupEntryFromRow(
       goals: row['goals'] as int? ?? 0,
       isMvp: row['is_mvp'] as bool? ?? false,
       playerId: row['player_id'] as String?,
+      lineOrder: (row['line_order'] as num?)?.toInt(),
     );
 
 /// Reads the one row of `public_community_football_record` (migration `0093`).

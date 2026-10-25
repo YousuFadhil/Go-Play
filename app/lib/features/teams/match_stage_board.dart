@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
 import 'match_stage.dart';
+import 'pitch_drag.dart';
 import 'pitch_view.dart';
 import 'team_models.dart';
 
@@ -147,8 +148,11 @@ class MatchStageBoard extends StatelessWidget {
     this.goalsOf,
     this.isMvpOf,
     this.onTapPlayer,
+    this.canSwapPlayers,
+    this.onSwapPlayers,
     this.avatarUrlOf,
     this.ratingOf,
+    this.layout = PitchLayoutMode.matchFormation,
   });
 
   /// The stored lineup, both sides. Split by [team] below rather than taken as
@@ -198,6 +202,21 @@ class MatchStageBoard extends StatelessWidget {
   /// role, so it cannot be the thing that gets a role check wrong.
   final void Function(TeamAssignment assignment)? onTapPlayer;
 
+  /// Drag-to-swap across both halves, or null for a board nobody may edit.
+  /// Passed to each [PitchView] as it is; see there. Callbacks for the same
+  /// reason as [onTapPlayer].
+  final bool Function(TeamAssignment dragged, TeamAssignment target)?
+      canSwapPlayers;
+  final void Function(TeamAssignment dragged, TeamAssignment target)?
+      onSwapPlayers;
+
+  /// How each side's rows are decided, handed to both [PitchView]s.
+  ///
+  /// Every board in the app passes [PitchLayoutMode.exactAssignedPositions]
+  /// (DD-29). The default stays the balanced layout so a caller that names
+  /// none is not changed silently.
+  final PitchLayoutMode layout;
+
   bool get hasResult => teamAScore != null && teamBScore != null;
 
   /// The side that won, or null when the match was drawn or has no result.
@@ -210,7 +229,7 @@ class MatchStageBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Column(
+    final board = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // The one header, in both states. Before a result it is the community,
@@ -251,6 +270,9 @@ class MatchStageBoard extends StatelessWidget {
         ),
       ],
     );
+    // One drag state for both halves, so a card on the other team lights up
+    // too. Only where something can be dragged.
+    return onSwapPlayers == null ? board : PitchDragScope(child: board);
   }
 
   /// One side: a marked heading, and the pitch under it.
@@ -296,6 +318,12 @@ class MatchStageBoard extends StatelessWidget {
             team == TeamId.a ? 'team-a-pitch' : 'team-b-pitch',
           ),
           onTapPlayer: onTapPlayer,
+          canSwapPlayers: canSwapPlayers,
+          onSwapPlayers: onSwapPlayers,
+          layout: layout,
+          // Used by the exact layout only: the side order an organizer stored,
+          // then the name (0107).
+          order: lineOrderThenName(nameOf),
         ),
       ),
     );

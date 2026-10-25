@@ -101,6 +101,7 @@ class CompletedMatchPresentation {
         // field a position came from, which the public read does not say and
         // nothing on the pitch asks.
         basis: slot.isOutOfPosition ? AssignmentBasis.transition : null,
+        lineOrder: slot.lineOrder,
       ));
 
       names[participantId] =

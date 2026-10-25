@@ -903,6 +903,15 @@ class FakeTeamAdapter implements TeamAdapter {
   String? removedUserId;
 
   @override
+  Future<void> setLineOrder(
+    String matchId, {
+    required TeamId team,
+    required Position position,
+    required List<String> participantIds,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> addPlayedPlayer(
     String matchId,
     String userId, {

@@ -96,6 +96,7 @@ class TeamAssignment {
     this.userId,
     this.professionalGuestId,
     this.teamManuallyOverridden = false,
+    this.lineOrder,
   });
 
   /// The engine's output for one player, as a lineup that can be stored.
@@ -108,7 +109,8 @@ class TeamAssignment {
         team = assignment.team,
         assignedPosition = assignment.assignedPosition,
         basis = assignment.basis,
-        teamManuallyOverridden = false;
+        teamManuallyOverridden = false,
+        lineOrder = null;
 
   /// Null when this lineup row belongs to a Professional Guest.
   final String? userId;
@@ -185,6 +187,19 @@ class TeamAssignment {
   /// the new teams.
   final bool teamManuallyOverridden;
 
+  /// Where this participant stands inside their line -- the same team and
+  /// [assignedPosition] -- counted from 1, or null when no order was stored.
+  ///
+  /// Presentation only (migration `0107`): it decides who is drawn right,
+  /// centre and left, and nothing else reads it. Null is the ordinary case and
+  /// means "by name", which is how every lineup was drawn before an organizer
+  /// first swapped two players; [lineOrderThenName] is the one rule.
+  ///
+  /// The database clears it whenever the team or the position changes, so the
+  /// two copies below drop it too: a participant who moved has no place in
+  /// their new line until somebody gives them one.
+  final int? lineOrder;
+
   /// The same participant, on the other side.
   ///
   /// The whole of a move: `KB-D6` says the two labels distinguish the sides and
@@ -213,7 +228,7 @@ class TeamAssignment {
   /// The same participant with a different [assignedPosition].
   ///
   /// Identity-preserving for the same reason as [movedToOtherTeam], and the
-  /// side is what stays put here.
+  /// side is what stays put here. Like a move, it leaves [lineOrder] behind.
   TeamAssignment withPosition(Position position, AssignmentBasis? basis) =>
       TeamAssignment(
         userId: userId,
@@ -224,6 +239,29 @@ class TeamAssignment {
         teamManuallyOverridden: teamManuallyOverridden,
       );
 }
+
+/// The order inside one line of a match pitch: the stored
+/// [TeamAssignment.lineOrder] first, anybody without one after them, and the
+/// name as the tie-break.
+///
+/// One rule for every match pitch (the Teams screen, the public match page, the
+/// completed match and the share cards) and for the Teams screen when it works
+/// out the order it is about to store, so what is written is what was drawn.
+/// A line nobody has reordered is all nulls and reads by name, exactly as
+/// before migration `0107`.
+Comparator<TeamAssignment> lineOrderThenName(
+  String Function(String participantId) nameOf,
+) =>
+    (a, b) {
+      final first = a.lineOrder;
+      final second = b.lineOrder;
+      if (first != null && second != null && first != second) {
+        return first.compareTo(second);
+      }
+      if (first != null && second == null) return -1;
+      if (first == null && second != null) return 1;
+      return nameOf(a.participantId).compareTo(nameOf(b.participantId));
+    };
 
 /// The engine's input contract (§4), assembled from what the schema holds.
 ///

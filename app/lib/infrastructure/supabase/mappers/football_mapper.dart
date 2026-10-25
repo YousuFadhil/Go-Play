@@ -130,6 +130,7 @@ LineupSlot lineupSlotFromRow(
       goals: row['goals'] as int? ?? 0,
       isMvp: row['is_mvp'] as bool? ?? false,
       isOutOfPosition: row['is_out_of_position'] as bool? ?? false,
+      lineOrder: (row['line_order'] as num?)?.toInt(),
     );
 
 /// Reads one row of `v_football_community_stats`.

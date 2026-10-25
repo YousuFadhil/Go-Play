@@ -4,6 +4,7 @@ import '../../core/failures.dart';
 import '../../infrastructure/supabase/supabase_team_adapter.dart';
 import '../matches/match_models.dart';
 import 'generation_evidence.dart';
+import 'lineup_swap.dart';
 import 'team_adapter.dart';
 import 'team_models.dart';
 
@@ -449,6 +450,112 @@ class TeamRepository {
         _basisIn(roster, second.userId, firstPosition, second.basis),
       ),
     }, completedCorrection: completedCorrection);
+  }
+
+  /// Drops [draggedId] onto [targetId] on the pitch: the two take each other's
+  /// exact place.
+  ///
+  /// [resolvePitchSwap] decides which operation that is, each written with its
+  /// [completedCorrection] as the screen states it:
+  ///
+  ///  * two positions on one team: [swapAssignedPositions];
+  ///  * across the teams at one position, or where either has no position:
+  ///    [swapPlayers];
+  ///  * across the teams at two different positions: team **and** position
+  ///    are exchanged in one lineup write (DD-29), so each lands in the line
+  ///    they were dropped onto -- one recalculation on a played match, not two,
+  ///    and no stored lineup with half of it done. Only when both have a
+  ///    position: a registered player can never be left without one.
+  ///
+  /// A side swap is none of these -- two players of one line exchange places --
+  /// and writes nothing but that line's order, so it never recalculates a
+  /// played match.
+  ///
+  /// Afterwards the line(s) the two arrived in are stored in full
+  /// ([lineOrdersAfterSwap]), so each stands where the other stood rather than
+  /// where the name would put them. [order] is the drawing's own rule
+  /// ([lineOrderThenName] with the screen's names): a line nobody has ordered
+  /// yet is materialised exactly as it was drawn.
+  ///
+  /// The order is written after the swap, not with it. If that write is
+  /// refused, the swap stands, the line falls back to the name, and the
+  /// failure reaches the caller like any other.
+  ///
+  /// Throws [ValidationFailure] when either participant is absent from the
+  /// stored lineup or the drop is not a valid one.
+  Future<void> swapOnPitch(
+    String matchId,
+    String draggedId,
+    String targetId, {
+    required Comparator<TeamAssignment> order,
+    required bool completedCorrection,
+  }) async {
+    final before = await _adapter.fetchLineup(matchId);
+    final dragged = _find(before, draggedId);
+    final target = _find(before, targetId);
+    final kind = resolvePitchSwap(dragged, target);
+    if (kind == null) throw const ValidationFailure();
+
+    switch (kind) {
+      case PitchSwapKind.sideSwap:
+        break;
+      case PitchSwapKind.positionSwap:
+        await swapAssignedPositions(
+          matchId,
+          draggedId,
+          targetId,
+          completedCorrection: completedCorrection,
+        );
+      case PitchSwapKind.teamSwap:
+        final from = dragged.assignedPosition;
+        final to = target.assignedPosition;
+        if (from != null && to != null && from != to) {
+          final roster = await _adapter.fetchConfirmedPlayerInputs(matchId);
+          final moved = dragged.movedToOtherTeam(manualOverride: true);
+          final other = target.movedToOtherTeam(manualOverride: true);
+          await _replace(
+            matchId,
+            before,
+            {
+              draggedId: moved.withPosition(
+                to,
+                _basisIn(roster, dragged.userId, to, dragged.basis),
+              ),
+              targetId: other.withPosition(
+                from,
+                _basisIn(roster, target.userId, from, target.basis),
+              ),
+            },
+            completedCorrection: completedCorrection,
+          );
+        } else {
+          await swapPlayers(
+            matchId,
+            draggedId,
+            targetId,
+            completedCorrection: completedCorrection,
+          );
+        }
+    }
+
+    final after = kind == PitchSwapKind.sideSwap
+        ? before
+        : await _adapter.fetchLineup(matchId);
+    final lines = lineOrdersAfterSwap(
+      before: before,
+      after: after,
+      firstId: draggedId,
+      secondId: targetId,
+      order: order,
+    );
+    for (final MapEntry(key: line, value: ids) in lines.entries) {
+      await _adapter.setLineOrder(
+        matchId,
+        team: line.team,
+        position: line.position,
+        participantIds: ids,
+      );
+    }
   }
 
   /// Gives [userId] the assigned position [position] in this match's lineup.

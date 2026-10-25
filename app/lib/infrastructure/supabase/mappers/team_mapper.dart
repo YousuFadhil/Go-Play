@@ -113,6 +113,9 @@ TeamAssignment teamAssignmentFromRow(Map<String, dynamic> row) {
     // is what such a row means: nobody had chosen a side by hand yet.
     teamManuallyOverridden:
         row['team_manually_overridden'] as bool? ?? false,
+    // Null when no order was stored (migration `0107`), and absent on a row
+    // read before it: both mean "by name".
+    lineOrder: (row['line_order'] as num?)?.toInt(),
   );
 }
 

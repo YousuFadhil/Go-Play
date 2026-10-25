@@ -8,6 +8,7 @@ import 'current_user.dart';
 import 'player_identity.dart';
 import 'player_record_models.dart';
 import 'profile_record_sections.dart';
+import '../../core/rating_format.dart';
 
 /// Everything the Player Profile card draws, resolved before it is drawn.
 ///
@@ -457,7 +458,7 @@ class _Figures extends StatelessWidget {
                 // what every other surface shows. The disc is the profile
                 // screen's own: the rating is the one figure that is a score
                 // rather than a count.
-                value: data.rating.toStringAsFixed(1),
+                value: formatPlayerRating(data.rating),
                 label: l10n.statCurrentRating,
                 disc: true,
               ),
