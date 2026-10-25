@@ -7,6 +7,7 @@ import '../../core/states.dart';
 import '../../core/tokens.dart';
 import 'admin_detail_row.dart';
 import 'admin_models.dart';
+import '../../core/rating_format.dart';
 
 /// The words for the codes the preflight previews send (migration `0096`).
 ///
@@ -562,7 +563,7 @@ class AdminPreviewAccountCard extends StatelessWidget {
           if (account.rating != null)
             AdminDetailRow(
               label: l10n.adminPreviewRating,
-              value: account.rating!.toStringAsFixed(1),
+              value: formatPlayerRating(account.rating!),
             ),
         ]),
       ],

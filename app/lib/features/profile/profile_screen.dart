@@ -31,6 +31,7 @@ import 'player_record_repository.dart';
 import 'profile_models.dart';
 import 'profile_record_sections.dart';
 import 'profile_repository.dart';
+import '../../core/rating_format.dart';
 
 /// Who a player is, as a footballer.
 ///
@@ -919,7 +920,7 @@ class _CareerGrid extends StatelessWidget {
               _Cell(
                 // One decimal place, which is `OP-1`'s presentation rule and
                 // what every other surface shows.
-                value: statistics.currentRating.toStringAsFixed(1),
+                value: formatPlayerRating(statistics.currentRating),
                 label: l10n.statCurrentRating,
                 emphasised: true,
               ),
