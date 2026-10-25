@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInput;
 
 import '../../core/design.dart';
 import '../../core/failures.dart';
@@ -77,6 +78,11 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+      // Commits the credentials to the platform/browser's save-password
+      // prompt now that sign-in succeeded. A no-op where there is no such
+      // prompt (most native platforms); on web this is what makes Chrome/
+      // Edge/Safari offer to remember the email and password just typed.
+      TextInput.finishAutofillContext();
       // AuthGate reacts to the auth state change. The pop matters only when
       // this screen was pushed on top of something — signing in from an
       // invitation — where it has to get out of the way again.
@@ -169,7 +175,8 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.sm, Gap.xl, Gap.xl),
           child: Form(
             key: _formKey,
-            child: Column(
+            child: AutofillGroup(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -207,6 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textDirection: TextDirection.ltr,
+                  autofillHints: const [AutofillHints.email],
                   decoration: InputDecoration(
                     labelText: l10n.emailLabel,
                   ),
@@ -224,6 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
+                  autofillHints: const [AutofillHints.password],
                   decoration: InputDecoration(
                     labelText: l10n.passwordLabel,
                   ),
@@ -281,6 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Text(l10n.noAccountPrompt),
                 ),
               ],
+              ),
             ),
           ),
         ),
