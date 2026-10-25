@@ -1,6 +1,6 @@
 # Global Rating History (`rating_history`) — Table Engineering Specification
 
-> **0108 amendment — review only, not deployed (2026-10-23).** Global Rating v1
+> **0108 amendment — live since 2026-10-25 (activation run).** Global Rating v1
 > records one weighted match movement (WIN/DRAW/LOSS), with nullable columns
 > `engine_version text`, `match_score numeric`, `played_at timestamptz`, and
 > `raw_rating_after numeric`. Weighted originals require all four fields and
