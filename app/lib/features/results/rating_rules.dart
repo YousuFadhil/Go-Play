@@ -1,3 +1,5 @@
+// Legacy additive engine mirror (0078), retained for historical/rollback tests.
+// Global Rating after migration 0108 uses weighted_rating.dart and SQL replay.
 import 'dart:math' as math;
 
 import 'package:btge/btge.dart';

@@ -6,6 +6,7 @@ import '../sharing/share_poster.dart';
 import '../profile/player_identity.dart';
 import 'statistics_period.dart';
 import 'statistics_period_selector.dart';
+import '../../core/rating_format.dart';
 
 /// Everything the Player Statistics card draws, resolved before it is drawn.
 ///
@@ -292,7 +293,7 @@ class _Rating extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            rating.toStringAsFixed(1),
+            formatPlayerRating(rating),
             style: const TextStyle(
               color: ShareCardPalette.paperInk,
               fontSize: 160,

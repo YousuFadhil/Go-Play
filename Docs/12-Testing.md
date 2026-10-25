@@ -174,3 +174,18 @@ node --test tests/pages/match-preview.test.mjs
 
 `.github/workflows/docs-sync.yml` runs the first and third on every pull request
 that touches the migrations, the functions or the documents.
+
+## Weighted Global Rating SQL tests
+
+`tests/rating` runs the actual SQL rating/result functions in isolated PGlite
+PostgreSQL, using synthetic fixtures and no production credentials. Run `npm ci`
+and `npm test` in that directory. The fixture simplifies Auth/statistics and does
+not prove full Supabase RLS or concurrent multi-connection behaviour. See
+[the review and release gate](engineering/Weighted_Rating_v1_Review.md).
+
+After migration 0108 and its separate activation script
+(`supabase/activation/`), run `test/integration/result_test.dart` separately on an
+isolated project with clean fixture accounts. Its first-match expectations now
+use the weighted mean. Legacy Dart arithmetic tests still pin 0078 for rollback;
+they are not the new engine's implementation. Never point the mutation-based
+integration suite at the shared production database as part of this review.

@@ -16,6 +16,7 @@ import 'statistics_models.dart';
 import 'statistics_period.dart';
 import 'statistics_period_selector.dart';
 import 'statistics_repository.dart';
+import '../../core/rating_format.dart';
 
 /// A player's record: their Global Rating and their six counters, across every
 /// community they play in, over the period the reader picked.
@@ -425,7 +426,7 @@ class RatingHeadline extends StatelessWidget {
                 size: 32, color: theme.colorScheme.primary),
             const SizedBox(height: 8),
             Text(
-              rating.toStringAsFixed(1),
+              formatPlayerRating(rating),
               style: theme.textTheme.displaySmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
